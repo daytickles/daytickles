@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "DayTickles",
+    "slug": "daytickles",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "daytickles",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.daytickles.daytickles"
+    },
+    "plugins": [
+      "expo-web-browser",
+      "expo-router"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "585d9409-ca0f-44f7-a369-c34afc45c053"
+      }
+    }
+  }
+}
