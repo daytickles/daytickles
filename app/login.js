@@ -1,13 +1,24 @@
-import React, { useState } from 'react';
-import { View, Button, Text, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
+import { C } from '../lib/theme';
+import Button from '../components/Button';
 
 WebBrowser.maybeCompleteAuthSession();
 
 export default function Login() {
   const [status, setStatus] = useState('');
+  const { session, profile } = useAuth();
+
+  useEffect(() => {
+    if (session && profile) {
+      router.replace(profile.onboarded ? '/home' : '/onboarding');
+    }
+  }, [session, profile]);
 
   async function signInWithGoogle() {
     try {
@@ -21,26 +32,7 @@ export default function Login() {
 
       if (error) throw error;
 
-      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
-
-      if (result.type === 'success' && result.url) {
-        const params = new URLSearchParams(result.url.split('#')[1]);
-        const access_token = params.get('access_token');
-        const refresh_token = params.get('refresh_token');
-
-        if (access_token && refresh_token) {
-          const { error: sessionError } = await supabase.auth.setSession({
-            access_token,
-            refresh_token,
-          });
-          if (sessionError) throw sessionError;
-          setStatus('Signed in!');
-        } else {
-          setStatus('No tokens found in redirect URL.');
-        }
-      } else {
-        setStatus(`Browser closed: ${result.type}`);
-      }
+      await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
     } catch (err) {
       console.error(err);
       setStatus(`Error: ${err.message}`);
@@ -49,13 +41,13 @@ export default function Login() {
 
   return (
     <View style={styles.container}>
-      <Button title="Sign in with Google" onPress={signInWithGoogle} />
+      <Button title="Sign in with Google" onPress={signInWithGoogle} variant="primary" />
       <Text style={styles.status}>{status}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
-  status: { marginTop: 20, color: 'gray' },
+  container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20, backgroundColor: C.bg },
+  status: { marginTop: 20, color: C.subtext },
 });
