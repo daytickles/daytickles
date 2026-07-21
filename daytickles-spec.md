@@ -13,11 +13,11 @@ A daily journaling app: users record the one thing that made them smile today, a
 
 ## Data model
 
-**users** — id, username, display_name, avatar_url, smile_streak, locale, country (nullable), trial_started_at, subscription_plan (none/monthly/annual/lifetime), subscription_expires_at (null for lifetime), created_at
+**users** — id, username, display_name, avatar_url, smile_streak, locale, country (nullable), trial_started_at, subscription_plan (none/monthly/annual/lifetime), subscription_expires_at (null for lifetime), share_period_start, share_count_this_period, founding_post_days (distinct dates), founding_share_days (distinct dates), founding_member_badge (bool), founding_reward_granted_at (nullable), created_at
 
-**app_config** — id, active_seasonal_palette, palette_start_date, palette_end_date (global, not per-user — one row read by all clients on both DayTickles.app and DayTickles.com)
+**app_config** — id, active_seasonal_palette, palette_start_date, palette_end_date, founding_member_promo_active (bool), founding_members_awarded_count (global, not per-user — one row read by all clients on both DayTickles.app and DayTickles.com)
 
-**tickle_entries** — id, user_id (FK), entry_date, text_content, media_url, animation_template_id (FK), mood_emoji, visibility (private/public), like_count (cached), created_at
+**tickle_entries** — id, user_id (FK), entry_date, text_content, media_url, animation_template_id (FK), mood, visibility (private/public), like_count (cached), created_at
 
 **animation_templates** — id, name, style, lottie_url
 
@@ -30,6 +30,10 @@ A daily journaling app: users record the one thing that made them smile today, a
 **follows** — id, follower_id (FK), followee_id (FK), created_at
 
 **tickle_shares** — id, entry_id (FK), created_by (FK), share_token (unique), created_at
+
+**reports** — id, entry_id (FK), reported_by (FK), reason (spam/harassment/inappropriate/other), status (pending/reviewed/actioned), created_at
+
+**favorites** — id, user_id (FK), entry_id (FK), created_at
 
 ### Key relationships
 - A `like` insert triggers a `notification` row in the same transaction — no polling, no external webhooks.
@@ -46,7 +50,11 @@ A daily journaling app: users record the one thing that made them smile today, a
 - `like_count` on `tickle_entries` is a cached counter, incremented/decremented alongside each `likes` insert/delete in the same transaction — avoids a live count query every time the archive or feed loads.
 - The archive's top slot is a query, not a stored flag: whichever entry has the highest `like_count` among entries from the last 14 days is pinned above the normal chronological list. Recalculated on each load rather than stored, so it shifts automatically as likes come in and ages out cleanly after 14 days with no manual unpinning step needed.
 - `tickle_shares` is separate from `visibility` on purpose: sharing a tickle one-to-one with a friend is a different action from posting it to the public feed, so a private entry can still be shared via a link without becoming public. Each share generates a unique `share_token` used in an unlisted link (e.g. `daytickles.app/t/<token>`) that opens a simple read-only web preview of that single entry — no login required, no app-install wall in front of the content. This is a share, not an invite: there's no "join DayTickles" pressure baked into the flow, just a small, secondary mention of the app once they're already looking at the tickle.
-- `follows` powers a feather badge next to a followed user's name, and splits the feed into two tabs — **Following** and **Everyone** — rather than blending both into one ranked feed. Following someone doesn't require them to follow back; it's one-directional, same as the like/notification pattern.
+- `follows` powers a feather badge next to a followed user's name, and splits the feed into tabs — **Everyone**, **Following**, **Mine**, and **Fav's** — rather than blending everything into one ranked feed. Following someone doesn't require them to follow back; it's one-directional, same as the like/notification pattern.
+- `favorites` is a private, personal save list — distinct from `likes`. Liking is public/social (visible count, notifies the entry owner); favoriting is just for yourself (no notification, no visible count to anyone else), works on your own entries and other people's alike, and shows up in the feed's **Fav's** tab. Represented with a star icon rather than the sparkle used for likes, to keep the two concepts visually distinct.
+- Reporting an entry immediately hides it from that person's own feed (client-side) and inserts a `reports` row with `status: pending` for moderator review — the reporter doesn't need to wait on a review to stop seeing the content. Report reasons are deliberately short and closed-ended (spam / harassment / inappropriate / other) rather than free text, to keep the flow to one tap.
+- Sharing (native share sheet, one-to-one) uses a **declining monthly soft cap** rather than a flat number or a hard block: 20 free shares in the first 30 days, 15 in the next 30, 10 from then on (the floor) — unlimited on any paid plan. Generous early (when a new user's friends are also seeing the app for the first time, the highest-value moment for organic reach), tapering to a stable floor that still allows ongoing organic sharing. Tracked via `sharePeriodStart` + `shareCountThisPeriod` on the user, resetting every 30 days.
+- Tapping an entry on Home opens it in the feed's Mine tab, scrolled to and highlighted — not just a generic "go to Mine" jump. Uses an estimated per-card height rather than precise on-screen measurement, since exact layout measurement isn't needed for a good-enough jump-to experience here.
 
 ### Palette rotation
 - **70s retro** (permanent default) — warm cream, rust/mustard/coral palette
@@ -55,17 +63,18 @@ A daily journaling app: users record the one thing that made them smile today, a
 
 ## Screens (mocked up)
 
-1. **Home / archive** — smile streak, total tickles + new likes stat cards, most-liked entry from the last 14 days pinned at top, scrollable list of past entries each showing a like-count pill and a share action
-2. **Community feed** — two tabs, Following and Everyone; followed users show a feather badge next to their name; each entry likeable
-3. **Entry creation** — text prompt, animation style picker, mood selector, share-to-feed toggle
+0. **Onboarding** — sign-up, username picker (mockups only so far), plus a first-run "pick your colors" step that's actually wired into the app (gated on `profile.colorSetupDone`)
+1. **Home / journal** — smile streak, total tickles + new likes stat cards, most-liked entry from the last 14 days pinned at top, scrollable list of past entries each showing a like-count pill and a share action; tapping an entry opens it in the feed's Mine tab, since text can be too long to read fully on Home
+2. **Community feed** — four tabs: Everyone, Following (feather badge on followed users), Mine, and Fav's; each entry likeable, favoritable (star), shareable (own posts only), and reportable (everyone else's)
+3. **Entry creation** — text prompt, 4-level smile-intensity mood picker that drives the animation's color/motion directly (no separate style picker), share-to-feed toggle
 4. **Entry detail** — full entry view, like count, list of who liked it (with country flag), on-demand translate popup, "send to a friend" share action
 5. **Notifications** — chronological list of likes and streak milestones, tied back to specific entries
-6. **Settings** — language picker, optional country field (with short explainer text), daily reminder toggle, notify-on-likes toggle, public profile toggle
-7. **Upgrade / paywall** — shown when the trial ends; lifetime/annual/monthly plans, with a clear "keep my archive, skip the feed" opt-out that never blocks personal use
+6. **Settings** — username & display name, accent-color picker (changeable anytime), language picker, optional country field (with short explainer text), daily reminder toggle, notify-on-likes toggle
+7. **Upgrade / paywall** — shown when the trial ends; ad-free messaging given top billing right under the heading, journal-stays-free messaging just below it; lifetime/annual/monthly plans; a clear "keep my journal, skip the feed" opt-out that never blocks personal use
 
 ## Design direction
 
-70s retro-inspired: warm cream background, rust/mustard/coral/avocado palette, heavily rounded shapes, serif display type for headlines, sunburst/circle motifs standing in for the entry's animation.
+70s retro-inspired: warm cream background, rust/mustard/coral/avocado palette, heavily rounded shapes, serif display type for headlines, sunburst/circle motifs standing in for the entry's animation. A soft, personal accent color (five curated options, see Palette rotation) sits on top of this base and drives the mood-animation ramp and card backgrounds — same layout for everyone, personal warmth per person. A very low-opacity tiled speech-bubble pattern sits behind all screens for a touch of texture. In-app modals (share caption picker, report flow) are custom-styled to match the app rather than using the OS's default alert dialogs.
 
 ## Monetization
 
@@ -78,7 +87,42 @@ A daily journaling app: users record the one thing that made them smile today, a
 
 **On downgrade** (trial ends, no paid plan): the user keeps their full personal archive and any feed entries/likes they already earned stay visible to others — they just can't post to or browse the feed further until they subscribe. Nothing about their past is hidden or deleted.
 
+## Founding Member program
+
+A launch-window growth incentive: the first 25 people who demonstrate genuine, sustained engagement (not a one-time burst) earn 3 months of any paid plan free, plus a permanent "Founding Member" badge next to their name in the feed.
+
+**Eligibility (all conditions must be met within 14 days of signup):**
+- Posted at least 1 entry to the feed on **1 or more distinct calendar days**
+- Completed at least 1 share on **5 or more distinct calendar days**
+- Among the first 25 accounts globally to satisfy both of the above
+
+**Why "distinct days" rather than a raw count:** this is the anti-gaming rule. A raw count ("5 shares") is trivially gamed by firing off 5 shares in one sitting, which proves nothing about real engagement. Requiring the activity to be spread across 5 *different* days is a much stronger signal of a real, sustained habit, and there's no config to bypass — the app quietly tracks unique days, capped at counting once per day no matter how much someone does that day.
+
+**Reward:** 3 months of any paid plan, granted automatically the moment both thresholds are met (not lifetime — see the "why not lifetime" note below). The Founding Member badge itself never expires, even after the 3 months end and the person reverts to trial-ended/subscribe status if they don't convert.
+
+**Admin control:** the whole program is a single on/off switch (`app_config.founding_member_promo_active`, same pattern as the seasonal palette override) — no separate cap-editing needed. Turn it off once uptake data suggests it's no longer needed, or once 25 people have qualified, whichever comes first. People who already qualified keep their reward regardless of when the switch flips off.
+
+**Why 3 months, not lifetime:** lifetime is priced specifically so it doesn't cannibalize the business (see Pricing above) — giving it away to your *most* engaged users, who are also your best future long-term customers, trades away the highest-value segment for free. 3 months is generous enough to feel like a real reward and "phase in" new users, while leaving the door open to actually convert them into paying subscribers once the free period ends — including people who signed up earlier and are still on the fence.
+
+**Known limitation — the "first 25 globally" part isn't real yet.** This whole program assumes a live backend that can atomically count qualifying users across every device, in order. This prototype has no backend at all (`AsyncStorage` is local to one device) — so there is no way to actually know "am I the 3rd person to qualify, or the 30th?" without one. The prototype tracks each person's *own* progress toward the two thresholds accurately, and simulates the global on/off switch as a manual toggle for demo purposes, but doesn't and can't enforce the actual "first 25" ordering until a real backend exists. Worth treating the counting/ordering piece as a required v1-launch item, not a nice-to-have — the whole scarcity mechanic depends on it being real.
+
+**A second known gap — "different recipients" for shares isn't measurable.** The original idea of requiring shares to go to different *people* (rather than just different days) can't be verified with how sharing currently works: native share sheets don't tell the app who received the message, only whether the share sheet was completed. Building real recipient-tracking would mean replacing native sharing with app-generated referral links tied to actual signups — a much bigger feature (deep linking, backend attribution) than this program needs to justify on its own. The distinct-days proxy above is the practical stand-in.
+
+## Community guidelines (draft)
+
+Kept short and in the app's own voice rather than legal boilerplate — long enough to set real expectations, short enough that someone would actually read it before their first share.
+
+1. **Be kind.** This is a place for what made you smile — not a place to put anyone down, including yourself.
+2. **No harassment, hate, or bullying.** Directed at another person, a group, or yourself.
+3. **No spam.** Repeated posts, ads, or link-dropping that aren't a genuine tickle.
+4. **Keep it appropriate.** Nothing explicit, violent, or that wouldn't be fine for a stranger of any age to read.
+5. **Respect privacy.** Don't share identifying details, photos, or stories about other people without their OK.
+6. **Reporting is welcome, not punished.** If something feels off, report it — it's one tap, it's private, and it immediately stops showing up for you.
+
+Enforcement isn't designed yet (this needs a real moderation queue behind `reports.status`, plus a decision on consequences — hide entry, warn user, suspend feed access, etc.) — worth scoping properly before the feed has real user-generated content at any scale, not just demo posts.
+
 ## Open questions for v2
+
 - Comments: enable on entries, or keep the feed like-only to keep it low-pressure?
 - External social cross-posting (Instagram/TikTok) — bigger lift due to API approval processes, best deferred past MVP
 - Promotional use of user tickles (e.g. featuring one in marketing) — considered and set aside for now; would need real per-entry, revocable, previewed consent to be worth revisiting
