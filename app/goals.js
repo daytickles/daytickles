@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   View, Text, TextInput, Button, FlatList, TouchableOpacity, StyleSheet, Alert,
 } from 'react-native';
@@ -36,6 +36,18 @@ export default function Goals() {
       loadGoals();
     }, [loadGoals])
   );
+
+  const usedColors = useMemo(() => new Set(goals.map((g) => g.color)), [goals]);
+
+  // Keep the pending new-goal color off of whatever's already taken —
+  // existing goals' colors are never touched, only the not-yet-saved
+  // selection for the next one.
+  useEffect(() => {
+    if (usedColors.has(color)) {
+      const nextAvailable = GOAL_COLORS.find((c) => !usedColors.has(c));
+      if (nextAvailable) setColor(nextAvailable);
+    }
+  }, [usedColors]);
 
   async function handleAdd() {
     if (!label.trim()) {
@@ -123,17 +135,22 @@ export default function Goals() {
           />
 
           <View style={styles.paletteRow}>
-            {GOAL_COLORS.map((c) => (
-              <TouchableOpacity
-                key={c}
-                onPress={() => setColor(c)}
-                style={[
-                  styles.swatch,
-                  { backgroundColor: c },
-                  color === c && styles.swatchSelected,
-                ]}
-              />
-            ))}
+            {GOAL_COLORS.map((c) => {
+              const isUsed = usedColors.has(c);
+              return (
+                <TouchableOpacity
+                  key={c}
+                  onPress={() => setColor(c)}
+                  disabled={isUsed}
+                  style={[
+                    styles.swatch,
+                    { backgroundColor: c },
+                    color === c && styles.swatchSelected,
+                    isUsed && styles.swatchDisabled,
+                  ]}
+                />
+              );
+            })}
           </View>
 
           <Button
@@ -177,5 +194,6 @@ const styles = StyleSheet.create({
     borderWidth: 3, borderColor: 'transparent',
   },
   swatchSelected: { borderColor: C.rustDark },
+  swatchDisabled: { opacity: 0.25 },
   status: { marginTop: 12, color: C.rust, textAlign: 'center' },
 });
