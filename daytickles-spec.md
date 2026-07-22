@@ -65,7 +65,7 @@ A daily journaling app: users record the one thing that made them smile today, a
 
 0. **Onboarding** — sign-up, username picker (mockups only so far), plus a first-run "pick your colors" step that's actually wired into the app (gated on `profile.colorSetupDone`)
 1. **Home / journal** — smile streak, total tickles + new likes stat cards, most-liked entry from the last 14 days pinned at top, scrollable list of past entries each showing a like-count pill and a share action; tapping an entry opens it in the feed's Mine tab, since text can be too long to read fully on Home
-2. **Community feed** — four tabs: Everyone, Following (feather badge on followed users), Mine, and Fav's; each entry likeable, favoritable (star), shareable (own posts only), and reportable (everyone else's)
+2. **Community feed** — four tabs: Everyone, Following (feather badge on followed users), Mine, and Fav's; each entry likeable, favoritable (star), shareable (own posts only), and reportable (everyone else's). Mine shows all of the person's own entries, public and private — unlike Everyone, it isn't visibility-filtered, since it exists partly to let someone read their own entries in full when Home's truncated view isn't enough.
 3. **Entry creation** — text prompt, 4-level smile-intensity mood picker that drives the animation's color/motion directly (no separate style picker), share-to-feed toggle
 4. **Entry detail** — full entry view, like count, list of who liked it (with country flag), on-demand translate popup, "send to a friend" share action
 5. **Notifications** — chronological list of likes and streak milestones, tied back to specific entries
