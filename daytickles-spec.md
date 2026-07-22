@@ -4,7 +4,7 @@ A daily journaling app: users record the one thing that made them smile today, a
 
 ## Concept
 
-- One entry per user per day: text + mood + animation style
+- Unlimited entries per user per day: text + mood. Originally capped at one entry per day; deliberately reversed since a hard daily limit could work against people using the app around anxiety/stress/outlook — someone having a hard day who notices several good things shouldn't be blocked from logging all of them. The smile-streak calculation is unaffected by this change, since it only checks whether at least one entry exists on a given day, never how many.
 - Personal archive: scrollable timeline of past entries
 - Optional in-app community feed: entries marked public appear for other users to like
 - Likes ping back to the entry owner as a notification, and surface as a counter right on the entry
