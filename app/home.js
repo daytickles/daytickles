@@ -168,12 +168,20 @@ export default function Home() {
         <View>
           <View style={styles.headerRow}>
             <Text style={styles.title}>Welcome to DayTickles</Text>
-            <TouchableOpacity
-              onPress={() => router.push('/settings')}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Text style={styles.settingsLink}>⚙</Text>
-            </TouchableOpacity>
+            <View style={styles.headerActions}>
+              <TouchableOpacity
+                onPress={() => router.push('/feed')}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Text style={styles.feedLink}>Feed</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => router.push('/settings')}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Text style={styles.settingsLink}>⚙</Text>
+              </TouchableOpacity>
+            </View>
           </View>
           {profile && <Text style={styles.profileText}>{profile.avatar_emoji} {profile.username}</Text>}
 
@@ -303,6 +311,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6,
   },
   title: { fontSize: 20, fontWeight: 'bold', color: C.rustDark },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  feedLink: { fontSize: 14, fontWeight: '600', color: C.rust },
   settingsLink: { fontSize: 22, color: C.subtext },
   profileText: { marginBottom: 16, fontSize: 16, color: C.text },
 
