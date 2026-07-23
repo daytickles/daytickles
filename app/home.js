@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { C, accentFor, moodColorFor } from '../lib/theme';
+import { C, accentFor, moodColorFor, textOn } from '../lib/theme';
 import { shareEntry, shareStatus, SHARE_CAPTIONS } from '../lib/sharing';
 import Button from '../components/Button';
 import HomeGuide from '../components/HomeGuide';
@@ -234,9 +234,9 @@ export default function Home() {
           </View>
           {profile && <Text style={styles.profileText}>{profile.avatar_emoji} {profile.username}</Text>}
 
-          <View style={styles.streakCard}>
-            <Text style={styles.streakNumber}>{streak}</Text>
-            <Text style={styles.streakLabel}>day smile streak</Text>
+          <View style={[styles.streakCard, { backgroundColor: accent.card }]}>
+            <Text style={[styles.streakNumber, { color: textOn(accent.card) }]}>{streak}</Text>
+            <Text style={[styles.streakLabel, { color: textOn(accent.card) }]}>day smile streak</Text>
           </View>
 
           <View style={styles.statsRow}>
@@ -374,11 +374,11 @@ const styles = StyleSheet.create({
   profileText: { marginBottom: 16, fontSize: 16, color: C.text },
 
   streakCard: {
-    backgroundColor: C.card, borderRadius: 18, paddingVertical: 20,
+    borderRadius: 18, paddingVertical: 20,
     alignItems: 'center', marginBottom: 12,
   },
-  streakNumber: { fontSize: 40, fontWeight: 'bold', color: C.rust },
-  streakLabel: { fontSize: 14, color: C.subtext, marginTop: 2 },
+  streakNumber: { fontSize: 40, fontWeight: 'bold' },
+  streakLabel: { fontSize: 14, marginTop: 2 },
 
   statsRow: { flexDirection: 'row', gap: 12, marginBottom: 20 },
   statCard: {
