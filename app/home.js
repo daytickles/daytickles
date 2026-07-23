@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase';
 import { C, accentFor, moodColorFor } from '../lib/theme';
 import { shareEntry, shareStatus, SHARE_CAPTIONS } from '../lib/sharing';
 import Button from '../components/Button';
+import HomeGuide from '../components/HomeGuide';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const PINNED_WINDOW_DAYS = 14;
@@ -53,6 +54,23 @@ export default function Home() {
   const [pickerEntryId, setPickerEntryId] = useState(null);
   const [shareEntryId, setShareEntryId] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [showGuide, setShowGuide] = useState(false);
+
+  // Auto-show the first-run guide exactly once, gated on the DB flag —
+  // not local/session state, so it stays correctly "seen" across
+  // reinstalls and devices. The same guide is reachable anytime,
+  // ungated, from Settings ("How DayTickles works").
+  useEffect(() => {
+    if (profile && !profile.home_guide_seen) setShowGuide(true);
+  }, [profile]);
+
+  async function handleCloseGuide() {
+    setShowGuide(false);
+    if (profile && !profile.home_guide_seen) {
+      await supabase.from('profiles').update({ home_guide_seen: true }).eq('id', profile.id);
+      await refreshProfile();
+    }
+  }
 
   const loadEntries = useCallback(async () => {
     if (!session) return;
@@ -331,6 +349,8 @@ export default function Home() {
         </TouchableOpacity>
       </TouchableOpacity>
     </Modal>
+
+    <HomeGuide visible={showGuide} onClose={handleCloseGuide} />
     </>
   );
 }

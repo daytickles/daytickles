@@ -1,10 +1,14 @@
+import { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { C } from '../lib/theme';
 import Button from '../components/Button';
+import HomeGuide from '../components/HomeGuide';
 
 export default function Settings() {
+  const [showGuide, setShowGuide] = useState(false);
+
   async function signOut() {
     await supabase.auth.signOut();
     router.replace('/login');
@@ -23,7 +27,11 @@ export default function Settings() {
 
       <Button title="Manage Goals" onPress={() => router.push('/goals')} variant="secondary" />
       <View style={styles.spacer} />
+      <Button title="How DayTickles works" onPress={() => setShowGuide(true)} variant="secondary" />
+      <View style={styles.spacer} />
       <Button title="Sign Out" onPress={signOut} variant="secondary" />
+
+      <HomeGuide visible={showGuide} onClose={() => setShowGuide(false)} />
     </View>
   );
 }
