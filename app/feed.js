@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -29,7 +30,7 @@ const EMPTY_TEXT = {
 };
 
 const ENTRY_SELECT =
-  'id, entry_date, text_content, mood, created_at, user_id, profiles!tickle_entries_user_id_fkey(username, avatar_emoji, accent_theme)';
+  'id, entry_date, text_content, mood, like_count, created_at, user_id, profiles!tickle_entries_user_id_fkey(username, avatar_emoji, accent_theme)';
 
 export default function Feed() {
   const { session } = useAuth();
@@ -38,11 +39,12 @@ export default function Feed() {
   const [loading, setLoading] = useState(true);
   const [followedIds, setFollowedIds] = useState(new Set());
   const [favoritedIds, setFavoritedIds] = useState(new Set());
+  const [likedIds, setLikedIds] = useState(new Set());
 
-  // Follow/favorite state is loaded independently of the active tab —
-  // Everyone needs followedIds for its Follow/Following buttons, every
-  // tab needs favoritedIds for its star icons, regardless of which tab
-  // is currently showing.
+  // Follow/favorite/like state is loaded independently of the active
+  // tab — Everyone needs followedIds for its Follow/Following buttons,
+  // every tab needs favoritedIds and likedIds for its star/sparkle
+  // icons, regardless of which tab is currently showing.
   const loadFollowed = useCallback(async () => {
     if (!session) return;
     const { data, error } = await supabase
@@ -61,6 +63,15 @@ export default function Feed() {
     if (!error) setFavoritedIds(new Set((data || []).map((f) => f.entry_id)));
   }, [session]);
 
+  const loadLiked = useCallback(async () => {
+    if (!session) return;
+    const { data, error } = await supabase
+      .from('likes')
+      .select('entry_id')
+      .eq('user_id', session.user.id);
+    if (!error) setLikedIds(new Set((data || []).map((l) => l.entry_id)));
+  }, [session]);
+
   useFocusEffect(
     useCallback(() => {
       loadFollowed();
@@ -71,6 +82,12 @@ export default function Feed() {
     useCallback(() => {
       loadFavorited();
     }, [loadFavorited])
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      loadLiked();
+    }, [loadLiked])
   );
 
   const loadFeed = useCallback(async () => {
@@ -132,7 +149,10 @@ export default function Feed() {
     const { data, error } = await query;
     if (!error) setEntries(data || []);
     setLoading(false);
-  }, [session, tab, followedIds, favoritedIds]);
+    // likedIds isn't used to filter any query above — it's a dependency
+    // purely so a like/unlike triggers this refetch, pulling like_count
+    // fresh from the DB rather than ever computing it locally.
+  }, [session, tab, followedIds, favoritedIds, likedIds]);
 
   useFocusEffect(
     useCallback(() => {
@@ -176,11 +196,33 @@ export default function Feed() {
     if (error) setFavoritedIds(previous);
   }
 
+  async function handleToggleLike(entryId) {
+    const isLiked = likedIds.has(entryId);
+    const previous = likedIds;
+
+    setLikedIds((prev) => {
+      const next = new Set(prev);
+      if (isLiked) next.delete(entryId);
+      else next.add(entryId);
+      return next;
+    });
+
+    // Never touch tickle_entries.like_count here — handle_like_insert /
+    // handle_like_delete maintain it server-side; the likedIds change
+    // above triggers loadFeed to refetch and pick up the trigger's value.
+    const { error } = isLiked
+      ? await supabase.from('likes').delete().eq('user_id', session.user.id).eq('entry_id', entryId)
+      : await supabase.from('likes').insert({ user_id: session.user.id, entry_id: entryId });
+
+    if (error) setLikedIds(previous);
+  }
+
   function renderEntry({ item }) {
     const accent = accentFor(item.profiles?.accent_theme);
     const isOwnEntry = item.user_id === session.user.id;
     const isFollowingAuthor = followedIds.has(item.user_id);
     const isFavorited = favoritedIds.has(item.id);
+    const isLiked = likedIds.has(item.id);
 
     return (
       <View style={styles.entryCard}>
@@ -204,6 +246,18 @@ export default function Feed() {
                     </Text>
                   </TouchableOpacity>
                 )}
+                <TouchableOpacity
+                  onPress={() => handleToggleLike(item.id)}
+                  style={styles.likeButton}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons
+                    name={isLiked ? 'sparkles' : 'sparkles-outline'}
+                    size={16}
+                    color={isLiked ? C.sparkleText : C.faint}
+                  />
+                  <Text style={[styles.likeCount, isLiked && styles.likeCountActive]}>{item.like_count || 0}</Text>
+                </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => handleToggleFavorite(item.id)}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -292,6 +346,9 @@ const styles = StyleSheet.create({
   entryMetaRight: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   followLink: { fontSize: 12, fontWeight: '600', color: C.rust },
   followLinkActive: { color: C.subtext },
+  likeButton: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  likeCount: { fontSize: 12, fontWeight: '600', color: C.faint },
+  likeCountActive: { color: C.sparkleText },
   starIcon: { fontSize: 18, color: C.faint },
   starIconActive: { color: C.amberDark },
 });
