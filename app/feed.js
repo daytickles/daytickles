@@ -16,23 +16,109 @@ function formatEntryDate(entryDate) {
 
 const TABS = [
   { id: 'everyone', label: 'Everyone' },
+  { id: 'following', label: 'Following' },
   { id: 'mine', label: 'Mine' },
+  { id: 'favorites', label: "Fav's" },
 ];
+
+const EMPTY_TEXT = {
+  everyone: 'No public tickles yet.',
+  following: 'Follow people to see their tickles here.',
+  mine: "You haven't shared any tickles to the feed yet.",
+  favorites: 'Tap the star on a tickle to save it here.',
+};
+
+const ENTRY_SELECT =
+  'id, entry_date, text_content, mood, created_at, user_id, profiles!tickle_entries_user_id_fkey(username, avatar_emoji, accent_theme)';
 
 export default function Feed() {
   const { session } = useAuth();
   const [tab, setTab] = useState('everyone');
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [followedIds, setFollowedIds] = useState(new Set());
+  const [favoritedIds, setFavoritedIds] = useState(new Set());
+
+  // Follow/favorite state is loaded independently of the active tab —
+  // Everyone needs followedIds for its Follow/Following buttons, every
+  // tab needs favoritedIds for its star icons, regardless of which tab
+  // is currently showing.
+  const loadFollowed = useCallback(async () => {
+    if (!session) return;
+    const { data, error } = await supabase
+      .from('follows')
+      .select('followee_id')
+      .eq('follower_id', session.user.id);
+    if (!error) setFollowedIds(new Set((data || []).map((f) => f.followee_id)));
+  }, [session]);
+
+  const loadFavorited = useCallback(async () => {
+    if (!session) return;
+    const { data, error } = await supabase
+      .from('favorites')
+      .select('entry_id')
+      .eq('user_id', session.user.id);
+    if (!error) setFavoritedIds(new Set((data || []).map((f) => f.entry_id)));
+  }, [session]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadFollowed();
+    }, [loadFollowed])
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      loadFavorited();
+    }, [loadFavorited])
+  );
 
   const loadFeed = useCallback(async () => {
     if (!session) return;
     setLoading(true);
 
-    let query = supabase
-      .from('tickle_entries')
-      .select('id, entry_date, text_content, mood, created_at, user_id, profiles!tickle_entries_user_id_fkey(username, avatar_emoji, accent_theme)')
-      .order('created_at', { ascending: false });
+    if (tab === 'following') {
+      // Followed accounts' public entries only — RLS blocks their private
+      // ones regardless, following someone doesn't grant extra visibility.
+      const followeeIds = Array.from(followedIds);
+      if (followeeIds.length === 0) {
+        setEntries([]);
+        setLoading(false);
+        return;
+      }
+      const { data, error } = await supabase
+        .from('tickle_entries')
+        .select(ENTRY_SELECT)
+        .eq('visibility', 'public')
+        .in('user_id', followeeIds)
+        .order('created_at', { ascending: false });
+      if (!error) setEntries(data || []);
+      setLoading(false);
+      return;
+    }
+
+    if (tab === 'favorites') {
+      // No visibility filter here on purpose: RLS already resolves to
+      // exactly the right set (public, or your own regardless of
+      // visibility) — adding one would incorrectly hide your own
+      // favorited private entries.
+      const favIds = Array.from(favoritedIds);
+      if (favIds.length === 0) {
+        setEntries([]);
+        setLoading(false);
+        return;
+      }
+      const { data, error } = await supabase
+        .from('tickle_entries')
+        .select(ENTRY_SELECT)
+        .in('id', favIds)
+        .order('created_at', { ascending: false });
+      if (!error) setEntries(data || []);
+      setLoading(false);
+      return;
+    }
+
+    let query = supabase.from('tickle_entries').select(ENTRY_SELECT).order('created_at', { ascending: false });
 
     if (tab === 'mine') {
       // Mine shows all of the signed-in user's own entries, private and
@@ -46,7 +132,7 @@ export default function Feed() {
     const { data, error } = await query;
     if (!error) setEntries(data || []);
     setLoading(false);
-  }, [session, tab]);
+  }, [session, tab, followedIds, favoritedIds]);
 
   useFocusEffect(
     useCallback(() => {
@@ -54,8 +140,48 @@ export default function Feed() {
     }, [loadFeed])
   );
 
+  async function handleToggleFollow(followeeId) {
+    const isFollowing = followedIds.has(followeeId);
+    const previous = followedIds;
+
+    setFollowedIds((prev) => {
+      const next = new Set(prev);
+      if (isFollowing) next.delete(followeeId);
+      else next.add(followeeId);
+      return next;
+    });
+
+    const { error } = isFollowing
+      ? await supabase.from('follows').delete().eq('follower_id', session.user.id).eq('followee_id', followeeId)
+      : await supabase.from('follows').insert({ follower_id: session.user.id, followee_id: followeeId });
+
+    if (error) setFollowedIds(previous);
+  }
+
+  async function handleToggleFavorite(entryId) {
+    const isFavorited = favoritedIds.has(entryId);
+    const previous = favoritedIds;
+
+    setFavoritedIds((prev) => {
+      const next = new Set(prev);
+      if (isFavorited) next.delete(entryId);
+      else next.add(entryId);
+      return next;
+    });
+
+    const { error } = isFavorited
+      ? await supabase.from('favorites').delete().eq('user_id', session.user.id).eq('entry_id', entryId)
+      : await supabase.from('favorites').insert({ user_id: session.user.id, entry_id: entryId });
+
+    if (error) setFavoritedIds(previous);
+  }
+
   function renderEntry({ item }) {
     const accent = accentFor(item.profiles?.accent_theme);
+    const isOwnEntry = item.user_id === session.user.id;
+    const isFollowingAuthor = followedIds.has(item.user_id);
+    const isFavorited = favoritedIds.has(item.id);
+
     return (
       <View style={styles.entryCard}>
         <View style={styles.entryRow}>
@@ -65,7 +191,29 @@ export default function Feed() {
               {item.profiles?.avatar_emoji} {item.profiles?.username}
             </Text>
             <Text style={styles.entryText}>{item.text_content}</Text>
-            <Text style={styles.entryDate}>{formatEntryDate(item.entry_date)}</Text>
+            <View style={styles.entryMetaRow}>
+              <Text style={styles.entryDate}>{formatEntryDate(item.entry_date)}</Text>
+              <View style={styles.entryMetaRight}>
+                {!isOwnEntry && (
+                  <TouchableOpacity
+                    onPress={() => handleToggleFollow(item.user_id)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Text style={[styles.followLink, isFollowingAuthor && styles.followLinkActive]}>
+                      {isFollowingAuthor ? 'Following' : 'Follow'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  onPress={() => handleToggleFavorite(item.id)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Text style={[styles.starIcon, isFavorited && styles.starIconActive]}>
+                    {isFavorited ? '★' : '☆'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
         </View>
       </View>
@@ -103,13 +251,7 @@ export default function Feed() {
         keyExtractor={(item) => String(item.id)}
         renderItem={renderEntry}
         contentContainerStyle={styles.listContent}
-        ListEmptyComponent={
-          !loading && (
-            <Text style={styles.emptyText}>
-              {tab === 'mine' ? "You haven't shared any tickles to the feed yet." : 'No public tickles yet.'}
-            </Text>
-          )
-        }
+        ListEmptyComponent={!loading && <Text style={styles.emptyText}>{EMPTY_TEXT[tab]}</Text>}
       />
     </View>
   );
@@ -120,13 +262,13 @@ const styles = StyleSheet.create({
   backLink: { fontSize: 16, color: C.rust, marginBottom: 16 },
   title: { fontSize: 22, fontWeight: 'bold', color: C.rustDark, marginBottom: 16 },
 
-  tabRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+  tabRow: { flexDirection: 'row', gap: 6, marginBottom: 16 },
   tabButton: {
     flex: 1, paddingVertical: 10, borderRadius: 20,
     alignItems: 'center', backgroundColor: C.card, borderWidth: 1, borderColor: C.border,
   },
   tabButtonActive: { backgroundColor: C.rust, borderColor: C.rust },
-  tabLabel: { fontSize: 14, fontWeight: '600', color: C.subtext },
+  tabLabel: { fontSize: 12, fontWeight: '600', color: C.subtext },
   tabLabelActive: { color: C.bg },
 
   loader: { marginTop: 12 },
@@ -142,5 +284,14 @@ const styles = StyleSheet.create({
   entryBody: { flex: 1 },
   authorText: { fontSize: 13, fontWeight: '600', color: C.rustDark, marginBottom: 4 },
   entryText: { fontSize: 15, color: C.text, lineHeight: 20 },
-  entryDate: { fontSize: 12, color: C.subtext, marginTop: 8 },
+
+  entryMetaRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8,
+  },
+  entryDate: { fontSize: 12, color: C.subtext },
+  entryMetaRight: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  followLink: { fontSize: 12, fontWeight: '600', color: C.rust },
+  followLinkActive: { color: C.subtext },
+  starIcon: { fontSize: 18, color: C.faint },
+  starIconActive: { color: C.amberDark },
 });
