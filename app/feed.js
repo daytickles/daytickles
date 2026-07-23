@@ -1,7 +1,7 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { C, accentFor, moodColorFor } from '../lib/theme';
@@ -32,14 +32,26 @@ const EMPTY_TEXT = {
 const ENTRY_SELECT =
   'id, entry_date, text_content, mood, like_count, created_at, user_id, profiles!tickle_entries_user_id_fkey(username, avatar_emoji, accent_theme)';
 
+// Rough average card height for scrollToIndex's getItemLayout — an
+// estimate is fine here since cards vary with entry text length; it
+// only needs to get the scroll roughly to the right place, the
+// highlight style below is what actually makes the entry easy to spot.
+const ESTIMATED_ITEM_HEIGHT = 110;
+
 export default function Feed() {
   const { session } = useAuth();
-  const [tab, setTab] = useState('everyone');
+  const params = useLocalSearchParams();
+  const initialTab = TABS.some((t) => t.id === params.tab) ? params.tab : 'everyone';
+  const [tab, setTab] = useState(initialTab);
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [followedIds, setFollowedIds] = useState(new Set());
   const [favoritedIds, setFavoritedIds] = useState(new Set());
   const [likedIds, setLikedIds] = useState(new Set());
+  const [highlightedEntryId, setHighlightedEntryId] = useState(
+    Array.isArray(params.highlightEntry) ? params.highlightEntry[0] : params.highlightEntry || null
+  );
+  const listRef = useRef(null);
 
   // Follow/favorite/like state is loaded independently of the active
   // tab — Everyone needs followedIds for its Follow/Following buttons,
@@ -160,6 +172,23 @@ export default function Feed() {
     }, [loadFeed])
   );
 
+  useEffect(() => {
+    if (tab !== 'mine' || !highlightedEntryId) return;
+    const index = entries.findIndex((e) => e.id === highlightedEntryId);
+    if (index === -1) return;
+
+    listRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
+  }, [tab, highlightedEntryId, entries]);
+
+  function handleTabPress(tabId) {
+    setTab(tabId);
+    // A fresh manual tab selection retires the notification-driven
+    // highlight, whether that's switching away from Mine or just
+    // re-tapping it — the highlight is a one-time "you just arrived
+    // here" affordance, not a persistent marker.
+    setHighlightedEntryId(null);
+  }
+
   async function handleToggleFollow(followeeId) {
     const isFollowing = followedIds.has(followeeId);
     const previous = followedIds;
@@ -223,9 +252,10 @@ export default function Feed() {
     const isFollowingAuthor = followedIds.has(item.user_id);
     const isFavorited = favoritedIds.has(item.id);
     const isLiked = likedIds.has(item.id);
+    const isHighlighted = tab === 'mine' && item.id === highlightedEntryId;
 
     return (
-      <View style={styles.entryCard}>
+      <View style={[styles.entryCard, isHighlighted && styles.highlightedCard]}>
         <View style={styles.entryRow}>
           <View style={[styles.moodDot, { backgroundColor: moodColorFor(item.mood, accent) }]} />
           <View style={styles.entryBody}>
@@ -289,7 +319,7 @@ export default function Feed() {
         {TABS.map((t) => (
           <TouchableOpacity
             key={t.id}
-            onPress={() => setTab(t.id)}
+            onPress={() => handleTabPress(t.id)}
             style={[styles.tabButton, tab === t.id && styles.tabButtonActive]}
           >
             <Text style={[styles.tabLabel, tab === t.id && styles.tabLabelActive]}>{t.label}</Text>
@@ -300,11 +330,29 @@ export default function Feed() {
       {loading && <ActivityIndicator color={C.rust} style={styles.loader} />}
 
       <FlatList
+        ref={listRef}
         style={styles.list}
         data={entries}
         keyExtractor={(item) => String(item.id)}
         renderItem={renderEntry}
         contentContainerStyle={styles.listContent}
+        getItemLayout={(data, index) => ({
+          length: ESTIMATED_ITEM_HEIGHT,
+          offset: ESTIMATED_ITEM_HEIGHT * index,
+          index,
+        })}
+        onScrollToIndexFailed={(info) => {
+          // getItemLayout's estimate should make this rare, but a card
+          // running much taller than average (long entry text) could
+          // still throw scrollToIndex off — retry once measurement
+          // catches up, using RN's recommended fallback pattern.
+          setTimeout(() => {
+            listRef.current?.scrollToOffset({
+              offset: info.averageItemLength * info.index,
+              animated: true,
+            });
+          }, 50);
+        }}
         ListEmptyComponent={!loading && <Text style={styles.emptyText}>{EMPTY_TEXT[tab]}</Text>}
       />
     </View>
@@ -332,6 +380,9 @@ const styles = StyleSheet.create({
 
   entryCard: {
     backgroundColor: C.card, borderRadius: 16, padding: 14, marginBottom: 12,
+  },
+  highlightedCard: {
+    borderWidth: 1.5, borderColor: C.amberDark, backgroundColor: C.sparkleBg,
   },
   entryRow: { flexDirection: 'row', alignItems: 'flex-start' },
   moodDot: { width: 14, height: 14, borderRadius: 7, marginRight: 12, marginTop: 4 },

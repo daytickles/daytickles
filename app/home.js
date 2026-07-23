@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Modal } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -51,6 +52,7 @@ export default function Home() {
   const [goals, setGoals] = useState([]);
   const [pickerEntryId, setPickerEntryId] = useState(null);
   const [shareEntryId, setShareEntryId] = useState(null);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const loadEntries = useCallback(async () => {
     if (!session) return;
@@ -75,6 +77,17 @@ export default function Home() {
     if (!error) setGoals(data || []);
   }, [session]);
 
+  const loadUnreadCount = useCallback(async () => {
+    if (!session) return;
+    const { count, error } = await supabase
+      .from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .eq('recipient_id', session.user.id)
+      .eq('is_read', false);
+
+    if (!error) setUnreadCount(count || 0);
+  }, [session]);
+
   useFocusEffect(
     useCallback(() => {
       loadEntries();
@@ -85,6 +98,12 @@ export default function Home() {
     useCallback(() => {
       loadGoals();
     }, [loadGoals])
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      loadUnreadCount();
+    }, [loadUnreadCount])
   );
 
   const goalsById = Object.fromEntries(goals.map((g) => [g.id, g]));
@@ -174,6 +193,18 @@ export default function Home() {
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
                 <Text style={styles.feedLink}>Feed</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => router.push('/notifications')}
+                style={styles.bellButton}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="notifications-outline" size={20} color={C.subtext} />
+                {unreadCount > 0 && (
+                  <View style={styles.unreadBadge}>
+                    <Text style={styles.unreadBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+                  </View>
+                )}
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => router.push('/settings')}
@@ -313,6 +344,12 @@ const styles = StyleSheet.create({
   title: { fontSize: 20, fontWeight: 'bold', color: C.rustDark },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   feedLink: { fontSize: 14, fontWeight: '600', color: C.rust },
+  bellButton: { position: 'relative' },
+  unreadBadge: {
+    position: 'absolute', top: -6, right: -8, minWidth: 16, height: 16, borderRadius: 8,
+    backgroundColor: C.rust, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3,
+  },
+  unreadBadgeText: { fontSize: 10, fontWeight: '700', color: C.bg },
   settingsLink: { fontSize: 22, color: C.subtext },
   profileText: { marginBottom: 16, fontSize: 16, color: C.text },
 
