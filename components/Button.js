@@ -2,7 +2,7 @@ import React from 'react';
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { C } from '../lib/theme';
 
-export default function Button({ title, onPress, variant = 'primary', disabled = false }) {
+export default function Button({ title, onPress, variant = 'primary', disabled = false, color, textColor }) {
   const isPrimary = variant === 'primary';
   return (
     <TouchableOpacity
@@ -12,10 +12,13 @@ export default function Button({ title, onPress, variant = 'primary', disabled =
       style={[
         styles.base,
         isPrimary ? styles.primary : styles.secondary,
+        color && { backgroundColor: color },
         disabled && styles.disabled,
       ]}
     >
-      <Text style={isPrimary ? styles.primaryText : styles.secondaryText}>{title}</Text>
+      <Text style={[isPrimary ? styles.primaryText : styles.secondaryText, textColor && { color: textColor }]}>
+        {title}
+      </Text>
     </TouchableOpacity>
   );
 }

@@ -1,16 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { C, accentFor, moodColorFor, moodDotSize, textOn, TICKLE_NATURE_ICONS } from '../lib/theme';
+import { C, accentFor, moodColorFor, moodDotSize, textOn, darken, TICKLE_NATURE_ICONS } from '../lib/theme';
 import { shareEntry, shareStatus, SHARE_CAPTIONS } from '../lib/sharing';
 import Button from '../components/Button';
 import HomeGuide from '../components/HomeGuide';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const PINNED_WINDOW_DAYS = 14;
+
+// Display order + labels for the self-care badge row — mirrors
+// create.js's TICKLE_NATURE_OPTIONS order (received, given, self).
+const NATURE_ORDER = ['received', 'given', 'self'];
+const NATURE_LABELS = {
+  received: 'Made me smile',
+  given: 'I paid forward',
+  self: 'Mood boost',
+};
 
 function dateStr(offsetDays = 0) {
   return new Date(Date.now() - offsetDays * DAY_MS).toISOString().slice(0, 10);
@@ -76,6 +85,8 @@ export default function Home() {
   const [showGuide, setShowGuide] = useState(false);
   const [showReturnedMessage, setShowReturnedMessage] = useState(false);
   const returnedMessageShownRef = useRef(false);
+  const [activeNatureTooltip, setActiveNatureTooltip] = useState(null);
+  const natureTooltipTimerRef = useRef(null);
 
   // Auto-show the first-run guide exactly once, gated on the DB flag —
   // not local/session state, so it stays correctly "seen" across
@@ -190,10 +201,28 @@ export default function Home() {
     router.push({ pathname: '/feed', params: { tab: 'mine', highlightEntry: entryId } });
   }
 
+  // Tapping the already-shown badge dismisses it early; tapping a
+  // different badge replaces it. Either way it also auto-hides after a
+  // couple seconds via the timer.
+  function showNatureTooltip(key) {
+    if (natureTooltipTimerRef.current) clearTimeout(natureTooltipTimerRef.current);
+    if (activeNatureTooltip === key) {
+      setActiveNatureTooltip(null);
+      return;
+    }
+    setActiveNatureTooltip(key);
+    natureTooltipTimerRef.current = setTimeout(() => setActiveNatureTooltip(null), 2000);
+  }
+
   const streak = computeStreak(entries);
   const goalStreak = computeGoalStreak(entries);
   const totalTickles = entries.length;
   const totalLikes = entries.reduce((sum, e) => sum + (e.like_count || 0), 0);
+  const natureCounts = {
+    received: entries.filter((e) => e.tickle_nature === 'received').length,
+    given: entries.filter((e) => e.tickle_nature === 'given').length,
+    self: entries.filter((e) => e.tickle_nature === 'self').length,
+  };
 
   const pinnedCutoff = dateStr(PINNED_WINDOW_DAYS - 1);
   const pinned = entries
@@ -254,6 +283,9 @@ export default function Home() {
     );
   }
 
+  const newTickleBg = darken(accent.card, 0.35);
+  const newTickleText = textOn(newTickleBg);
+
   const pickerEntry = entries.find((e) => e.id === pickerEntryId) || null;
   const shareTargetEntry = entries.find((e) => e.id === shareEntryId) || null;
   const shareStat = profile ? shareStatus(profile) : null;
@@ -261,108 +293,129 @@ export default function Home() {
 
   return (
     <>
-    <FlatList
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      data={entries}
-      keyExtractor={(item) => String(item.id)}
-      renderItem={({ item }) => (
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <View style={styles.headerRow}>
+        <Text style={styles.title}>Welcome to DayTickles</Text>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            onPress={() => router.push('/feed')}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Text style={styles.feedLink}>Feed</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => router.push('/notifications')}
+            style={styles.bellButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="notifications-outline" size={20} color={C.subtext} />
+            {unreadCount > 0 && (
+              <View style={styles.unreadBadge}>
+                <Text style={styles.unreadBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => router.push('/settings')}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Text style={styles.settingsLink}>⚙</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+      {profile && <Text style={styles.profileText}>{profile.avatar_emoji} {profile.username}</Text>}
+
+      {showReturnedMessage && (
         <TouchableOpacity
-          style={styles.entryCard}
+          style={styles.returnedBanner}
           activeOpacity={0.8}
-          onPress={() => goToEntryInFeed(item.id)}
+          onPress={() => setShowReturnedMessage(false)}
         >
-          {renderEntryBody(item)}
+          <Text style={styles.returnedBannerText}>Welcome back — no pressure, just glad you're here</Text>
         </TouchableOpacity>
       )}
-      ListHeaderComponent={
-        <View>
-          <View style={styles.headerRow}>
-            <Text style={styles.title}>Welcome to DayTickles</Text>
-            <View style={styles.headerActions}>
-              <TouchableOpacity
-                onPress={() => router.push('/feed')}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Text style={styles.feedLink}>Feed</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => router.push('/notifications')}
-                style={styles.bellButton}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Ionicons name="notifications-outline" size={20} color={C.subtext} />
-                {unreadCount > 0 && (
-                  <View style={styles.unreadBadge}>
-                    <Text style={styles.unreadBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => router.push('/settings')}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Text style={styles.settingsLink}>⚙</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-          {profile && <Text style={styles.profileText}>{profile.avatar_emoji} {profile.username}</Text>}
 
-          {showReturnedMessage && (
-            <TouchableOpacity
-              style={styles.returnedBanner}
-              activeOpacity={0.8}
-              onPress={() => setShowReturnedMessage(false)}
-            >
-              <Text style={styles.returnedBannerText}>Welcome back — no pressure, just glad you're here</Text>
-            </TouchableOpacity>
-          )}
-
-          <View style={styles.streakRow}>
-            <View style={[styles.streakCard, { backgroundColor: accent.card }]}>
-              <Text style={[styles.streakNumber, { color: textOn(accent.card) }]}>{streak}</Text>
-              <Text style={[styles.streakLabel, { color: textOn(accent.card) }]}>day smile streak</Text>
-            </View>
-            <View style={[styles.streakCard, { backgroundColor: accent.card }]}>
-              <Text style={[styles.streakNumber, { color: textOn(accent.card) }]}>{goalStreak}</Text>
-              <Text style={[styles.streakLabel, { color: textOn(accent.card) }]}>day goal streak</Text>
-            </View>
-          </View>
-
-          <View style={styles.statsRow}>
-            <View style={[styles.statCard, styles.statCardTickles]}>
-              <Text style={[styles.statNumber, styles.statNumberTickles]}>{totalTickles}</Text>
-              <Text style={[styles.statLabel, styles.statLabelTickles]}>Tickles</Text>
-            </View>
-            <View style={[styles.statCard, styles.statCardLikes]}>
-              <Text style={[styles.statNumber, styles.statNumberLikes]}>{totalLikes}</Text>
-              <Text style={[styles.statLabel, styles.statLabelLikes]}>Likes</Text>
-            </View>
-          </View>
-
-          <Button title="New Tickle" onPress={() => router.push('/create')} variant="primary" />
-
-          {pinned && (
-            <TouchableOpacity
-              style={[styles.entryCard, styles.pinnedCard]}
-              activeOpacity={0.8}
-              onPress={() => goToEntryInFeed(pinned.id)}
-            >
-              <Text style={styles.pinnedLabel}>Most liked this week</Text>
-              {renderEntryBody(pinned)}
-            </TouchableOpacity>
-          )}
-
-          {entries.length > 0 && <Text style={styles.sectionLabel}>Your tickles</Text>}
-          {loading && <ActivityIndicator color={C.rust} style={styles.loader} />}
+      <View style={styles.statsRow}>
+        <View style={[styles.statCard, styles.statCardTickles]}>
+          <Text style={[styles.statNumber, styles.statNumberTickles]}>{totalTickles}</Text>
+          <Text style={[styles.statLabel, styles.statLabelTickles]}>Tickles</Text>
         </View>
-      }
-      ListEmptyComponent={
-        !loading && (
-          <Text style={styles.emptyText}>No tickles yet — write about what made you smile today.</Text>
-        )
-      }
-    />
+        <View style={[styles.statCard, styles.statCardLikes]}>
+          <Text style={[styles.statNumber, styles.statNumberLikes]}>{totalLikes}</Text>
+          <Text style={[styles.statLabel, styles.statLabelLikes]}>Likes</Text>
+        </View>
+      </View>
+
+      <View style={styles.streakRow}>
+        <View style={[styles.streakCard, { backgroundColor: accent.card }]}>
+          <Text style={[styles.streakNumber, { color: textOn(accent.card) }]}>{streak}</Text>
+          <Text style={[styles.streakLabel, { color: textOn(accent.card) }]}>day smile streak</Text>
+        </View>
+        <View style={[styles.streakCard, { backgroundColor: accent.card }]}>
+          <Text style={[styles.streakNumber, { color: textOn(accent.card) }]}>{goalStreak}</Text>
+          <Text style={[styles.streakLabel, { color: textOn(accent.card) }]}>day goal streak</Text>
+        </View>
+      </View>
+
+      <Button
+        title="New Tickle"
+        onPress={() => router.push('/create')}
+        variant="primary"
+        color={newTickleBg}
+        textColor={newTickleText}
+      />
+
+      {profile?.tickle_nature_enabled && (
+        <View style={styles.selfCareRow}>
+          {NATURE_ORDER.map((key) => (
+            <TouchableOpacity
+              key={key}
+              style={styles.selfCareBadge}
+              activeOpacity={0.7}
+              onPress={() => showNatureTooltip(key)}
+            >
+              <Ionicons name={TICKLE_NATURE_ICONS[key]} size={16} color={C.subtext} />
+              <Text style={styles.selfCareCount}>{natureCounts[key]}</Text>
+              {activeNatureTooltip === key && (
+                <View style={styles.natureTooltip} pointerEvents="none">
+                  <Text style={styles.natureTooltipText}>{NATURE_LABELS[key]}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+
+      {pinned && (
+        <TouchableOpacity
+          style={[styles.entryCard, styles.pinnedCard]}
+          activeOpacity={0.8}
+          onPress={() => goToEntryInFeed(pinned.id)}
+        >
+          <Text style={styles.pinnedLabel}>Most liked this week</Text>
+          {renderEntryBody(pinned)}
+        </TouchableOpacity>
+      )}
+
+      {loading && <ActivityIndicator color={C.rust} style={styles.loader} />}
+
+      {!loading && entries.length === 0 && (
+        <Text style={styles.emptyText}>No tickles yet — write about what made you smile today.</Text>
+      )}
+
+      {!loading && entries.length > 0 && (
+        <>
+          <Text style={styles.sectionLabel}>Latest tickle</Text>
+          <TouchableOpacity
+            style={styles.entryCard}
+            activeOpacity={0.8}
+            onPress={() => goToEntryInFeed(entries[0].id)}
+          >
+            {renderEntryBody(entries[0])}
+          </TouchableOpacity>
+        </>
+      )}
+    </ScrollView>
 
     <Modal
       visible={!!pickerEntry}
@@ -493,6 +546,26 @@ const styles = StyleSheet.create({
   statLabel: { fontSize: 12, marginTop: 2 },
   statLabelTickles: { color: C.amberText },
   statLabelLikes: { color: C.tealText },
+
+  selfCareRow: {
+    flexDirection: 'row', justifyContent: 'center', gap: 12,
+    marginTop: 4, marginBottom: 20,
+  },
+  selfCareBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: C.card, borderRadius: 14, borderWidth: 1, borderColor: C.border,
+    paddingVertical: 8, paddingHorizontal: 14,
+  },
+  selfCareCount: { fontSize: 13, fontWeight: '600', color: C.text },
+  natureTooltip: {
+    position: 'absolute', top: -34, left: -40, right: -40,
+    alignItems: 'center',
+  },
+  natureTooltipText: {
+    fontSize: 11, fontWeight: '600', color: C.bg,
+    backgroundColor: C.rustDark, borderRadius: 8, overflow: 'hidden',
+    paddingVertical: 4, paddingHorizontal: 10,
+  },
 
   pinnedCard: {
     marginTop: 20, borderWidth: 1.5, borderColor: C.amberDark, backgroundColor: C.sparkleBg,
