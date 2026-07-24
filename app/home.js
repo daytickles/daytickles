@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
@@ -8,6 +8,8 @@ import { C, accentFor, moodColorFor, moodDotSize, textOn, lighten, withAlpha, TI
 import { shareEntry, shareStatus, SHARE_CAPTIONS } from '../lib/sharing';
 import Button from '../components/Button';
 import HomeGuide from '../components/HomeGuide';
+import GoalTagModal from '../components/GoalTagModal';
+import ShareModal from '../components/ShareModal';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const PINNED_WINDOW_DAYS = 14;
@@ -250,15 +252,7 @@ export default function Home() {
           <Text style={styles.entryText} numberOfLines={1}>{entry.text_content}</Text>
           <View style={styles.entryMetaRow}>
             <Text style={styles.entryDate}>{formatEntryDate(entry.entry_date)}</Text>
-            <View style={styles.entryMetaRight}>
-              <Text style={styles.entryLikes}>{likeLabel(entry.like_count)}</Text>
-              <TouchableOpacity
-                onPress={() => setShareEntryId(entry.id)}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Text style={styles.shareLink}>Share</Text>
-              </TouchableOpacity>
-            </View>
+            <Text style={styles.entryLikes}>{likeLabel(entry.like_count)}</Text>
           </View>
         </View>
         {entry.tickle_nature && (
@@ -279,6 +273,13 @@ export default function Home() {
               taggedGoal ? { backgroundColor: taggedGoal.color } : styles.goalDotEmpty,
             ]}
           />
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setShareEntryId(entry.id)}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={styles.shareAction}
+        >
+          <Text style={styles.shareLink}>Share</Text>
         </TouchableOpacity>
       </View>
     );
@@ -411,85 +412,21 @@ export default function Home() {
       )}
     </ScrollView>
 
-    <Modal
-      visible={!!pickerEntry}
-      transparent
-      animationType="fade"
-      onRequestClose={() => setPickerEntryId(null)}
-    >
-      <TouchableOpacity
-        style={styles.modalBackdrop}
-        activeOpacity={1}
-        onPress={() => setPickerEntryId(null)}
-      >
-        <TouchableOpacity activeOpacity={1} style={styles.pickerSheet} onPress={() => {}}>
-          <Text style={styles.pickerTitle}>Tag with a goal</Text>
+    <GoalTagModal
+      entry={pickerEntry}
+      goals={goals}
+      onAssign={(goalId) => assignGoal(pickerEntry.id, goalId)}
+      onDismiss={() => setPickerEntryId(null)}
+    />
 
-          {goals.map((g) => (
-            <TouchableOpacity
-              key={g.id}
-              style={styles.pickerRow}
-              onPress={() => assignGoal(pickerEntry.id, g.id)}
-            >
-              <View style={[styles.goalDot, { backgroundColor: g.color }]} />
-              <Text style={styles.pickerRowLabel}>{g.label}</Text>
-            </TouchableOpacity>
-          ))}
-
-          {goals.length === 0 && (
-            <Text style={styles.pickerEmpty}>No goals yet — add one from Manage Goals.</Text>
-          )}
-
-          {pickerEntry?.goal_id && (
-            <TouchableOpacity
-              style={styles.pickerRow}
-              onPress={() => assignGoal(pickerEntry.id, null)}
-            >
-              <View style={[styles.goalDot, styles.goalDotEmpty]} />
-              <Text style={styles.pickerRowLabel}>Remove tag</Text>
-            </TouchableOpacity>
-          )}
-        </TouchableOpacity>
-      </TouchableOpacity>
-    </Modal>
-
-    <Modal
-      visible={!!shareTargetEntry}
-      transparent
-      animationType="fade"
-      onRequestClose={() => setShareEntryId(null)}
-    >
-      <TouchableOpacity
-        style={styles.modalBackdrop}
-        activeOpacity={1}
-        onPress={() => setShareEntryId(null)}
-      >
-        <TouchableOpacity activeOpacity={1} style={styles.pickerSheet} onPress={() => {}}>
-          {shareBlocked ? (
-            <>
-              <Text style={styles.pickerTitle}>Share limit reached</Text>
-              <Text style={styles.shareBlockedText}>
-                You've used all {shareStat.cap} shares for this 30-day period. It renews
-                automatically, or go unlimited with a paid plan.
-              </Text>
-            </>
-          ) : (
-            <>
-              <Text style={styles.pickerTitle}>Share this tickle</Text>
-              {SHARE_CAPTIONS.map((c) => (
-                <TouchableOpacity
-                  key={c.id}
-                  style={styles.pickerRow}
-                  onPress={() => handleShare(shareTargetEntry, c.id)}
-                >
-                  <Text style={styles.pickerRowLabel}>{c.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </>
-          )}
-        </TouchableOpacity>
-      </TouchableOpacity>
-    </Modal>
+    <ShareModal
+      entry={shareTargetEntry}
+      captions={SHARE_CAPTIONS}
+      blocked={shareBlocked}
+      cap={shareStat?.cap}
+      onConfirm={(captionId) => handleShare(shareTargetEntry, captionId)}
+      onDismiss={() => setShareEntryId(null)}
+    />
 
     <HomeGuide visible={showGuide} onClose={handleCloseGuide} />
     </>
@@ -589,31 +526,14 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   entryDate: { fontSize: 12, color: C.subtext },
-  entryMetaRight: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   entryLikes: { fontSize: 12, color: C.rust, fontWeight: '600' },
   shareLink: { fontSize: 12, color: C.subtext, fontWeight: '600' },
 
   natureIcon: { marginLeft: 12, marginTop: 4 },
   goalDot: { width: 16, height: 16, borderRadius: 8, marginLeft: 12, marginTop: 4 },
+  shareAction: { marginLeft: 12, marginTop: 4 },
   goalDotEmpty: {
     backgroundColor: 'transparent', borderWidth: 1.5,
     borderStyle: 'dashed', borderColor: C.faint,
   },
-
-  modalBackdrop: {
-    flex: 1, backgroundColor: 'rgba(44,44,42,0.4)',
-    justifyContent: 'center', alignItems: 'center', padding: 32,
-  },
-  pickerSheet: {
-    width: '100%', backgroundColor: C.card, borderRadius: 18, padding: 16,
-  },
-  pickerTitle: { fontSize: 16, fontWeight: '600', color: C.rustDark, marginBottom: 12 },
-  pickerRow: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingVertical: 12, paddingHorizontal: 14, marginBottom: 8,
-    backgroundColor: C.bg, borderRadius: 12, borderWidth: 1, borderColor: C.border,
-  },
-  pickerRowLabel: { fontSize: 15, color: C.text, marginLeft: 12 },
-  pickerEmpty: { fontSize: 14, color: C.subtext, fontStyle: 'italic', paddingVertical: 8 },
-  shareBlockedText: { fontSize: 14, color: C.subtext, lineHeight: 20 },
 });

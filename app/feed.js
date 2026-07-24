@@ -5,6 +5,9 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { C, accentFor, moodColorFor, moodDotSize, darken, textOn, TICKLE_NATURE_ICONS } from '../lib/theme';
+import { shareEntry, shareStatus, SHARE_CAPTIONS } from '../lib/sharing';
+import GoalTagModal from '../components/GoalTagModal';
+import ShareModal from '../components/ShareModal';
 
 function formatEntryDate(entryDate) {
   return new Date(`${entryDate}T00:00:00Z`).toLocaleDateString('en-US', {
@@ -41,7 +44,7 @@ const EMPTY_TEXT = {
 };
 
 const ENTRY_SELECT =
-  'id, entry_date, text_content, mood, like_count, tickle_nature, created_at, user_id, profiles!tickle_entries_user_id_fkey(username, avatar_emoji, accent_theme)';
+  'id, entry_date, text_content, mood, like_count, tickle_nature, goal_id, created_at, user_id, profiles!tickle_entries_user_id_fkey(username, avatar_emoji, accent_theme)';
 
 // Mine shows entries fully untruncated (deliberate — people should be
 // able to read the complete text), so real cards range from one line to
@@ -55,7 +58,7 @@ const DEFAULT_ITEM_HEIGHT = 114;
 const CARD_SPACING = 12; // must match entryCard's marginBottom below
 
 export default function Feed() {
-  const { session, profile } = useAuth();
+  const { session, profile, refreshProfile } = useAuth();
   const accentDark = darken(accentFor(profile?.accent_theme).card, 0.35);
   const accentDarkText = textOn(accentDark);
   const params = useLocalSearchParams();
@@ -64,6 +67,9 @@ export default function Feed() {
   const [natureFilter, setNatureFilter] = useState('all');
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [goals, setGoals] = useState([]);
+  const [pickerEntryId, setPickerEntryId] = useState(null);
+  const [shareEntryId, setShareEntryId] = useState(null);
   const [followedIds, setFollowedIds] = useState(new Set());
   const [favoritedIds, setFavoritedIds] = useState(new Set());
   const [likedIds, setLikedIds] = useState(new Set());
@@ -108,6 +114,18 @@ export default function Feed() {
     if (!error) setLikedIds(new Set((data || []).map((l) => l.entry_id)));
   }, [session]);
 
+  // Mine-only feature (goal-tagging your own entries), but loaded
+  // unconditionally like the sets above — cheap, and avoids a load-on-
+  // tab-switch delay the first time someone taps into Mine.
+  const loadGoals = useCallback(async () => {
+    if (!session) return;
+    const { data, error } = await supabase
+      .from('goals')
+      .select('*')
+      .order('created_at', { ascending: true });
+    if (!error) setGoals(data || []);
+  }, [session]);
+
   useFocusEffect(
     useCallback(() => {
       loadFollowed();
@@ -124,6 +142,12 @@ export default function Feed() {
     useCallback(() => {
       loadLiked();
     }, [loadLiked])
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      loadGoals();
+    }, [loadGoals])
   );
 
   const loadFeed = useCallback(async () => {
@@ -272,6 +296,26 @@ export default function Feed() {
     if (error) setLikedIds(previous);
   }
 
+  const goalsById = Object.fromEntries(goals.map((g) => [g.id, g]));
+
+  async function assignGoal(entryId, goalId) {
+    const previous = entries;
+    setEntries((prev) => prev.map((e) => (e.id === entryId ? { ...e, goal_id: goalId } : e)));
+    setPickerEntryId(null);
+
+    const { error } = await supabase
+      .from('tickle_entries')
+      .update({ goal_id: goalId })
+      .eq('id', entryId);
+
+    if (error) setEntries(previous);
+  }
+
+  async function handleShare(entry, captionId) {
+    setShareEntryId(null);
+    await shareEntry({ profile, entry, captionId, onProfileUpdated: refreshProfile });
+  }
+
   function renderEntry({ item }) {
     const accent = accentFor(item.profiles?.accent_theme);
     const isOwnEntry = item.user_id === session.user.id;
@@ -280,6 +324,7 @@ export default function Feed() {
     const isLiked = likedIds.has(item.id);
     const isHighlighted = tab === 'mine' && item.id === highlightedEntryId;
     const dotSize = moodDotSize(item.mood);
+    const taggedGoal = item.goal_id ? goalsById[item.goal_id] : null;
 
     return (
       <View
@@ -332,14 +377,6 @@ export default function Feed() {
                     <Text style={[styles.likeCount, isLiked && styles.likeCountActive]}>{item.like_count || 0}</Text>
                   </TouchableOpacity>
                 )}
-                <TouchableOpacity
-                  onPress={() => handleToggleFavorite(item.id)}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <Text style={[styles.starIcon, isFavorited && styles.starIconActive]}>
-                    {isFavorited ? '★' : '☆'}
-                  </Text>
-                </TouchableOpacity>
               </View>
             </View>
           </View>
@@ -351,12 +388,49 @@ export default function Feed() {
               style={styles.natureIcon}
             />
           )}
+          {tab === 'mine' && (
+            <TouchableOpacity
+              onPress={() => setPickerEntryId(item.id)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <View
+                style={[
+                  styles.goalDot,
+                  taggedGoal ? { backgroundColor: taggedGoal.color } : styles.goalDotEmpty,
+                ]}
+              />
+            </TouchableOpacity>
+          )}
+          {tab === 'mine' && (
+            <TouchableOpacity
+              onPress={() => setShareEntryId(item.id)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={styles.shareAction}
+            >
+              <Text style={styles.shareLink}>Share</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            onPress={() => handleToggleFavorite(item.id)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={styles.starAction}
+          >
+            <Text style={[styles.starIcon, isFavorited && styles.starIconActive]}>
+              {isFavorited ? '★' : '☆'}
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
     );
   }
 
+  const pickerEntry = entries.find((e) => e.id === pickerEntryId) || null;
+  const shareTargetEntry = entries.find((e) => e.id === shareEntryId) || null;
+  const shareStat = profile ? shareStatus(profile) : null;
+  const shareBlocked = !!shareStat && !shareStat.unlimited && shareStat.remaining <= 0;
+
   return (
+    <>
     <View style={styles.container}>
       <TouchableOpacity
         onPress={() => router.back()}
@@ -438,6 +512,23 @@ export default function Feed() {
         ListEmptyComponent={!loading && <Text style={styles.emptyText}>{EMPTY_TEXT[tab]}</Text>}
       />
     </View>
+
+    <GoalTagModal
+      entry={pickerEntry}
+      goals={goals}
+      onAssign={(goalId) => assignGoal(pickerEntry.id, goalId)}
+      onDismiss={() => setPickerEntryId(null)}
+    />
+
+    <ShareModal
+      entry={shareTargetEntry}
+      captions={SHARE_CAPTIONS}
+      blocked={shareBlocked}
+      cap={shareStat?.cap}
+      onConfirm={(captionId) => handleShare(shareTargetEntry, captionId)}
+      onDismiss={() => setShareEntryId(null)}
+    />
+    </>
   );
 }
 
@@ -478,6 +569,13 @@ const styles = StyleSheet.create({
   entryRow: { flexDirection: 'row', alignItems: 'flex-start' },
   moodDot: { marginRight: 12, marginTop: 4 },
   natureIcon: { marginLeft: 12, marginTop: 4 },
+  goalDot: { width: 16, height: 16, borderRadius: 8, marginLeft: 12, marginTop: 4 },
+  goalDotEmpty: {
+    backgroundColor: 'transparent', borderWidth: 1.5,
+    borderStyle: 'dashed', borderColor: C.faint,
+  },
+  shareAction: { marginLeft: 12, marginTop: 4 },
+  starAction: { marginLeft: 12, marginTop: 2 },
   entryBody: { flex: 1 },
   authorText: { fontSize: 13, fontWeight: '600', color: C.rustDark, marginBottom: 4 },
   entryText: { fontSize: 15, color: C.text, lineHeight: 20 },
@@ -489,6 +587,7 @@ const styles = StyleSheet.create({
   entryMetaRight: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   followLink: { fontSize: 12, fontWeight: '600', color: C.rust },
   followLinkActive: { color: C.subtext },
+  shareLink: { fontSize: 12, color: C.subtext, fontWeight: '600' },
   likeButton: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   likeCount: { fontSize: 12, fontWeight: '600', color: C.faint },
   likeCountActive: { color: C.sparkleText },
