@@ -44,6 +44,13 @@ function computeStreak(entries) {
   return streak;
 }
 
+// Same consecutive-days logic as computeStreak, restricted to entries
+// tagged with a goal — reuses computeStreak rather than reimplementing
+// the walk-back-from-today math.
+function computeGoalStreak(entries) {
+  return computeStreak(entries.filter((e) => e.goal_id));
+}
+
 export default function Home() {
   const { session, profile, refreshProfile } = useAuth();
   const accent = accentFor(profile?.accent_theme);
@@ -151,6 +158,7 @@ export default function Home() {
   }
 
   const streak = computeStreak(entries);
+  const goalStreak = computeGoalStreak(entries);
   const totalTickles = entries.length;
   const totalLikes = entries.reduce((sum, e) => sum + (e.like_count || 0), 0);
 
@@ -248,9 +256,15 @@ export default function Home() {
           </View>
           {profile && <Text style={styles.profileText}>{profile.avatar_emoji} {profile.username}</Text>}
 
-          <View style={[styles.streakCard, { backgroundColor: accent.card }]}>
-            <Text style={[styles.streakNumber, { color: textOn(accent.card) }]}>{streak}</Text>
-            <Text style={[styles.streakLabel, { color: textOn(accent.card) }]}>day smile streak</Text>
+          <View style={styles.streakRow}>
+            <View style={[styles.streakCard, { backgroundColor: accent.card }]}>
+              <Text style={[styles.streakNumber, { color: textOn(accent.card) }]}>{streak}</Text>
+              <Text style={[styles.streakLabel, { color: textOn(accent.card) }]}>day smile streak</Text>
+            </View>
+            <View style={[styles.streakCard, { backgroundColor: accent.card }]}>
+              <Text style={[styles.streakNumber, { color: textOn(accent.card) }]}>{goalStreak}</Text>
+              <Text style={[styles.streakLabel, { color: textOn(accent.card) }]}>day goal streak</Text>
+            </View>
           </View>
 
           <View style={styles.statsRow}>
@@ -391,9 +405,10 @@ const styles = StyleSheet.create({
   settingsLink: { fontSize: 22, color: C.subtext },
   profileText: { marginBottom: 16, fontSize: 16, color: C.text },
 
+  streakRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
   streakCard: {
-    borderRadius: 18, paddingVertical: 20,
-    alignItems: 'center', marginBottom: 12,
+    flex: 1, borderRadius: 18, paddingVertical: 20,
+    alignItems: 'center',
   },
   streakNumber: { fontSize: 40, fontWeight: 'bold' },
   streakLabel: { fontSize: 14, marginTop: 2 },
