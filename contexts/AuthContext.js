@@ -4,6 +4,30 @@ import { supabase } from '../lib/supabase';
 
 const AuthContext = createContext(null);
 
+// Fields actually read anywhere in the app (rendering or routing) — see
+// home.js, index.js, login.js, settings.js, lib/sharing.js. Deliberately
+// excludes bookkeeping columns like updated_at, which the
+// set_profiles_updated_at trigger bumps on every write regardless of
+// whether anything the UI cares about changed.
+const RENDER_RELEVANT_FIELDS = [
+  'accent_theme',
+  'home_guide_seen',
+  'avatar_emoji',
+  'username',
+  'onboarded',
+  'subscription_plan',
+  'subscription_expires_at',
+  'share_period_start',
+  'share_count_this_period',
+  'trial_started_at',
+];
+
+function profilesEqual(a, b) {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return RENDER_RELEVANT_FIELDS.every((key) => a[key] === b[key]);
+}
+
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -20,7 +44,7 @@ export function AuthProvider({ children }) {
       console.error('loadProfile error:', error.message);
       setProfile(null);
     } else {
-      setProfile(data);
+      setProfile((prev) => (profilesEqual(prev, data) ? prev : data));
     }
   }
 
@@ -80,7 +104,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ session, profile, loading, refreshProfile }}>
+    <AuthContext.Provider value={{ session, profile, setProfile, loading, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );
