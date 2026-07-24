@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { C, accentFor, moodColorFor, moodDotSize, textOn, TICKLE_NATURE_ICONS } from '../lib/theme';
+import { C, accentFor, moodColorFor, moodDotSize, textOn, lighten, withAlpha, TICKLE_NATURE_ICONS } from '../lib/theme';
 import { shareEntry, shareStatus, SHARE_CAPTIONS } from '../lib/sharing';
 import Button from '../components/Button';
 import HomeGuide from '../components/HomeGuide';
@@ -75,6 +75,7 @@ function computeReturnedFromGap(entries) {
 export default function Home() {
   const { session, profile, refreshProfile } = useAuth();
   const accent = accentFor(profile?.accent_theme);
+  const streakSunburstColor = withAlpha(lighten(accent.card, 0.5), 0.4);
 
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -345,10 +346,12 @@ export default function Home() {
 
       <View style={styles.streakRow}>
         <View style={[styles.streakCard, { backgroundColor: accent.card }]}>
+          <View style={[styles.streakSunburst, { backgroundColor: streakSunburstColor }]} />
           <Text style={[styles.streakNumber, { color: textOn(accent.card) }]}>{streak}</Text>
           <Text style={[styles.streakLabel, { color: textOn(accent.card) }]}>day smile streak</Text>
         </View>
         <View style={[styles.streakCard, { backgroundColor: accent.card }]}>
+          <View style={[styles.streakSunburst, { backgroundColor: streakSunburstColor }]} />
           <Text style={[styles.streakNumber, { color: textOn(accent.card) }]}>{goalStreak}</Text>
           <Text style={[styles.streakLabel, { color: textOn(accent.card) }]}>day goal streak</Text>
         </View>
@@ -519,7 +522,11 @@ const styles = StyleSheet.create({
   streakRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
   streakCard: {
     flex: 1, borderRadius: 18, paddingVertical: 20,
-    alignItems: 'center',
+    alignItems: 'center', overflow: 'hidden',
+  },
+  streakSunburst: {
+    position: 'absolute', top: -30, right: -30,
+    width: 90, height: 90, borderRadius: 45,
   },
   streakNumber: { fontSize: 40, fontWeight: 'bold' },
   streakLabel: { fontSize: 14, marginTop: 2 },
