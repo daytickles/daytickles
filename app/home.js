@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
@@ -51,6 +51,18 @@ function computeGoalStreak(entries) {
   return computeStreak(entries.filter((e) => e.goal_id));
 }
 
+// True when the person just resumed after a gap: the streak has only
+// just restarted (exactly 1 day) AND they have older entries predating
+// it — the second condition is what distinguishes a real "coming back"
+// from someone's very first-ever post, which would also compute a
+// streak of 1 but has no history to have taken a gap from.
+function computeReturnedFromGap(entries) {
+  if (computeStreak(entries) !== 1) return false;
+  const dates = entries.map((e) => e.entry_date);
+  const mostRecent = dates.reduce((max, d) => (d > max ? d : max), dates[0]);
+  return dates.some((d) => d < mostRecent);
+}
+
 export default function Home() {
   const { session, profile, refreshProfile } = useAuth();
   const accent = accentFor(profile?.accent_theme);
@@ -62,6 +74,8 @@ export default function Home() {
   const [shareEntryId, setShareEntryId] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showGuide, setShowGuide] = useState(false);
+  const [showReturnedMessage, setShowReturnedMessage] = useState(false);
+  const returnedMessageShownRef = useRef(false);
 
   // Auto-show the first-run guide exactly once, gated on the DB flag —
   // not local/session state, so it stays correctly "seen" across
@@ -70,6 +84,25 @@ export default function Home() {
   useEffect(() => {
     if (profile && !profile.home_guide_seen) setShowGuide(true);
   }, [profile]);
+
+  // Deliberately NOT DB-backed, unlike the guide above — plain
+  // component state, reset every time Home mounts fresh. Simplest
+  // version; revisit only if repeating on every app-reopen turns out to
+  // actually bother people. The ref guards against re-triggering later
+  // in the same mount if entries changes again (e.g. a new post nudges
+  // the streak past 1).
+  useEffect(() => {
+    if (!returnedMessageShownRef.current && computeReturnedFromGap(entries)) {
+      returnedMessageShownRef.current = true;
+      setShowReturnedMessage(true);
+    }
+  }, [entries]);
+
+  useEffect(() => {
+    if (!showReturnedMessage) return;
+    const timer = setTimeout(() => setShowReturnedMessage(false), 4000);
+    return () => clearTimeout(timer);
+  }, [showReturnedMessage]);
 
   async function handleCloseGuide() {
     setShowGuide(false);
@@ -267,6 +300,16 @@ export default function Home() {
           </View>
           {profile && <Text style={styles.profileText}>{profile.avatar_emoji} {profile.username}</Text>}
 
+          {showReturnedMessage && (
+            <TouchableOpacity
+              style={styles.returnedBanner}
+              activeOpacity={0.8}
+              onPress={() => setShowReturnedMessage(false)}
+            >
+              <Text style={styles.returnedBannerText}>Welcome back — no pressure, just glad you're here</Text>
+            </TouchableOpacity>
+          )}
+
           <View style={styles.streakRow}>
             <View style={[styles.streakCard, { backgroundColor: accent.card }]}>
               <Text style={[styles.streakNumber, { color: textOn(accent.card) }]}>{streak}</Text>
@@ -415,6 +458,11 @@ const styles = StyleSheet.create({
   unreadBadgeText: { fontSize: 10, fontWeight: '700', color: C.bg },
   settingsLink: { fontSize: 22, color: C.subtext },
   profileText: { marginBottom: 16, fontSize: 16, color: C.text },
+  returnedBanner: {
+    backgroundColor: C.sparkleBg, borderRadius: 14,
+    paddingVertical: 12, paddingHorizontal: 16, marginBottom: 12,
+  },
+  returnedBannerText: { fontSize: 14, fontWeight: '600', color: C.sparkleText, textAlign: 'center' },
 
   streakRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
   streakCard: {
