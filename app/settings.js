@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Switch, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
@@ -12,6 +12,7 @@ export default function Settings() {
   const { profile, setProfile, refreshProfile } = useAuth();
   const [showGuide, setShowGuide] = useState(false);
   const [savingTheme, setSavingTheme] = useState(null);
+  const [savingTickleNature, setSavingTickleNature] = useState(false);
 
   async function signOut() {
     await supabase.auth.signOut();
@@ -35,6 +36,26 @@ export default function Settings() {
 
     const { error } = await supabase.from('profiles').update({ accent_theme: themeId }).eq('id', profile.id);
     setSavingTheme(null);
+
+    if (error) {
+      setProfile(previous);
+    } else {
+      refreshProfile();
+    }
+  }
+
+  async function handleToggleTickleNature(value) {
+    if (!profile) return;
+    const previous = profile;
+
+    setProfile({ ...profile, tickle_nature_enabled: value });
+    setSavingTickleNature(true);
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ tickle_nature_enabled: value })
+      .eq('id', profile.id);
+    setSavingTickleNature(false);
 
     if (error) {
       setProfile(previous);
@@ -80,6 +101,18 @@ export default function Settings() {
       </View>
       <View style={styles.spacer} />
 
+      <View style={styles.toggleRow}>
+        <Text style={styles.toggleLabel}>Track the nature of your smiles</Text>
+        <Switch
+          value={!!profile?.tickle_nature_enabled}
+          onValueChange={handleToggleTickleNature}
+          disabled={savingTickleNature}
+          trackColor={{ false: C.border, true: C.rust }}
+          thumbColor={C.card}
+        />
+      </View>
+      <View style={styles.spacer} />
+
       <Button title="Manage Goals" onPress={() => router.push('/goals')} variant="secondary" />
       <View style={styles.spacer} />
       <Button title="How DayTickles works" onPress={() => setShowGuide(true)} variant="secondary" />
@@ -103,5 +136,9 @@ const styles = StyleSheet.create({
     borderWidth: 2, borderColor: 'transparent',
   },
   swatchSelected: { borderColor: C.rustDark },
+  toggleRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+  },
+  toggleLabel: { flex: 1, fontSize: 15, color: C.text, marginRight: 12 },
   spacer: { height: 12 },
 });
