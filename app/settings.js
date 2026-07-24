@@ -9,7 +9,7 @@ import Button from '../components/Button';
 import HomeGuide from '../components/HomeGuide';
 
 export default function Settings() {
-  const { profile, refreshProfile } = useAuth();
+  const { profile, setProfile, refreshProfile } = useAuth();
   const [showGuide, setShowGuide] = useState(false);
   const [savingTheme, setSavingTheme] = useState(null);
 
@@ -20,10 +20,19 @@ export default function Settings() {
 
   async function handlePickTheme(themeId) {
     if (!profile || themeId === profile.accent_theme) return;
+    const previous = profile;
+
+    setProfile({ ...profile, accent_theme: themeId });
     setSavingTheme(themeId);
-    await supabase.from('profiles').update({ accent_theme: themeId }).eq('id', profile.id);
-    await refreshProfile();
+
+    const { error } = await supabase.from('profiles').update({ accent_theme: themeId }).eq('id', profile.id);
     setSavingTheme(null);
+
+    if (error) {
+      setProfile(previous);
+    } else {
+      refreshProfile();
+    }
   }
 
   return (
