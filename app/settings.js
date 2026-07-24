@@ -4,12 +4,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { C, ACCENT_THEMES } from '../lib/theme';
+import { C, ACCENT_THEMES, accentFor, darken, textOn } from '../lib/theme';
 import Button from '../components/Button';
 import HomeGuide from '../components/HomeGuide';
 
 export default function Settings() {
   const { profile, setProfile, refreshProfile } = useAuth();
+  const accentDark = darken(accentFor(profile?.accent_theme).card, 0.35);
   const [showGuide, setShowGuide] = useState(false);
   const [savingTheme, setSavingTheme] = useState(null);
   const [savingTickleNature, setSavingTickleNature] = useState(false);
@@ -90,10 +91,10 @@ export default function Settings() {
                 style={[
                   styles.swatch,
                   { backgroundColor: theme.card },
-                  selected && styles.swatchSelected,
+                  selected && { borderColor: accentDark },
                 ]}
               >
-                {selected && <Ionicons name="checkmark" size={18} color={C.rustDark} />}
+                {selected && <Ionicons name="checkmark" size={18} color={textOn(theme.card)} />}
               </View>
             </TouchableOpacity>
           );
@@ -107,7 +108,7 @@ export default function Settings() {
           value={!!profile?.tickle_nature_enabled}
           onValueChange={handleToggleTickleNature}
           disabled={savingTickleNature}
-          trackColor={{ false: C.border, true: C.rust }}
+          trackColor={{ false: C.border, true: accentDark }}
           thumbColor={C.card}
         />
       </View>
@@ -135,7 +136,6 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 2, borderColor: 'transparent',
   },
-  swatchSelected: { borderColor: C.rustDark },
   toggleRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
   },

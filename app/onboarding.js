@@ -3,13 +3,14 @@ import { View, TextInput, Text, StyleSheet, TouchableOpacity } from 'react-nativ
 import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { C } from '../lib/theme';
+import { C, accentFor, darken } from '../lib/theme';
 import Button from '../components/Button';
 
 const AVATAR_OPTIONS = ['😀', '🐸', '🌟', '🔥', '🌈', '🦊', '🎯', '🌻'];
 
 export default function Onboarding() {
-  const { session, refreshProfile } = useAuth();
+  const { session, profile, refreshProfile } = useAuth();
+  const accentDark = darken(accentFor(profile?.accent_theme).card, 0.35);
   const [username, setUsername] = useState('');
   const [avatar, setAvatar] = useState(AVATAR_OPTIONS[0]);
   const [status, setStatus] = useState('');
@@ -62,7 +63,10 @@ export default function Onboarding() {
           <TouchableOpacity
             key={emoji}
             onPress={() => setAvatar(emoji)}
-            style={[styles.avatarOption, avatar === emoji && styles.avatarSelected]}
+            style={[
+              styles.avatarOption,
+              avatar === emoji && { borderColor: accentDark, backgroundColor: C.sparkleBg },
+            ]}
           >
             <Text style={styles.avatarEmoji}>{emoji}</Text>
           </TouchableOpacity>
@@ -101,7 +105,6 @@ const styles = StyleSheet.create({
     margin: 4, borderWidth: 2, borderColor: 'transparent',
     backgroundColor: C.card,
   },
-  avatarSelected: { borderColor: C.rust, backgroundColor: C.sparkleBg },
   avatarEmoji: { fontSize: 24 },
   status: { marginTop: 12, color: C.subtext, textAlign: 'center' },
 });

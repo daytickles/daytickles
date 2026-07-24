@@ -1,14 +1,16 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import {
-  View, Text, TextInput, Button, FlatList, TouchableOpacity, StyleSheet, Alert,
+  View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, Alert,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { C, GOAL_COLORS, MAX_GOALS } from '../lib/theme';
+import { C, GOAL_COLORS, MAX_GOALS, accentFor, darken } from '../lib/theme';
+import Button from '../components/Button';
 
 export default function Goals() {
-  const { session } = useAuth();
+  const { session, profile } = useAuth();
+  const accentDark = darken(accentFor(profile?.accent_theme).card, 0.35);
   const [goals, setGoals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [label, setLabel] = useState('');
@@ -145,7 +147,7 @@ export default function Goals() {
                   style={[
                     styles.swatch,
                     { backgroundColor: c },
-                    color === c && styles.swatchSelected,
+                    color === c && { borderColor: accentDark },
                     isUsed && styles.swatchDisabled,
                   ]}
                 />
@@ -157,7 +159,7 @@ export default function Goals() {
             title={saving ? 'Adding...' : 'Add Goal'}
             onPress={handleAdd}
             disabled={saving}
-            color={C.rust}
+            variant="primary"
           />
         </View>
       )}
@@ -193,7 +195,6 @@ const styles = StyleSheet.create({
     width: 36, height: 36, borderRadius: 18, margin: 4,
     borderWidth: 3, borderColor: 'transparent',
   },
-  swatchSelected: { borderColor: C.rustDark },
   swatchDisabled: { opacity: 0.25 },
   status: { marginTop: 12, color: C.rust, textAlign: 'center' },
 });

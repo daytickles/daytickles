@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { C, accentFor, moodColorFor, moodDotSize, textOn, darken, TICKLE_NATURE_ICONS } from '../lib/theme';
+import { C, accentFor, moodColorFor, moodDotSize, textOn, TICKLE_NATURE_ICONS } from '../lib/theme';
 import { shareEntry, shareStatus, SHARE_CAPTIONS } from '../lib/sharing';
 import Button from '../components/Button';
 import HomeGuide from '../components/HomeGuide';
@@ -283,9 +283,6 @@ export default function Home() {
     );
   }
 
-  const newTickleBg = darken(accent.card, 0.35);
-  const newTickleText = textOn(newTickleBg);
-
   const pickerEntry = entries.find((e) => e.id === pickerEntryId) || null;
   const shareTargetEntry = entries.find((e) => e.id === shareEntryId) || null;
   const shareStat = profile ? shareStatus(profile) : null;
@@ -357,13 +354,7 @@ export default function Home() {
         </View>
       </View>
 
-      <Button
-        title="New Tickle"
-        onPress={() => router.push('/create')}
-        variant="primary"
-        color={newTickleBg}
-        textColor={newTickleText}
-      />
+      <Button title="New Tickle" onPress={() => router.push('/create')} variant="primary" />
 
       {profile?.tickle_nature_enabled && (
         <View style={styles.selfCareRow}>

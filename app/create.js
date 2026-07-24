@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, Switch, StyleSheet } from 'rea
 import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { C, MOODS, accentFor, moodColorFor } from '../lib/theme';
+import { C, MOODS, accentFor, moodColorFor, darken, textOn } from '../lib/theme';
 import Button from '../components/Button';
 
 const MAX_LEN = 500;
@@ -19,6 +19,8 @@ const TICKLE_NATURE_OPTIONS = [
 export default function Create() {
   const { session, profile } = useAuth();
   const accent = accentFor(profile?.accent_theme);
+  const accentDark = darken(accent.card, 0.35);
+  const accentDarkText = textOn(accentDark);
 
   const [text, setText] = useState('');
   const [mood, setMood] = useState(null);
@@ -96,7 +98,7 @@ export default function Create() {
                     height: size,
                     borderRadius: size / 2,
                     backgroundColor: color,
-                    borderColor: selected ? C.rustDark : 'transparent',
+                    borderColor: selected ? accentDark : 'transparent',
                   },
                 ]}
               />
@@ -116,9 +118,12 @@ export default function Create() {
                 <TouchableOpacity
                   key={opt.id}
                   onPress={() => setTickleNature(selected ? null : opt.id)}
-                  style={[styles.natureOption, selected && styles.natureOptionActive]}
+                  style={[
+                    styles.natureOption,
+                    selected && { backgroundColor: accentDark, borderColor: accentDark },
+                  ]}
                 >
-                  <Text style={[styles.natureOptionLabel, selected && styles.natureOptionLabelActive]}>
+                  <Text style={[styles.natureOptionLabel, selected && { color: accentDarkText }]}>
                     {opt.label}
                   </Text>
                 </TouchableOpacity>
@@ -133,7 +138,7 @@ export default function Create() {
         <Switch
           value={shareToFeed}
           onValueChange={setShareToFeed}
-          trackColor={{ false: C.border, true: C.rust }}
+          trackColor={{ false: C.border, true: accentDark }}
           thumbColor={C.card}
         />
       </View>
@@ -171,9 +176,7 @@ const styles = StyleSheet.create({
     flex: 1, paddingVertical: 10, borderRadius: 20,
     alignItems: 'center', backgroundColor: C.card, borderWidth: 1, borderColor: C.border,
   },
-  natureOptionActive: { backgroundColor: C.rust, borderColor: C.rust },
   natureOptionLabel: { fontSize: 12, fontWeight: '600', color: C.subtext, textAlign: 'center' },
-  natureOptionLabelActive: { color: C.bg },
   shareRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     marginTop: 8, marginBottom: 28,

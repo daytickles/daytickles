@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal } from 'react-native';
-import { C } from '../lib/theme';
+import { C, accentFor, darken } from '../lib/theme';
+import { useAuth } from '../contexts/AuthContext';
 import Button from './Button';
 
 // Content lives here (not passed as props) since both callers — the
@@ -26,6 +27,8 @@ const STEPS = [
 ];
 
 export default function HomeGuide({ visible, onClose }) {
+  const { profile } = useAuth();
+  const accentDark = darken(accentFor(profile?.accent_theme).card, 0.35);
   const [index, setIndex] = useState(0);
 
   // Reopening (e.g. from Settings, after having seen it before) always
@@ -59,7 +62,10 @@ export default function HomeGuide({ visible, onClose }) {
 
           <View style={styles.dotsRow}>
             {STEPS.map((_, i) => (
-              <View key={i} style={[styles.dot, i === index && styles.dotActive]} />
+              <View
+                key={i}
+                style={[styles.dot, i === index && { backgroundColor: accentDark, width: 20 }]}
+              />
             ))}
           </View>
 
@@ -93,7 +99,6 @@ const styles = StyleSheet.create({
 
   dotsRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 20 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.faint },
-  dotActive: { backgroundColor: C.rust, width: 20 },
 
   navRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
   navSpacer: { flex: 1 },

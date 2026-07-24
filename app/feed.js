@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { C, accentFor, moodColorFor, moodDotSize, TICKLE_NATURE_ICONS } from '../lib/theme';
+import { C, accentFor, moodColorFor, moodDotSize, darken, textOn, TICKLE_NATURE_ICONS } from '../lib/theme';
 
 function formatEntryDate(entryDate) {
   return new Date(`${entryDate}T00:00:00Z`).toLocaleDateString('en-US', {
@@ -56,6 +56,8 @@ const CARD_SPACING = 12; // must match entryCard's marginBottom below
 
 export default function Feed() {
   const { session, profile } = useAuth();
+  const accentDark = darken(accentFor(profile?.accent_theme).card, 0.35);
+  const accentDarkText = textOn(accentDark);
   const params = useLocalSearchParams();
   const initialTab = TABS.some((t) => t.id === params.tab) ? params.tab : 'everyone';
   const [tab, setTab] = useState(initialTab);
@@ -370,9 +372,12 @@ export default function Feed() {
           <TouchableOpacity
             key={t.id}
             onPress={() => handleTabPress(t.id)}
-            style={[styles.tabButton, tab === t.id && styles.tabButtonActive]}
+            style={[
+              styles.tabButton,
+              tab === t.id && { backgroundColor: accentDark, borderColor: accentDark },
+            ]}
           >
-            <Text style={[styles.tabLabel, tab === t.id && styles.tabLabelActive]}>{t.label}</Text>
+            <Text style={[styles.tabLabel, tab === t.id && { color: accentDarkText }]}>{t.label}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -383,12 +388,15 @@ export default function Feed() {
             <TouchableOpacity
               key={f.id}
               onPress={() => setNatureFilter(f.id)}
-              style={[styles.natureFilterChip, natureFilter === f.id && styles.natureFilterChipActive]}
+              style={[
+                styles.natureFilterChip,
+                natureFilter === f.id && { backgroundColor: accentDark, borderColor: accentDark },
+              ]}
             >
               <Text
                 style={[
                   styles.natureFilterLabel,
-                  natureFilter === f.id && styles.natureFilterLabelActive,
+                  natureFilter === f.id && { color: accentDarkText },
                 ]}
               >
                 {f.label}
@@ -443,9 +451,7 @@ const styles = StyleSheet.create({
     flex: 1, paddingVertical: 10, borderRadius: 20,
     alignItems: 'center', backgroundColor: C.card, borderWidth: 1, borderColor: C.border,
   },
-  tabButtonActive: { backgroundColor: C.rust, borderColor: C.rust },
   tabLabel: { fontSize: 12, fontWeight: '600', color: C.subtext },
-  tabLabelActive: { color: C.bg },
 
   // Nested one level in from tabRow above, and deliberately lighter —
   // smaller padding/radius/font, content-sized chips rather than
@@ -456,9 +462,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5, paddingHorizontal: 12, borderRadius: 12,
     backgroundColor: C.bg, borderWidth: 1, borderColor: C.border,
   },
-  natureFilterChipActive: { backgroundColor: C.rust, borderColor: C.rust },
   natureFilterLabel: { fontSize: 11, fontWeight: '600', color: C.subtext },
-  natureFilterLabelActive: { color: C.bg },
 
   loader: { marginTop: 12 },
   list: { flex: 1 },
