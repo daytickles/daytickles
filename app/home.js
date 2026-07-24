@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { C, accentFor, moodColorFor, textOn } from '../lib/theme';
+import { C, accentFor, moodColorFor, moodDotSize, textOn } from '../lib/theme';
 import { shareEntry, shareStatus, SHARE_CAPTIONS } from '../lib/sharing';
 import Button from '../components/Button';
 import HomeGuide from '../components/HomeGuide';
@@ -169,9 +169,20 @@ export default function Home() {
 
   function renderEntryBody(entry) {
     const taggedGoal = entry.goal_id ? goalsById[entry.goal_id] : null;
+    const dotSize = moodDotSize(entry.mood);
     return (
       <View style={styles.entryRow}>
-        <View style={[styles.moodDot, { backgroundColor: moodColorFor(entry.mood, accent) }]} />
+        <View
+          style={[
+            styles.moodDot,
+            {
+              width: dotSize,
+              height: dotSize,
+              borderRadius: dotSize / 2,
+              backgroundColor: moodColorFor(entry.mood, accent),
+            },
+          ]}
+        />
         <View style={styles.entryBody}>
           <Text style={styles.entryText} numberOfLines={1}>{entry.text_content}</Text>
           <View style={styles.entryMetaRow}>
@@ -443,7 +454,7 @@ const styles = StyleSheet.create({
     backgroundColor: C.card, borderRadius: 16, padding: 14, marginBottom: 12,
   },
   entryRow: { flexDirection: 'row', alignItems: 'flex-start' },
-  moodDot: { width: 14, height: 14, borderRadius: 7, marginRight: 12, marginTop: 4 },
+  moodDot: { marginRight: 12, marginTop: 4 },
   entryBody: { flex: 1 },
   entryText: { fontSize: 15, color: C.text, lineHeight: 20 },
   entryMetaRow: {

@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { C, accentFor, moodColorFor } from '../lib/theme';
+import { C, accentFor, moodColorFor, moodDotSize } from '../lib/theme';
 
 function formatEntryDate(entryDate) {
   return new Date(`${entryDate}T00:00:00Z`).toLocaleDateString('en-US', {
@@ -264,6 +264,7 @@ export default function Feed() {
     const isFavorited = favoritedIds.has(item.id);
     const isLiked = likedIds.has(item.id);
     const isHighlighted = tab === 'mine' && item.id === highlightedEntryId;
+    const dotSize = moodDotSize(item.mood);
 
     return (
       <View
@@ -273,7 +274,17 @@ export default function Feed() {
         }}
       >
         <View style={styles.entryRow}>
-          <View style={[styles.moodDot, { backgroundColor: moodColorFor(item.mood, accent) }]} />
+          <View
+            style={[
+              styles.moodDot,
+              {
+                width: dotSize,
+                height: dotSize,
+                borderRadius: dotSize / 2,
+                backgroundColor: moodColorFor(item.mood, accent),
+              },
+            ]}
+          />
           <View style={styles.entryBody}>
             <Text style={styles.authorText}>
               {item.profiles?.avatar_emoji} {item.profiles?.username}
@@ -406,7 +417,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5, borderColor: C.amberDark, backgroundColor: C.sparkleBg,
   },
   entryRow: { flexDirection: 'row', alignItems: 'flex-start' },
-  moodDot: { width: 14, height: 14, borderRadius: 7, marginRight: 12, marginTop: 4 },
+  moodDot: { marginRight: 12, marginTop: 4 },
   entryBody: { flex: 1 },
   authorText: { fontSize: 13, fontWeight: '600', color: C.rustDark, marginBottom: 4 },
   entryText: { fontSize: 15, color: C.text, lineHeight: 20 },
