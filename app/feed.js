@@ -22,6 +22,17 @@ const TABS = [
   { id: 'favorites', label: "Fav's" },
 ];
 
+// Mine-only, and only for people who've opted into tickle_nature at
+// all — someone who isn't tagging entries shouldn't see filter options
+// for tags they're not creating. 'all' is the default: everything,
+// tagged or not, same as no filter applied.
+const NATURE_FILTERS = [
+  { id: 'all', label: 'All' },
+  { id: 'received', label: 'My smiles' },
+  { id: 'given', label: 'Given' },
+  { id: 'self', label: 'For me' },
+];
+
 const EMPTY_TEXT = {
   everyone: 'No public tickles yet.',
   following: 'Follow people to see their tickles here.',
@@ -44,10 +55,11 @@ const DEFAULT_ITEM_HEIGHT = 114;
 const CARD_SPACING = 12; // must match entryCard's marginBottom below
 
 export default function Feed() {
-  const { session } = useAuth();
+  const { session, profile } = useAuth();
   const params = useLocalSearchParams();
   const initialTab = TABS.some((t) => t.id === params.tab) ? params.tab : 'everyone';
   const [tab, setTab] = useState(initialTab);
+  const [natureFilter, setNatureFilter] = useState('all');
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [followedIds, setFollowedIds] = useState(new Set());
@@ -165,6 +177,7 @@ export default function Feed() {
       // (reached by tapping an entry on Home) is where you read your
       // own entries in full regardless of sharing status.
       query = query.eq('user_id', session.user.id);
+      if (natureFilter !== 'all') query = query.eq('tickle_nature', natureFilter);
     } else {
       query = query.eq('visibility', 'public');
     }
@@ -175,7 +188,7 @@ export default function Feed() {
     // likedIds isn't used to filter any query above — it's a dependency
     // purely so a like/unlike triggers this refetch, pulling like_count
     // fresh from the DB rather than ever computing it locally.
-  }, [session, tab, followedIds, favoritedIds, likedIds]);
+  }, [session, tab, natureFilter, followedIds, favoritedIds, likedIds]);
 
   useFocusEffect(
     useCallback(() => {
@@ -364,6 +377,27 @@ export default function Feed() {
         ))}
       </View>
 
+      {tab === 'mine' && profile?.tickle_nature_enabled && (
+        <View style={styles.natureFilterRow}>
+          {NATURE_FILTERS.map((f) => (
+            <TouchableOpacity
+              key={f.id}
+              onPress={() => setNatureFilter(f.id)}
+              style={[styles.natureFilterChip, natureFilter === f.id && styles.natureFilterChipActive]}
+            >
+              <Text
+                style={[
+                  styles.natureFilterLabel,
+                  natureFilter === f.id && styles.natureFilterLabelActive,
+                ]}
+              >
+                {f.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+
       {loading && <ActivityIndicator color={C.rust} style={styles.loader} />}
 
       <FlatList
@@ -412,6 +446,19 @@ const styles = StyleSheet.create({
   tabButtonActive: { backgroundColor: C.rust, borderColor: C.rust },
   tabLabel: { fontSize: 12, fontWeight: '600', color: C.subtext },
   tabLabelActive: { color: C.bg },
+
+  // Nested one level in from tabRow above, and deliberately lighter —
+  // smaller padding/radius/font, content-sized chips rather than
+  // flex:1 — so this reads as a secondary refinement of Mine, not a
+  // second peer tab row.
+  natureFilterRow: { flexDirection: 'row', gap: 6, marginBottom: 16 },
+  natureFilterChip: {
+    paddingVertical: 5, paddingHorizontal: 12, borderRadius: 12,
+    backgroundColor: C.bg, borderWidth: 1, borderColor: C.border,
+  },
+  natureFilterChipActive: { backgroundColor: C.rust, borderColor: C.rust },
+  natureFilterLabel: { fontSize: 11, fontWeight: '600', color: C.subtext },
+  natureFilterLabelActive: { color: C.bg },
 
   loader: { marginTop: 12 },
   list: { flex: 1 },
