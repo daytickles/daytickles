@@ -276,18 +276,20 @@ export default function Feed() {
                     </Text>
                   </TouchableOpacity>
                 )}
-                <TouchableOpacity
-                  onPress={() => handleToggleLike(item.id)}
-                  style={styles.likeButton}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <Ionicons
-                    name={isLiked ? 'sparkles' : 'sparkles-outline'}
-                    size={16}
-                    color={isLiked ? C.sparkleText : C.faint}
-                  />
-                  <Text style={[styles.likeCount, isLiked && styles.likeCountActive]}>{item.like_count || 0}</Text>
-                </TouchableOpacity>
+                {!isOwnEntry && (
+                  <TouchableOpacity
+                    onPress={() => handleToggleLike(item.id)}
+                    style={styles.likeButton}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Ionicons
+                      name={isLiked ? 'sparkles' : 'sparkles-outline'}
+                      size={16}
+                      color={isLiked ? C.sparkleText : C.faint}
+                    />
+                    <Text style={[styles.likeCount, isLiked && styles.likeCountActive]}>{item.like_count || 0}</Text>
+                  </TouchableOpacity>
+                )}
                 <TouchableOpacity
                   onPress={() => handleToggleFavorite(item.id)}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
