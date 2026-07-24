@@ -240,13 +240,13 @@ export default function Home() {
           </View>
 
           <View style={styles.statsRow}>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>{totalTickles}</Text>
-              <Text style={styles.statLabel}>Tickles</Text>
+            <View style={[styles.statCard, styles.statCardTickles]}>
+              <Text style={[styles.statNumber, styles.statNumberTickles]}>{totalTickles}</Text>
+              <Text style={[styles.statLabel, styles.statLabelTickles]}>Tickles</Text>
             </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>{totalLikes}</Text>
-              <Text style={styles.statLabel}>Likes</Text>
+            <View style={[styles.statCard, styles.statCardLikes]}>
+              <Text style={[styles.statNumber, styles.statNumberLikes]}>{totalLikes}</Text>
+              <Text style={[styles.statLabel, styles.statLabelLikes]}>Likes</Text>
             </View>
           </View>
 
@@ -382,11 +382,17 @@ const styles = StyleSheet.create({
 
   statsRow: { flexDirection: 'row', gap: 12, marginBottom: 20 },
   statCard: {
-    flex: 1, backgroundColor: C.card, borderRadius: 18,
+    flex: 1, borderRadius: 18,
     paddingVertical: 16, alignItems: 'center',
   },
-  statNumber: { fontSize: 24, fontWeight: 'bold', color: C.rustDark },
-  statLabel: { fontSize: 12, color: C.subtext, marginTop: 2 },
+  statCardTickles: { backgroundColor: C.amberBg },
+  statCardLikes: { backgroundColor: C.teal },
+  statNumber: { fontSize: 24, fontWeight: 'bold' },
+  statNumberTickles: { color: C.amberText },
+  statNumberLikes: { color: C.tealText },
+  statLabel: { fontSize: 12, marginTop: 2 },
+  statLabelTickles: { color: C.amberText },
+  statLabelLikes: { color: C.tealText },
 
   pinnedCard: {
     marginTop: 20, borderWidth: 1.5, borderColor: C.amberDark, backgroundColor: C.sparkleBg,
