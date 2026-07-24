@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { C, accentFor, moodColorFor, moodDotSize } from '../lib/theme';
+import { C, accentFor, moodColorFor, moodDotSize, TICKLE_NATURE_ICONS } from '../lib/theme';
 
 function formatEntryDate(entryDate) {
   return new Date(`${entryDate}T00:00:00Z`).toLocaleDateString('en-US', {
@@ -30,7 +30,7 @@ const EMPTY_TEXT = {
 };
 
 const ENTRY_SELECT =
-  'id, entry_date, text_content, mood, like_count, created_at, user_id, profiles!tickle_entries_user_id_fkey(username, avatar_emoji, accent_theme)';
+  'id, entry_date, text_content, mood, like_count, tickle_nature, created_at, user_id, profiles!tickle_entries_user_id_fkey(username, avatar_emoji, accent_theme)';
 
 // Mine shows entries fully untruncated (deliberate — people should be
 // able to read the complete text), so real cards range from one line to
@@ -328,6 +328,14 @@ export default function Feed() {
               </View>
             </View>
           </View>
+          {item.tickle_nature && (
+            <Ionicons
+              name={TICKLE_NATURE_ICONS[item.tickle_nature]}
+              size={16}
+              color={C.subtext}
+              style={styles.natureIcon}
+            />
+          )}
         </View>
       </View>
     );
@@ -418,6 +426,7 @@ const styles = StyleSheet.create({
   },
   entryRow: { flexDirection: 'row', alignItems: 'flex-start' },
   moodDot: { marginRight: 12, marginTop: 4 },
+  natureIcon: { marginLeft: 12, marginTop: 4 },
   entryBody: { flex: 1 },
   authorText: { fontSize: 13, fontWeight: '600', color: C.rustDark, marginBottom: 4 },
   entryText: { fontSize: 15, color: C.text, lineHeight: 20 },

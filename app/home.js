@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { C, accentFor, moodColorFor, moodDotSize, textOn } from '../lib/theme';
+import { C, accentFor, moodColorFor, moodDotSize, textOn, TICKLE_NATURE_ICONS } from '../lib/theme';
 import { shareEntry, shareStatus, SHARE_CAPTIONS } from '../lib/sharing';
 import Button from '../components/Button';
 import HomeGuide from '../components/HomeGuide';
@@ -116,7 +116,7 @@ export default function Home() {
     if (!session) return;
     const { data, error } = await supabase
       .from('tickle_entries')
-      .select('id, entry_date, text_content, mood, like_count, goal_id, created_at')
+      .select('id, entry_date, text_content, mood, like_count, goal_id, tickle_nature, created_at')
       .eq('user_id', session.user.id)
       .order('entry_date', { ascending: false })
       .order('created_at', { ascending: false });
@@ -231,6 +231,14 @@ export default function Home() {
             </View>
           </View>
         </View>
+        {entry.tickle_nature && (
+          <Ionicons
+            name={TICKLE_NATURE_ICONS[entry.tickle_nature]}
+            size={16}
+            color={C.subtext}
+            style={styles.natureIcon}
+          />
+        )}
         <TouchableOpacity
           onPress={() => setPickerEntryId(entry.id)}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -514,6 +522,7 @@ const styles = StyleSheet.create({
   entryLikes: { fontSize: 12, color: C.rust, fontWeight: '600' },
   shareLink: { fontSize: 12, color: C.subtext, fontWeight: '600' },
 
+  natureIcon: { marginLeft: 12, marginTop: 4 },
   goalDot: { width: 16, height: 16, borderRadius: 8, marginLeft: 12, marginTop: 4 },
   goalDotEmpty: {
     backgroundColor: 'transparent', borderWidth: 1.5,
