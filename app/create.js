@@ -11,9 +11,9 @@ const MAX_LEN = 500;
 // Presentation only — not shared elsewhere, so kept local rather than
 // added to lib/theme.js alongside MOODS.
 const TICKLE_NATURE_OPTIONS = [
-  { id: 'received', label: 'You smiling?' },
-  { id: 'given', label: 'Paying forward?' },
-  { id: 'self', label: 'Did it for me?' },
+  { id: 'received', label: 'Made me Smile' },
+  { id: 'given', label: 'I paid forward' },
+  { id: 'self', label: 'Mood boost' },
 ];
 
 export default function Create() {
@@ -76,7 +76,7 @@ export default function Create() {
       />
       <Text style={styles.counter}>{text.length}/{MAX_LEN}</Text>
 
-      <Text style={styles.label}>How big was the smile?</Text>
+      <Text style={styles.label}>How big was the Buzz?</Text>
       <View style={styles.moodRow}>
         {MOODS.map((m) => {
           const size = m.size + 12;
@@ -108,7 +108,7 @@ export default function Create() {
 
       {profile?.tickle_nature_enabled && (
         <>
-          <Text style={styles.label}>What kind of smile was this? (optional)</Text>
+          <Text style={styles.label}>What kind of tickle was it?</Text>
           <View style={styles.natureRow}>
             {TICKLE_NATURE_OPTIONS.map((opt) => {
               const selected = tickleNature === opt.id;
