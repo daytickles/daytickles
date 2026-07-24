@@ -144,6 +144,12 @@ export default function Home() {
     await shareEntry({ profile, entry, captionId, onProfileUpdated: refreshProfile });
   }
 
+  // Same scroll-to-and-highlight mechanism notifications.js already
+  // uses to jump into Feed's Mine tab at a specific entry.
+  function goToEntryInFeed(entryId) {
+    router.push({ pathname: '/feed', params: { tab: 'mine', highlightEntry: entryId } });
+  }
+
   const streak = computeStreak(entries);
   const totalTickles = entries.length;
   const totalLikes = entries.reduce((sum, e) => sum + (e.like_count || 0), 0);
@@ -159,7 +165,7 @@ export default function Home() {
       <View style={styles.entryRow}>
         <View style={[styles.moodDot, { backgroundColor: moodColorFor(entry.mood, accent) }]} />
         <View style={styles.entryBody}>
-          <Text style={styles.entryText}>{entry.text_content}</Text>
+          <Text style={styles.entryText} numberOfLines={1}>{entry.text_content}</Text>
           <View style={styles.entryMetaRow}>
             <Text style={styles.entryDate}>{formatEntryDate(entry.entry_date)}</Text>
             <View style={styles.entryMetaRight}>
@@ -200,7 +206,15 @@ export default function Home() {
       contentContainerStyle={styles.content}
       data={entries}
       keyExtractor={(item) => String(item.id)}
-      renderItem={({ item }) => <View style={styles.entryCard}>{renderEntryBody(item)}</View>}
+      renderItem={({ item }) => (
+        <TouchableOpacity
+          style={styles.entryCard}
+          activeOpacity={0.8}
+          onPress={() => goToEntryInFeed(item.id)}
+        >
+          {renderEntryBody(item)}
+        </TouchableOpacity>
+      )}
       ListHeaderComponent={
         <View>
           <View style={styles.headerRow}>
@@ -253,10 +267,14 @@ export default function Home() {
           <Button title="New Tickle" onPress={() => router.push('/create')} variant="primary" />
 
           {pinned && (
-            <View style={[styles.entryCard, styles.pinnedCard]}>
+            <TouchableOpacity
+              style={[styles.entryCard, styles.pinnedCard]}
+              activeOpacity={0.8}
+              onPress={() => goToEntryInFeed(pinned.id)}
+            >
               <Text style={styles.pinnedLabel}>Most liked this week</Text>
               {renderEntryBody(pinned)}
-            </View>
+            </TouchableOpacity>
           )}
 
           {entries.length > 0 && <Text style={styles.sectionLabel}>Your tickles</Text>}

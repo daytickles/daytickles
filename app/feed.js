@@ -32,11 +32,16 @@ const EMPTY_TEXT = {
 const ENTRY_SELECT =
   'id, entry_date, text_content, mood, like_count, created_at, user_id, profiles!tickle_entries_user_id_fkey(username, avatar_emoji, accent_theme)';
 
-// Rough average card height for scrollToIndex's getItemLayout — an
-// estimate is fine here since cards vary with entry text length; it
-// only needs to get the scroll roughly to the right place, the
-// highlight style below is what actually makes the entry easy to spot.
-const ESTIMATED_ITEM_HEIGHT = 110;
+// Mine shows entries fully untruncated (deliberate — people should be
+// able to read the complete text), so real cards range from one line to
+// fifteen-plus. A single fixed height can't represent that, so
+// getItemLayout below sums each card's *actual measured* height
+// (recorded via onLayout into cardHeights, keyed by entry id) instead of
+// assuming a uniform size. DEFAULT_ITEM_HEIGHT is only the fallback used
+// for cards that haven't rendered/measured yet — matches entryCard's
+// typical single-line size (102.33px measured + CARD_SPACING).
+const DEFAULT_ITEM_HEIGHT = 114;
+const CARD_SPACING = 12; // must match entryCard's marginBottom below
 
 export default function Feed() {
   const { session } = useAuth();
@@ -52,6 +57,11 @@ export default function Feed() {
     Array.isArray(params.highlightEntry) ? params.highlightEntry[0] : params.highlightEntry || null
   );
   const listRef = useRef(null);
+  // Real per-item space (rendered height + CARD_SPACING), keyed by entry
+  // id, filled in as each card's onLayout fires. A plain object in a ref
+  // rather than state — getItemLayout reads it synchronously and mutating
+  // it shouldn't itself trigger a re-render.
+  const cardHeights = useRef({});
 
   // Follow/favorite/like state is loaded independently of the active
   // tab — Everyone needs followedIds for its Follow/Following buttons,
@@ -151,8 +161,9 @@ export default function Feed() {
 
     if (tab === 'mine') {
       // Mine shows all of the signed-in user's own entries, private and
-      // public alike — Home truncates to one line, so Mine is where you
-      // read your own entries in full regardless of sharing status.
+      // public alike — Home truncates each entry to one line, so Mine
+      // (reached by tapping an entry on Home) is where you read your
+      // own entries in full regardless of sharing status.
       query = query.eq('user_id', session.user.id);
     } else {
       query = query.eq('visibility', 'public');
@@ -255,7 +266,12 @@ export default function Feed() {
     const isHighlighted = tab === 'mine' && item.id === highlightedEntryId;
 
     return (
-      <View style={[styles.entryCard, isHighlighted && styles.highlightedCard]}>
+      <View
+        style={[styles.entryCard, isHighlighted && styles.highlightedCard]}
+        onLayout={(e) => {
+          cardHeights.current[item.id] = e.nativeEvent.layout.height + CARD_SPACING;
+        }}
+      >
         <View style={styles.entryRow}>
           <View style={[styles.moodDot, { backgroundColor: moodColorFor(item.mood, accent) }]} />
           <View style={styles.entryBody}>
@@ -338,11 +354,14 @@ export default function Feed() {
         keyExtractor={(item) => String(item.id)}
         renderItem={renderEntry}
         contentContainerStyle={styles.listContent}
-        getItemLayout={(data, index) => ({
-          length: ESTIMATED_ITEM_HEIGHT,
-          offset: ESTIMATED_ITEM_HEIGHT * index,
-          index,
-        })}
+        getItemLayout={(data, index) => {
+          let offset = 0;
+          for (let i = 0; i < index; i++) {
+            offset += cardHeights.current[data[i].id] ?? DEFAULT_ITEM_HEIGHT;
+          }
+          const length = cardHeights.current[data[index].id] ?? DEFAULT_ITEM_HEIGHT;
+          return { length, offset, index };
+        }}
         onScrollToIndexFailed={(info) => {
           // getItemLayout's estimate should make this rare, but a card
           // running much taller than average (long entry text) could
@@ -381,7 +400,7 @@ const styles = StyleSheet.create({
   emptyText: { color: C.subtext, textAlign: 'center', marginTop: 24 },
 
   entryCard: {
-    backgroundColor: C.card, borderRadius: 16, padding: 14, marginBottom: 12,
+    backgroundColor: C.card, borderRadius: 16, padding: 14, marginBottom: CARD_SPACING,
   },
   highlightedCard: {
     borderWidth: 1.5, borderColor: C.amberDark, backgroundColor: C.sparkleBg,
