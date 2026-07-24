@@ -15,6 +15,14 @@ export default function Settings() {
 
   async function signOut() {
     await supabase.auth.signOut();
+    // replace() alone only swaps the current top-of-stack entry — since
+    // Settings is reached via router.push from Home, that would leave
+    // Home stranded underneath, still mounted (confirmed live: this was
+    // the actual cause of the Home guide's stacking-Modal bug).
+    // dismissAll() first pops every pushed screen back to the stack's
+    // root before replace swaps that root for /login, so nothing
+    // survives sign-out.
+    router.dismissAll();
     router.replace('/login');
   }
 
