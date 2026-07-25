@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import {
-  View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, Alert,
+  View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, Alert, Keyboard,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { supabase } from '../lib/supabase';
@@ -142,7 +142,10 @@ export default function Goals() {
               return (
                 <TouchableOpacity
                   key={c}
-                  onPress={() => setColor(c)}
+                  onPress={() => {
+                    Keyboard.dismiss();
+                    setColor(c);
+                  }}
                   disabled={isUsed}
                   style={[
                     styles.swatch,
