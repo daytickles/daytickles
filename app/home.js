@@ -294,7 +294,7 @@ export default function Home() {
     <>
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.headerRow}>
-        <Text style={styles.title}>Welcome to DayTickles</Text>
+        <Text style={styles.title} numberOfLines={1}>DayTickles</Text>
         <View style={styles.headerActions}>
           <TouchableOpacity
             onPress={() => router.push('/feed')}
@@ -439,9 +439,9 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6,
   },
-  title: { fontSize: 20, fontWeight: 'bold', color: C.rustDark },
+  title: { fontSize: 20, fontWeight: 'bold', color: C.rustDark, flexShrink: 1 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  feedLink: { fontSize: 14, fontWeight: '600', color: C.rust },
+  feedLink: { fontSize: 14, fontWeight: '600', color: C.subtext },
   bellButton: { position: 'relative' },
   unreadBadge: {
     position: 'absolute', top: -6, right: -8, minWidth: 16, height: 16, borderRadius: 8,
