@@ -387,7 +387,7 @@ export default function Home() {
           activeOpacity={0.8}
           onPress={() => goToEntryInFeed(pinned.id)}
         >
-          <Text style={styles.pinnedLabel}>Most liked this week</Text>
+          <Text style={styles.pinnedLabel}>Most smiled with you the past 14 days</Text>
           {renderEntryBody(pinned)}
         </TouchableOpacity>
       )}
@@ -507,7 +507,7 @@ const styles = StyleSheet.create({
   },
   pinnedLabel: {
     fontSize: 12, fontWeight: '600', color: C.sparkleText,
-    marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5,
+    marginBottom: 8,
   },
 
   sectionLabel: { fontSize: 14, fontWeight: '600', color: C.subtext, marginTop: 8, marginBottom: 8 },
