@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
@@ -199,6 +199,32 @@ export default function Home() {
     await shareEntry({ profile, entry, captionId, onProfileUpdated: refreshProfile });
   }
 
+  // Real DELETE, not a soft-hide — RLS already scopes it to entries you
+  // own, and every table referencing tickle_entries (likes, favorites,
+  // notifications, shares, etc.) cascades on delete (confirmed against
+  // the schema before building this). Home and Feed each reload their
+  // own entries on focus already, so a deletion made on one screen is
+  // picked up by the other the next time it's revisited — no separate
+  // cross-screen refresh mechanism needed.
+  function confirmDeleteEntry(entry) {
+    Alert.alert(
+      'Delete this tickle?',
+      "This can't be undone — it removes the entry everywhere, including any likes or shares.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => handleDeleteEntry(entry.id) },
+      ]
+    );
+  }
+
+  async function handleDeleteEntry(entryId) {
+    const previous = entries;
+    setEntries((prev) => prev.filter((e) => e.id !== entryId));
+
+    const { error } = await supabase.from('tickle_entries').delete().eq('id', entryId);
+    if (error) setEntries(previous);
+  }
+
   // Same scroll-to-and-highlight mechanism notifications.js already
   // uses to jump into Feed's Mine tab at a specific entry.
   function goToEntryInFeed(entryId) {
@@ -281,6 +307,13 @@ export default function Home() {
           style={styles.shareAction}
         >
           <Text style={styles.shareLink}>Share</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => confirmDeleteEntry(entry)}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={styles.deleteAction}
+        >
+          <Ionicons name="trash-outline" size={16} color={C.rust} />
         </TouchableOpacity>
       </View>
     );
@@ -537,6 +570,7 @@ const styles = StyleSheet.create({
   natureIcon: { marginLeft: 12, marginTop: 4 },
   goalDot: { width: 16, height: 16, borderRadius: 8, marginLeft: 12, marginTop: 4 },
   shareAction: { marginLeft: 12, marginTop: 4 },
+  deleteAction: { marginLeft: 12, marginTop: 4 },
   goalDotEmpty: {
     backgroundColor: 'transparent', borderWidth: 1.5,
     borderStyle: 'dashed', borderColor: C.faint,

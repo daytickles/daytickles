@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
@@ -317,6 +317,32 @@ export default function Feed() {
     await shareEntry({ profile, entry, captionId, onProfileUpdated: refreshProfile });
   }
 
+  // Real DELETE, not a soft-hide — RLS already scopes it to entries you
+  // own, and every table referencing tickle_entries (likes, favorites,
+  // notifications, shares, etc.) cascades on delete (confirmed against
+  // the schema before building this). Home and Feed each reload their
+  // own entries on focus already, so a deletion made on one screen is
+  // picked up by the other the next time it's revisited — no separate
+  // cross-screen refresh mechanism needed.
+  function confirmDeleteEntry(entry) {
+    Alert.alert(
+      'Delete this tickle?',
+      "This can't be undone — it removes the entry everywhere, including any likes or shares.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => handleDeleteEntry(entry.id) },
+      ]
+    );
+  }
+
+  async function handleDeleteEntry(entryId) {
+    const previous = entries;
+    setEntries((prev) => prev.filter((e) => e.id !== entryId));
+
+    const { error } = await supabase.from('tickle_entries').delete().eq('id', entryId);
+    if (error) setEntries(previous);
+  }
+
   function renderEntry({ item }) {
     const accent = accentFor(item.profiles?.accent_theme);
     const isOwnEntry = item.user_id === session.user.id;
@@ -392,6 +418,15 @@ export default function Feed() {
                     {isFavorited ? '★' : '☆'}
                   </Text>
                 </TouchableOpacity>
+                {tab === 'mine' && (
+                  <TouchableOpacity
+                    onPress={() => confirmDeleteEntry(item)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    style={styles.deleteAction}
+                  >
+                    <Ionicons name="trash-outline" size={16} color={C.rust} />
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
             <Text style={styles.entryText}>{item.text_content}</Text>
@@ -588,6 +623,7 @@ const styles = StyleSheet.create({
   },
   shareAction: { marginLeft: 12 },
   starAction: { marginLeft: 12 },
+  deleteAction: { marginLeft: 12 },
   entryText: { fontSize: 15, color: C.text, lineHeight: 20 },
 
   entryMetaRow: {
