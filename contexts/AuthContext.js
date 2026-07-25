@@ -20,6 +20,8 @@ const RENDER_RELEVANT_FIELDS = [
   'share_period_start',
   'share_count_this_period',
   'trial_started_at',
+  'tickle_nature_enabled',
+  'day_journal_enabled',
 ];
 
 function profilesEqual(a, b) {
