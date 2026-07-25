@@ -189,7 +189,11 @@ export default function Create() {
 
       {(baseNatureOptions.length > 0 || showDayJournal) && (
         <>
-          <Text style={styles.label}>What kind of tickle was it?</Text>
+          <Text style={styles.label}>
+            {baseNatureOptions.length > 0
+              ? 'What kind of tickle was it?'
+              : 'Tag the tickle if it is a journal entry.'}
+          </Text>
           {baseNatureOptions.length > 0 && (
             <View style={styles.natureRow}>
               {baseNatureOptions.map((opt) => {
