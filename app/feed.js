@@ -45,7 +45,7 @@ const EMPTY_TEXT = {
 };
 
 const ENTRY_SELECT =
-  'id, entry_date, text_content, mood, like_count, tickle_nature, goal_id, visibility, created_at, user_id, profiles!tickle_entries_user_id_fkey(username, avatar_emoji, accent_theme, country)';
+  'id, entry_date, text_content, mood, like_count, tickle_nature, goal_id, visibility, is_edited, created_at, user_id, profiles!tickle_entries_user_id_fkey(username, avatar_emoji, accent_theme, country)';
 
 // Mine shows entries fully untruncated (deliberate — people should be
 // able to read the complete text), so real cards range from one line to
@@ -428,6 +428,15 @@ export default function Feed() {
                     <Text style={styles.shareLink}>Share</Text>
                   </TouchableOpacity>
                 )}
+                {tab === 'mine' && (
+                  <TouchableOpacity
+                    onPress={() => router.push({ pathname: '/create', params: { entryId: item.id } })}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    style={styles.editAction}
+                  >
+                    <Ionicons name="pencil-outline" size={16} color={C.subtext} />
+                  </TouchableOpacity>
+                )}
                 <TouchableOpacity
                   onPress={() => handleToggleFavorite(item.id)}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -463,7 +472,10 @@ export default function Feed() {
             </View>
             <Text style={styles.entryText}>{item.text_content}</Text>
             <View style={styles.entryMetaRow}>
-              <Text style={styles.entryDate}>{formatEntryDate(item.entry_date)}</Text>
+              <Text style={styles.entryDate}>
+                {formatEntryDate(item.entry_date)}
+                {item.visibility === 'public' && item.is_edited ? ' · (edited)' : ''}
+              </Text>
               <View style={styles.entryMetaRight}>
                 {!isOwnEntry && (
                   <TouchableOpacity
@@ -654,6 +666,7 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed', borderColor: C.faint,
   },
   shareAction: { marginLeft: 12 },
+  editAction: { marginLeft: 12 },
   starAction: { marginLeft: 12 },
   visibilityAction: { marginLeft: 12 },
   deleteAction: { marginLeft: 12 },

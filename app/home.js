@@ -131,7 +131,7 @@ export default function Home() {
     if (!session) return;
     const { data, error } = await supabase
       .from('tickle_entries')
-      .select('id, entry_date, text_content, mood, like_count, goal_id, tickle_nature, visibility, created_at')
+      .select('id, entry_date, text_content, mood, like_count, goal_id, tickle_nature, visibility, is_edited, created_at')
       .eq('user_id', session.user.id)
       .order('entry_date', { ascending: false })
       .order('created_at', { ascending: false });
@@ -296,7 +296,10 @@ export default function Home() {
         <View style={styles.entryBody}>
           <Text style={styles.entryText} numberOfLines={1}>{entry.text_content}</Text>
           <View style={styles.entryMetaRow}>
-            <Text style={styles.entryDate}>{formatEntryDate(entry.entry_date)}</Text>
+            <Text style={styles.entryDate}>
+              {formatEntryDate(entry.entry_date)}
+              {entry.visibility === 'public' && entry.is_edited ? ' · (edited)' : ''}
+            </Text>
             <Text style={styles.entryLikes}>{likeLabel(entry.like_count)}</Text>
           </View>
         </View>
@@ -325,6 +328,13 @@ export default function Home() {
           style={styles.shareAction}
         >
           <Text style={styles.shareLink}>Share</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => router.push({ pathname: '/create', params: { entryId: entry.id } })}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={styles.editAction}
+        >
+          <Ionicons name="pencil-outline" size={16} color={C.subtext} />
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => handleToggleVisibility(entry)}
@@ -599,6 +609,7 @@ const styles = StyleSheet.create({
   natureIcon: { marginLeft: 12, marginTop: 4 },
   goalDot: { width: 16, height: 16, borderRadius: 8, marginLeft: 12, marginTop: 4 },
   shareAction: { marginLeft: 12, marginTop: 4 },
+  editAction: { marginLeft: 12, marginTop: 4 },
   visibilityAction: { marginLeft: 12, marginTop: 4 },
   deleteAction: { marginLeft: 12, marginTop: 4 },
   goalDotEmpty: {

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Switch, StyleSheet } from 'react-native';
-import { router } from 'expo-router';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, Switch, StyleSheet, ActivityIndicator } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { C, MOODS, accentFor, moodColorFor, darken, textOn } from '../lib/theme';
@@ -18,6 +18,7 @@ const TICKLE_NATURE_OPTIONS = [
 
 export default function Create() {
   const { session, profile } = useAuth();
+  const { entryId } = useLocalSearchParams();
   const accent = accentFor(profile?.accent_theme);
   const accentDark = darken(accent.card, 0.35);
   const accentDarkText = textOn(accentDark);
@@ -28,6 +29,31 @@ export default function Create() {
   const [shareToFeed, setShareToFeed] = useState(false);
   const [status, setStatus] = useState('');
   const [saving, setSaving] = useState(false);
+  const [loadingEntry, setLoadingEntry] = useState(!!entryId);
+
+  // Edit mode: seed every field from the existing row, including
+  // shareToFeed from its actual current visibility rather than leaving
+  // it at the blank-state default of false — otherwise saving an edit
+  // to an already-public entry would silently flip it back to private.
+  useEffect(() => {
+    if (!entryId) return;
+
+    (async () => {
+      const { data, error } = await supabase
+        .from('tickle_entries')
+        .select('text_content, mood, tickle_nature, visibility')
+        .eq('id', entryId)
+        .single();
+
+      if (!error && data) {
+        setText(data.text_content);
+        setMood(data.mood);
+        setTickleNature(data.tickle_nature);
+        setShareToFeed(data.visibility === 'public');
+      }
+      setLoadingEntry(false);
+    })();
+  }, [entryId]);
 
   async function handleSave() {
     const trimmed = text.trim();
@@ -43,14 +69,31 @@ export default function Create() {
     setSaving(true);
     setStatus('');
 
-    const { error } = await supabase.from('tickle_entries').insert({
-      user_id: session.user.id,
-      entry_date: new Date().toISOString().slice(0, 10),
-      text_content: trimmed,
-      mood,
-      tickle_nature: tickleNature,
-      visibility: shareToFeed ? 'public' : 'private',
-    });
+    // Edit mode: explicit field list, never a full-object update — so
+    // goal_id, like_count, and entry_date (the original date is kept on
+    // purpose, never stamped to today) are never touched. is_edited
+    // isn't part of the fields this screen otherwise "owns," but it's
+    // the only way the resulting "(edited)" label can survive a reload
+    // on Home/Feed, since there's no updated_at on this table.
+    const { error } = entryId
+      ? await supabase
+          .from('tickle_entries')
+          .update({
+            text_content: trimmed,
+            mood,
+            tickle_nature: tickleNature,
+            visibility: shareToFeed ? 'public' : 'private',
+            is_edited: true,
+          })
+          .eq('id', entryId)
+      : await supabase.from('tickle_entries').insert({
+          user_id: session.user.id,
+          entry_date: new Date().toISOString().slice(0, 10),
+          text_content: trimmed,
+          mood,
+          tickle_nature: tickleNature,
+          visibility: shareToFeed ? 'public' : 'private',
+        });
 
     setSaving(false);
 
@@ -62,9 +105,17 @@ export default function Create() {
     router.back();
   }
 
+  if (loadingEntry) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator color={accentDark} />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>What made you smile today?</Text>
+      <Text style={styles.title}>{entryId ? 'Edit your tickle' : 'What made you smile today?'}</Text>
 
       <TextInput
         style={styles.input}
@@ -156,6 +207,7 @@ export default function Create() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, paddingTop: 60, backgroundColor: C.bg },
+  loadingContainer: { justifyContent: 'center', alignItems: 'center' },
   title: { fontSize: 20, fontWeight: 'bold', marginBottom: 16, color: C.rustDark },
   input: {
     borderWidth: 1, borderColor: C.border, borderRadius: 14,
