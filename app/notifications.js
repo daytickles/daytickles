@@ -4,6 +4,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { C } from '../lib/theme';
+import { flagEmoji } from '../lib/country';
 
 function formatTimestamp(createdAt) {
   return new Date(createdAt).toLocaleDateString('en-US', {
@@ -20,7 +21,8 @@ function formatTimestamp(createdAt) {
 // row of either type never crashes this screen, just degrades to a
 // generic line.
 function notificationText(n) {
-  const actorName = n.profiles?.username || 'Someone';
+  const flag = n.profiles?.country ? ` ${flagEmoji(n.profiles.country)}` : '';
+  const actorName = n.profiles?.username ? `${n.profiles.username}${flag}` : 'Someone';
   const entryText = n.tickle_entries?.text_content;
 
   switch (n.type) {
@@ -47,7 +49,7 @@ export default function Notifications() {
     const { data, error } = await supabase
       .from('notifications')
       .select(
-        'id, type, is_read, created_at, entry_id, actor_id, tickle_entries(text_content), profiles!notifications_actor_id_fkey(username, avatar_emoji)'
+        'id, type, is_read, created_at, entry_id, actor_id, tickle_entries(text_content), profiles!notifications_actor_id_fkey(username, avatar_emoji, country)'
       )
       .eq('recipient_id', session.user.id)
       .order('created_at', { ascending: false });

@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { C, accentFor, moodColorFor, moodDotSize, textOn, lighten, withAlpha, TICKLE_NATURE_ICONS } from '../lib/theme';
 import { shareEntry, shareStatus, SHARE_CAPTIONS } from '../lib/sharing';
+import { flagEmoji } from '../lib/country';
 import Button from '../components/Button';
 import HomeGuide from '../components/HomeGuide';
 import GoalTagModal from '../components/GoalTagModal';
@@ -322,7 +323,11 @@ export default function Home() {
           </TouchableOpacity>
         </View>
       </View>
-      {profile && <Text style={styles.profileText}>{profile.avatar_emoji} {profile.username}</Text>}
+      {profile && (
+        <Text style={styles.profileText}>
+          {profile.avatar_emoji} {profile.username}{profile.country ? `  ${flagEmoji(profile.country)}` : ''}
+        </Text>
+      )}
 
       {showReturnedMessage && (
         <TouchableOpacity

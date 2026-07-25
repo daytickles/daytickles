@@ -5,15 +5,19 @@ import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { C, ACCENT_THEMES, accentFor, darken, textOn } from '../lib/theme';
+import { flagEmoji, countryNameFor } from '../lib/country';
 import Button from '../components/Button';
 import HomeGuide from '../components/HomeGuide';
+import CountryPickerModal from '../components/CountryPickerModal';
 
 export default function Settings() {
   const { profile, setProfile, refreshProfile } = useAuth();
   const accentDark = darken(accentFor(profile?.accent_theme).card, 0.35);
   const [showGuide, setShowGuide] = useState(false);
+  const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [savingTheme, setSavingTheme] = useState(null);
   const [savingTickleNature, setSavingTickleNature] = useState(false);
+  const [savingCountry, setSavingCountry] = useState(false);
 
   async function signOut() {
     await supabase.auth.signOut();
@@ -57,6 +61,30 @@ export default function Settings() {
       .update({ tickle_nature_enabled: value })
       .eq('id', profile.id);
     setSavingTickleNature(false);
+
+    if (error) {
+      setProfile(previous);
+    } else {
+      refreshProfile();
+    }
+  }
+
+  // code is a 2-letter country code, or null for "Prefer not to say" —
+  // the DB-level format constraint (migration 0008) is the real guard;
+  // this just has to pass through whatever the picker hands back.
+  async function handleSelectCountry(code) {
+    if (!profile) return;
+    const previous = profile;
+
+    setProfile({ ...profile, country: code });
+    setSavingCountry(true);
+    setShowCountryPicker(false);
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ country: code })
+      .eq('id', profile.id);
+    setSavingCountry(false);
 
     if (error) {
       setProfile(previous);
@@ -114,6 +142,22 @@ export default function Settings() {
       </View>
       <View style={styles.spacer} />
 
+      <Text style={styles.label}>Country</Text>
+      <TouchableOpacity
+        style={styles.countryRow}
+        onPress={() => setShowCountryPicker(true)}
+        disabled={savingCountry}
+      >
+        <Text style={styles.countryValue}>
+          {profile?.country ? `${flagEmoji(profile.country)}  ${countryNameFor(profile.country)}` : 'Not set'}
+        </Text>
+      </TouchableOpacity>
+      <Text style={styles.explainerText}>
+        Purely social — shows a flag next to your name so others can see roughly where you're
+        tickling from. Never required, and you can change or clear it anytime.
+      </Text>
+      <View style={styles.spacer} />
+
       <Button title="Manage Goals" onPress={() => router.push('/goals')} variant="secondary" />
       <View style={styles.spacer} />
       <Button title="How DayTickles works" onPress={() => setShowGuide(true)} variant="secondary" />
@@ -121,6 +165,12 @@ export default function Settings() {
       <Button title="Sign Out" onPress={signOut} variant="secondary" />
 
       <HomeGuide visible={showGuide} onClose={() => setShowGuide(false)} />
+      <CountryPickerModal
+        visible={showCountryPicker}
+        value={profile?.country}
+        onSelect={handleSelectCountry}
+        onDismiss={() => setShowCountryPicker(false)}
+      />
     </View>
   );
 }
@@ -140,5 +190,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
   },
   toggleLabel: { flex: 1, fontSize: 15, color: C.text, marginRight: 12 },
+  countryRow: {
+    paddingVertical: 12, paddingHorizontal: 14, marginBottom: 6,
+    backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border,
+  },
+  countryValue: { fontSize: 15, color: C.text },
+  explainerText: { fontSize: 12, color: C.subtext, lineHeight: 16 },
   spacer: { height: 12 },
 });

@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { C, accentFor, moodColorFor, moodDotSize, darken, textOn, TICKLE_NATURE_ICONS } from '../lib/theme';
 import { shareEntry, shareStatus, SHARE_CAPTIONS } from '../lib/sharing';
+import { flagEmoji } from '../lib/country';
 import GoalTagModal from '../components/GoalTagModal';
 import ShareModal from '../components/ShareModal';
 
@@ -44,7 +45,7 @@ const EMPTY_TEXT = {
 };
 
 const ENTRY_SELECT =
-  'id, entry_date, text_content, mood, like_count, tickle_nature, goal_id, created_at, user_id, profiles!tickle_entries_user_id_fkey(username, avatar_emoji, accent_theme)';
+  'id, entry_date, text_content, mood, like_count, tickle_nature, goal_id, created_at, user_id, profiles!tickle_entries_user_id_fkey(username, avatar_emoji, accent_theme, country)';
 
 // Mine shows entries fully untruncated (deliberate — people should be
 // able to read the complete text), so real cards range from one line to
@@ -348,6 +349,7 @@ export default function Feed() {
           <View style={styles.entryBody}>
             <Text style={styles.authorText}>
               {item.profiles?.avatar_emoji} {item.profiles?.username}
+              {item.profiles?.country ? `  ${flagEmoji(item.profiles.country)}` : ''}
             </Text>
             <Text style={styles.entryText}>{item.text_content}</Text>
             <View style={styles.entryMetaRow}>
