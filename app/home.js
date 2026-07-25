@@ -516,7 +516,7 @@ export default function Home() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
-  content: { padding: 20, paddingTop: 24, paddingBottom: 40 },
+  content: { padding: 20, paddingTop: 40, paddingBottom: 40 },
   headerRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6,
   },
