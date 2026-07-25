@@ -17,6 +17,7 @@ export default function Settings() {
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [savingTheme, setSavingTheme] = useState(null);
   const [savingTickleNature, setSavingTickleNature] = useState(false);
+  const [savingDayJournal, setSavingDayJournal] = useState(false);
   const [savingCountry, setSavingCountry] = useState(false);
 
   async function signOut() {
@@ -61,6 +62,26 @@ export default function Settings() {
       .update({ tickle_nature_enabled: value })
       .eq('id', profile.id);
     setSavingTickleNature(false);
+
+    if (error) {
+      setProfile(previous);
+    } else {
+      refreshProfile();
+    }
+  }
+
+  async function handleToggleDayJournal(value) {
+    if (!profile) return;
+    const previous = profile;
+
+    setProfile({ ...profile, day_journal_enabled: value });
+    setSavingDayJournal(true);
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ day_journal_enabled: value })
+      .eq('id', profile.id);
+    setSavingDayJournal(false);
 
     if (error) {
       setProfile(previous);
@@ -136,6 +157,18 @@ export default function Settings() {
           value={!!profile?.tickle_nature_enabled}
           onValueChange={handleToggleTickleNature}
           disabled={savingTickleNature}
+          trackColor={{ false: C.border, true: accentDark }}
+          thumbColor={C.card}
+        />
+      </View>
+      <View style={styles.spacer} />
+
+      <View style={styles.toggleRow}>
+        <Text style={styles.toggleLabel}>Day Journal</Text>
+        <Switch
+          value={!!profile?.day_journal_enabled}
+          onValueChange={handleToggleDayJournal}
+          disabled={savingDayJournal}
           trackColor={{ false: C.border, true: accentDark }}
           thumbColor={C.card}
         />

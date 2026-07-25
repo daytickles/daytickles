@@ -31,11 +31,14 @@ const TABS = [
 // for tags they're not creating. 'all' is the default: everything,
 // tagged or not, same as no filter applied.
 const NATURE_FILTERS = [
-  { id: 'all', label: 'All' },
   { id: 'received', label: 'My smiles' },
   { id: 'given', label: 'Given' },
   { id: 'self', label: 'For me' },
 ];
+
+// Independent of tickle_nature_enabled — day_journal_enabled can show
+// this chip on its own, same as create.js's picker.
+const DAY_JOURNAL_FILTER = { id: 'day_journal', label: 'DJ' };
 
 const EMPTY_TEXT = {
   everyone: 'No public tickles yet.',
@@ -541,9 +544,13 @@ export default function Feed() {
         ))}
       </View>
 
-      {tab === 'mine' && profile?.tickle_nature_enabled && (
+      {tab === 'mine' && (profile?.tickle_nature_enabled || profile?.day_journal_enabled) && (
         <View style={styles.natureFilterRow}>
-          {NATURE_FILTERS.map((f) => (
+          {[
+            { id: 'all', label: 'All' },
+            ...(profile?.tickle_nature_enabled ? NATURE_FILTERS : []),
+            ...(profile?.day_journal_enabled ? [DAY_JOURNAL_FILTER] : []),
+          ].map((f) => (
             <TouchableOpacity
               key={f.id}
               onPress={() => setNatureFilter(f.id)}

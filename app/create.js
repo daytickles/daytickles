@@ -19,6 +19,8 @@ const TICKLE_NATURE_OPTIONS = [
   { id: 'self', label: 'Mood boost' },
 ];
 
+const DAY_JOURNAL_OPTION = { id: 'day_journal', label: 'Day Journal' };
+
 export default function Create() {
   const { session, profile } = useAuth();
   const { entryId } = useLocalSearchParams();
@@ -116,6 +118,15 @@ export default function Create() {
     );
   }
 
+  // tickle_nature_enabled and day_journal_enabled are independent
+  // toggles — day_journal_enabled can show the picker (with only the
+  // Day Journal option) even if tickle_nature_enabled is off, and vice
+  // versa. Both simply contribute options into the same single-select
+  // tickle_nature field, just laid out as two separate rows.
+  const baseNatureOptions = profile?.tickle_nature_enabled ? TICKLE_NATURE_OPTIONS : [];
+  const showDayJournal = !!profile?.day_journal_enabled;
+  const dayJournalSelected = tickleNature === DAY_JOURNAL_OPTION.id;
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -176,31 +187,52 @@ export default function Create() {
       </View>
       {mood && <Text style={styles.moodLabel}>{MOODS.find((m) => m.id === mood).label}</Text>}
 
-      {profile?.tickle_nature_enabled && (
+      {(baseNatureOptions.length > 0 || showDayJournal) && (
         <>
           <Text style={styles.label}>What kind of tickle was it?</Text>
-          <View style={styles.natureRow}>
-            {TICKLE_NATURE_OPTIONS.map((opt) => {
-              const selected = tickleNature === opt.id;
-              return (
-                <TouchableOpacity
-                  key={opt.id}
-                  onPress={() => {
-                    Keyboard.dismiss();
-                    setTickleNature(selected ? null : opt.id);
-                  }}
-                  style={[
-                    styles.natureOption,
-                    selected && { backgroundColor: accentDark, borderColor: accentDark },
-                  ]}
-                >
-                  <Text style={[styles.natureOptionLabel, selected && { color: accentDarkText }]}>
-                    {opt.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+          {baseNatureOptions.length > 0 && (
+            <View style={styles.natureRow}>
+              {baseNatureOptions.map((opt) => {
+                const selected = tickleNature === opt.id;
+                return (
+                  <TouchableOpacity
+                    key={opt.id}
+                    onPress={() => {
+                      Keyboard.dismiss();
+                      setTickleNature(selected ? null : opt.id);
+                    }}
+                    style={[
+                      styles.natureOption,
+                      selected && { backgroundColor: accentDark, borderColor: accentDark },
+                    ]}
+                  >
+                    <Text style={[styles.natureOptionLabel, selected && { color: accentDarkText }]}>
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
+          {showDayJournal && (
+            <View style={styles.natureRowSingle}>
+              <TouchableOpacity
+                onPress={() => {
+                  Keyboard.dismiss();
+                  setTickleNature(dayJournalSelected ? null : DAY_JOURNAL_OPTION.id);
+                }}
+                style={[
+                  styles.natureOption,
+                  styles.natureOptionCentered,
+                  dayJournalSelected && { backgroundColor: accentDark, borderColor: accentDark },
+                ]}
+              >
+                <Text style={[styles.natureOptionLabel, dayJournalSelected && { color: accentDarkText }]}>
+                  {DAY_JOURNAL_OPTION.label}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </>
       )}
 
@@ -247,10 +279,12 @@ const styles = StyleSheet.create({
   moodDot: { borderWidth: 3 },
   moodLabel: { textAlign: 'center', color: C.text, marginBottom: 20 },
   natureRow: { flexDirection: 'row', gap: 8, marginTop: 8, marginBottom: 20 },
+  natureRowSingle: { flexDirection: 'row', justifyContent: 'center', marginTop: 8, marginBottom: 20 },
   natureOption: {
     flex: 1, paddingVertical: 10, borderRadius: 20,
     alignItems: 'center', backgroundColor: C.card, borderWidth: 1, borderColor: C.border,
   },
+  natureOptionCentered: { flex: 0, paddingHorizontal: 20 },
   natureOptionLabel: { fontSize: 12, fontWeight: '600', color: C.subtext, textAlign: 'center' },
   shareRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
