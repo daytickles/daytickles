@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, Alert, Keyboard,
 } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { C, GOAL_COLORS, MAX_GOALS, accentFor, darken } from '../lib/theme';
@@ -104,6 +104,13 @@ export default function Goals() {
 
   return (
     <View style={styles.container}>
+      <TouchableOpacity
+        onPress={() => router.back()}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      >
+        <Text style={styles.backLink}>‹ Back</Text>
+      </TouchableOpacity>
+
       <Text style={styles.title}>Your Goals</Text>
       <Text style={styles.subtitle}>{goals.length}/{MAX_GOALS} used</Text>
 
@@ -174,6 +181,7 @@ export default function Goals() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, paddingTop: 60, backgroundColor: C.bg },
+  backLink: { fontSize: 16, color: C.rust, marginBottom: 16 },
   title: { fontSize: 22, fontWeight: 'bold', color: C.rustDark },
   subtitle: { color: C.subtext, marginBottom: 16 },
   list: { flexGrow: 0, marginBottom: 20 },

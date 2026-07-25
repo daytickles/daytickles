@@ -122,6 +122,13 @@ export default function Create() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <TouchableOpacity
+        onPress={() => router.back()}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      >
+        <Text style={styles.backLink}>‹ Back</Text>
+      </TouchableOpacity>
+
       <Text style={styles.title}>{entryId ? 'Edit your tickle' : 'What made you smile today?'}</Text>
 
       <TextInput
@@ -222,6 +229,7 @@ export default function Create() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
   content: { padding: 20, paddingTop: 60, paddingBottom: 40 },
+  backLink: { fontSize: 16, color: C.rust, marginBottom: 16 },
   loadingContainer: { justifyContent: 'center', alignItems: 'center' },
   title: { fontSize: 20, fontWeight: 'bold', marginBottom: 16, color: C.rustDark },
   input: {
