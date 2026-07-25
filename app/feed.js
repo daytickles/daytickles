@@ -347,10 +347,53 @@ export default function Feed() {
             ]}
           />
           <View style={styles.entryBody}>
-            <Text style={styles.authorText}>
-              {item.profiles?.avatar_emoji} {item.profiles?.username}
-              {item.profiles?.country ? `  ${flagEmoji(item.profiles.country)}` : ''}
-            </Text>
+            <View style={styles.headerRow}>
+              <Text style={styles.authorText} numberOfLines={1}>
+                {item.profiles?.avatar_emoji} {item.profiles?.username}
+                {item.profiles?.country ? `  ${flagEmoji(item.profiles.country)}` : ''}
+              </Text>
+              <View style={styles.iconGroup}>
+                {item.tickle_nature && (
+                  <Ionicons
+                    name={TICKLE_NATURE_ICONS[item.tickle_nature]}
+                    size={16}
+                    color={C.subtext}
+                    style={styles.natureIcon}
+                  />
+                )}
+                {tab === 'mine' && (
+                  <TouchableOpacity
+                    onPress={() => setPickerEntryId(item.id)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <View
+                      style={[
+                        styles.goalDot,
+                        taggedGoal ? { backgroundColor: taggedGoal.color } : styles.goalDotEmpty,
+                      ]}
+                    />
+                  </TouchableOpacity>
+                )}
+                {tab === 'mine' && (
+                  <TouchableOpacity
+                    onPress={() => setShareEntryId(item.id)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    style={styles.shareAction}
+                  >
+                    <Text style={styles.shareLink}>Share</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  onPress={() => handleToggleFavorite(item.id)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  style={styles.starAction}
+                >
+                  <Text style={[styles.starIcon, isFavorited && styles.starIconActive]}>
+                    {isFavorited ? '★' : '☆'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
             <Text style={styles.entryText}>{item.text_content}</Text>
             <View style={styles.entryMetaRow}>
               <Text style={styles.entryDate}>{formatEntryDate(item.entry_date)}</Text>
@@ -382,45 +425,6 @@ export default function Feed() {
               </View>
             </View>
           </View>
-          {item.tickle_nature && (
-            <Ionicons
-              name={TICKLE_NATURE_ICONS[item.tickle_nature]}
-              size={16}
-              color={C.subtext}
-              style={styles.natureIcon}
-            />
-          )}
-          {tab === 'mine' && (
-            <TouchableOpacity
-              onPress={() => setPickerEntryId(item.id)}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <View
-                style={[
-                  styles.goalDot,
-                  taggedGoal ? { backgroundColor: taggedGoal.color } : styles.goalDotEmpty,
-                ]}
-              />
-            </TouchableOpacity>
-          )}
-          {tab === 'mine' && (
-            <TouchableOpacity
-              onPress={() => setShareEntryId(item.id)}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              style={styles.shareAction}
-            >
-              <Text style={styles.shareLink}>Share</Text>
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity
-            onPress={() => handleToggleFavorite(item.id)}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            style={styles.starAction}
-          >
-            <Text style={[styles.starIcon, isFavorited && styles.starIconActive]}>
-              {isFavorited ? '★' : '☆'}
-            </Text>
-          </TouchableOpacity>
         </View>
       </View>
     );
@@ -570,16 +574,20 @@ const styles = StyleSheet.create({
   },
   entryRow: { flexDirection: 'row', alignItems: 'flex-start' },
   moodDot: { marginRight: 12, marginTop: 4 },
-  natureIcon: { marginLeft: 12, marginTop: 4 },
-  goalDot: { width: 16, height: 16, borderRadius: 8, marginLeft: 12, marginTop: 4 },
+  entryBody: { flex: 1 },
+  headerRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4,
+  },
+  authorText: { fontSize: 13, fontWeight: '600', color: C.rustDark, flexShrink: 1 },
+  iconGroup: { flexDirection: 'row', alignItems: 'center' },
+  natureIcon: { marginLeft: 12 },
+  goalDot: { width: 16, height: 16, borderRadius: 8, marginLeft: 12 },
   goalDotEmpty: {
     backgroundColor: 'transparent', borderWidth: 1.5,
     borderStyle: 'dashed', borderColor: C.faint,
   },
-  shareAction: { marginLeft: 12, marginTop: 4 },
-  starAction: { marginLeft: 12, marginTop: 2 },
-  entryBody: { flex: 1 },
-  authorText: { fontSize: 13, fontWeight: '600', color: C.rustDark, marginBottom: 4 },
+  shareAction: { marginLeft: 12 },
+  starAction: { marginLeft: 12 },
   entryText: { fontSize: 15, color: C.text, lineHeight: 20 },
 
   entryMetaRow: {
