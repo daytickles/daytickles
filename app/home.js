@@ -281,79 +281,83 @@ export default function Home() {
     const taggedGoal = entry.goal_id ? goalsById[entry.goal_id] : null;
     const dotSize = moodDotSize(entry.mood);
     return (
-      <View style={styles.entryRow}>
-        <View
-          style={[
-            styles.moodDot,
-            {
-              width: dotSize,
-              height: dotSize,
-              borderRadius: dotSize / 2,
-              backgroundColor: moodColorFor(entry.mood, accent),
-            },
-          ]}
-        />
-        <View style={styles.entryBody}>
-          <Text style={styles.entryText} numberOfLines={1}>{entry.text_content}</Text>
-          <View style={styles.entryMetaRow}>
-            <Text style={styles.entryDate}>
-              {formatEntryDate(entry.entry_date)}
-              {entry.visibility === 'public' && entry.is_edited ? ' · (edited)' : ''}
-            </Text>
-            <Text style={styles.entryLikes}>{likeLabel(entry.like_count)}</Text>
-          </View>
-        </View>
-        {entry.tickle_nature && (
-          <Ionicons
-            name={TICKLE_NATURE_ICONS[entry.tickle_nature]}
-            size={16}
-            color={C.subtext}
-            style={styles.natureIcon}
-          />
-        )}
-        <TouchableOpacity
-          onPress={() => setPickerEntryId(entry.id)}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
+      <View>
+        <View style={styles.entryRow}>
           <View
             style={[
-              styles.goalDot,
-              taggedGoal ? { backgroundColor: taggedGoal.color } : styles.goalDotEmpty,
+              styles.moodDot,
+              {
+                width: dotSize,
+                height: dotSize,
+                borderRadius: dotSize / 2,
+                backgroundColor: moodColorFor(entry.mood, accent),
+              },
             ]}
           />
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => setShareEntryId(entry.id)}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          style={styles.shareAction}
-        >
-          <Text style={styles.shareLink}>Share</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => router.push({ pathname: '/create', params: { entryId: entry.id } })}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          style={styles.editAction}
-        >
-          <Ionicons name="pencil-outline" size={16} color={C.subtext} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => handleToggleVisibility(entry)}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          style={styles.visibilityAction}
-        >
-          <Ionicons
-            name={entry.visibility === 'public' ? 'eye-outline' : 'eye-off-outline'}
-            size={16}
-            color={C.subtext}
-          />
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => confirmDeleteEntry(entry)}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          style={styles.deleteAction}
-        >
-          <Ionicons name="trash-outline" size={16} color={C.rust} />
-        </TouchableOpacity>
+          <View style={styles.entryBody}>
+            <Text style={styles.entryText} numberOfLines={1}>{entry.text_content}</Text>
+            <View style={styles.entryMetaRow}>
+              <Text style={styles.entryDate}>
+                {formatEntryDate(entry.entry_date)}
+                {entry.visibility === 'public' && entry.is_edited ? ' · (edited)' : ''}
+              </Text>
+              <Text style={styles.entryLikes}>{likeLabel(entry.like_count)}</Text>
+            </View>
+          </View>
+        </View>
+        <View style={styles.iconRow}>
+          {entry.tickle_nature && (
+            <Ionicons
+              name={TICKLE_NATURE_ICONS[entry.tickle_nature]}
+              size={16}
+              color={C.subtext}
+              style={styles.natureIcon}
+            />
+          )}
+          <TouchableOpacity
+            onPress={() => setPickerEntryId(entry.id)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <View
+              style={[
+                styles.goalDot,
+                taggedGoal ? { backgroundColor: taggedGoal.color } : styles.goalDotEmpty,
+              ]}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setShareEntryId(entry.id)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={styles.shareAction}
+          >
+            <Text style={styles.shareLink}>Share</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => router.push({ pathname: '/create', params: { entryId: entry.id } })}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={styles.editAction}
+          >
+            <Ionicons name="pencil-outline" size={16} color={C.subtext} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => handleToggleVisibility(entry)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={styles.visibilityAction}
+          >
+            <Ionicons
+              name={entry.visibility === 'public' ? 'eye-outline' : 'eye-off-outline'}
+              size={16}
+              color={C.subtext}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => confirmDeleteEntry(entry)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={styles.deleteAction}
+          >
+            <Ionicons name="trash-outline" size={16} color={C.rust} />
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -512,7 +516,7 @@ export default function Home() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
-  content: { padding: 20, paddingTop: 60, paddingBottom: 40 },
+  content: { padding: 20, paddingTop: 24, paddingBottom: 40 },
   headerRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6,
   },
@@ -561,7 +565,7 @@ const styles = StyleSheet.create({
 
   selfCareRow: {
     flexDirection: 'row', justifyContent: 'center', gap: 12,
-    marginTop: 4, marginBottom: 20,
+    marginTop: 4, marginBottom: 8,
   },
   selfCareBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
@@ -606,12 +610,15 @@ const styles = StyleSheet.create({
   entryLikes: { fontSize: 12, color: C.rust, fontWeight: '600' },
   shareLink: { fontSize: 12, color: C.subtext, fontWeight: '600' },
 
-  natureIcon: { marginLeft: 12, marginTop: 4 },
-  goalDot: { width: 16, height: 16, borderRadius: 8, marginLeft: 12, marginTop: 4 },
-  shareAction: { marginLeft: 12, marginTop: 4 },
-  editAction: { marginLeft: 12, marginTop: 4 },
-  visibilityAction: { marginLeft: 12, marginTop: 4 },
-  deleteAction: { marginLeft: 12, marginTop: 4 },
+  iconRow: {
+    flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginTop: 8,
+  },
+  natureIcon: { marginLeft: 12 },
+  goalDot: { width: 16, height: 16, borderRadius: 8, marginLeft: 12 },
+  shareAction: { marginLeft: 12 },
+  editAction: { marginLeft: 12 },
+  visibilityAction: { marginLeft: 12 },
+  deleteAction: { marginLeft: 12 },
   goalDotEmpty: {
     backgroundColor: 'transparent', borderWidth: 1.5,
     borderStyle: 'dashed', borderColor: C.faint,
