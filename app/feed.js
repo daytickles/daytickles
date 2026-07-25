@@ -494,7 +494,7 @@ export default function Feed() {
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   >
                     <Ionicons
-                      name={isLiked ? 'sparkles' : 'sparkles-outline'}
+                      name={isLiked ? 'happy' : 'happy-outline'}
                       size={16}
                       color={isLiked ? C.sparkleText : C.faint}
                     />
