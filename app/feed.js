@@ -45,7 +45,7 @@ const EMPTY_TEXT = {
 };
 
 const ENTRY_SELECT =
-  'id, entry_date, text_content, mood, like_count, tickle_nature, goal_id, created_at, user_id, profiles!tickle_entries_user_id_fkey(username, avatar_emoji, accent_theme, country)';
+  'id, entry_date, text_content, mood, like_count, tickle_nature, goal_id, visibility, created_at, user_id, profiles!tickle_entries_user_id_fkey(username, avatar_emoji, accent_theme, country)';
 
 // Mine shows entries fully untruncated (deliberate — people should be
 // able to read the complete text), so real cards range from one line to
@@ -343,6 +343,25 @@ export default function Feed() {
     if (error) setEntries(previous);
   }
 
+  // Reversible, unlike delete, so no confirmation dialog — same
+  // no-confirm treatment as follow/favorite/like. Going private just
+  // means Everyone/Following's own visibility-filtered queries stop
+  // matching this row next time they reload (loadFeed already reruns on
+  // tab change); Home and Mine never filter on visibility, so they keep
+  // showing it either way.
+  async function handleToggleVisibility(entry) {
+    const newVisibility = entry.visibility === 'public' ? 'private' : 'public';
+    const previous = entries;
+    setEntries((prev) => prev.map((e) => (e.id === entry.id ? { ...e, visibility: newVisibility } : e)));
+
+    const { error } = await supabase
+      .from('tickle_entries')
+      .update({ visibility: newVisibility })
+      .eq('id', entry.id);
+
+    if (error) setEntries(previous);
+  }
+
   function renderEntry({ item }) {
     const accent = accentFor(item.profiles?.accent_theme);
     const isOwnEntry = item.user_id === session.user.id;
@@ -418,6 +437,19 @@ export default function Feed() {
                     {isFavorited ? '★' : '☆'}
                   </Text>
                 </TouchableOpacity>
+                {tab === 'mine' && (
+                  <TouchableOpacity
+                    onPress={() => handleToggleVisibility(item)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    style={styles.visibilityAction}
+                  >
+                    <Ionicons
+                      name={item.visibility === 'public' ? 'eye-outline' : 'eye-off-outline'}
+                      size={16}
+                      color={C.subtext}
+                    />
+                  </TouchableOpacity>
+                )}
                 {tab === 'mine' && (
                   <TouchableOpacity
                     onPress={() => confirmDeleteEntry(item)}
@@ -623,6 +655,7 @@ const styles = StyleSheet.create({
   },
   shareAction: { marginLeft: 12 },
   starAction: { marginLeft: 12 },
+  visibilityAction: { marginLeft: 12 },
   deleteAction: { marginLeft: 12 },
   entryText: { fontSize: 15, color: C.text, lineHeight: 20 },
 

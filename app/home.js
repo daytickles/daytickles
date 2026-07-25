@@ -131,7 +131,7 @@ export default function Home() {
     if (!session) return;
     const { data, error } = await supabase
       .from('tickle_entries')
-      .select('id, entry_date, text_content, mood, like_count, goal_id, tickle_nature, created_at')
+      .select('id, entry_date, text_content, mood, like_count, goal_id, tickle_nature, visibility, created_at')
       .eq('user_id', session.user.id)
       .order('entry_date', { ascending: false })
       .order('created_at', { ascending: false });
@@ -225,6 +225,24 @@ export default function Home() {
     if (error) setEntries(previous);
   }
 
+  // Reversible, unlike delete, so no confirmation dialog — same
+  // no-confirm treatment as follow/favorite/like. Going private just
+  // means Everyone/Following's own visibility-filtered queries stop
+  // matching this row next time they reload; Home and Mine never filter
+  // on visibility, so they keep showing it either way.
+  async function handleToggleVisibility(entry) {
+    const newVisibility = entry.visibility === 'public' ? 'private' : 'public';
+    const previous = entries;
+    setEntries((prev) => prev.map((e) => (e.id === entry.id ? { ...e, visibility: newVisibility } : e)));
+
+    const { error } = await supabase
+      .from('tickle_entries')
+      .update({ visibility: newVisibility })
+      .eq('id', entry.id);
+
+    if (error) setEntries(previous);
+  }
+
   // Same scroll-to-and-highlight mechanism notifications.js already
   // uses to jump into Feed's Mine tab at a specific entry.
   function goToEntryInFeed(entryId) {
@@ -307,6 +325,17 @@ export default function Home() {
           style={styles.shareAction}
         >
           <Text style={styles.shareLink}>Share</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => handleToggleVisibility(entry)}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={styles.visibilityAction}
+        >
+          <Ionicons
+            name={entry.visibility === 'public' ? 'eye-outline' : 'eye-off-outline'}
+            size={16}
+            color={C.subtext}
+          />
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => confirmDeleteEntry(entry)}
@@ -570,6 +599,7 @@ const styles = StyleSheet.create({
   natureIcon: { marginLeft: 12, marginTop: 4 },
   goalDot: { width: 16, height: 16, borderRadius: 8, marginLeft: 12, marginTop: 4 },
   shareAction: { marginLeft: 12, marginTop: 4 },
+  visibilityAction: { marginLeft: 12, marginTop: 4 },
   deleteAction: { marginLeft: 12, marginTop: 4 },
   goalDotEmpty: {
     backgroundColor: 'transparent', borderWidth: 1.5,
