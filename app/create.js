@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Switch, StyleSheet, ActivityIndicator } from 'react-native';
+import {
+  View, Text, TextInput, TouchableOpacity, Switch, StyleSheet, ActivityIndicator,
+  KeyboardAvoidingView, ScrollView, Platform, Keyboard,
+} from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -114,7 +117,11 @@ export default function Create() {
   }
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+    <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Text style={styles.title}>{entryId ? 'Edit your tickle' : 'What made you smile today?'}</Text>
 
       <TextInput
@@ -138,7 +145,10 @@ export default function Create() {
           return (
             <TouchableOpacity
               key={m.id}
-              onPress={() => setMood(m.id)}
+              onPress={() => {
+                Keyboard.dismiss();
+                setMood(m.id);
+              }}
               style={styles.moodOption}
             >
               <View
@@ -168,7 +178,10 @@ export default function Create() {
               return (
                 <TouchableOpacity
                   key={opt.id}
-                  onPress={() => setTickleNature(selected ? null : opt.id)}
+                  onPress={() => {
+                    Keyboard.dismiss();
+                    setTickleNature(selected ? null : opt.id);
+                  }}
                   style={[
                     styles.natureOption,
                     selected && { backgroundColor: accentDark, borderColor: accentDark },
@@ -201,12 +214,14 @@ export default function Create() {
         variant="primary"
       />
       {!!status && <Text style={styles.status}>{status}</Text>}
-    </View>
+    </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, paddingTop: 60, backgroundColor: C.bg },
+  container: { flex: 1, backgroundColor: C.bg },
+  content: { padding: 20, paddingTop: 60, paddingBottom: 40 },
   loadingContainer: { justifyContent: 'center', alignItems: 'center' },
   title: { fontSize: 20, fontWeight: 'bold', marginBottom: 16, color: C.rustDark },
   input: {
