@@ -139,8 +139,13 @@ export default function Settings() {
   }
 
   async function handleRateUs() {
-    const available = await isReviewAvailable();
-    if (available) await requestReview();
+    try {
+      const available = await isReviewAvailable();
+      if (available) await requestReview();
+    } catch {
+      // Native module may be unavailable on some builds — fail silently,
+      // same as handleToggleDailyReminder's reminder scheduling.
+    }
   }
 
   // code is a 2-letter country code, or null for "Prefer not to say" —
