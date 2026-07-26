@@ -9,6 +9,8 @@ import { flagEmoji, countryNameFor } from '../lib/country';
 import Button from '../components/Button';
 import HomeGuide from '../components/HomeGuide';
 import CountryPickerModal from '../components/CountryPickerModal';
+import { requestReminderPermission, scheduleDailyReminder, cancelDailyReminder } from '../lib/reminders';
+import { isReviewAvailable, requestReview } from '../lib/rateUs';
 
 export default function Settings() {
   const { profile, setProfile, refreshProfile } = useAuth();
@@ -19,6 +21,8 @@ export default function Settings() {
   const [savingTickleNature, setSavingTickleNature] = useState(false);
   const [savingDayJournal, setSavingDayJournal] = useState(false);
   const [savingCountry, setSavingCountry] = useState(false);
+  const [savingDailyReminder, setSavingDailyReminder] = useState(false);
+  const [reminderPermissionDenied, setReminderPermissionDenied] = useState(false);
 
   async function signOut() {
     await supabase.auth.signOut();
@@ -88,6 +92,55 @@ export default function Settings() {
     } else {
       refreshProfile();
     }
+  }
+
+  // Requests permission before persisting the flag on — a denied
+  // permission means the reminder can never actually fire, so the
+  // toggle stays off and an inline note explains why rather than
+  // silently saving a preference the OS won't honor.
+  async function handleToggleDailyReminder(value) {
+    if (!profile) return;
+    setReminderPermissionDenied(false);
+
+    if (value) {
+      const granted = await requestReminderPermission();
+      if (!granted) {
+        setReminderPermissionDenied(true);
+        return;
+      }
+    }
+
+    const previous = profile;
+    setProfile({ ...profile, daily_reminder: value });
+    setSavingDailyReminder(true);
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ daily_reminder: value })
+      .eq('id', profile.id);
+    setSavingDailyReminder(false);
+
+    if (error) {
+      setProfile(previous);
+      return;
+    }
+
+    refreshProfile();
+    try {
+      if (value) {
+        await scheduleDailyReminder();
+      } else {
+        await cancelDailyReminder();
+      }
+    } catch {
+      // Preference is saved regardless — Home's mount reconciliation
+      // will retry scheduling next time the app opens.
+    }
+  }
+
+  async function handleRateUs() {
+    const available = await isReviewAvailable();
+    if (available) await requestReview();
   }
 
   // code is a 2-letter country code, or null for "Prefer not to say" —
@@ -175,6 +228,24 @@ export default function Settings() {
       </View>
       <View style={styles.spacer} />
 
+      <View style={styles.toggleRow}>
+        <Text style={styles.toggleLabel}>Daily reminder</Text>
+        <Switch
+          value={!!profile?.daily_reminder}
+          onValueChange={handleToggleDailyReminder}
+          disabled={savingDailyReminder}
+          trackColor={{ false: C.border, true: accentDark }}
+          thumbColor={C.card}
+        />
+      </View>
+      {reminderPermissionDenied && (
+        <Text style={styles.explainerText}>
+          Notifications permission was denied — enable it for DayTickles in your device settings
+          to get the daily reminder.
+        </Text>
+      )}
+      <View style={styles.spacer} />
+
       <Text style={styles.label}>Country</Text>
       <TouchableOpacity
         style={styles.countryRow}
@@ -194,6 +265,8 @@ export default function Settings() {
       <Button title="Manage Goals" onPress={() => router.push('/goals')} variant="secondary" />
       <View style={styles.spacer} />
       <Button title="How DayTickles works" onPress={() => setShowGuide(true)} variant="secondary" />
+      <View style={styles.spacer} />
+      <Button title="Rate Us" onPress={handleRateUs} variant="secondary" />
       <View style={styles.spacer} />
       <Button title="Sign Out" onPress={signOut} variant="secondary" />
 

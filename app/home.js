@@ -11,6 +11,7 @@ import Button from '../components/Button';
 import HomeGuide from '../components/HomeGuide';
 import GoalTagModal from '../components/GoalTagModal';
 import ShareModal from '../components/ShareModal';
+import { requestReminderPermission, scheduleDailyReminder, cancelDailyReminder } from '../lib/reminders';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const PINNED_WINDOW_DAYS = 14;
@@ -118,6 +119,27 @@ export default function Home() {
     const timer = setTimeout(() => setShowReturnedMessage(false), 4000);
     return () => clearTimeout(timer);
   }, [showReturnedMessage]);
+
+  // Reconciles the actually-scheduled OS notification with the
+  // daily_reminder preference on every mount — covers cases where a
+  // reinstall or OS-level cleanup cleared a previously scheduled
+  // notification without the DB flag changing. Best-effort: native
+  // scheduling errors here shouldn't affect anything else on Home.
+  useEffect(() => {
+    if (!profile) return;
+    (async () => {
+      try {
+        if (profile.daily_reminder) {
+          const granted = await requestReminderPermission();
+          if (granted) await scheduleDailyReminder();
+        } else {
+          await cancelDailyReminder();
+        }
+      } catch {
+        // best-effort reconciliation only
+      }
+    })();
+  }, [profile?.daily_reminder]);
 
   async function handleCloseGuide() {
     setShowGuide(false);
