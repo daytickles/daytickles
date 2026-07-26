@@ -23,7 +23,7 @@ export default function Login() {
   async function signInWithGoogle() {
     try {
       setStatus('Starting sign-in...');
-      const redirectTo = AuthSession.makeRedirectUri({ scheme: 'daytickles' });
+      const redirectTo = AuthSession.makeRedirectUri();
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
