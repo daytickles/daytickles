@@ -4,10 +4,10 @@ import AppLockGate from '../components/AppLockGate';
 
 export default function RootLayout() {
   return (
-    <AppLockGate>
-      <AuthProvider>
+    <AuthProvider>
+      <AppLockGate>
         <Stack screenOptions={{ headerShown: false }} />
-      </AuthProvider>
-    </AppLockGate>
+      </AppLockGate>
+    </AuthProvider>
   );
 }
