@@ -16,7 +16,8 @@
 // its own since there's no session.
 
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { C } from '../lib/theme';
 import { supabase } from '../lib/supabase';
 import { verifyPin, authenticateWithBiometrics, isBiometricAvailable, clearPin } from '../lib/pinLock';
