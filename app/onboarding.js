@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, TextInput, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, TextInput, Text, StyleSheet, TouchableOpacity, Keyboard } from 'react-native';
 import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -62,7 +62,10 @@ export default function Onboarding() {
         {AVATAR_OPTIONS.map((emoji) => (
           <TouchableOpacity
             key={emoji}
-            onPress={() => setAvatar(emoji)}
+            onPress={() => {
+              Keyboard.dismiss();
+              setAvatar(emoji);
+            }}
             style={[
               styles.avatarOption,
               avatar === emoji && { borderColor: accentDark, backgroundColor: C.sparkleBg },
