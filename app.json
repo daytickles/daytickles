@@ -18,7 +18,14 @@
     "plugins": [
       "expo-web-browser",
       "expo-router",
-      "expo-notifications"
+      "expo-notifications",
+      "expo-secure-store",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow DayTickles to use Face ID to unlock the app."
+        }
+      ]
     ],
     "extra": {
       "router": {},

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { View, Text, TouchableOpacity, Switch, StyleSheet } from 'react-native';
+import { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, Switch, StyleSheet, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
@@ -9,8 +9,10 @@ import { flagEmoji, countryNameFor } from '../lib/country';
 import Button from '../components/Button';
 import HomeGuide from '../components/HomeGuide';
 import CountryPickerModal from '../components/CountryPickerModal';
+import PinSetupModal from '../components/PinSetupModal';
 import { requestReminderPermission, scheduleDailyReminder, cancelDailyReminder } from '../lib/reminders';
 import { isReviewAvailable, requestReview } from '../lib/rateUs';
+import { hasPinSet, clearPin } from '../lib/pinLock';
 
 export default function Settings() {
   const { profile, setProfile, refreshProfile } = useAuth();
@@ -23,6 +25,16 @@ export default function Settings() {
   const [savingCountry, setSavingCountry] = useState(false);
   const [savingDailyReminder, setSavingDailyReminder] = useState(false);
   const [reminderPermissionDenied, setReminderPermissionDenied] = useState(false);
+  const [pinEnabled, setPinEnabled] = useState(false);
+  const [togglingPinLock, setTogglingPinLock] = useState(false);
+  const [showPinSetup, setShowPinSetup] = useState(false);
+
+  // PIN lock is local-only (SecureStore, see lib/pinLock.js) — not part
+  // of profile, so its current state has to be read on mount rather than
+  // coming from AuthContext.
+  useEffect(() => {
+    hasPinSet().then(setPinEnabled);
+  }, []);
 
   async function signOut() {
     await supabase.auth.signOut();
@@ -138,6 +150,26 @@ export default function Settings() {
     }
   }
 
+  // Enabling only flips the Switch once PinSetupModal's enter-twice flow
+  // actually saves a PIN (handlePinSetupComplete) — the toggle stays off
+  // while the modal is open. Disabling has no confirmation step, matching
+  // every other toggle in this screen.
+  async function handleTogglePinLock(value) {
+    if (value) {
+      setShowPinSetup(true);
+      return;
+    }
+    setTogglingPinLock(true);
+    await clearPin();
+    setTogglingPinLock(false);
+    setPinEnabled(false);
+  }
+
+  function handlePinSetupComplete() {
+    setShowPinSetup(false);
+    setPinEnabled(true);
+  }
+
   async function handleRateUs() {
     try {
       const available = await isReviewAvailable();
@@ -173,7 +205,7 @@ export default function Settings() {
   }
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <TouchableOpacity
         onPress={() => router.back()}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -251,6 +283,22 @@ export default function Settings() {
       )}
       <View style={styles.spacer} />
 
+      <View style={styles.toggleRow}>
+        <Text style={styles.toggleLabel}>PIN lock</Text>
+        <Switch
+          value={pinEnabled}
+          onValueChange={handleTogglePinLock}
+          disabled={togglingPinLock}
+          trackColor={{ false: C.border, true: accentDark }}
+          thumbColor={C.card}
+        />
+      </View>
+      <Text style={styles.explainerText}>
+        Locks the app behind a PIN (with biometrics as a shortcut) every time it's opened or
+        resumed from the background. Stored only on this device, never sent anywhere.
+      </Text>
+      <View style={styles.spacer} />
+
       <Text style={styles.label}>Country</Text>
       <TouchableOpacity
         style={styles.countryRow}
@@ -282,12 +330,18 @@ export default function Settings() {
         onSelect={handleSelectCountry}
         onDismiss={() => setShowCountryPicker(false)}
       />
-    </View>
+      <PinSetupModal
+        visible={showPinSetup}
+        onCancel={() => setShowPinSetup(false)}
+        onComplete={handlePinSetupComplete}
+      />
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, paddingTop: 60, backgroundColor: C.bg },
+  container: { flex: 1, backgroundColor: C.bg },
+  content: { padding: 20, paddingTop: 60, paddingBottom: 40 },
   backLink: { fontSize: 16, color: C.rust, marginBottom: 16 },
   title: { fontSize: 22, fontWeight: 'bold', color: C.rustDark, marginBottom: 24 },
   label: { fontSize: 14, color: C.subtext, marginBottom: 10 },
