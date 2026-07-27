@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   },
   rowUnread: { backgroundColor: C.sparkleBg },
   unreadDot: {
-    width: 8, height: 8, borderRadius: 4, backgroundColor: C.rust,
+    width: 8, height: 8, borderRadius: 4, backgroundColor: C.teal,
     marginRight: 10, marginTop: 6,
   },
   rowBody: { flex: 1 },

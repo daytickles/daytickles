@@ -548,7 +548,7 @@ const styles = StyleSheet.create({
   bellButton: { position: 'relative' },
   unreadBadge: {
     position: 'absolute', top: -6, right: -8, minWidth: 16, height: 16, borderRadius: 8,
-    backgroundColor: C.rust, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3,
+    backgroundColor: C.teal, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3,
   },
   unreadBadgeText: { fontSize: 10, fontWeight: '700', color: C.bg },
   settingsLink: { fontSize: 22, color: C.subtext },
@@ -629,7 +629,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   entryDate: { fontSize: 12, color: C.subtext },
-  entryLikes: { fontSize: 12, color: C.rust, fontWeight: '600' },
+  entryLikes: { fontSize: 12, color: C.teal, fontWeight: '600' },
   shareLink: { fontSize: 12, color: C.subtext, fontWeight: '600' },
 
   iconRow: {
