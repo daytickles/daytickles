@@ -499,7 +499,7 @@ export default function Feed() {
                     <Ionicons
                       name={isLiked ? 'happy' : 'happy-outline'}
                       size={16}
-                      color={isLiked ? C.sparkleText : C.faint}
+                      color={isLiked ? C.amberBg : C.faint}
                     />
                     <Text style={[styles.likeCount, isLiked && styles.likeCountActive]}>{item.like_count || 0}</Text>
                   </TouchableOpacity>
