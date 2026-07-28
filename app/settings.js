@@ -22,6 +22,7 @@ export default function Settings() {
   const [savingTheme, setSavingTheme] = useState(null);
   const [savingTickleNature, setSavingTickleNature] = useState(false);
   const [savingDayJournal, setSavingDayJournal] = useState(false);
+  const [savingNotifyOnLikes, setSavingNotifyOnLikes] = useState(false);
   const [savingCountry, setSavingCountry] = useState(false);
   const [savingDailyReminder, setSavingDailyReminder] = useState(false);
   const [reminderPermissionDenied, setReminderPermissionDenied] = useState(false);
@@ -98,6 +99,26 @@ export default function Settings() {
       .update({ day_journal_enabled: value })
       .eq('id', profile.id);
     setSavingDayJournal(false);
+
+    if (error) {
+      setProfile(previous);
+    } else {
+      refreshProfile();
+    }
+  }
+
+  async function handleToggleNotifyOnLikes(value) {
+    if (!profile) return;
+    const previous = profile;
+
+    setProfile({ ...profile, notify_on_likes: value });
+    setSavingNotifyOnLikes(true);
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ notify_on_likes: value })
+      .eq('id', profile.id);
+    setSavingNotifyOnLikes(false);
 
     if (error) {
       setProfile(previous);
@@ -281,6 +302,22 @@ export default function Settings() {
           to get the daily reminder.
         </Text>
       )}
+      <View style={styles.spacer} />
+
+      <View style={styles.toggleRow}>
+        <Text style={styles.toggleLabel}>Notify me of new likes</Text>
+        <Switch
+          value={!!profile?.notify_on_likes}
+          onValueChange={handleToggleNotifyOnLikes}
+          disabled={savingNotifyOnLikes}
+          trackColor={{ false: C.border, true: accentDark }}
+          thumbColor={C.card}
+        />
+      </View>
+      <Text style={styles.explainerText}>
+        Controls push notifications only — likes always show up in your notification list
+        either way.
+      </Text>
       <View style={styles.spacer} />
 
       <View style={styles.toggleRow}>
