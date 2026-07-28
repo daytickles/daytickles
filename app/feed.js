@@ -396,10 +396,23 @@ export default function Feed() {
           />
           <View style={styles.entryBody}>
             <View style={styles.headerRow}>
-              <Text style={styles.authorText} numberOfLines={1}>
-                {item.profiles?.avatar_emoji} {item.profiles?.username}
-                {item.profiles?.country ? `  ${flagEmoji(item.profiles.country)}` : ''}
-              </Text>
+              <View style={styles.authorRow}>
+                <Text style={styles.authorText} numberOfLines={1}>
+                  {item.profiles?.avatar_emoji} {item.profiles?.username}
+                  {item.profiles?.country ? `  ${flagEmoji(item.profiles.country)}` : ''}
+                </Text>
+                {!isOwnEntry && (
+                  <TouchableOpacity
+                    onPress={() => handleToggleFollow(item.user_id)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    style={styles.followAction}
+                  >
+                    <Text style={[styles.followLink, isFollowingAuthor && styles.followLinkActive]}>
+                      {isFollowingAuthor ? 'Following' : 'Follow'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
               <View style={styles.iconGroup}>
                 {item.tickle_nature && (
                   <Ionicons
@@ -480,16 +493,6 @@ export default function Feed() {
                 {item.visibility === 'public' && item.is_edited ? ' · (edited)' : ''}
               </Text>
               <View style={styles.entryMetaRight}>
-                {!isOwnEntry && (
-                  <TouchableOpacity
-                    onPress={() => handleToggleFollow(item.user_id)}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  >
-                    <Text style={[styles.followLink, isFollowingAuthor && styles.followLinkActive]}>
-                      {isFollowingAuthor ? 'Following' : 'Follow'}
-                    </Text>
-                  </TouchableOpacity>
-                )}
                 {!isOwnEntry && (
                   <TouchableOpacity
                     onPress={() => handleToggleLike(item.id)}
@@ -664,7 +667,9 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4,
   },
+  authorRow: { flexDirection: 'row', alignItems: 'center', flexShrink: 1, marginRight: 8 },
   authorText: { fontSize: 13, fontWeight: '600', color: C.rustDark, flexShrink: 1 },
+  followAction: { marginLeft: 10 },
   iconGroup: { flexDirection: 'row', alignItems: 'center' },
   natureIcon: { marginLeft: 12 },
   goalDot: { width: 16, height: 16, borderRadius: 8, marginLeft: 12 },
