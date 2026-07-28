@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase';
 import { C, accentFor, moodColorFor, moodDotSize, darken, textOn, TICKLE_NATURE_ICONS } from '../lib/theme';
 import { shareEntry, shareStatus, SHARE_CAPTIONS } from '../lib/sharing';
 import { flagEmoji } from '../lib/country';
+import { notifyLikeReceived } from '../lib/likeNotify';
 import GoalTagModal from '../components/GoalTagModal';
 import ShareModal from '../components/ShareModal';
 
@@ -297,7 +298,14 @@ export default function Feed() {
       ? await supabase.from('likes').delete().eq('user_id', session.user.id).eq('entry_id', entryId)
       : await supabase.from('likes').insert({ user_id: session.user.id, entry_id: entryId });
 
-    if (error) setLikedIds(previous);
+    if (error) {
+      setLikedIds(previous);
+      return;
+    }
+
+    // Not awaited — push delivery shouldn't hold up the optimistic UI
+    // update above. Only fires on a fresh like, not on unlike.
+    if (!isLiked) notifyLikeReceived(entryId, session.user.id);
   }
 
   const goalsById = Object.fromEntries(goals.map((g) => [g.id, g]));
