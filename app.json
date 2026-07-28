@@ -13,7 +13,8 @@
       "supportsTablet": true
     },
     "android": {
-      "package": "com.daytickles.daytickles"
+      "package": "com.daytickles.daytickles",
+      "googleServicesFile": "./google-services.json"
     },
     "plugins": [
       "expo-web-browser",

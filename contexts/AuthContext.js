@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import * as Linking from 'expo-linking';
 import { supabase } from '../lib/supabase';
+import { registerPushToken } from '../lib/pushToken';
 
 const AuthContext = createContext(null);
 
@@ -72,7 +73,12 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
       setSession(data.session);
-      if (data.session) await loadProfile(data.session.user.id);
+      if (data.session) {
+        await loadProfile(data.session.user.id);
+        // Not awaited — permission prompt + token fetch shouldn't hold up
+        // clearing the loading state below.
+        registerPushToken(data.session.user.id);
+      }
       setLoading(false);
     });
 
@@ -82,6 +88,7 @@ export function AuthProvider({ children }) {
       if (newSession) {
         handledRef.current = false;
         await loadProfile(newSession.user.id);
+        registerPushToken(newSession.user.id);
       } else {
         setProfile(null);
       }

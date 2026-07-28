@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "878954541100",
+    "project_id": "daytickles-6373",
+    "storage_bucket": "daytickles-6373.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:878954541100:android:50ec5aa2ebb40ba3806189",
+        "android_client_info": {
+          "package_name": "com.daytickles.daytickles"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC4JQUzLOvBySkVL6MfaPK-G9M_TtWeAec"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
