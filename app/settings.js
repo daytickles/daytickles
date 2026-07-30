@@ -10,7 +10,12 @@ import Button from '../components/Button';
 import HomeGuide from '../components/HomeGuide';
 import CountryPickerModal from '../components/CountryPickerModal';
 import PinSetupModal from '../components/PinSetupModal';
-import { requestReminderPermission, scheduleDailyReminder, cancelDailyReminder } from '../lib/reminders';
+import {
+  requestReminderPermission,
+  scheduleDailyReminder,
+  cancelDailyReminder,
+  sendTestReminderNotification,
+} from '../lib/reminders';
 import { isReviewAvailable, requestReview } from '../lib/rateUs';
 import { hasPinSet, clearPin } from '../lib/pinLock';
 
@@ -302,6 +307,14 @@ export default function Settings() {
           to get the daily reminder.
         </Text>
       )}
+      {/* On-demand test button: fires sendTestReminderNotification (lib/reminders.js)
+          so reminder display can be tested without waiting for 8am/8pm. */}
+      <Button
+        title="Send test notification"
+        variant="secondary"
+        onPress={() => sendTestReminderNotification()}
+      />
+      <View style={styles.spacer} />
       <View style={styles.spacer} />
 
       <View style={styles.toggleRow}>
