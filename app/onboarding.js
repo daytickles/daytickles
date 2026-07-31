@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
-import { View, TextInput, Text, StyleSheet, TouchableOpacity, Keyboard } from 'react-native';
+import {
+  View, TextInput, Text, StyleSheet, TouchableOpacity, Keyboard,
+  KeyboardAvoidingView, ScrollView, Platform,
+} from 'react-native';
 import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -45,7 +48,11 @@ export default function Onboarding() {
   }
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+    <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Text style={styles.title}>Welcome! Let's set you up.</Text>
 
       <TextInput
@@ -83,12 +90,14 @@ export default function Onboarding() {
         variant="primary"
       />
       <Text style={styles.status}>{status}</Text>
-    </View>
+    </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: C.bg },
+  container: { flex: 1, backgroundColor: C.bg },
+  content: { flexGrow: 1, justifyContent: 'center', padding: 24 },
   title: { fontSize: 20, fontWeight: 'bold', marginBottom: 24, textAlign: 'center', color: C.rustDark },
   input: {
     borderWidth: 1,
