@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Switch, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, Switch, StyleSheet, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
@@ -11,6 +11,7 @@ import HomeGuide from '../components/HomeGuide';
 import AboutModal from '../components/AboutModal';
 import CountryPickerModal from '../components/CountryPickerModal';
 import PinSetupModal from '../components/PinSetupModal';
+import DeleteAccountModal from '../components/DeleteAccountModal';
 import {
   requestReminderPermission,
   scheduleDailyReminder,
@@ -19,6 +20,7 @@ import {
 } from '../lib/reminders';
 import { isReviewAvailable, requestReview } from '../lib/rateUs';
 import { hasPinSet, clearPin } from '../lib/pinLock';
+import { deleteAccount } from '../lib/deleteAccount';
 
 export default function Settings() {
   const { profile, setProfile, refreshProfile } = useAuth();
@@ -36,6 +38,9 @@ export default function Settings() {
   const [pinEnabled, setPinEnabled] = useState(false);
   const [togglingPinLock, setTogglingPinLock] = useState(false);
   const [showPinSetup, setShowPinSetup] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   // PIN lock is local-only (SecureStore, see lib/pinLock.js) — not part
   // of profile, so its current state has to be read on mount rather than
@@ -53,6 +58,38 @@ export default function Settings() {
     // dismissAll() first pops every pushed screen back to the stack's
     // root before replace swaps that root for /login, so nothing
     // survives sign-out.
+    router.dismissAll();
+    router.replace('/login');
+  }
+
+  function confirmDeleteAccount() {
+    Alert.alert(
+      'Delete your account?',
+      "This permanently deletes your account and everything in it — tickles, likes, follows, goals, and shares. There's no way to undo this.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Continue', style: 'destructive', onPress: () => setShowDeleteConfirm(true) },
+      ]
+    );
+  }
+
+  // Deletion itself already succeeded server-side by the time this
+  // runs (that's the source of truth) — signOut() here is just local
+  // cleanup, so its own success/failure doesn't gate navigating away.
+  async function handleDeleteAccount() {
+    setDeleteError('');
+    setDeletingAccount(true);
+
+    const { error } = await deleteAccount();
+    setDeletingAccount(false);
+
+    if (error) {
+      setDeleteError('Something went wrong — please try again.');
+      return;
+    }
+
+    setShowDeleteConfirm(false);
+    await supabase.auth.signOut().catch(() => {});
     router.dismissAll();
     router.replace('/login');
   }
@@ -376,6 +413,11 @@ export default function Settings() {
       <Button title="Rate Us" onPress={handleRateUs} variant="secondary" />
       <View style={styles.spacer} />
       <Button title="Sign Out" onPress={signOut} variant="secondary" />
+      <View style={styles.spacer} />
+
+      <TouchableOpacity onPress={confirmDeleteAccount} style={styles.deleteAccountLink}>
+        <Text style={styles.deleteAccountLinkText}>Delete Account</Text>
+      </TouchableOpacity>
 
       <HomeGuide visible={showGuide} onClose={() => setShowGuide(false)} />
       <AboutModal visible={showAbout} onClose={() => setShowAbout(false)} />
@@ -384,6 +426,16 @@ export default function Settings() {
         value={profile?.country}
         onSelect={handleSelectCountry}
         onDismiss={() => setShowCountryPicker(false)}
+      />
+      <DeleteAccountModal
+        visible={showDeleteConfirm}
+        deleting={deletingAccount}
+        error={deleteError}
+        onConfirm={handleDeleteAccount}
+        onCancel={() => {
+          setShowDeleteConfirm(false);
+          setDeleteError('');
+        }}
       />
       <PinSetupModal
         visible={showPinSetup}
@@ -417,4 +469,8 @@ const styles = StyleSheet.create({
   countryValue: { fontSize: 15, color: C.text },
   explainerText: { fontSize: 12, color: C.subtext, lineHeight: 16 },
   spacer: { height: 12 },
+  deleteAccountLink: { alignItems: 'center', paddingVertical: 4 },
+  deleteAccountLinkText: {
+    fontSize: 13, color: C.subtext, fontWeight: '600', textDecorationLine: 'underline',
+  },
 });
