@@ -14,8 +14,9 @@ const FEATURES = [
 export default function AboutModal({ visible, onClose }) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose}>
-        <TouchableOpacity activeOpacity={1} style={styles.sheet} onPress={() => {}}>
+      <View style={styles.overlay}>
+        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
+        <View style={styles.sheet}>
           <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={styles.skip}>
             <Text style={styles.skipText}>Close</Text>
           </TouchableOpacity>
@@ -60,14 +61,14 @@ export default function AboutModal({ visible, onClose }) {
           <View style={styles.navRow}>
             <Button title="Got it" variant="primary" onPress={onClose} />
           </View>
-        </TouchableOpacity>
-      </TouchableOpacity>
+        </View>
+      </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
+  overlay: {
     flex: 1, backgroundColor: 'rgba(44,44,42,0.4)',
     justifyContent: 'center', alignItems: 'center', padding: 32,
   },
@@ -77,7 +78,7 @@ const styles = StyleSheet.create({
   skip: { alignSelf: 'flex-end', marginBottom: 8 },
   skipText: { fontSize: 14, fontWeight: '600', color: C.subtext },
 
-  scroll: { marginBottom: 16 },
+  scroll: { flexShrink: 1, marginBottom: 16 },
 
   heading: { fontSize: 18, fontWeight: '700', color: C.rustDark, marginTop: 4, marginBottom: 10 },
   body: { fontSize: 15, color: C.text, lineHeight: 21, marginBottom: 12 },
