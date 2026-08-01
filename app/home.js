@@ -12,6 +12,7 @@ import HomeGuide from '../components/HomeGuide';
 import GoalTagModal from '../components/GoalTagModal';
 import ShareModal from '../components/ShareModal';
 import { requestReminderPermission, scheduleDailyReminder, cancelDailyReminder } from '../lib/reminders';
+import { isReviewAvailable, requestReview } from '../lib/rateUs';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const PINNED_WINDOW_DAYS = 14;
@@ -88,6 +89,7 @@ export default function Home() {
   const [shareEntryId, setShareEntryId] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showGuide, setShowGuide] = useState(false);
+  const [showRatePrompt, setShowRatePrompt] = useState(false);
   const [showReturnedMessage, setShowReturnedMessage] = useState(false);
   const returnedMessageShownRef = useRef(false);
   const [activeNatureTooltip, setActiveNatureTooltip] = useState(null);
@@ -287,6 +289,29 @@ export default function Home() {
   const streak = computeStreak(entries);
   const goalStreak = computeGoalStreak(entries);
   const totalTickles = entries.length;
+
+  // Milestone Rate-Us prompt (backlog #8) — flips true the moment it's
+  // shown, not only on dismiss, so ignoring it never brings it back.
+  // Same check-on-mount/flip-immediately shape as home_guide_seen above.
+  useEffect(() => {
+    if (profile && !profile.rate_prompt_seen && totalTickles >= 10) {
+      setShowRatePrompt(true);
+      supabase.from('profiles').update({ rate_prompt_seen: true }).eq('id', profile.id)
+        .then(() => refreshProfile());
+    }
+  }, [profile, totalTickles]);
+
+  async function handleRatePromptTap() {
+    setShowRatePrompt(false);
+    try {
+      const available = await isReviewAvailable();
+      if (available) await requestReview();
+    } catch {
+      // Native module may be unavailable on some builds — fail
+      // silently, same as Settings' handleRateUs.
+    }
+  }
+
   const totalLikes = entries.reduce((sum, e) => sum + (e.like_count || 0), 0);
   const natureCounts = {
     received: entries.filter((e) => e.tickle_nature === 'received').length,
@@ -437,6 +462,23 @@ export default function Home() {
         </TouchableOpacity>
       )}
 
+      {showRatePrompt && (
+        <View style={styles.ratePromptBanner}>
+          <Text style={styles.ratePromptText}>Enjoying DayTickles? A quick rating will help others.</Text>
+          <View style={styles.ratePromptActions}>
+            <TouchableOpacity onPress={handleRatePromptTap}>
+              <Text style={styles.ratePromptRateText}>Rate</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setShowRatePrompt(false)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="close" size={16} color={C.sparkleText} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       <View style={styles.statsRow}>
         <View style={[styles.statCard, styles.statCardTickles]}>
           <Text style={[styles.statNumber, styles.statNumberTickles]}>{totalTickles}</Text>
@@ -558,6 +600,14 @@ const styles = StyleSheet.create({
     paddingVertical: 12, paddingHorizontal: 16, marginBottom: 12,
   },
   returnedBannerText: { fontSize: 14, fontWeight: '600', color: C.sparkleText, textAlign: 'center' },
+  ratePromptBanner: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: C.sparkleBg, borderRadius: 14,
+    paddingVertical: 12, paddingHorizontal: 16, marginBottom: 12,
+  },
+  ratePromptText: { flex: 1, fontSize: 14, fontWeight: '600', color: C.sparkleText, marginRight: 12 },
+  ratePromptActions: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  ratePromptRateText: { fontSize: 14, fontWeight: '700', color: C.sparkleText },
 
   streakRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
   streakCard: {
