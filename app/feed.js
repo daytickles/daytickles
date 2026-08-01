@@ -1,24 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { C, accentFor, moodColorFor, moodDotSize, darken, textOn, TICKLE_NATURE_ICONS } from '../lib/theme';
+import { C, accentFor, darken, textOn } from '../lib/theme';
 import { shareEntry, shareStatus, SHARE_CAPTIONS } from '../lib/sharing';
-import { flagEmoji } from '../lib/country';
 import { notifyLikeReceived } from '../lib/likeNotify';
 import GoalTagModal from '../components/GoalTagModal';
 import ShareModal from '../components/ShareModal';
-
-function formatEntryDate(entryDate) {
-  return new Date(`${entryDate}T00:00:00Z`).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    timeZone: 'UTC',
-  });
-}
+import EntryCard, { CARD_SPACING } from '../components/EntryCard';
 
 const TABS = [
   { id: 'everyone', label: 'Everyone' },
@@ -58,9 +49,9 @@ const ENTRY_SELECT =
 // (recorded via onLayout into cardHeights, keyed by entry id) instead of
 // assuming a uniform size. DEFAULT_ITEM_HEIGHT is only the fallback used
 // for cards that haven't rendered/measured yet — matches entryCard's
-// typical single-line size (102.33px measured + CARD_SPACING).
+// typical single-line size (102.33px measured + CARD_SPACING, imported
+// from EntryCard.js so the two can't silently drift apart).
 const DEFAULT_ITEM_HEIGHT = 114;
-const CARD_SPACING = 12; // must match entryCard's marginBottom below
 
 export default function Feed() {
   const { session, profile, refreshProfile } = useAuth();
@@ -334,18 +325,8 @@ export default function Feed() {
   // the schema before building this). Home and Feed each reload their
   // own entries on focus already, so a deletion made on one screen is
   // picked up by the other the next time it's revisited — no separate
-  // cross-screen refresh mechanism needed.
-  function confirmDeleteEntry(entry) {
-    Alert.alert(
-      'Delete this tickle?',
-      "This can't be undone — it removes the entry everywhere, including any likes or shares.",
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => handleDeleteEntry(entry.id) },
-      ]
-    );
-  }
-
+  // cross-screen refresh mechanism needed. Confirmation dialog lives in
+  // EntryCard itself; this only runs once the user has confirmed.
   async function handleDeleteEntry(entryId) {
     const previous = entries;
     setEntries((prev) => prev.filter((e) => e.id !== entryId));
@@ -374,152 +355,27 @@ export default function Feed() {
   }
 
   function renderEntry({ item }) {
-    const accent = accentFor(item.profiles?.accent_theme);
-    const isOwnEntry = item.user_id === session.user.id;
-    const isFollowingAuthor = followedIds.has(item.user_id);
-    const isFavorited = favoritedIds.has(item.id);
-    const isLiked = likedIds.has(item.id);
-    const isHighlighted = tab === 'mine' && item.id === highlightedEntryId;
-    const dotSize = moodDotSize(item.mood);
-    const taggedGoal = item.goal_id ? goalsById[item.goal_id] : null;
-
     return (
-      <View
-        style={[styles.entryCard, isHighlighted && styles.highlightedCard]}
+      <EntryCard
+        item={item}
+        currentUserId={session.user.id}
+        showMineActions={tab === 'mine'}
+        isHighlighted={tab === 'mine' && item.id === highlightedEntryId}
+        isFollowing={followedIds.has(item.user_id)}
+        isFavorited={favoritedIds.has(item.id)}
+        isLiked={likedIds.has(item.id)}
+        taggedGoal={item.goal_id ? goalsById[item.goal_id] : null}
         onLayout={(e) => {
           cardHeights.current[item.id] = e.nativeEvent.layout.height + CARD_SPACING;
         }}
-      >
-        <View style={styles.entryRow}>
-          <View
-            style={[
-              styles.moodDot,
-              {
-                width: dotSize,
-                height: dotSize,
-                borderRadius: dotSize / 2,
-                backgroundColor: moodColorFor(item.mood, accent),
-              },
-            ]}
-          />
-          <View style={styles.entryBody}>
-            <View style={styles.headerRow}>
-              <View style={styles.authorRow}>
-                <Text style={styles.authorText} numberOfLines={1}>
-                  {item.profiles?.avatar_emoji} {item.profiles?.username}
-                  {item.profiles?.country ? `  ${flagEmoji(item.profiles.country)}` : ''}
-                </Text>
-                {!isOwnEntry && (
-                  <TouchableOpacity
-                    onPress={() => handleToggleFollow(item.user_id)}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    style={styles.followAction}
-                  >
-                    <Text style={[styles.followLink, isFollowingAuthor && styles.followLinkActive]}>
-                      {isFollowingAuthor ? 'Following' : 'Follow'}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-              <View style={styles.iconGroup}>
-                {item.tickle_nature && (
-                  <Ionicons
-                    name={TICKLE_NATURE_ICONS[item.tickle_nature]}
-                    size={16}
-                    color={C.subtext}
-                    style={styles.natureIcon}
-                  />
-                )}
-                {tab === 'mine' && (
-                  <TouchableOpacity
-                    onPress={() => setPickerEntryId(item.id)}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  >
-                    <View
-                      style={[
-                        styles.goalDot,
-                        taggedGoal ? { backgroundColor: taggedGoal.color } : styles.goalDotEmpty,
-                      ]}
-                    />
-                  </TouchableOpacity>
-                )}
-                {tab === 'mine' && (
-                  <TouchableOpacity
-                    onPress={() => setShareEntryId(item.id)}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    style={styles.shareAction}
-                  >
-                    <Text style={styles.shareLink}>Share</Text>
-                  </TouchableOpacity>
-                )}
-                {tab === 'mine' && (
-                  <TouchableOpacity
-                    onPress={() => router.push({ pathname: '/create', params: { entryId: item.id } })}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    style={styles.editAction}
-                  >
-                    <Ionicons name="pencil-outline" size={16} color={C.subtext} />
-                  </TouchableOpacity>
-                )}
-                <TouchableOpacity
-                  onPress={() => handleToggleFavorite(item.id)}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  style={styles.starAction}
-                >
-                  <Text style={[styles.starIcon, isFavorited && styles.starIconActive]}>
-                    {isFavorited ? '★' : '☆'}
-                  </Text>
-                </TouchableOpacity>
-                {tab === 'mine' && (
-                  <TouchableOpacity
-                    onPress={() => handleToggleVisibility(item)}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    style={styles.visibilityAction}
-                  >
-                    <Ionicons
-                      name={item.visibility === 'public' ? 'eye-outline' : 'eye-off-outline'}
-                      size={16}
-                      color={C.subtext}
-                    />
-                  </TouchableOpacity>
-                )}
-                {tab === 'mine' && (
-                  <TouchableOpacity
-                    onPress={() => confirmDeleteEntry(item)}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    style={styles.deleteAction}
-                  >
-                    <Ionicons name="trash-outline" size={16} color={C.rust} />
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
-            <Text style={styles.entryText}>{item.text_content}</Text>
-            <View style={styles.entryMetaRow}>
-              <Text style={styles.entryDate}>
-                {formatEntryDate(item.entry_date)}
-                {item.visibility === 'public' && item.is_edited ? ' · (edited)' : ''}
-              </Text>
-              <View style={styles.entryMetaRight}>
-                {!isOwnEntry && (
-                  <TouchableOpacity
-                    onPress={() => handleToggleLike(item.id)}
-                    style={styles.likeButton}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  >
-                    <Ionicons
-                      name={isLiked ? 'happy' : 'happy-outline'}
-                      size={16}
-                      color={isLiked ? C.amberBg : C.faint}
-                    />
-                    <Text style={[styles.likeCount, isLiked && styles.likeCountActive]}>{item.like_count || 0}</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
-          </View>
-        </View>
-      </View>
+        onToggleFollow={handleToggleFollow}
+        onPickGoal={setPickerEntryId}
+        onShare={setShareEntryId}
+        onToggleFavorite={handleToggleFavorite}
+        onToggleVisibility={handleToggleVisibility}
+        onDelete={(entry) => handleDeleteEntry(entry.id)}
+        onToggleLike={handleToggleLike}
+      />
     );
   }
 
@@ -553,6 +409,15 @@ export default function Feed() {
             <Text style={[styles.tabLabel, tab === t.id && { color: accentDarkText }]}>{t.label}</Text>
           </TouchableOpacity>
         ))}
+        {tab === 'mine' && (
+          <TouchableOpacity
+            onPress={() => router.push('/calendar')}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={styles.calendarButton}
+          >
+            <Ionicons name="calendar-outline" size={20} color={C.subtext} />
+          </TouchableOpacity>
+        )}
       </View>
 
       {tab === 'mine' && (profile?.tickle_nature_enabled || profile?.day_journal_enabled) && (
@@ -640,12 +505,13 @@ const styles = StyleSheet.create({
   backLink: { fontSize: 16, color: C.rust, marginBottom: 16 },
   title: { fontSize: 22, fontWeight: 'bold', color: C.rustDark, marginBottom: 16 },
 
-  tabRow: { flexDirection: 'row', gap: 6, marginBottom: 16 },
+  tabRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16 },
   tabButton: {
     flex: 1, paddingVertical: 10, borderRadius: 20,
     alignItems: 'center', backgroundColor: C.card, borderWidth: 1, borderColor: C.border,
   },
   tabLabel: { fontSize: 12, fontWeight: '600', color: C.subtext },
+  calendarButton: { marginLeft: 4 },
 
   // Nested one level in from tabRow above, and deliberately lighter —
   // smaller padding/radius/font, content-sized chips rather than
@@ -662,47 +528,4 @@ const styles = StyleSheet.create({
   list: { flex: 1 },
   listContent: { paddingBottom: 40 },
   emptyText: { color: C.subtext, textAlign: 'center', marginTop: 24 },
-
-  entryCard: {
-    backgroundColor: C.card, borderRadius: 16, padding: 14, marginBottom: CARD_SPACING,
-  },
-  highlightedCard: {
-    borderWidth: 1.5, borderColor: C.amberDark, backgroundColor: C.sparkleBg,
-  },
-  entryRow: { flexDirection: 'row', alignItems: 'flex-start' },
-  moodDot: { marginRight: 12, marginTop: 4 },
-  entryBody: { flex: 1 },
-  headerRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4,
-  },
-  authorRow: { flexDirection: 'row', alignItems: 'center', flexShrink: 1, marginRight: 8 },
-  authorText: { fontSize: 13, fontWeight: '600', color: C.rustDark, flexShrink: 1 },
-  followAction: { marginLeft: 10 },
-  iconGroup: { flexDirection: 'row', alignItems: 'center' },
-  natureIcon: { marginLeft: 12 },
-  goalDot: { width: 16, height: 16, borderRadius: 8, marginLeft: 12 },
-  goalDotEmpty: {
-    backgroundColor: 'transparent', borderWidth: 1.5,
-    borderStyle: 'dashed', borderColor: C.faint,
-  },
-  shareAction: { marginLeft: 12 },
-  editAction: { marginLeft: 12 },
-  starAction: { marginLeft: 12 },
-  visibilityAction: { marginLeft: 12 },
-  deleteAction: { marginLeft: 12 },
-  entryText: { fontSize: 15, color: C.text, lineHeight: 20 },
-
-  entryMetaRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8,
-  },
-  entryDate: { fontSize: 12, color: C.subtext },
-  entryMetaRight: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  followLink: { fontSize: 12, fontWeight: '600', color: C.rust },
-  followLinkActive: { color: C.subtext },
-  shareLink: { fontSize: 12, color: C.subtext, fontWeight: '600' },
-  likeButton: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  likeCount: { fontSize: 12, fontWeight: '600', color: C.faint },
-  likeCountActive: { color: C.sparkleText },
-  starIcon: { fontSize: 18, color: C.faint },
-  starIconActive: { color: C.amberDark },
 });
