@@ -8,6 +8,7 @@ import { C, ACCENT_THEMES, accentFor, darken, textOn } from '../lib/theme';
 import { flagEmoji, countryNameFor } from '../lib/country';
 import Button from '../components/Button';
 import HomeGuide from '../components/HomeGuide';
+import AboutModal from '../components/AboutModal';
 import CountryPickerModal from '../components/CountryPickerModal';
 import PinSetupModal from '../components/PinSetupModal';
 import {
@@ -23,6 +24,7 @@ export default function Settings() {
   const { profile, setProfile, refreshProfile } = useAuth();
   const accentDark = darken(accentFor(profile?.accent_theme).card, 0.35);
   const [showGuide, setShowGuide] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [savingTheme, setSavingTheme] = useState(null);
   const [savingTickleNature, setSavingTickleNature] = useState(false);
@@ -369,11 +371,14 @@ export default function Settings() {
       <View style={styles.spacer} />
       <Button title="How DayTickles works" onPress={() => setShowGuide(true)} variant="secondary" />
       <View style={styles.spacer} />
+      <Button title="About DayTickles" onPress={() => setShowAbout(true)} variant="secondary" />
+      <View style={styles.spacer} />
       <Button title="Rate Us" onPress={handleRateUs} variant="secondary" />
       <View style={styles.spacer} />
       <Button title="Sign Out" onPress={signOut} variant="secondary" />
 
       <HomeGuide visible={showGuide} onClose={() => setShowGuide(false)} />
+      <AboutModal visible={showAbout} onClose={() => setShowAbout(false)} />
       <CountryPickerModal
         visible={showCountryPicker}
         value={profile?.country}
