@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { C, accentFor, moodColorFor, moodDotSize, TICKLE_NATURE_ICONS } from '../lib/theme';
+import { C, accentFor, darken, lighten, moodColorFor, moodDotSize, TICKLE_NATURE_ICONS } from '../lib/theme';
 import { flagEmoji } from '../lib/country';
 
 function formatEntryDate(entryDate) {
@@ -109,9 +109,19 @@ export default function EntryCard({
                   <View
                     style={[
                       styles.goalDot,
-                      taggedGoal ? { backgroundColor: taggedGoal.color } : styles.goalDotEmpty,
+                      taggedGoal
+                        ? {
+                            backgroundColor: taggedGoal.achieved_at
+                              ? lighten(taggedGoal.color, 0.6)
+                              : taggedGoal.color,
+                          }
+                        : styles.goalDotEmpty,
                     ]}
-                  />
+                  >
+                    {taggedGoal?.achieved_at && (
+                      <Ionicons name="checkmark" size={10} color={darken(taggedGoal.color, 0.4)} />
+                    )}
+                  </View>
                 </TouchableOpacity>
               )}
               {showMineActions && (
@@ -212,7 +222,10 @@ const styles = StyleSheet.create({
   followAction: { marginLeft: 10 },
   iconGroup: { flexDirection: 'row', alignItems: 'center' },
   natureIcon: { marginLeft: 12 },
-  goalDot: { width: 16, height: 16, borderRadius: 8, marginLeft: 12 },
+  goalDot: {
+    width: 16, height: 16, borderRadius: 8, marginLeft: 12,
+    alignItems: 'center', justifyContent: 'center',
+  },
   goalDotEmpty: {
     backgroundColor: 'transparent', borderWidth: 1.5,
     borderStyle: 'dashed', borderColor: C.faint,

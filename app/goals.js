@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import {
-  View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, Alert, Keyboard,
+  View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, Alert, Keyboard,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { C, GOAL_COLORS, MAX_GOALS, accentFor, darken } from '../lib/theme';
+import { C, GOAL_COLORS, MAX_GOALS, accentFor, darken, lighten } from '../lib/theme';
 import Button from '../components/Button';
 
 export default function Goals() {
@@ -39,7 +41,12 @@ export default function Goals() {
     }, [loadGoals])
   );
 
-  const usedColors = useMemo(() => new Set(goals.map((g) => g.color)), [goals]);
+  const activeGoals = useMemo(() => goals.filter((g) => !g.achieved_at), [goals]);
+  const achievedGoals = useMemo(() => goals.filter((g) => g.achieved_at), [goals]);
+
+  // Only active goals reserve a swatch — achieving a goal frees its
+  // color for reuse, same as it frees its slot against MAX_GOALS below.
+  const usedColors = useMemo(() => new Set(activeGoals.map((g) => g.color)), [activeGoals]);
 
   // Keep the pending new-goal color off of whatever's already taken —
   // existing goals' colors are never touched, only the not-yet-saved
@@ -56,7 +63,7 @@ export default function Goals() {
       setStatus('Enter a goal name.');
       return;
     }
-    if (goals.length >= MAX_GOALS) {
+    if (activeGoals.length >= MAX_GOALS) {
       setStatus(`Limit reached (${MAX_GOALS} max).`);
       return;
     }
@@ -82,6 +89,29 @@ export default function Goals() {
     await loadGoals();
   }
 
+  function confirmAchieve(goal) {
+    Alert.alert(
+      'Mark as achieved?',
+      `"${goal.label}" moves to your achieved goals. Entries already tagged with it keep the tag (shown faded with a check), and the slot frees up for a new goal.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Achieve', onPress: () => handleAchieve(goal.id) },
+      ]
+    );
+  }
+
+  async function handleAchieve(id) {
+    const { error } = await supabase
+      .from('goals')
+      .update({ achieved_at: new Date().toISOString() })
+      .eq('id', id);
+    if (error) {
+      setStatus(`Error: ${error.message}`);
+    } else {
+      await loadGoals();
+    }
+  }
+
   function confirmDelete(goal) {
     Alert.alert(
       'Delete goal?',
@@ -103,7 +133,11 @@ export default function Goals() {
   }
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+    <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <TouchableOpacity
         onPress={() => router.back()}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -112,27 +146,28 @@ export default function Goals() {
       </TouchableOpacity>
 
       <Text style={styles.title}>Your Goals</Text>
-      <Text style={styles.subtitle}>{goals.length}/{MAX_GOALS} used</Text>
+      <Text style={styles.subtitle}>{activeGoals.length}/{MAX_GOALS} used</Text>
 
-      <FlatList
-        data={goals}
-        keyExtractor={(item) => item.id}
-        style={styles.list}
-        renderItem={({ item }) => (
-          <View style={styles.goalRow}>
-            <View style={[styles.dot, { backgroundColor: item.color }]} />
-            <Text style={styles.goalLabel}>{item.label}</Text>
+      {activeGoals.map((item) => (
+        <View key={item.id} style={styles.goalRow}>
+          <View style={[styles.dot, { backgroundColor: item.color }]} />
+          <Text style={styles.goalLabel}>{item.label}</Text>
+          <View style={styles.goalActions}>
+            <TouchableOpacity onPress={() => confirmAchieve(item)}>
+              <Text style={styles.achieveText}>Achieve</Text>
+            </TouchableOpacity>
             <TouchableOpacity onPress={() => confirmDelete(item)}>
               <Text style={styles.deleteText}>Delete</Text>
             </TouchableOpacity>
           </View>
-        )}
-        ListEmptyComponent={
-          !loading && <Text style={styles.empty}>No goals yet — add one below.</Text>
-        }
-      />
+        </View>
+      ))}
 
-      {goals.length < MAX_GOALS && (
+        {!loading && activeGoals.length === 0 && achievedGoals.length === 0 && (
+          <Text style={styles.empty}>No goals yet — add one below.</Text>
+        )}
+
+      {activeGoals.length < MAX_GOALS && (
         <View style={styles.form}>
           <TextInput
             style={styles.input}
@@ -175,16 +210,36 @@ export default function Goals() {
       )}
 
       {!!status && <Text style={styles.status}>{status}</Text>}
-    </View>
+
+      {achievedGoals.length > 0 && (
+        <>
+          <Text style={styles.sectionHeader}>Achieved</Text>
+          {achievedGoals.map((item) => (
+            <View key={item.id} style={styles.goalRow}>
+              <View style={[styles.dot, styles.dotAchieved, { backgroundColor: lighten(item.color, 0.6) }]}>
+                <Ionicons name="checkmark" size={10} color={darken(item.color, 0.4)} />
+              </View>
+              <Text style={[styles.goalLabel, styles.goalLabelAchieved]}>{item.label}</Text>
+              <View style={styles.goalActions}>
+                <TouchableOpacity onPress={() => confirmDelete(item)}>
+                  <Text style={styles.deleteText}>Delete</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))}
+        </>
+      )}
+    </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, paddingTop: 60, backgroundColor: C.bg },
+  container: { flex: 1, backgroundColor: C.bg },
+  content: { padding: 20, paddingTop: 60, paddingBottom: 40 },
   backLink: { fontSize: 16, color: C.rust, marginBottom: 16 },
   title: { fontSize: 22, fontWeight: 'bold', color: C.rustDark },
   subtitle: { color: C.subtext, marginBottom: 16 },
-  list: { flexGrow: 0, marginBottom: 20 },
   goalRow: {
     flexDirection: 'row', alignItems: 'center',
     paddingVertical: 10, paddingHorizontal: 12,
@@ -192,8 +247,17 @@ const styles = StyleSheet.create({
     marginBottom: 8, borderWidth: 1, borderColor: C.border,
   },
   dot: { width: 14, height: 14, borderRadius: 7, marginRight: 10 },
+  dotAchieved: { alignItems: 'center', justifyContent: 'center' },
   goalLabel: { flex: 1, fontSize: 16, color: C.text },
+  goalLabelAchieved: { color: C.subtext },
+  goalActions: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  achieveText: { color: C.tealText, fontWeight: '600' },
   deleteText: { color: C.rust, fontWeight: '600' },
+  sectionHeader: {
+    fontSize: 12, fontWeight: '700', color: C.subtext,
+    textTransform: 'uppercase', letterSpacing: 0.5,
+    marginTop: 4, marginBottom: 8,
+  },
   empty: { color: C.subtext, fontStyle: 'italic', paddingVertical: 10 },
   form: { borderTopWidth: 1, borderTopColor: C.border, paddingTop: 16 },
   input: {

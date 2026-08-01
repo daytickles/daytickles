@@ -300,6 +300,10 @@ export default function Feed() {
   }
 
   const goalsById = Object.fromEntries(goals.map((g) => [g.id, g]));
+  // Achieved goals are never offered as a new tag target in the picker
+  // — they only ever appear read-only, on entries already tagged before
+  // achievement (resolved via goalsById above, achieved or not).
+  const activeGoals = goals.filter((g) => !g.achieved_at);
 
   async function assignGoal(entryId, goalId) {
     const previous = entries;
@@ -483,7 +487,8 @@ export default function Feed() {
 
     <GoalTagModal
       entry={pickerEntry}
-      goals={goals}
+      goals={activeGoals}
+      taggedGoal={pickerEntry?.goal_id ? goalsById[pickerEntry.goal_id] : null}
       onAssign={(goalId) => assignGoal(pickerEntry.id, goalId)}
       onDismiss={() => setPickerEntryId(null)}
     />

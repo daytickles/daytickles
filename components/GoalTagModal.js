@@ -1,12 +1,29 @@
 import { View, Text, StyleSheet, TouchableOpacity, Modal } from 'react-native';
-import { C } from '../lib/theme';
+import { Ionicons } from '@expo/vector-icons';
+import { C, darken, lighten } from '../lib/theme';
 
-export default function GoalTagModal({ entry, goals, onAssign, onDismiss }) {
+// `goals` is the assignable (active, not-yet-achieved) list — achieved
+// goals are never offered as a new tag target. `taggedGoal` is the
+// entry's current tag, whatever its state; when it's achieved it's
+// rendered read-only above the assignable list rather than as a
+// pickable row, so the modal still shows what the entry is tagged with.
+export default function GoalTagModal({ entry, goals, taggedGoal, onAssign, onDismiss }) {
   return (
     <Modal visible={!!entry} transparent animationType="fade" onRequestClose={onDismiss}>
       <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={onDismiss}>
         <TouchableOpacity activeOpacity={1} style={styles.pickerSheet} onPress={() => {}}>
           <Text style={styles.pickerTitle}>Tag with a goal</Text>
+
+          {taggedGoal?.achieved_at && (
+            <View style={[styles.pickerRow, styles.pickerRowReadOnly]}>
+              <View style={[styles.goalDot, { backgroundColor: lighten(taggedGoal.color, 0.6) }]}>
+                <Ionicons name="checkmark" size={10} color={darken(taggedGoal.color, 0.4)} />
+              </View>
+              <Text style={[styles.pickerRowLabel, styles.pickerRowLabelMuted]}>
+                {taggedGoal.label} (achieved)
+              </Text>
+            </View>
+          )}
 
           {goals.map((g) => (
             <TouchableOpacity
@@ -20,7 +37,7 @@ export default function GoalTagModal({ entry, goals, onAssign, onDismiss }) {
           ))}
 
           {goals.length === 0 && (
-            <Text style={styles.pickerEmpty}>No goals yet — add one from Manage Goals.</Text>
+            <Text style={styles.pickerEmpty}>No goals available to tag — add one from Manage Goals.</Text>
           )}
 
           {entry?.goal_id && (
@@ -53,8 +70,13 @@ const styles = StyleSheet.create({
     backgroundColor: C.bg, borderRadius: 12, borderWidth: 1, borderColor: C.border,
   },
   pickerRowLabel: { fontSize: 15, color: C.text, marginLeft: 12 },
+  pickerRowLabelMuted: { color: C.subtext },
+  pickerRowReadOnly: { opacity: 0.85 },
   pickerEmpty: { fontSize: 14, color: C.subtext, fontStyle: 'italic', paddingVertical: 8 },
-  goalDot: { width: 16, height: 16, borderRadius: 8, marginLeft: 12, marginTop: 4 },
+  goalDot: {
+    width: 16, height: 16, borderRadius: 8, marginLeft: 12, marginTop: 4,
+    alignItems: 'center', justifyContent: 'center',
+  },
   goalDotEmpty: {
     backgroundColor: 'transparent', borderWidth: 1.5,
     borderStyle: 'dashed', borderColor: C.faint,
