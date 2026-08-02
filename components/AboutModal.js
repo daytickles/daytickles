@@ -11,7 +11,10 @@ const FEATURES = [
   'Revisit your memories anytime through your personal calendar.',
 ];
 
-export default function AboutModal({ visible, onClose }) {
+// showGuideLink is optional, only passed true by the auto-shown
+// new-user context (see home.js) — the normal Settings-opened usage
+// doesn't pass it, so the hint never appears there.
+export default function AboutModal({ visible, onClose, showGuideLink }) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
@@ -56,6 +59,12 @@ export default function AboutModal({ visible, onClose }) {
 
             <Text style={styles.bodyEmphasis}>Your moments. Your pace. Your memories.</Text>
             <Text style={styles.quote}>"Just notice the nice, save it, and share it."</Text>
+
+            {showGuideLink && (
+              <Text style={styles.guideHint}>
+                You can revisit this anytime, and see "How DayTickles works," from Settings.
+              </Text>
+            )}
           </ScrollView>
 
           <View style={styles.navRow}>
@@ -90,4 +99,5 @@ const styles = StyleSheet.create({
   bulletText: { flex: 1, fontSize: 15, color: C.text, lineHeight: 21 },
 
   navRow: { flexDirection: 'row', justifyContent: 'flex-end' },
+  guideHint: { fontSize: 13, color: C.subtext, textAlign: 'center', marginTop: 16 },
 });

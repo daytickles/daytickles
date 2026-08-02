@@ -8,7 +8,7 @@ import { C, accentFor, moodColorFor, moodDotSize, textOn, lighten, withAlpha, TI
 import { shareEntry, shareStatus, SHARE_CAPTIONS } from '../lib/sharing';
 import { flagEmoji } from '../lib/country';
 import Button from '../components/Button';
-import HomeGuide from '../components/HomeGuide';
+import AboutModal from '../components/AboutModal';
 import GoalTagModal from '../components/GoalTagModal';
 import ShareModal from '../components/ShareModal';
 import { requestReminderPermission, scheduleDailyReminder, cancelDailyReminder } from '../lib/reminders';
@@ -95,10 +95,15 @@ export default function Home() {
   const [activeNatureTooltip, setActiveNatureTooltip] = useState(null);
   const natureTooltipTimerRef = useRef(null);
 
-  // Auto-show the first-run guide exactly once, gated on the DB flag —
+  // Auto-show the first-time intro exactly once, gated on the DB flag —
   // not local/session state, so it stays correctly "seen" across
-  // reinstalls and devices. The same guide is reachable anytime,
-  // ungated, from Settings ("How DayTickles works").
+  // reinstalls and devices. Shows AboutModal (not HomeGuide directly) —
+  // AboutModal itself shows a static "you can revisit this anytime from
+  // Settings" hint in this context (showGuideLink below), not a live
+  // link into HomeGuide (an earlier tappable-link version hit a real
+  // RN/Android overlapping-Modal-transition bug and was simplified away
+  // rather than chased further). HomeGuide is separately reachable
+  // anytime, ungated, from Settings ("How DayTickles works"), unchanged.
   useEffect(() => {
     if (profile && !profile.home_guide_seen) setShowGuide(true);
   }, [profile]);
@@ -143,7 +148,7 @@ export default function Home() {
     })();
   }, [profile?.daily_reminder]);
 
-  async function handleCloseGuide() {
+  async function handleCloseAboutIntro() {
     setShowGuide(false);
     if (profile && !profile.home_guide_seen) {
       await supabase.from('profiles').update({ home_guide_seen: true }).eq('id', profile.id);
@@ -573,7 +578,11 @@ export default function Home() {
       onDismiss={() => setShareEntryId(null)}
     />
 
-    <HomeGuide visible={showGuide} onClose={handleCloseGuide} />
+    <AboutModal
+      visible={showGuide}
+      onClose={handleCloseAboutIntro}
+      showGuideLink
+    />
     </>
   );
 }
