@@ -18,11 +18,11 @@ const STEPS = [
   },
   {
     title: 'The Feed',
-    body: "The Feed screen has four tabs: Everyone, Following, Mine, and Fav's. The sparkle icon on any entry is how you like it — tap it to like, tap again to unlike.",
+    body: "The Feed screen has four tabs: Everyone, Following, Mine, and Fav's. The smile icon on any entry is how you like it — tap it to like, tap again to unlike. In the Mine tab, tap the calendar icon to browse your past entries by date.",
   },
   {
     title: 'Goals & Notifications',
-    body: "Tap the dot next to an entry to tag it with a goal, so you can notice patterns over time. The bell icon on Home lets you know when someone likes your tickles.",
+    body: "Tap the dot next to an entry to tag it with a goal, so you can notice patterns over time. When a goal's done, mark it Achieved from the Goals screen — tagged entries keep a faded, checkmarked badge as a record, and the color frees up for a new goal. The bell icon on Home lets you know when someone likes your tickles.",
   },
 ];
 
