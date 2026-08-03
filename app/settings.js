@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Switch, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, Switch, StyleSheet, ScrollView, Alert, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
@@ -409,6 +409,8 @@ export default function Settings() {
       <Button title="How DayTickles works" onPress={() => setShowGuide(true)} variant="secondary" />
       <View style={styles.spacer} />
       <Button title="About DayTickles" onPress={() => setShowAbout(true)} variant="secondary" />
+      <View style={styles.spacer} />
+      <Button title="Privacy Policy" onPress={() => Linking.openURL('https://daytickles.com/privacy')} variant="secondary" />
       <View style={styles.spacer} />
       <Button title="Rate Us" onPress={handleRateUs} variant="secondary" />
       <View style={styles.spacer} />
