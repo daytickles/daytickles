@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Linking } from 'react-native';
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
@@ -42,6 +42,12 @@ export default function Login() {
   return (
     <View style={styles.container}>
       <Button title="Sign in with Google" onPress={signInWithGoogle} variant="primary" />
+      <Text style={styles.disclosure}>
+        By continuing, you agree to our{' '}
+        <Text style={styles.disclosureLink} onPress={() => Linking.openURL('https://daytickles.com/privacy')}>
+          Privacy Policy
+        </Text>
+      </Text>
       <Text style={styles.status}>{status}</Text>
     </View>
   );
@@ -49,5 +55,7 @@ export default function Login() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20, backgroundColor: C.bg },
+  disclosure: { marginTop: 16, fontSize: 12, color: C.subtext, textAlign: 'center' },
+  disclosureLink: { textDecorationLine: 'underline' },
   status: { marginTop: 20, color: C.subtext },
 });
