@@ -9,7 +9,7 @@ export default function PhotoEnlargeModal({ uri, onDismiss }) {
   return (
     <Modal visible={!!uri} transparent animationType="fade" onRequestClose={onDismiss}>
       <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onDismiss}>
-        <TouchableOpacity activeOpacity={1} onPress={() => {}}>
+        <TouchableOpacity style={styles.imageWrap} activeOpacity={1} onPress={() => {}}>
           {uri && <Image source={{ uri }} style={styles.image} resizeMode="contain" />}
         </TouchableOpacity>
         <TouchableOpacity
@@ -31,6 +31,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  image: { width: '92%', height: '75%' },
+  imageWrap: { width: '92%', height: '75%' },
+  image: { width: '100%', height: '100%' },
   closeButton: { position: 'absolute', top: 50, right: 24 },
 });
