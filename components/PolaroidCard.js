@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { C, darken, lighten } from '../lib/theme';
+import DeletePhotoModal from './DeletePhotoModal';
 
 function formatPinnedDate(pinnedAt) {
   return new Date(pinnedAt).toLocaleDateString('en-US', {
@@ -20,7 +22,14 @@ function rotationFor(id) {
 // tickled and onTickle are fully independent of each other, per design:
 // the button always works regardless of the badge's state, since one
 // photo can link to many entries over time.
-export default function PolaroidCard({ photo, tickled, onPress, onTickle }) {
+export default function PolaroidCard({ photo, tickled, onPress, onTickle, onDelete }) {
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  function handleConfirmDelete() {
+    setShowDeleteConfirm(false);
+    onDelete?.(photo);
+  }
+
   return (
     <TouchableOpacity
       activeOpacity={0.85}
@@ -30,6 +39,14 @@ export default function PolaroidCard({ photo, tickled, onPress, onTickle }) {
       <View style={styles.pinIconWrap}>
         <Ionicons name="pin" size={14} color={C.rust} />
       </View>
+
+      <TouchableOpacity
+        onPress={() => setShowDeleteConfirm(true)}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        style={styles.deleteButton}
+      >
+        <Ionicons name="trash-outline" size={12} color={C.rust} />
+      </TouchableOpacity>
 
       <Image source={{ uri: photo.file_path }} style={styles.photo} />
 
@@ -49,6 +66,12 @@ export default function PolaroidCard({ photo, tickled, onPress, onTickle }) {
           <Text style={styles.tickleButtonText}>Tickle</Text>
         </TouchableOpacity>
       </View>
+
+      <DeletePhotoModal
+        visible={showDeleteConfirm}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </TouchableOpacity>
   );
 }
@@ -86,6 +109,18 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   photo: { width: '100%', aspectRatio: 1, borderRadius: 2, backgroundColor: C.border },
+  deleteButton: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
   tickledBadge: {
     position: 'absolute',
     top: 12,

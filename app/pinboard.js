@@ -1,13 +1,16 @@
 import { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { C } from '../lib/theme';
 import Button from '../components/Button';
 import PolaroidCard from '../components/PolaroidCard';
 import PhotoEnlargeModal from '../components/PhotoEnlargeModal';
-import { initPinBoardDb, listPinnedPhotos, addPinnedPhoto, getLinkedPhotoIds } from '../lib/pinBoardDb';
-import { pickFromCamera, pickFromLibrary } from '../lib/pinBoardPhotos';
+import AddPhotoActionSheet from '../components/AddPhotoActionSheet';
+import {
+  initPinBoardDb, listPinnedPhotos, addPinnedPhoto, deletePinnedPhoto, getLinkedPhotoIds,
+} from '../lib/pinBoardDb';
+import { pickFromCamera, pickFromLibrary, deletePinBoardPhotoFile } from '../lib/pinBoardPhotos';
 import { hasSeenPinBoardNote, markPinBoardNoteSeen } from '../lib/pinBoardNote';
 
 export default function PinBoard() {
@@ -17,6 +20,8 @@ export default function PinBoard() {
   const [adding, setAdding] = useState(false);
   const [enlargeUri, setEnlargeUri] = useState(null);
   const [showNote, setShowNote] = useState(false);
+  const [status, setStatus] = useState('');
+  const [showAddPhoto, setShowAddPhoto] = useState(false);
 
   const loadBoard = useCallback(async () => {
     setLoading(true);
@@ -50,9 +55,13 @@ export default function PinBoard() {
   }
 
   async function handleTakePhoto() {
+    setShowAddPhoto(false);
     setAdding(true);
+    setStatus('');
     const result = await pickFromCamera();
-    if (!result.canceled) {
+    if (result.error) {
+      setStatus(result.error);
+    } else if (!result.canceled) {
       await addPinnedPhoto(result.uri);
       await loadBoard();
     }
@@ -60,21 +69,31 @@ export default function PinBoard() {
   }
 
   async function handleChooseFromLibrary() {
+    setShowAddPhoto(false);
     setAdding(true);
+    setStatus('');
     const result = await pickFromLibrary();
-    if (!result.canceled) {
+    if (result.error) {
+      setStatus(result.error);
+    } else if (!result.canceled) {
       await addPinnedPhoto(result.uri);
       await loadBoard();
     }
     setAdding(false);
   }
 
+  // DB row first — if this fails, nothing's happened yet and the photo
+  // is still intact. File delete second (a safe no-op if already gone),
+  // resolving the orphaned-file gap flagged in lib/pinBoardDb.js.
+  // pinned_photos' ON DELETE CASCADE handles any photo_entry_links rows.
+  async function handleDeletePhoto(photo) {
+    await deletePinnedPhoto(photo.id);
+    deletePinBoardPhotoFile(photo.file_path);
+    await loadBoard();
+  }
+
   function handleAddPhoto() {
-    Alert.alert('Add Photo', undefined, [
-      { text: 'Take Photo', onPress: handleTakePhoto },
-      { text: 'Choose from Library', onPress: handleChooseFromLibrary },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+    setShowAddPhoto(true);
   }
 
   function handleTickle(photo) {
@@ -94,15 +113,17 @@ export default function PinBoard() {
         <Text style={styles.title}>Pin Board</Text>
         <Text style={styles.permanentCaption}>
           Photos and their tickle-links live only on this device — they won't appear on a
-          different phone or after a reinstall.
+          different phone or after a reinstall. Sending a tickle from a photo doesn't include the
+          photo itself.
         </Text>
 
         {showNote && (
           <TouchableOpacity style={styles.noteBanner} activeOpacity={0.85} onPress={handleDismissNote}>
             <Text style={styles.noteBannerText}>
-              Your Pin Board is stored only on this phone. Nothing here is backed up or synced —
-              if you lose or replace this device, or uninstall the app, these photos are gone for
-              good.
+              Your Pin Board is stored only on this phone's private app storage — nothing here is
+              backed up or synced. If you lose or replace this device, or uninstall the app,
+              photos taken through the app will be lost. Photos chosen from your library will
+              still be on your phone — only the copy on your Pin Board is gone.
             </Text>
             <Ionicons name="close" size={16} color={C.sparkleText} style={styles.noteBannerClose} />
           </TouchableOpacity>
@@ -112,8 +133,9 @@ export default function PinBoard() {
           title={adding ? 'Adding...' : '+ Add Photo'}
           onPress={handleAddPhoto}
           disabled={adding}
-          variant="primary"
+          variant="secondary"
         />
+        {!!status && <Text style={styles.status}>{status}</Text>}
 
         {loading && <ActivityIndicator color={C.rust} style={styles.loader} />}
 
@@ -129,12 +151,20 @@ export default function PinBoard() {
               tickled={tickledIds.has(photo.id)}
               onPress={() => setEnlargeUri(photo.file_path)}
               onTickle={() => handleTickle(photo)}
+              onDelete={handleDeletePhoto}
             />
           ))}
         </View>
       </ScrollView>
 
       <PhotoEnlargeModal uri={enlargeUri} onDismiss={() => setEnlargeUri(null)} />
+
+      <AddPhotoActionSheet
+        visible={showAddPhoto}
+        onTakePhoto={handleTakePhoto}
+        onChooseFromLibrary={handleChooseFromLibrary}
+        onDismiss={() => setShowAddPhoto(false)}
+      />
     </View>
   );
 }
@@ -155,6 +185,7 @@ const styles = StyleSheet.create({
   },
   noteBannerText: { flex: 1, fontSize: 13, color: C.sparkleText, lineHeight: 18 },
   noteBannerClose: { marginLeft: 10, marginTop: 2 },
+  status: { marginTop: 12, color: C.rust, textAlign: 'center' },
   loader: { marginTop: 24 },
   empty: { color: C.subtext, fontStyle: 'italic', paddingVertical: 10, textAlign: 'center', marginTop: 12 },
   grid: {
