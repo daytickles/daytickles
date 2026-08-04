@@ -111,10 +111,13 @@ export default function PinBoard() {
         </TouchableOpacity>
 
         <Text style={styles.title}>Pin Board</Text>
+        <Text style={styles.subheading}>Your visual Tickle reminders</Text>
+        <Text style={styles.permanentCaptionBold}>
+          Sending a tickle from a photo doesn't include the photo itself.
+        </Text>
         <Text style={styles.permanentCaption}>
           Photos and their tickle-links live only on this device — they won't appear on a
-          different phone or after a reinstall. Sending a tickle from a photo doesn't include the
-          photo itself.
+          different phone or after a reinstall.
         </Text>
 
         {showNote && (
@@ -174,6 +177,8 @@ const styles = StyleSheet.create({
   content: { padding: 20, paddingTop: 60, paddingBottom: 40 },
   backLink: { fontSize: 16, color: C.rust, marginBottom: 16 },
   title: { fontSize: 22, fontWeight: 'bold', color: C.rustDark },
+  subheading: { fontSize: 15, fontWeight: '600', color: C.rustDark, marginTop: 4 },
+  permanentCaptionBold: { fontSize: 12, fontWeight: '700', color: C.subtext, marginTop: 8 },
   permanentCaption: { fontSize: 12, color: C.subtext, marginTop: 4, marginBottom: 16 },
   noteBanner: {
     flexDirection: 'row',
