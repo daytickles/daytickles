@@ -429,7 +429,7 @@ export default function Home() {
             onPress={() => router.push('/feed')}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Text style={styles.feedLink}>Feed</Text>
+            <Ionicons name="list-outline" size={20} color={C.subtext} />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => router.push('/pinboard')}
@@ -601,7 +601,6 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 20, fontWeight: 'bold', color: C.rustDark, flexShrink: 1 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  feedLink: { fontSize: 14, fontWeight: '600', color: C.subtext },
   bellButton: { position: 'relative' },
   unreadBadge: {
     position: 'absolute', top: -6, right: -8, minWidth: 16, height: 16, borderRadius: 8,
