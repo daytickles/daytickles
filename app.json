@@ -26,6 +26,14 @@
         {
           "faceIDPermission": "Allow DayTickles to use Face ID to unlock the app."
         }
+      ],
+      "expo-sqlite",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow DayTickles to access your photos so you can pin them to your Pin Board.",
+          "cameraPermission": "Allow DayTickles to use your camera to take a photo for your Pin Board."
+        }
       ]
     ],
     "extra": {
