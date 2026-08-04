@@ -32,6 +32,7 @@ export default function EntryCard({
   isFavorited,
   isLiked,
   taggedGoal,
+  hasLinkedPhoto,
   onLayout,
   onToggleFollow,
   onPickGoal,
@@ -40,6 +41,7 @@ export default function EntryCard({
   onToggleVisibility,
   onDelete,
   onToggleLike,
+  onOpenPhoto,
 }) {
   const accent = accentFor(item.profiles?.accent_theme);
   const isOwnEntry = item.user_id === currentUserId;
@@ -100,6 +102,15 @@ export default function EntryCard({
                   color={C.subtext}
                   style={styles.natureIcon}
                 />
+              )}
+              {hasLinkedPhoto && (
+                <TouchableOpacity
+                  onPress={() => onOpenPhoto?.(item.id)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  style={styles.photoAction}
+                >
+                  <Ionicons name="image-outline" size={16} color={C.subtext} />
+                </TouchableOpacity>
               )}
               {showMineActions && (
                 <TouchableOpacity
@@ -222,6 +233,7 @@ const styles = StyleSheet.create({
   followAction: { marginLeft: 10 },
   iconGroup: { flexDirection: 'row', alignItems: 'center' },
   natureIcon: { marginLeft: 12 },
+  photoAction: { marginLeft: 12 },
   goalDot: {
     width: 16, height: 16, borderRadius: 8, marginLeft: 12,
     alignItems: 'center', justifyContent: 'center',

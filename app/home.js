@@ -432,6 +432,12 @@ export default function Home() {
             <Text style={styles.feedLink}>Feed</Text>
           </TouchableOpacity>
           <TouchableOpacity
+            onPress={() => router.push('/pinboard')}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="images-outline" size={20} color={C.subtext} />
+          </TouchableOpacity>
+          <TouchableOpacity
             onPress={() => router.push('/notifications')}
             style={styles.bellButton}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}

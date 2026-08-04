@@ -8,7 +8,9 @@ import { C, accentFor, darken, textOn } from '../lib/theme';
 import { shareEntry, shareStatus, SHARE_CAPTIONS } from '../lib/sharing';
 import GoalTagModal from '../components/GoalTagModal';
 import ShareModal from '../components/ShareModal';
+import PhotoEnlargeModal from '../components/PhotoEnlargeModal';
 import EntryCard from '../components/EntryCard';
+import { getAllLinkedEntryIds, getPhotoForEntry } from '../lib/pinBoardDb';
 
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
@@ -42,6 +44,8 @@ export default function Calendar() {
   const [pickerEntryId, setPickerEntryId] = useState(null);
   const [shareEntryId, setShareEntryId] = useState(null);
   const [favoritedIds, setFavoritedIds] = useState(new Set());
+  const [photoLinkedIds, setPhotoLinkedIds] = useState(new Set());
+  const [enlargeUri, setEnlargeUri] = useState(null);
 
   const loadGoals = useCallback(async () => {
     if (!session) return;
@@ -88,9 +92,20 @@ export default function Calendar() {
     setLoading(false);
   }, [session, viewYear, viewMonth]);
 
+  const loadPhotoLinks = useCallback(async () => {
+    const ids = await getAllLinkedEntryIds();
+    setPhotoLinkedIds(new Set(ids));
+  }, []);
+
   useFocusEffect(useCallback(() => { loadGoals(); }, [loadGoals]));
   useFocusEffect(useCallback(() => { loadFavorited(); }, [loadFavorited]));
   useFocusEffect(useCallback(() => { loadMonth(); }, [loadMonth]));
+  useFocusEffect(useCallback(() => { loadPhotoLinks(); }, [loadPhotoLinks]));
+
+  async function handleOpenPhoto(entryId) {
+    const photo = await getPhotoForEntry(entryId);
+    if (photo) setEnlargeUri(photo.file_path);
+  }
 
   const loadDayEntries = useCallback(
     async (dateStr) => {
@@ -309,6 +324,8 @@ export default function Calendar() {
                   isFavorited={favoritedIds.has(item.id)}
                   isLiked={false}
                   taggedGoal={item.goal_id ? goalsById[item.goal_id] : null}
+                  hasLinkedPhoto={photoLinkedIds.has(item.id)}
+                  onOpenPhoto={handleOpenPhoto}
                   onPickGoal={setPickerEntryId}
                   onShare={setShareEntryId}
                   onToggleFavorite={handleToggleFavorite}
@@ -337,6 +354,8 @@ export default function Calendar() {
         onConfirm={(captionId) => handleShare(shareTargetEntry, captionId)}
         onDismiss={() => setShareEntryId(null)}
       />
+
+      <PhotoEnlargeModal uri={enlargeUri} onDismiss={() => setEnlargeUri(null)} />
     </>
   );
 }

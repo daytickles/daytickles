@@ -9,7 +9,9 @@ import { shareEntry, shareStatus, SHARE_CAPTIONS } from '../lib/sharing';
 import { notifyLikeReceived } from '../lib/likeNotify';
 import GoalTagModal from '../components/GoalTagModal';
 import ShareModal from '../components/ShareModal';
+import PhotoEnlargeModal from '../components/PhotoEnlargeModal';
 import EntryCard, { CARD_SPACING } from '../components/EntryCard';
+import { getAllLinkedEntryIds, getPhotoForEntry } from '../lib/pinBoardDb';
 
 const TABS = [
   { id: 'everyone', label: 'Everyone' },
@@ -69,6 +71,8 @@ export default function Feed() {
   const [followedIds, setFollowedIds] = useState(new Set());
   const [favoritedIds, setFavoritedIds] = useState(new Set());
   const [likedIds, setLikedIds] = useState(new Set());
+  const [photoLinkedIds, setPhotoLinkedIds] = useState(new Set());
+  const [enlargeUri, setEnlargeUri] = useState(null);
   const [highlightedEntryId, setHighlightedEntryId] = useState(
     Array.isArray(params.highlightEntry) ? params.highlightEntry[0] : params.highlightEntry || null
   );
@@ -145,6 +149,26 @@ export default function Feed() {
       loadGoals();
     }, [loadGoals])
   );
+
+  // Local-only Pin Board links (see lib/pinBoardDb.js) — loaded the same
+  // way as followedIds/favoritedIds/likedIds above: independent of tab,
+  // since a link only ever exists for this device's own entries no
+  // matter which tab surfaces them.
+  const loadPhotoLinks = useCallback(async () => {
+    const ids = await getAllLinkedEntryIds();
+    setPhotoLinkedIds(new Set(ids));
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadPhotoLinks();
+    }, [loadPhotoLinks])
+  );
+
+  async function handleOpenPhoto(entryId) {
+    const photo = await getPhotoForEntry(entryId);
+    if (photo) setEnlargeUri(photo.file_path);
+  }
 
   const loadFeed = useCallback(async () => {
     if (!session) return;
@@ -369,6 +393,8 @@ export default function Feed() {
         isFavorited={favoritedIds.has(item.id)}
         isLiked={likedIds.has(item.id)}
         taggedGoal={item.goal_id ? goalsById[item.goal_id] : null}
+        hasLinkedPhoto={photoLinkedIds.has(item.id)}
+        onOpenPhoto={handleOpenPhoto}
         onLayout={(e) => {
           cardHeights.current[item.id] = e.nativeEvent.layout.height + CARD_SPACING;
         }}
@@ -501,6 +527,8 @@ export default function Feed() {
       onConfirm={(captionId) => handleShare(shareTargetEntry, captionId)}
       onDismiss={() => setShareEntryId(null)}
     />
+
+    <PhotoEnlargeModal uri={enlargeUri} onDismiss={() => setEnlargeUri(null)} />
     </>
   );
 }

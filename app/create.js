@@ -8,6 +8,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { C, MOODS, accentFor, moodColorFor, darken, textOn } from '../lib/theme';
 import Button from '../components/Button';
+import { linkPhotoToEntry } from '../lib/pinBoardDb';
 
 const MAX_LEN = 500;
 
@@ -23,7 +24,7 @@ const DAY_JOURNAL_OPTION = { id: 'day_journal', label: 'Day Journal' };
 
 export default function Create() {
   const { session, profile } = useAuth();
-  const { entryId } = useLocalSearchParams();
+  const { entryId, pinnedPhotoId } = useLocalSearchParams();
   const accent = accentFor(profile?.accent_theme);
   const accentDark = darken(accent.card, 0.35);
   const accentDarkText = textOn(accentDark);
@@ -74,39 +75,57 @@ export default function Create() {
     setSaving(true);
     setStatus('');
 
-    // Edit mode: explicit field list, never a full-object update — so
-    // goal_id, like_count, and entry_date (the original date is kept on
-    // purpose, never stamped to today) are never touched. is_edited
-    // isn't part of the fields this screen otherwise "owns," but it's
-    // the only way the resulting "(edited)" label can survive a reload
-    // on Home/Feed, since there's no updated_at on this table.
-    const { error } = entryId
-      ? await supabase
-          .from('tickle_entries')
-          .update({
-            text_content: trimmed,
-            mood,
-            tickle_nature: tickleNature,
-            visibility: shareToFeed ? 'public' : 'private',
-            is_edited: true,
-          })
-          .eq('id', entryId)
-      : await supabase.from('tickle_entries').insert({
+    let savedEntryId = entryId;
+    let error;
+
+    if (entryId) {
+      // Edit mode: explicit field list, never a full-object update — so
+      // goal_id, like_count, and entry_date (the original date is kept on
+      // purpose, never stamped to today) are never touched. is_edited
+      // isn't part of the fields this screen otherwise "owns," but it's
+      // the only way the resulting "(edited)" label can survive a reload
+      // on Home/Feed, since there's no updated_at on this table.
+      ({ error } = await supabase
+        .from('tickle_entries')
+        .update({
+          text_content: trimmed,
+          mood,
+          tickle_nature: tickleNature,
+          visibility: shareToFeed ? 'public' : 'private',
+          is_edited: true,
+        })
+        .eq('id', entryId));
+    } else {
+      const insertResult = await supabase
+        .from('tickle_entries')
+        .insert({
           user_id: session.user.id,
           entry_date: new Date().toISOString().slice(0, 10),
           text_content: trimmed,
           mood,
           tickle_nature: tickleNature,
           visibility: shareToFeed ? 'public' : 'private',
-        });
-
-    setSaving(false);
+        })
+        .select('id')
+        .single();
+      error = insertResult.error;
+      savedEntryId = insertResult.data?.id;
+    }
 
     if (error) {
+      setSaving(false);
       setStatus(`Error: ${error.message}`);
       return;
     }
 
+    // The Pin Board link is local-only — never a field on the synced
+    // row itself (see lib/pinBoardDb.js) — so it's created here, after
+    // the save succeeds, rather than passed as part of the insert.
+    if (pinnedPhotoId && savedEntryId) {
+      await linkPhotoToEntry(Number(pinnedPhotoId), savedEntryId);
+    }
+
+    setSaving(false);
     router.back();
   }
 
@@ -141,6 +160,7 @@ export default function Create() {
       </TouchableOpacity>
 
       <Text style={styles.title}>{entryId ? 'Edit your tickle' : 'What made you smile today?'}</Text>
+      {!!pinnedPhotoId && <Text style={styles.photoLinkHint}>📌 Linking to your pinned photo</Text>}
 
       <TextInput
         style={styles.input}
@@ -268,6 +288,7 @@ const styles = StyleSheet.create({
   backLink: { fontSize: 16, color: C.rust, marginBottom: 16 },
   loadingContainer: { justifyContent: 'center', alignItems: 'center' },
   title: { fontSize: 20, fontWeight: 'bold', marginBottom: 16, color: C.rustDark },
+  photoLinkHint: { fontSize: 13, color: C.subtext, marginTop: -12, marginBottom: 12 },
   input: {
     borderWidth: 1, borderColor: C.border, borderRadius: 14,
     padding: 12, minHeight: 120, fontSize: 16,
