@@ -22,12 +22,21 @@ function rotationFor(id) {
 // tickled and onTickle are fully independent of each other, per design:
 // the button always works regardless of the badge's state, since one
 // photo can link to many entries over time.
-export default function PolaroidCard({ photo, tickled, onPress, onTickle, onDelete }) {
+export default function PolaroidCard({ photo, tickled, onPress, onTickle, onDelete, onSaveToLibrary }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   function handleConfirmDelete() {
     setShowDeleteConfirm(false);
     onDelete?.(photo);
+  }
+
+  async function handleSavePress() {
+    const success = await onSaveToLibrary?.(photo);
+    if (success) {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 1500);
+    }
   }
 
   return (
@@ -40,21 +49,31 @@ export default function PolaroidCard({ photo, tickled, onPress, onTickle, onDele
         <Ionicons name="pin" size={14} color={C.rust} />
       </View>
 
-      <TouchableOpacity
-        onPress={() => setShowDeleteConfirm(true)}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        style={styles.deleteButton}
-      >
-        <Ionicons name="trash-outline" size={12} color={C.rust} />
-      </TouchableOpacity>
+      <View style={styles.photoWrap}>
+        <TouchableOpacity
+          onPress={() => setShowDeleteConfirm(true)}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={styles.deleteButton}
+        >
+          <Ionicons name="trash-outline" size={12} color={C.rust} />
+        </TouchableOpacity>
 
-      <Image source={{ uri: photo.file_path }} style={styles.photo} />
+        <TouchableOpacity
+          onPress={handleSavePress}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={styles.saveButton}
+        >
+          <Ionicons name={saved ? 'checkmark' : 'download-outline'} size={12} color={C.rust} />
+        </TouchableOpacity>
 
-      {tickled && (
-        <View style={styles.tickledBadge}>
-          <Ionicons name="checkmark" size={10} color={darken(C.teal, 0.4)} />
-        </View>
-      )}
+        <Image source={{ uri: photo.file_path }} style={styles.photo} />
+
+        {tickled && (
+          <View style={styles.tickledBadge}>
+            <Ionicons name="checkmark" size={10} color={darken(C.teal, 0.4)} />
+          </View>
+        )}
+      </View>
 
       <View style={styles.captionStrip}>
         <Text style={styles.captionDate}>{formatPinnedDate(photo.pinned_at)}</Text>
@@ -108,10 +127,26 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
+  // Tightly wraps just the photo (no card padding inside it) so the
+  // corner-icon overlays below anchor to the photo's own edges — bottom:
+  // positioning in particular would otherwise land inside captionStrip.
+  photoWrap: { position: 'relative' },
   photo: { width: '100%', aspectRatio: 1, borderRadius: 2, backgroundColor: C.border },
   deleteButton: {
     position: 'absolute',
     top: 12,
+    left: 12,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  saveButton: {
+    position: 'absolute',
+    bottom: 12,
     left: 12,
     width: 18,
     height: 18,

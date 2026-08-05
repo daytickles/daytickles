@@ -34,6 +34,14 @@
           "photosPermission": "Allow DayTickles to access your photos so you can pin them to your Pin Board.",
           "cameraPermission": "Allow DayTickles to use your camera to take a photo for your Pin Board."
         }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow DayTickles to access your photos so you can pin them to your Pin Board.",
+          "savePhotosPermission": "Allow DayTickles to save this photo to your device's Photos app.",
+          "isAccessMediaLocationEnabled": false
+        }
       ]
     ],
     "extra": {

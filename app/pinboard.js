@@ -11,7 +11,9 @@ import AddPhotoActionSheet from '../components/AddPhotoActionSheet';
 import {
   initPinBoardDb, listPinnedPhotos, addPinnedPhoto, deletePinnedPhoto, getLinkedPhotoIds,
 } from '../lib/pinBoardDb';
-import { pickFromCamera, pickFromLibrary, deletePinBoardPhotoFile } from '../lib/pinBoardPhotos';
+import {
+  pickFromCamera, pickFromLibrary, deletePinBoardPhotoFile, saveToDeviceLibrary,
+} from '../lib/pinBoardPhotos';
 import { hasSeenPinBoardNote, markPinBoardNoteSeen } from '../lib/pinBoardNote';
 
 export default function PinBoard() {
@@ -95,6 +97,15 @@ export default function PinBoard() {
     await loadBoard();
   }
 
+  // Returns success/failure so PolaroidCard knows whether to show its own
+  // brief checkmark — errors (permission denied, save failed) surface via
+  // the screen's existing status line instead of a new UI element.
+  async function handleSaveToLibrary(photo) {
+    const result = await saveToDeviceLibrary(photo.file_path);
+    if (result.error) setStatus(result.error);
+    return !result.error;
+  }
+
   function handleAddPhoto() {
     setShowAddPhoto(true);
   }
@@ -159,6 +170,7 @@ export default function PinBoard() {
               onPress={() => setEnlargeUri(photo.file_path)}
               onTickle={() => handleTickle(photo)}
               onDelete={handleDeletePhoto}
+              onSaveToLibrary={handleSaveToLibrary}
             />
           ))}
         </View>
