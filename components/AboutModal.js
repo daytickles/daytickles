@@ -9,6 +9,7 @@ const FEATURES = [
   'Discover the moments that made others smile, and smile with them.',
   'Favourite the Tickles that mean the most, and follow people whose moments inspire you.',
   'Revisit your memories anytime through your personal calendar.',
+  'Pin photos to a private board on your device, and Tickle about the ones that matter.',
 ];
 
 // showGuideLink is optional, only passed true by the auto-shown

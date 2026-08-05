@@ -14,7 +14,7 @@ const STEPS = [
   },
   {
     title: 'New Tickle',
-    body: 'Tap "New Tickle" to log what made you smile today. Pick a mood from a hint of a smile to a big grin — it drives the color and motion of your entry\'s animation.',
+    body: 'Tap "New Tickle" to log what made you smile today. Pick a mood from a hint of a smile to a big grin — it drives the color and motion of your entry\'s animation. You can also pin photos to your Pin Board (next to Feed on Home) and tap Tickle on any photo to write about it.',
   },
   {
     title: 'The Feed',

@@ -141,7 +141,9 @@ export default function PinBoard() {
               Your Pin Board is stored only on this phone's private app storage — nothing here is
               backed up or synced. If you lose or replace this device, or uninstall the app,
               photos taken through the app will be lost. Photos chosen from your library will
-              still be on your phone — only the copy on your Pin Board is gone.
+              still be on your phone — only the copy on your Pin Board is gone. Want to protect a
+              specific photo? Tap the download icon on any pinned photo to save a copy to your
+              phone's regular Photos app.
             </Text>
             <Ionicons name="close" size={16} color={C.sparkleText} style={styles.noteBannerClose} />
           </TouchableOpacity>
