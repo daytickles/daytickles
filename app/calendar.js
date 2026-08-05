@@ -10,7 +10,9 @@ import GoalTagModal from '../components/GoalTagModal';
 import ShareModal from '../components/ShareModal';
 import PhotoEnlargeModal from '../components/PhotoEnlargeModal';
 import EntryCard from '../components/EntryCard';
-import { getAllLinkedEntryIds, getPhotoForEntry } from '../lib/pinBoardDb';
+import {
+  initPinBoardDb, getAllLinkedEntryIds, getPhotoForEntry, getPinnedPhotoDatesInRange,
+} from '../lib/pinBoardDb';
 
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
@@ -45,6 +47,7 @@ export default function Calendar() {
   const [shareEntryId, setShareEntryId] = useState(null);
   const [favoritedIds, setFavoritedIds] = useState(new Set());
   const [photoLinkedIds, setPhotoLinkedIds] = useState(new Set());
+  const [photoDatesInMonth, setPhotoDatesInMonth] = useState(new Set());
   const [enlargeUri, setEnlargeUri] = useState(null);
 
   const loadGoals = useCallback(async () => {
@@ -92,15 +95,26 @@ export default function Calendar() {
     setLoading(false);
   }, [session, viewYear, viewMonth]);
 
-  const loadPhotoLinks = useCallback(async () => {
-    const ids = await getAllLinkedEntryIds();
-    setPhotoLinkedIds(new Set(ids));
-  }, []);
+  // Same init-before-query shape as pinboard.js's loadBoard, so Calendar's
+  // local Pin Board queries work even if this screen is opened before the
+  // Pin Board tables have ever been created. Both queries share the same
+  // visible-month range loadMonth already computes for the tickle counts.
+  const loadPinBoardData = useCallback(async () => {
+    await initPinBoardDb();
+    const start = isoDate(viewYear, viewMonth, 1);
+    const end = isoDate(viewYear, viewMonth, new Date(viewYear, viewMonth + 1, 0).getDate());
+    const [linkedIds, photoDates] = await Promise.all([
+      getAllLinkedEntryIds(),
+      getPinnedPhotoDatesInRange(start, end),
+    ]);
+    setPhotoLinkedIds(new Set(linkedIds));
+    setPhotoDatesInMonth(new Set(photoDates));
+  }, [viewYear, viewMonth]);
 
   useFocusEffect(useCallback(() => { loadGoals(); }, [loadGoals]));
   useFocusEffect(useCallback(() => { loadFavorited(); }, [loadFavorited]));
   useFocusEffect(useCallback(() => { loadMonth(); }, [loadMonth]));
-  useFocusEffect(useCallback(() => { loadPhotoLinks(); }, [loadPhotoLinks]));
+  useFocusEffect(useCallback(() => { loadPinBoardData(); }, [loadPinBoardData]));
 
   async function handleOpenPhoto(entryId) {
     const photo = await getPhotoForEntry(entryId);
@@ -256,47 +270,55 @@ export default function Calendar() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.weekdayRow}>
-          {WEEKDAY_LABELS.map((label, i) => (
-            <Text key={i} style={styles.weekdayLabel}>{label}</Text>
-          ))}
-        </View>
-
-        {loading ? (
-          <ActivityIndicator color={C.rust} style={styles.loader} />
-        ) : (
-          <View style={styles.grid}>
-            {cells.map((day, i) => {
-              if (day === null) return <View key={i} style={styles.dayCell} />;
-
-              const dateStr = isoDate(viewYear, viewMonth, day);
-              const count = countsByDate[dateStr] || 0;
-              const isSelected = selectedDate === dateStr;
-              const isToday = dateStr === todayStr;
-
-              return (
-                <TouchableOpacity
-                  key={i}
-                  style={[styles.dayCell, isSelected && { backgroundColor: accentDark }]}
-                  onPress={() => selectDate(dateStr)}
-                >
-                  <Text
-                    style={[
-                      styles.dayLabel,
-                      isToday && !isSelected && { color: accentDark, fontWeight: '700' },
-                      isSelected && { color: accentDarkText },
-                    ]}
-                  >
-                    {day}
-                  </Text>
-                  <View style={[styles.countBadge, count === 0 && styles.countBadgeEmpty]}>
-                    {count > 0 && <Text style={styles.countBadgeText}>{count > 9 ? '9+' : count}</Text>}
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
+        <View style={styles.calendarCard}>
+          <View style={styles.weekdayRow}>
+            {WEEKDAY_LABELS.map((label, i) => (
+              <Text key={i} style={styles.weekdayLabel}>{label}</Text>
+            ))}
           </View>
-        )}
+
+          {loading ? (
+            <ActivityIndicator color={C.rust} style={styles.loader} />
+          ) : (
+            <View style={styles.grid}>
+              {cells.map((day, i) => {
+                if (day === null) return <View key={i} style={styles.dayCell} />;
+
+                const dateStr = isoDate(viewYear, viewMonth, day);
+                const count = countsByDate[dateStr] || 0;
+                const hasPhoto = photoDatesInMonth.has(dateStr);
+                const isSelected = selectedDate === dateStr;
+                const isToday = dateStr === todayStr;
+
+                return (
+                  <TouchableOpacity
+                    key={i}
+                    style={[styles.dayCell, isSelected && { backgroundColor: accentDark }]}
+                    onPress={() => selectDate(dateStr)}
+                  >
+                    {hasPhoto && (
+                      <View style={styles.photoBadge}>
+                        <Ionicons name="camera-outline" size={9} color={isSelected ? accentDarkText : C.subtext} />
+                      </View>
+                    )}
+                    <Text
+                      style={[
+                        styles.dayLabel,
+                        isToday && !isSelected && { color: accentDark, fontWeight: '700' },
+                        isSelected && { color: accentDarkText },
+                      ]}
+                    >
+                      {day}
+                    </Text>
+                    <View style={[styles.countBadge, count === 0 && styles.countBadgeEmpty]}>
+                      {count > 0 && <Text style={styles.countBadgeText}>{count > 9 ? '9+' : count}</Text>}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
+        </View>
 
         {selectedDate && (
           <View style={styles.dayEntriesSection}>
@@ -371,6 +393,19 @@ const styles = StyleSheet.create({
   },
   monthLabel: { fontSize: 16, fontWeight: '700', color: C.rustDark },
 
+  calendarCard: {
+    backgroundColor: C.card,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: C.border,
+    padding: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+
   weekdayRow: { flexDirection: 'row', marginBottom: 4 },
   weekdayLabel: {
     width: '14.28%', textAlign: 'center', fontSize: 12, fontWeight: '600', color: C.subtext,
@@ -378,9 +413,10 @@ const styles = StyleSheet.create({
 
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   dayCell: {
-    width: '14.28%', aspectRatio: 1, borderRadius: 8,
+    width: '14.28%', aspectRatio: 1, borderRadius: 8, position: 'relative',
     alignItems: 'center', justifyContent: 'center', marginBottom: 4,
   },
+  photoBadge: { position: 'absolute', top: 2, right: 4 },
   dayLabel: { fontSize: 14, color: C.text },
   countBadge: {
     minWidth: 16, height: 16, borderRadius: 8, marginTop: 2,
