@@ -111,9 +111,10 @@ export default function PinBoard() {
         </TouchableOpacity>
 
         <Text style={styles.title}>Pin Board</Text>
-        <Text style={styles.subheading}>Your visual Tickle reminders</Text>
+        <Text style={styles.subheading}>Day Journal Moments</Text>
         <Text style={styles.permanentCaptionBold}>
-          Sending a tickle from a photo doesn't include the photo itself.
+          Tap 'Tickle' on the photo to Journal about it. This will also link the moment to your
+          journal entry.
         </Text>
         <Text style={styles.permanentCaption}>
           Photos and their tickle-links live only on this device — they won't appear on a
