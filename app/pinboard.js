@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
+import { useAuth } from '../contexts/AuthContext';
 import { C } from '../lib/theme';
 import Button from '../components/Button';
 import PolaroidCard from '../components/PolaroidCard';
@@ -14,6 +15,7 @@ import { pickFromCamera, pickFromLibrary, deletePinBoardPhotoFile } from '../lib
 import { hasSeenPinBoardNote, markPinBoardNoteSeen } from '../lib/pinBoardNote';
 
 export default function PinBoard() {
+  const { session } = useAuth();
   const [photos, setPhotos] = useState([]);
   const [tickledIds, setTickledIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
@@ -43,15 +45,16 @@ export default function PinBoard() {
   // flag, like the photos themselves, must stay device-local.
   useFocusEffect(
     useCallback(() => {
+      if (!session) return;
       (async () => {
-        if (!(await hasSeenPinBoardNote())) setShowNote(true);
+        if (!(await hasSeenPinBoardNote(session.user.id))) setShowNote(true);
       })();
-    }, [])
+    }, [session])
   );
 
   async function handleDismissNote() {
     setShowNote(false);
-    await markPinBoardNoteSeen();
+    await markPinBoardNoteSeen(session.user.id);
   }
 
   async function handleTakePhoto() {
