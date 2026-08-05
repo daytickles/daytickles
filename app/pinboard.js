@@ -28,13 +28,17 @@ export default function PinBoard() {
   const [showAddPhoto, setShowAddPhoto] = useState(false);
 
   const loadBoard = useCallback(async () => {
+    if (!session) return;
     setLoading(true);
-    await initPinBoardDb();
-    const [rows, linkedPhotoIds] = await Promise.all([listPinnedPhotos(), getLinkedPhotoIds()]);
+    await initPinBoardDb(session.user.id);
+    const [rows, linkedPhotoIds] = await Promise.all([
+      listPinnedPhotos(session.user.id),
+      getLinkedPhotoIds(session.user.id),
+    ]);
     setPhotos(rows);
     setTickledIds(new Set(linkedPhotoIds));
     setLoading(false);
-  }, []);
+  }, [session]);
 
   useFocusEffect(
     useCallback(() => {
@@ -63,11 +67,11 @@ export default function PinBoard() {
     setShowAddPhoto(false);
     setAdding(true);
     setStatus('');
-    const result = await pickFromCamera();
+    const result = await pickFromCamera(session.user.id);
     if (result.error) {
       setStatus(result.error);
     } else if (!result.canceled) {
-      await addPinnedPhoto(result.uri);
+      await addPinnedPhoto(session.user.id, result.uri);
       await loadBoard();
     }
     setAdding(false);
@@ -77,11 +81,11 @@ export default function PinBoard() {
     setShowAddPhoto(false);
     setAdding(true);
     setStatus('');
-    const result = await pickFromLibrary();
+    const result = await pickFromLibrary(session.user.id);
     if (result.error) {
       setStatus(result.error);
     } else if (!result.canceled) {
-      await addPinnedPhoto(result.uri);
+      await addPinnedPhoto(session.user.id, result.uri);
       await loadBoard();
     }
     setAdding(false);
@@ -92,8 +96,8 @@ export default function PinBoard() {
   // resolving the orphaned-file gap flagged in lib/pinBoardDb.js.
   // pinned_photos' ON DELETE CASCADE handles any photo_entry_links rows.
   async function handleDeletePhoto(photo) {
-    await deletePinnedPhoto(photo.id);
-    deletePinBoardPhotoFile(photo.file_path);
+    await deletePinnedPhoto(session.user.id, photo.id);
+    deletePinBoardPhotoFile(session.user.id, photo.file_path);
     await loadBoard();
   }
 

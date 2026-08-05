@@ -122,7 +122,7 @@ export default function Create() {
     // row itself (see lib/pinBoardDb.js) — so it's created here, after
     // the save succeeds, rather than passed as part of the insert.
     if (pinnedPhotoId && savedEntryId) {
-      await linkPhotoToEntry(Number(pinnedPhotoId), savedEntryId);
+      await linkPhotoToEntry(session.user.id, Number(pinnedPhotoId), savedEntryId);
     }
 
     setSaving(false);

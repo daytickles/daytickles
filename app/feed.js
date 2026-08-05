@@ -155,9 +155,10 @@ export default function Feed() {
   // since a link only ever exists for this device's own entries no
   // matter which tab surfaces them.
   const loadPhotoLinks = useCallback(async () => {
-    const ids = await getAllLinkedEntryIds();
+    if (!session) return;
+    const ids = await getAllLinkedEntryIds(session.user.id);
     setPhotoLinkedIds(new Set(ids));
-  }, []);
+  }, [session]);
 
   useFocusEffect(
     useCallback(() => {
@@ -166,7 +167,7 @@ export default function Feed() {
   );
 
   async function handleOpenPhoto(entryId) {
-    const photo = await getPhotoForEntry(entryId);
+    const photo = await getPhotoForEntry(session.user.id, entryId);
     if (photo) setEnlargeUri(photo.file_path);
   }
 

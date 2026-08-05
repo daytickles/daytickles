@@ -100,16 +100,17 @@ export default function Calendar() {
   // Pin Board tables have ever been created. Both queries share the same
   // visible-month range loadMonth already computes for the tickle counts.
   const loadPinBoardData = useCallback(async () => {
-    await initPinBoardDb();
+    if (!session) return;
+    await initPinBoardDb(session.user.id);
     const start = isoDate(viewYear, viewMonth, 1);
     const end = isoDate(viewYear, viewMonth, new Date(viewYear, viewMonth + 1, 0).getDate());
     const [linkedIds, photoDates] = await Promise.all([
-      getAllLinkedEntryIds(),
-      getPinnedPhotoDatesInRange(start, end),
+      getAllLinkedEntryIds(session.user.id),
+      getPinnedPhotoDatesInRange(session.user.id, start, end),
     ]);
     setPhotoLinkedIds(new Set(linkedIds));
     setPhotoDatesInMonth(new Set(photoDates));
-  }, [viewYear, viewMonth]);
+  }, [session, viewYear, viewMonth]);
 
   useFocusEffect(useCallback(() => { loadGoals(); }, [loadGoals]));
   useFocusEffect(useCallback(() => { loadFavorited(); }, [loadFavorited]));
@@ -117,7 +118,7 @@ export default function Calendar() {
   useFocusEffect(useCallback(() => { loadPinBoardData(); }, [loadPinBoardData]));
 
   async function handleOpenPhoto(entryId) {
-    const photo = await getPhotoForEntry(entryId);
+    const photo = await getPhotoForEntry(session.user.id, entryId);
     if (photo) setEnlargeUri(photo.file_path);
   }
 
