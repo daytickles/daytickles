@@ -12,6 +12,7 @@ import ShareModal from '../components/ShareModal';
 import PhotoEnlargeModal from '../components/PhotoEnlargeModal';
 import EntryCard, { CARD_SPACING } from '../components/EntryCard';
 import { getAllLinkedEntryIds, getPhotoForEntry } from '../lib/pinBoardDb';
+import { useShareCard } from '../lib/useShareCard';
 
 const TABS = [
   { id: 'everyone', label: 'Everyone' },
@@ -73,6 +74,7 @@ export default function Feed() {
   const [likedIds, setLikedIds] = useState(new Set());
   const [photoLinkedIds, setPhotoLinkedIds] = useState(new Set());
   const [enlargeUri, setEnlargeUri] = useState(null);
+  const { hiddenCard, captureCard } = useShareCard();
   const [highlightedEntryId, setHighlightedEntryId] = useState(
     Array.isArray(params.highlightEntry) ? params.highlightEntry[0] : params.highlightEntry || null
   );
@@ -345,7 +347,26 @@ export default function Feed() {
 
   async function handleShare(entry, captionId) {
     setShareEntryId(null);
-    await shareEntry({ profile, entry, captionId, onProfileUpdated: refreshProfile });
+    const caption = SHARE_CAPTIONS.find((c) => c.id === captionId);
+    const photo = await getPhotoForEntry(session.user.id, entry.id);
+
+    let cardImageUri;
+    if (photo) {
+      try {
+        cardImageUri = await captureCard({
+          photo,
+          captionLabel: caption.label,
+          accentColor: accentFor(profile?.accent_theme).card,
+        });
+      } catch (err) {
+        // Falls back to the text-only share below rather than blocking
+        // the share outright — capture failure shouldn't cost the person
+        // their share.
+        console.error('handleShare: card capture failed, falling back to text share', err);
+      }
+    }
+
+    await shareEntry({ profile, entry, captionId, onProfileUpdated: refreshProfile, cardImageUri });
   }
 
   // Real DELETE, not a soft-hide — RLS already scopes it to entries you
@@ -521,7 +542,7 @@ export default function Feed() {
     />
 
     <ShareModal
-      entry={shareTargetEntry}
+      visible={shareTargetEntry}
       captions={SHARE_CAPTIONS}
       blocked={shareBlocked}
       cap={shareStat?.cap}
@@ -530,6 +551,7 @@ export default function Feed() {
     />
 
     <PhotoEnlargeModal uri={enlargeUri} onDismiss={() => setEnlargeUri(null)} />
+    {hiddenCard}
     </>
   );
 }

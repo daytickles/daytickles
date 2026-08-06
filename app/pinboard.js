@@ -3,11 +3,13 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
-import { C } from '../lib/theme';
+import { C, accentFor } from '../lib/theme';
+import { sharePhoto, shareStatus, SHARE_CAPTIONS } from '../lib/sharing';
 import Button from '../components/Button';
 import PolaroidCard from '../components/PolaroidCard';
 import PhotoEnlargeModal from '../components/PhotoEnlargeModal';
 import AddPhotoActionSheet from '../components/AddPhotoActionSheet';
+import ShareModal from '../components/ShareModal';
 import {
   initPinBoardDb, listPinnedPhotos, addPinnedPhoto, deletePinnedPhoto, getLinkedPhotoIds,
 } from '../lib/pinBoardDb';
@@ -15,9 +17,10 @@ import {
   pickFromCamera, pickFromLibrary, deletePinBoardPhotoFile, saveToDeviceLibrary,
 } from '../lib/pinBoardPhotos';
 import { hasSeenPinBoardNote, markPinBoardNoteSeen } from '../lib/pinBoardNote';
+import { useShareCard } from '../lib/useShareCard';
 
 export default function PinBoard() {
-  const { session } = useAuth();
+  const { session, profile, refreshProfile } = useAuth();
   const [photos, setPhotos] = useState([]);
   const [tickledIds, setTickledIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
@@ -26,6 +29,8 @@ export default function PinBoard() {
   const [showNote, setShowNote] = useState(false);
   const [status, setStatus] = useState('');
   const [showAddPhoto, setShowAddPhoto] = useState(false);
+  const [sharePhotoTarget, setSharePhotoTarget] = useState(null);
+  const { hiddenCard, captureCard } = useShareCard();
 
   const loadBoard = useCallback(async () => {
     if (!session) return;
@@ -118,6 +123,34 @@ export default function PinBoard() {
     router.push({ pathname: '/create', params: { pinnedPhotoId: String(photo.id) } });
   }
 
+  async function handleSharePhoto(photo, captionId) {
+    setSharePhotoTarget(null);
+    const caption = SHARE_CAPTIONS.find((c) => c.id === captionId);
+
+    let cardImageUri;
+    try {
+      cardImageUri = await captureCard({
+        photo,
+        captionLabel: caption.label,
+        accentColor: accentFor(profile?.accent_theme).card,
+      });
+    } catch (err) {
+      // No text-based fallback exists for a photo-only share (unlike
+      // shareEntry, which can always fall back to a plain-text message)
+      // — if the card can't be generated, this fails visibly rather than
+      // silently sending some other, caption-less image than what
+      // tapping Share implied.
+      console.error('handleSharePhoto: card capture failed', err);
+      setStatus('Could not prepare that photo to share — please try again.');
+      return;
+    }
+
+    await sharePhoto({ profile, captionId, onProfileUpdated: refreshProfile, cardImageUri });
+  }
+
+  const shareStat = profile ? shareStatus(profile) : null;
+  const shareBlocked = !!shareStat && !shareStat.unlimited && shareStat.remaining <= 0;
+
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -175,6 +208,7 @@ export default function PinBoard() {
               tickled={tickledIds.has(photo.id)}
               onPress={() => setEnlargeUri(photo.file_path)}
               onTickle={() => handleTickle(photo)}
+              onShare={() => setSharePhotoTarget(photo)}
               onDelete={handleDeletePhoto}
               onSaveToLibrary={handleSaveToLibrary}
             />
@@ -190,6 +224,17 @@ export default function PinBoard() {
         onChooseFromLibrary={handleChooseFromLibrary}
         onDismiss={() => setShowAddPhoto(false)}
       />
+
+      <ShareModal
+        visible={sharePhotoTarget}
+        captions={SHARE_CAPTIONS}
+        blocked={shareBlocked}
+        cap={shareStat?.cap}
+        onConfirm={(captionId) => handleSharePhoto(sharePhotoTarget, captionId)}
+        onDismiss={() => setSharePhotoTarget(null)}
+      />
+
+      {hiddenCard}
     </View>
   );
 }

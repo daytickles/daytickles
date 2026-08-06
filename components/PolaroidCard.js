@@ -8,7 +8,7 @@ function formatPinnedDate(pinnedAt) {
   return new Date(pinnedAt).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
-    year: 'numeric',
+    year: '2-digit',
   });
 }
 
@@ -22,7 +22,7 @@ function rotationFor(id) {
 // tickled and onTickle are fully independent of each other, per design:
 // the button always works regardless of the badge's state, since one
 // photo can link to many entries over time.
-export default function PolaroidCard({ photo, tickled, onPress, onTickle, onDelete, onSaveToLibrary }) {
+export default function PolaroidCard({ photo, tickled, onPress, onTickle, onShare, onDelete, onSaveToLibrary }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -77,13 +77,22 @@ export default function PolaroidCard({ photo, tickled, onPress, onTickle, onDele
 
       <View style={styles.captionStrip}>
         <Text style={styles.captionDate}>{formatPinnedDate(photo.pinned_at)}</Text>
-        <TouchableOpacity
-          onPress={onTickle}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          style={styles.tickleButton}
-        >
-          <Text style={styles.tickleButtonText}>Tickle</Text>
-        </TouchableOpacity>
+        <View style={styles.captionActions}>
+          <TouchableOpacity
+            onPress={onTickle}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={styles.tickleButton}
+          >
+            <Text style={styles.tickleButtonText}>Tickle</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={onShare}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={styles.shareIconButton}
+          >
+            <Ionicons name="share-outline" size={12} color={C.rust} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <DeletePhotoModal
@@ -175,6 +184,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   captionDate: { fontSize: 11, color: C.subtext },
+  captionActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   tickleButton: {
     paddingVertical: 2,
     paddingHorizontal: 8,
@@ -182,4 +192,18 @@ const styles = StyleSheet.create({
     backgroundColor: C.sparkleBg,
   },
   tickleButtonText: { fontSize: 11, fontWeight: '600', color: C.sparkleText },
+  // Icon-only, not a text pill like Tickle — a third full-text label
+  // doesn't fit this card's ~130px row (see width estimate that led
+  // here); size/shape matches the delete/save corner icons on the photo
+  // above, but C.bg instead of their white-on-photo rgba fill, same
+  // light-circle-on-white-card treatment ShareCard's own pin badge uses
+  // for the same reason (a white circle on the white card would vanish).
+  shareIconButton: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: C.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

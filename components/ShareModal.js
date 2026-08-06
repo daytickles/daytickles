@@ -1,9 +1,9 @@
 import { Text, StyleSheet, TouchableOpacity, Modal } from 'react-native';
 import { C } from '../lib/theme';
 
-export default function ShareModal({ entry, captions, blocked, cap, onConfirm, onDismiss }) {
+export default function ShareModal({ visible, captions, blocked, cap, onConfirm, onDismiss }) {
   return (
-    <Modal visible={!!entry} transparent animationType="fade" onRequestClose={onDismiss}>
+    <Modal visible={!!visible} transparent animationType="fade" onRequestClose={onDismiss}>
       <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={onDismiss}>
         <TouchableOpacity activeOpacity={1} style={styles.pickerSheet} onPress={() => {}}>
           {blocked ? (

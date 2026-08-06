@@ -13,6 +13,7 @@ import EntryCard from '../components/EntryCard';
 import {
   initPinBoardDb, getAllLinkedEntryIds, getPhotoForEntry, getPinnedPhotoDatesInRange,
 } from '../lib/pinBoardDb';
+import { useShareCard } from '../lib/useShareCard';
 
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
@@ -49,6 +50,7 @@ export default function Calendar() {
   const [photoLinkedIds, setPhotoLinkedIds] = useState(new Set());
   const [photoDatesInMonth, setPhotoDatesInMonth] = useState(new Set());
   const [enlargeUri, setEnlargeUri] = useState(null);
+  const { hiddenCard, captureCard } = useShareCard();
 
   const loadGoals = useCallback(async () => {
     if (!session) return;
@@ -232,7 +234,26 @@ export default function Calendar() {
 
   async function handleShare(entry, captionId) {
     setShareEntryId(null);
-    await shareEntry({ profile, entry, captionId, onProfileUpdated: refreshProfile });
+    const caption = SHARE_CAPTIONS.find((c) => c.id === captionId);
+    const photo = await getPhotoForEntry(session.user.id, entry.id);
+
+    let cardImageUri;
+    if (photo) {
+      try {
+        cardImageUri = await captureCard({
+          photo,
+          captionLabel: caption.label,
+          accentColor: accentFor(profile?.accent_theme).card,
+        });
+      } catch (err) {
+        // Falls back to the text-only share below rather than blocking
+        // the share outright — capture failure shouldn't cost the person
+        // their share.
+        console.error('handleShare: card capture failed, falling back to text share', err);
+      }
+    }
+
+    await shareEntry({ profile, entry, captionId, onProfileUpdated: refreshProfile, cardImageUri });
   }
 
   const pickerEntry = dayEntries.find((e) => e.id === pickerEntryId) || null;
@@ -370,7 +391,7 @@ export default function Calendar() {
       />
 
       <ShareModal
-        entry={shareTargetEntry}
+        visible={shareTargetEntry}
         captions={SHARE_CAPTIONS}
         blocked={shareBlocked}
         cap={shareStat?.cap}
@@ -379,6 +400,7 @@ export default function Calendar() {
       />
 
       <PhotoEnlargeModal uri={enlargeUri} onDismiss={() => setEnlargeUri(null)} />
+      {hiddenCard}
     </>
   );
 }
