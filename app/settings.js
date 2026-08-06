@@ -29,7 +29,6 @@ export default function Settings() {
   const [showAbout, setShowAbout] = useState(false);
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [savingTheme, setSavingTheme] = useState(null);
-  const [savingTickleNature, setSavingTickleNature] = useState(false);
   const [savingDayJournal, setSavingDayJournal] = useState(false);
   const [savingNotifyOnLikes, setSavingNotifyOnLikes] = useState(false);
   const [savingCountry, setSavingCountry] = useState(false);
@@ -103,26 +102,6 @@ export default function Settings() {
 
     const { error } = await supabase.from('profiles').update({ accent_theme: themeId }).eq('id', profile.id);
     setSavingTheme(null);
-
-    if (error) {
-      setProfile(previous);
-    } else {
-      refreshProfile();
-    }
-  }
-
-  async function handleToggleTickleNature(value) {
-    if (!profile) return;
-    const previous = profile;
-
-    setProfile({ ...profile, tickle_nature_enabled: value });
-    setSavingTickleNature(true);
-
-    const { error } = await supabase
-      .from('profiles')
-      .update({ tickle_nature_enabled: value })
-      .eq('id', profile.id);
-    setSavingTickleNature(false);
 
     if (error) {
       setProfile(previous);
@@ -303,18 +282,6 @@ export default function Settings() {
             </TouchableOpacity>
           );
         })}
-      </View>
-      <View style={styles.spacer} />
-
-      <View style={styles.toggleRow}>
-        <Text style={styles.toggleLabel}>Track the nature of your smiles</Text>
-        <Switch
-          value={!!profile?.tickle_nature_enabled}
-          onValueChange={handleToggleTickleNature}
-          disabled={savingTickleNature}
-          trackColor={{ false: C.border, true: accentDark }}
-          thumbColor={C.card}
-        />
       </View>
       <View style={styles.spacer} />
 

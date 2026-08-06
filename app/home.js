@@ -516,26 +516,24 @@ export default function Home() {
 
       <Button title="New Tickle" onPress={() => router.push('/create')} variant="primary" />
 
-      {profile?.tickle_nature_enabled && (
-        <View style={styles.selfCareRow}>
-          {NATURE_ORDER.map((key) => (
-            <TouchableOpacity
-              key={key}
-              style={styles.selfCareBadge}
-              activeOpacity={0.7}
-              onPress={() => showNatureTooltip(key)}
-            >
-              <Ionicons name={TICKLE_NATURE_ICONS[key]} size={16} color={C.subtext} />
-              <Text style={styles.selfCareCount}>{natureCounts[key]}</Text>
-              {activeNatureTooltip === key && (
-                <View style={styles.natureTooltip} pointerEvents="none">
-                  <Text style={styles.natureTooltipText}>{NATURE_LABELS[key]}</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
+      <View style={styles.selfCareRow}>
+        {NATURE_ORDER.map((key) => (
+          <TouchableOpacity
+            key={key}
+            style={styles.selfCareBadge}
+            activeOpacity={0.7}
+            onPress={() => showNatureTooltip(key)}
+          >
+            <Ionicons name={TICKLE_NATURE_ICONS[key]} size={16} color={C.subtext} />
+            <Text style={styles.selfCareCount}>{natureCounts[key]}</Text>
+            {activeNatureTooltip === key && (
+              <View style={styles.natureTooltip} pointerEvents="none">
+                <Text style={styles.natureTooltipText}>{NATURE_LABELS[key]}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        ))}
+      </View>
 
       {pinned && (
         <TouchableOpacity

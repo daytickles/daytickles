@@ -21,10 +21,8 @@ const TABS = [
   { id: 'favorites', label: "Fav's" },
 ];
 
-// Mine-only, and only for people who've opted into tickle_nature at
-// all — someone who isn't tagging entries shouldn't see filter options
-// for tags they're not creating. 'all' is the default: everything,
-// tagged or not, same as no filter applied.
+// Mine-only. 'all' is the default: everything, tagged or not, same as
+// no filter applied.
 const NATURE_FILTERS = [
   { id: 'received', label: 'My smiles' },
   { id: 'given', label: 'Given' },
@@ -472,11 +470,11 @@ export default function Feed() {
         )}
       </View>
 
-      {tab === 'mine' && (profile?.tickle_nature_enabled || profile?.day_journal_enabled) && (
+      {tab === 'mine' && (
         <View style={styles.natureFilterRow}>
           {[
             { id: 'all', label: 'All' },
-            ...(profile?.tickle_nature_enabled ? NATURE_FILTERS : []),
+            ...NATURE_FILTERS,
             ...(profile?.day_journal_enabled ? [DAY_JOURNAL_FILTER] : []),
           ].map((f) => (
             <TouchableOpacity

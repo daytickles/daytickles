@@ -137,12 +137,11 @@ export default function Create() {
     );
   }
 
-  // tickle_nature_enabled and day_journal_enabled are independent
-  // toggles — day_journal_enabled can show the picker (with only the
-  // Day Journal option) even if tickle_nature_enabled is off, and vice
-  // versa. Both simply contribute options into the same single-select
-  // tickle_nature field, just laid out as two separate rows.
-  const baseNatureOptions = profile?.tickle_nature_enabled ? TICKLE_NATURE_OPTIONS : [];
+  // The nature picker (Made me Smile / I paid forward / Mood boost)
+  // always shows now -- tickle_nature_enabled's gating was removed. Day
+  // Journal keeps its own independent opt-in toggle, contributing a 4th
+  // option into the same single-select tickle_nature field.
+  const baseNatureOptions = TICKLE_NATURE_OPTIONS;
   const showDayJournal = !!profile?.day_journal_enabled;
   const dayJournalSelected = tickleNature === DAY_JOURNAL_OPTION.id;
 
