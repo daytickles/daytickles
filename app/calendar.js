@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { C, accentFor, darken, textOn } from '../lib/theme';
+import { C, accentFor, darken, textOn, TICKLE_NATURE_ICONS } from '../lib/theme';
 import { shareEntry, shareStatus, SHARE_CAPTIONS } from '../lib/sharing';
 import GoalTagModal from '../components/GoalTagModal';
 import ShareModal from '../components/ShareModal';
@@ -16,6 +16,12 @@ import {
 import { useShareCard } from '../lib/useShareCard';
 
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+// Fixed display order for Tickle Vibes' per-day icon row -- Set
+// iteration would otherwise follow query result order (arbitrary,
+// since loadMonth has no ORDER BY), making icons jump around between
+// days rather than always reading sunny/heart/leaf left to right.
+const NATURE_ORDER = ['received', 'given', 'self'];
 
 const ENTRY_SELECT =
   'id, entry_date, text_content, mood, like_count, tickle_nature, goal_id, visibility, is_edited, created_at, user_id, profiles!tickle_entries_user_id_fkey(username, avatar_emoji, accent_theme, country)';
@@ -32,11 +38,20 @@ export default function Calendar() {
   const { session, profile, refreshProfile } = useAuth();
   const accentDark = darken(accentFor(profile?.accent_theme).card, 0.35);
   const accentDarkText = textOn(accentDark);
+  // Selected-day-cell background is the person's actual accent color,
+  // not the darkened shade above (accentDark/accentDarkText stay as-is
+  // for the Numbers/Tickle Vibes toggle pill and the unselected "today"
+  // label, neither of which has this contrast issue) -- accentCardText
+  // is the correct-contrast color for anything drawn on top of it.
+  const accentCard = accentFor(profile?.accent_theme).card;
+  const accentCardText = textOn(accentCard);
 
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
   const [countsByDate, setCountsByDate] = useState({});
+  const [natureCategoriesByDate, setNatureCategoriesByDate] = useState({});
+  const [viewMode, setViewMode] = useState('numbers');
   const [loading, setLoading] = useState(true);
 
   const [selectedDate, setSelectedDate] = useState(null);
@@ -70,10 +85,12 @@ export default function Calendar() {
     if (!error) setFavoritedIds(new Set((data || []).map((f) => f.entry_id)));
   }, [session]);
 
-  // Month-grid dots only need id + entry_date — the full ENTRY_SELECT
+  // Month-grid dots only need id + entry_date (+ tickle_nature, for
+  // Tickle Vibes' per-day category icons) — the full ENTRY_SELECT
   // payload is fetched separately, per day, only once a day is tapped.
-  // Same (user_id, entry_date) shape as idx_entries_user_date, so this
-  // stays a fast indexed range scan rather than a new access pattern.
+  // Same (user_id, entry_date) shape as idx_entries_user_date, so adding
+  // `tickle_nature` to the select list stays within the same indexed
+  // range scan rather than costing a second round-trip.
   const loadMonth = useCallback(async () => {
     if (!session) return;
     setLoading(true);
@@ -82,17 +99,25 @@ export default function Calendar() {
 
     const { data, error } = await supabase
       .from('tickle_entries')
-      .select('id, entry_date')
+      .select('id, entry_date, tickle_nature')
       .eq('user_id', session.user.id)
       .gte('entry_date', start)
       .lte('entry_date', end);
 
     if (!error) {
       const counts = {};
+      const natureCategories = {};
       (data || []).forEach((e) => {
         counts[e.entry_date] = (counts[e.entry_date] || 0) + 1;
+        // day_journal (and null) entries have no TICKLE_NATURE_ICONS
+        // entry -- only the three real nature categories earn a badge.
+        if (TICKLE_NATURE_ICONS[e.tickle_nature]) {
+          if (!natureCategories[e.entry_date]) natureCategories[e.entry_date] = new Set();
+          natureCategories[e.entry_date].add(e.tickle_nature);
+        }
       });
       setCountsByDate(counts);
+      setNatureCategoriesByDate(natureCategories);
     }
     setLoading(false);
   }, [session, viewYear, viewMonth]);
@@ -292,6 +317,23 @@ export default function Calendar() {
           </TouchableOpacity>
         </View>
 
+        <View style={styles.viewModeRow}>
+          {['numbers', 'vibes'].map((mode) => {
+            const selected = viewMode === mode;
+            return (
+              <TouchableOpacity
+                key={mode}
+                onPress={() => setViewMode(mode)}
+                style={[styles.viewModeOption, selected && { backgroundColor: accentDark, borderColor: accentDark }]}
+              >
+                <Text style={[styles.viewModeOptionLabel, selected && { color: accentDarkText }]}>
+                  {mode === 'numbers' ? 'Numbers' : 'Tickle Vibes'}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
         <View style={styles.calendarCard}>
           <View style={styles.weekdayRow}>
             {WEEKDAY_LABELS.map((label, i) => (
@@ -315,26 +357,41 @@ export default function Calendar() {
                 return (
                   <TouchableOpacity
                     key={i}
-                    style={[styles.dayCell, isSelected && { backgroundColor: accentDark }]}
+                    style={[styles.dayCell, isSelected && { backgroundColor: accentCard }]}
                     onPress={() => selectDate(dateStr)}
                   >
                     {hasPhoto && (
                       <View style={styles.photoBadge}>
-                        <Ionicons name="camera-outline" size={9} color={isSelected ? accentDarkText : C.subtext} />
+                        <Ionicons name="camera-outline" size={9} color={isSelected ? accentCardText : C.subtext} />
                       </View>
                     )}
                     <Text
                       style={[
                         styles.dayLabel,
                         isToday && !isSelected && { color: accentDark, fontWeight: '700' },
-                        isSelected && { color: accentDarkText },
+                        isSelected && { color: accentCardText },
                       ]}
                     >
                       {day}
                     </Text>
-                    <View style={[styles.countBadge, count === 0 && styles.countBadgeEmpty]}>
-                      {count > 0 && <Text style={styles.countBadgeText}>{count > 9 ? '9+' : count}</Text>}
-                    </View>
+                    {viewMode === 'vibes' ? (
+                      <View style={styles.vibesIconRow}>
+                        {NATURE_ORDER.filter((nature) => natureCategoriesByDate[dateStr]?.has(nature)).map(
+                          (nature) => (
+                            <Ionicons
+                              key={nature}
+                              name={TICKLE_NATURE_ICONS[nature]}
+                              size={9}
+                              color={isSelected ? accentCardText : accentDark}
+                            />
+                          )
+                        )}
+                      </View>
+                    ) : (
+                      <View style={[styles.countBadge, count === 0 && styles.countBadgeEmpty]}>
+                        {count > 0 && <Text style={styles.countBadgeText}>{count > 9 ? '9+' : count}</Text>}
+                      </View>
+                    )}
                   </TouchableOpacity>
                 );
               })}
@@ -416,6 +473,13 @@ const styles = StyleSheet.create({
   },
   monthLabel: { fontSize: 16, fontWeight: '700', color: C.rustDark },
 
+  viewModeRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  viewModeOption: {
+    flex: 1, paddingVertical: 8, borderRadius: 20,
+    alignItems: 'center', backgroundColor: C.card, borderWidth: 1, borderColor: C.border,
+  },
+  viewModeOptionLabel: { fontSize: 12, fontWeight: '600', color: C.subtext },
+
   calendarCard: {
     backgroundColor: C.card,
     borderRadius: 6,
@@ -449,6 +513,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent', borderWidth: 1.5, borderStyle: 'dashed', borderColor: C.faint,
   },
   countBadgeText: { fontSize: 10, fontWeight: '700', color: C.bg },
+  // Fixed height matches countBadge's own 16px so the day number doesn't
+  // shift vertically between a day with 0 vs. up to 3 icons (dayCell
+  // centers its content) -- an empty day is just blank space at the
+  // same height, not a placeholder glyph.
+  vibesIconRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2, height: 16, marginTop: 2 },
 
   loader: { marginTop: 12 },
   emptyText: { color: C.subtext, textAlign: 'center', marginTop: 12 },
