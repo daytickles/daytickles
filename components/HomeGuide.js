@@ -14,7 +14,7 @@ const STEPS = [
   },
   {
     title: 'New Tickle',
-    body: 'Tap "New Tickle" to log what made you smile today. Pick a mood from a hint of a smile to a big grin — it drives the color and motion of your entry\'s animation. You can also pin photos to your Pin Board (next to Feed on Home) and tap Tickle on any photo to write about it.',
+    body: 'Tap "New Tickle" to log what made you smile today. Pick a mood from a hint of a smile to a big grin — it drives the color and motion of your entry\'s animation. Tap Tickle to write something about the photo — a link back to it will automatically be added to your Tickle. Or tap Share to send the photo straight from your device.',
   },
   {
     title: 'The Feed',

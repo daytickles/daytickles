@@ -13,7 +13,7 @@ export default function DeletePhotoModal({ visible, onConfirm, onCancel }) {
         <TouchableOpacity activeOpacity={1} style={styles.sheet} onPress={() => {}}>
           <Text style={styles.title}>Delete this photo?</Text>
           <Text style={styles.body}>
-            This removes it from your Pin Board and deletes the photo from this device. This
+            This removes it from your Tickle Pics and deletes the photo from this device. This
             can't be undone.
           </Text>
 

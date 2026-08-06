@@ -161,26 +161,28 @@ export default function PinBoard() {
           <Text style={styles.backLink}>‹ Back</Text>
         </TouchableOpacity>
 
-        <Text style={styles.title}>Pin Board</Text>
-        <Text style={styles.subheading}>Day Journal Moments</Text>
+        <Text style={styles.title}>Tickle Pics</Text>
+        <Text style={styles.subheading}>Share it, Save it, Tickle it</Text>
         <Text style={styles.permanentCaptionBold}>
-          Tap 'Tickle' on the photo to Journal about it. This will also link the moment to your
-          journal entry.
-        </Text>
-        <Text style={styles.permanentCaption}>
-          Photos and their tickle-links live only on this device — they won't appear on a
-          different phone or after a reinstall.
+          Photos are stored only on this device. Tap Tickle to write about one, Share to send it,
+          or the Download icon to save a copy to your Photos app.
         </Text>
 
         {showNote && (
           <TouchableOpacity style={styles.noteBanner} activeOpacity={0.85} onPress={handleDismissNote}>
             <Text style={styles.noteBannerText}>
-              Your Pin Board is stored only on this phone's private app storage — nothing here is
-              backed up or synced. If you lose or replace this device, or uninstall the app,
-              photos taken through the app will be lost. Photos chosen from your library will
-              still be on your phone — only the copy on your Pin Board is gone. Want to protect a
-              specific photo? Tap the download icon on any pinned photo to save a copy to your
-              phone's regular Photos app.
+              Your Tickle Pics are stored only within this app on your device. They aren't backed
+              up or synced anywhere. If you uninstall the app, replace your device, or lose it,
+              any photos taken with the app will be lost unless you've saved them first.
+              {'\n\n'}
+              Photos you've added from your phone's library will remain safely in your Photos app
+              — only the copy stored in DayTickles will be removed.
+              {'\n\n'}
+              Want to keep a Tickle Pic? Simply tap the download icon to save it to your phone's
+              Photos app.
+              {'\n\n'}
+              When you share a Tickle Pic, it's sent directly from your device to the person or
+              app you choose. It's never uploaded to our servers.
             </Text>
             <Ionicons name="close" size={16} color={C.sparkleText} style={styles.noteBannerClose} />
           </TouchableOpacity>
@@ -245,8 +247,7 @@ const styles = StyleSheet.create({
   backLink: { fontSize: 16, color: C.rust, marginBottom: 16 },
   title: { fontSize: 22, fontWeight: 'bold', color: C.rustDark },
   subheading: { fontSize: 15, fontWeight: '600', color: C.rustDark, marginTop: 4 },
-  permanentCaptionBold: { fontSize: 12, fontWeight: '700', color: C.subtext, marginTop: 8 },
-  permanentCaption: { fontSize: 12, color: C.subtext, marginTop: 4, marginBottom: 16 },
+  permanentCaptionBold: { fontSize: 12, fontWeight: '700', color: C.subtext, marginTop: 8, marginBottom: 16 },
   noteBanner: {
     flexDirection: 'row',
     alignItems: 'flex-start',
