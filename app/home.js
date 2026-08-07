@@ -534,12 +534,12 @@ export default function Home() {
         <View style={[styles.streakCard, { backgroundColor: accent.card }]}>
           <View style={[styles.streakSunburst, { backgroundColor: streakSunburstColor }]} />
           <Text style={[styles.streakNumber, { color: textOn(accent.card) }]}>{weeklyTickles}</Text>
-          <Text style={[styles.streakLabel, { color: textOn(accent.card) }]}>Tickles this week</Text>
+          <Text style={[styles.streakLabel, { color: textOn(accent.card) }]}>Weekly Tickles</Text>
         </View>
         <View style={[styles.streakCard, { backgroundColor: accent.card }]}>
           <View style={[styles.streakSunburst, { backgroundColor: streakSunburstColor }]} />
           <Text style={[styles.streakNumber, { color: textOn(accent.card) }]}>{weeklyLikesGiven}</Text>
-          <Text style={[styles.streakLabel, { color: textOn(accent.card) }]}>Likes given this week</Text>
+          <Text style={[styles.streakLabel, { color: textOn(accent.card) }]}>Weekly likes given</Text>
         </View>
       </View>
 
