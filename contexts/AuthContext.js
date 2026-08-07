@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useRef } from 'r
 import * as Linking from 'expo-linking';
 import { supabase } from '../lib/supabase';
 import { registerPushToken } from '../lib/pushToken';
+import { fetchWritingPrompts } from '../lib/writingPrompts';
 
 const AuthContext = createContext(null);
 
@@ -34,7 +35,19 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [writingPrompts, setWritingPrompts] = useState([]);
   const handledRef = useRef(false);
+  const promptIndexRef = useRef(0);
+
+  // Cycles through the session's shuffled prompt list with a persistent
+  // cursor, so repeated calls across separate New Tickle visits never
+  // repeat back-to-back -- see lib/writingPrompts.js.
+  function getNextPrompt() {
+    if (writingPrompts.length === 0) return null;
+    const prompt = writingPrompts[promptIndexRef.current % writingPrompts.length];
+    promptIndexRef.current += 1;
+    return prompt;
+  }
 
   async function loadProfile(userId) {
     const { data, error } = await supabase
@@ -77,6 +90,10 @@ export function AuthProvider({ children }) {
         // Not awaited — permission prompt + token fetch shouldn't hold up
         // clearing the loading state below.
         registerPushToken(data.session.user.id);
+        fetchWritingPrompts().then((prompts) => {
+          setWritingPrompts(prompts);
+          promptIndexRef.current = 0;
+        });
       }
       setLoading(false);
     });
@@ -88,6 +105,10 @@ export function AuthProvider({ children }) {
         handledRef.current = false;
         await loadProfile(newSession.user.id);
         registerPushToken(newSession.user.id);
+        fetchWritingPrompts().then((prompts) => {
+          setWritingPrompts(prompts);
+          promptIndexRef.current = 0;
+        });
       } else {
         setProfile(null);
       }
@@ -112,7 +133,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ session, profile, setProfile, loading, refreshProfile }}>
+    <AuthContext.Provider value={{ session, profile, setProfile, loading, refreshProfile, getNextPrompt }}>
       {children}
     </AuthContext.Provider>
   );
