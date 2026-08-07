@@ -281,6 +281,22 @@ export default function Calendar() {
     await shareEntry({ profile, entry, captionId, onProfileUpdated: refreshProfile, cardImageUri });
   }
 
+  // Tickle Vibes shows only entries with a genuine nature category, using
+  // the exact same TICKLE_NATURE_ICONS truthiness test loadMonth already
+  // uses to decide which days earn a grid badge -- so a day that shows
+  // any badge is guaranteed to have at least one visible entry here.
+  // Client-side filter on already-fetched data, not a new query -- a
+  // single day's entries are a small dataset.
+  const visibleDayEntries = viewMode === 'vibes'
+    ? dayEntries.filter((e) => TICKLE_NATURE_ICONS[e.tickle_nature])
+    : dayEntries;
+  // Distinguishes a genuinely empty day from one where entries exist but
+  // none are nature-tagged -- "No tickles logged" would be misleading in
+  // the latter case, since the person did log something that day.
+  const emptyDayText = viewMode === 'vibes' && dayEntries.length > 0 && visibleDayEntries.length === 0
+    ? 'No Tickle Vibes entries this day.'
+    : 'No tickles logged this day.';
+
   const pickerEntry = dayEntries.find((e) => e.id === pickerEntryId) || null;
   const shareTargetEntry = dayEntries.find((e) => e.id === shareEntryId) || null;
   const shareStat = profile ? shareStatus(profile) : null;
@@ -411,10 +427,10 @@ export default function Calendar() {
             </Text>
             {dayLoading ? (
               <ActivityIndicator color={C.rust} style={styles.loader} />
-            ) : dayEntries.length === 0 ? (
-              <Text style={styles.emptyText}>No tickles logged this day.</Text>
+            ) : visibleDayEntries.length === 0 ? (
+              <Text style={styles.emptyText}>{emptyDayText}</Text>
             ) : (
-              dayEntries.map((item) => (
+              visibleDayEntries.map((item) => (
                 <EntryCard
                   key={item.id}
                   item={item}
