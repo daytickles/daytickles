@@ -51,6 +51,7 @@ export default function Calendar() {
   const [viewMonth, setViewMonth] = useState(today.getMonth());
   const [countsByDate, setCountsByDate] = useState({});
   const [natureCategoriesByDate, setNatureCategoriesByDate] = useState({});
+  const [goalIdsByDate, setGoalIdsByDate] = useState({});
   const [viewMode, setViewMode] = useState('numbers');
   const [loading, setLoading] = useState(true);
 
@@ -86,10 +87,11 @@ export default function Calendar() {
   }, [session]);
 
   // Month-grid dots only need id + entry_date (+ tickle_nature, for
-  // Tickle Vibes' per-day category icons) — the full ENTRY_SELECT
-  // payload is fetched separately, per day, only once a day is tapped.
+  // Vibes' per-day category icons, + goal_id for Goals' per-day color
+  // dots) — the full ENTRY_SELECT payload is fetched separately, per
+  // day, only once a day is tapped.
   // Same (user_id, entry_date) shape as idx_entries_user_date, so adding
-  // `tickle_nature` to the select list stays within the same indexed
+  // these columns to the select list stays within the same indexed
   // range scan rather than costing a second round-trip.
   const loadMonth = useCallback(async () => {
     if (!session) return;
@@ -99,7 +101,7 @@ export default function Calendar() {
 
     const { data, error } = await supabase
       .from('tickle_entries')
-      .select('id, entry_date, tickle_nature')
+      .select('id, entry_date, tickle_nature, goal_id')
       .eq('user_id', session.user.id)
       .gte('entry_date', start)
       .lte('entry_date', end);
@@ -107,6 +109,7 @@ export default function Calendar() {
     if (!error) {
       const counts = {};
       const natureCategories = {};
+      const goalIds = {};
       (data || []).forEach((e) => {
         counts[e.entry_date] = (counts[e.entry_date] || 0) + 1;
         // day_journal (and null) entries have no TICKLE_NATURE_ICONS
@@ -115,9 +118,14 @@ export default function Calendar() {
           if (!natureCategories[e.entry_date]) natureCategories[e.entry_date] = new Set();
           natureCategories[e.entry_date].add(e.tickle_nature);
         }
+        if (e.goal_id) {
+          if (!goalIds[e.entry_date]) goalIds[e.entry_date] = new Set();
+          goalIds[e.entry_date].add(e.goal_id);
+        }
       });
       setCountsByDate(counts);
       setNatureCategoriesByDate(natureCategories);
+      setGoalIdsByDate(goalIds);
     }
     setLoading(false);
   }, [session, viewYear, viewMonth]);
@@ -281,21 +289,28 @@ export default function Calendar() {
     await shareEntry({ profile, entry, captionId, onProfileUpdated: refreshProfile, cardImageUri });
   }
 
-  // Tickle Vibes shows only entries with a genuine nature category, using
-  // the exact same TICKLE_NATURE_ICONS truthiness test loadMonth already
-  // uses to decide which days earn a grid badge -- so a day that shows
-  // any badge is guaranteed to have at least one visible entry here.
+  // Vibes / Goals each show only entries matching their own tag test
+  // (nature category / goal_id truthiness) -- the same tests loadMonth
+  // already uses to decide which days earn a grid badge, so a day that
+  // shows any badge is guaranteed to have at least one visible entry
+  // here.
   // Client-side filter on already-fetched data, not a new query -- a
   // single day's entries are a small dataset.
-  const visibleDayEntries = viewMode === 'vibes'
-    ? dayEntries.filter((e) => TICKLE_NATURE_ICONS[e.tickle_nature])
-    : dayEntries;
+  const visibleDayEntries =
+    viewMode === 'vibes'
+      ? dayEntries.filter((e) => TICKLE_NATURE_ICONS[e.tickle_nature])
+      : viewMode === 'goals'
+      ? dayEntries.filter((e) => e.goal_id)
+      : dayEntries;
   // Distinguishes a genuinely empty day from one where entries exist but
-  // none are nature-tagged -- "No tickles logged" would be misleading in
-  // the latter case, since the person did log something that day.
-  const emptyDayText = viewMode === 'vibes' && dayEntries.length > 0 && visibleDayEntries.length === 0
-    ? 'No Tickle Vibes entries this day.'
-    : 'No tickles logged this day.';
+  // none match the active tab's tag -- "No tickles logged" would be
+  // misleading in that case, since the person did log something that day.
+  const emptyDayText =
+    dayEntries.length > 0 && visibleDayEntries.length === 0
+      ? viewMode === 'vibes'
+        ? 'No Vibes entries this day.'
+        : 'No goal-tagged entries this day.'
+      : 'No tickles logged this day.';
 
   const pickerEntry = dayEntries.find((e) => e.id === pickerEntryId) || null;
   const shareTargetEntry = dayEntries.find((e) => e.id === shareEntryId) || null;
@@ -334,8 +349,9 @@ export default function Calendar() {
         </View>
 
         <View style={styles.viewModeRow}>
-          {['numbers', 'vibes'].map((mode) => {
+          {['numbers', 'vibes', 'goals'].map((mode) => {
             const selected = viewMode === mode;
+            const label = mode === 'numbers' ? 'Tickles' : mode === 'vibes' ? 'Vibes' : 'Goals';
             return (
               <TouchableOpacity
                 key={mode}
@@ -343,7 +359,7 @@ export default function Calendar() {
                 style={[styles.viewModeOption, selected && { backgroundColor: accentDark, borderColor: accentDark }]}
               >
                 <Text style={[styles.viewModeOptionLabel, selected && { color: accentDarkText }]}>
-                  {mode === 'numbers' ? 'Tickles' : 'Tickle Vibes'}
+                  {label}
                 </Text>
               </TouchableOpacity>
             );
@@ -402,6 +418,14 @@ export default function Calendar() {
                             />
                           )
                         )}
+                      </View>
+                    ) : viewMode === 'goals' ? (
+                      <View style={styles.goalsDotRow}>
+                        {goals
+                          .filter((g) => goalIdsByDate[dateStr]?.has(g.id))
+                          .map((g) => (
+                            <View key={g.id} style={[styles.goalDayDot, { backgroundColor: g.color }]} />
+                          ))}
                       </View>
                     ) : (
                       <View style={[styles.countBadge, count === 0 && styles.countBadgeEmpty]}>
@@ -534,6 +558,11 @@ const styles = StyleSheet.create({
   // centers its content) -- an empty day is just blank space at the
   // same height, not a placeholder glyph.
   vibesIconRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2, height: 16, marginTop: 2 },
+  // Same fixed 16px height/margin as vibesIconRow, for the same reason
+  // -- keeps the day number from shifting vertically when switching
+  // between Tickles/Vibes/Goals tabs.
+  goalsDotRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2, height: 16, marginTop: 2 },
+  goalDayDot: { width: 7, height: 7, borderRadius: 3.5 },
 
   loader: { marginTop: 12 },
   emptyText: { color: C.subtext, textAlign: 'center', marginTop: 12 },
