@@ -10,6 +10,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { C, MOODS, accentFor, moodColorFor, darken, textOn } from '../lib/theme';
 import Button from '../components/Button';
 import { linkPhotoToEntry } from '../lib/pinBoardDb';
+import { localDateString } from '../lib/week';
 
 const MAX_LEN = 500;
 
@@ -106,7 +107,7 @@ export default function Create() {
         .from('tickle_entries')
         .insert({
           user_id: session.user.id,
-          entry_date: new Date().toISOString().slice(0, 10),
+          entry_date: localDateString(),
           text_content: trimmed,
           mood,
           tickle_nature: tickleNature,

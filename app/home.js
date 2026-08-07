@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { C, accentFor, moodColorFor, moodDotSize, textOn, lighten, withAlpha, TICKLE_NATURE_ICONS } from '../lib/theme';
 import { shareEntry, shareStatus, SHARE_CAPTIONS } from '../lib/sharing';
-import { isThisWeek, currentWeekStartISO } from '../lib/week';
+import { isThisWeek, currentWeekStartISO, localDateString } from '../lib/week';
 import { flagEmoji } from '../lib/country';
 import Button from '../components/Button';
 import InitialsAvatar from '../components/InitialsAvatar';
@@ -16,7 +16,6 @@ import ShareModal from '../components/ShareModal';
 import { requestReminderPermission, scheduleDailyReminder, cancelDailyReminder } from '../lib/reminders';
 import { isReviewAvailable, requestReview } from '../lib/rateUs';
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 const PINNED_WINDOW_DAYS = 14;
 
 // Display order + labels for the self-care badge row — mirrors
@@ -27,10 +26,6 @@ const NATURE_LABELS = {
   given: 'I paid forward',
   self: 'Mood boost',
 };
-
-function dateStr(offsetDays = 0) {
-  return new Date(Date.now() - offsetDays * DAY_MS).toISOString().slice(0, 10);
-}
 
 function formatEntryDate(entryDate) {
   return new Date(`${entryDate}T00:00:00Z`).toLocaleDateString('en-US', {
@@ -51,9 +46,9 @@ function likeLabel(count) {
 // "today so far" doesn't zero out an otherwise-live streak).
 function computeStreak(entries) {
   const entryDates = new Set(entries.map((e) => e.entry_date));
-  let cursor = entryDates.has(dateStr(0)) ? 0 : 1;
+  let cursor = entryDates.has(localDateString(0)) ? 0 : 1;
   let streak = 0;
-  while (entryDates.has(dateStr(cursor))) {
+  while (entryDates.has(localDateString(cursor))) {
     streak++;
     cursor++;
   }
@@ -337,7 +332,7 @@ export default function Home() {
     self: weeklyEntries.filter((e) => e.tickle_nature === 'self').length,
   };
 
-  const pinnedCutoff = dateStr(PINNED_WINDOW_DAYS - 1);
+  const pinnedCutoff = localDateString(PINNED_WINDOW_DAYS - 1);
   const pinned = entries
     .filter((e) => e.entry_date >= pinnedCutoff)
     .reduce((best, e) => (!best || e.like_count > best.like_count ? e : best), null);
