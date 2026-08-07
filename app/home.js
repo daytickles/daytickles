@@ -671,7 +671,7 @@ const styles = StyleSheet.create({
 
   selfCareRow: {
     flexDirection: 'row', justifyContent: 'center', gap: 12,
-    marginTop: 4, marginBottom: 8,
+    marginTop: 12, marginBottom: 8,
   },
   selfCareBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
