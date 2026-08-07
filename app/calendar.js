@@ -40,7 +40,7 @@ export default function Calendar() {
   const accentDarkText = textOn(accentDark);
   // Selected-day-cell background is the person's actual accent color,
   // not the darkened shade above (accentDark/accentDarkText stay as-is
-  // for the Numbers/Tickle Vibes toggle pill and the unselected "today"
+  // for the Tickles/Tickle Vibes toggle pill and the unselected "today"
   // label, neither of which has this contrast issue) -- accentCardText
   // is the correct-contrast color for anything drawn on top of it.
   const accentCard = accentFor(profile?.accent_theme).card;
@@ -327,7 +327,7 @@ export default function Calendar() {
                 style={[styles.viewModeOption, selected && { backgroundColor: accentDark, borderColor: accentDark }]}
               >
                 <Text style={[styles.viewModeOptionLabel, selected && { color: accentDarkText }]}>
-                  {mode === 'numbers' ? 'Numbers' : 'Tickle Vibes'}
+                  {mode === 'numbers' ? 'Tickles' : 'Tickle Vibes'}
                 </Text>
               </TouchableOpacity>
             );

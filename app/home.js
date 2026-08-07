@@ -438,6 +438,12 @@ export default function Home() {
             <Ionicons name="images-outline" size={20} color={C.subtext} />
           </TouchableOpacity>
           <TouchableOpacity
+            onPress={() => router.push('/calendar')}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="calendar-outline" size={20} color={C.subtext} />
+          </TouchableOpacity>
+          <TouchableOpacity
             onPress={() => router.push('/notifications')}
             style={styles.bellButton}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}

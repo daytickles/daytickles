@@ -459,15 +459,6 @@ export default function Feed() {
             <Text style={[styles.tabLabel, tab === t.id && { color: accentDarkText }]}>{t.label}</Text>
           </TouchableOpacity>
         ))}
-        {tab === 'mine' && (
-          <TouchableOpacity
-            onPress={() => router.push('/calendar')}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            style={styles.calendarButton}
-          >
-            <Ionicons name="calendar-outline" size={20} color={C.subtext} />
-          </TouchableOpacity>
-        )}
       </View>
 
       {tab === 'mine' && (
@@ -565,7 +556,6 @@ const styles = StyleSheet.create({
     alignItems: 'center', backgroundColor: C.card, borderWidth: 1, borderColor: C.border,
   },
   tabLabel: { fontSize: 12, fontWeight: '600', color: C.subtext },
-  calendarButton: { marginLeft: 4 },
 
   // Nested one level in from tabRow above, and deliberately lighter —
   // smaller padding/radius/font, content-sized chips rather than
