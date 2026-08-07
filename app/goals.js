@@ -207,7 +207,7 @@ export default function Goals() {
             title={saving ? 'Adding...' : 'Add Goal'}
             onPress={handleAdd}
             disabled={saving}
-            variant="primary"
+            variant="secondary"
           />
         </View>
       )}
