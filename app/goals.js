@@ -146,6 +146,9 @@ export default function Goals() {
       </TouchableOpacity>
 
       <Text style={styles.title}>Your Goals</Text>
+      <Text style={styles.description}>
+        Add a goal and choose a colour to represent it. That colour will mark all Tickles linked to this goal.
+      </Text>
       <Text style={styles.subtitle}>{activeGoals.length}/{MAX_GOALS} used</Text>
 
       {activeGoals.map((item) => (
@@ -239,6 +242,7 @@ const styles = StyleSheet.create({
   content: { padding: 20, paddingTop: 60, paddingBottom: 40 },
   backLink: { fontSize: 16, color: C.rust, marginBottom: 16 },
   title: { fontSize: 22, fontWeight: 'bold', color: C.rustDark },
+  description: { fontSize: 13, color: C.subtext, lineHeight: 18, marginTop: 6 },
   subtitle: { color: C.subtext, marginBottom: 16 },
   goalRow: {
     flexDirection: 'row', alignItems: 'center',
