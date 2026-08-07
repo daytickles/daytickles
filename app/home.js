@@ -514,13 +514,15 @@ export default function Home() {
       <View style={styles.streakRow}>
         <View style={[styles.streakCard, { backgroundColor: accent.card }]}>
           <View style={[styles.streakSunburst, { backgroundColor: streakSunburstColor }]} />
+          <Text style={[styles.streakLabel, { color: textOn(accent.card) }]}>Days</Text>
           <Text style={[styles.streakNumber, { color: textOn(accent.card) }]}>{streak}</Text>
-          <Text style={[styles.streakLabel, { color: textOn(accent.card) }]}>day smile streak</Text>
+          <Text style={[styles.streakLabel, { color: textOn(accent.card) }]}>Tickle streak</Text>
         </View>
         <View style={[styles.streakCard, { backgroundColor: accent.card }]}>
           <View style={[styles.streakSunburst, { backgroundColor: streakSunburstColor }]} />
+          <Text style={[styles.streakLabel, { color: textOn(accent.card) }]}>Days</Text>
           <Text style={[styles.streakNumber, { color: textOn(accent.card) }]}>{goalStreak}</Text>
-          <Text style={[styles.streakLabel, { color: textOn(accent.card) }]}>day goal streak</Text>
+          <Text style={[styles.streakLabel, { color: textOn(accent.card) }]}>Goal streak</Text>
         </View>
       </View>
 
@@ -634,14 +636,14 @@ const styles = StyleSheet.create({
 
   streakRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
   streakCard: {
-    flex: 1, borderRadius: 18, paddingVertical: 20,
+    flex: 1, borderRadius: 18, paddingVertical: 14,
     alignItems: 'center', overflow: 'hidden',
   },
   streakSunburst: {
     position: 'absolute', top: -30, right: -30,
     width: 90, height: 90, borderRadius: 45,
   },
-  streakNumber: { fontSize: 40, fontWeight: 'bold' },
+  streakNumber: { fontSize: 24, fontWeight: 'bold' },
   streakLabel: { fontSize: 14, marginTop: 2 },
 
   statsRow: { flexDirection: 'row', gap: 12, marginBottom: 20 },
