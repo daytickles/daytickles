@@ -74,7 +74,7 @@ export default function Create() {
       return;
     }
     if (!mood) {
-      setStatus('Pick how big the smile was.');
+      setStatus('Pick how big was the Buzz.');
       return;
     }
 
@@ -275,13 +275,13 @@ export default function Create() {
         />
       </View>
 
+      {!!status && <Text style={styles.status}>{status}</Text>}
       <Button
         title={saving ? 'Saving...' : 'Save'}
         onPress={handleSave}
         disabled={saving}
         variant="primary"
       />
-      {!!status && <Text style={styles.status}>{status}</Text>}
     </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -322,5 +322,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     marginTop: 8, marginBottom: 28,
   },
-  status: { marginTop: 12, color: C.rust, textAlign: 'center' },
+  status: { marginBottom: 12, color: C.error, textAlign: 'center' },
 });
