@@ -163,8 +163,6 @@ export default function Create() {
 
       <TextInput
         style={styles.input}
-        placeholder="Tell us about it..."
-        placeholderTextColor={C.faint}
         value={text}
         onChangeText={(t) => setText(t.slice(0, MAX_LEN))}
         maxLength={MAX_LEN}
@@ -208,11 +206,7 @@ export default function Create() {
 
       {(baseNatureOptions.length > 0 || showDayJournal) && (
         <>
-          <Text style={styles.label}>
-            {baseNatureOptions.length > 0
-              ? 'What kind of tickle was it?'
-              : 'Tag the tickle if it is a journal entry.'}
-          </Text>
+          <Text style={styles.label}>What kind of tickle vibe is it?</Text>
           {baseNatureOptions.length > 0 && (
             <View style={styles.natureRow}>
               {baseNatureOptions.map((opt) => {
