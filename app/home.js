@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { C, accentFor, moodColorFor, moodDotSize, textOn, lighten, withAlpha, TICKLE_NATURE_ICONS } from '../lib/theme';
 import { shareEntry, shareStatus, SHARE_CAPTIONS } from '../lib/sharing';
+import { isThisWeek, currentWeekStartISO } from '../lib/week';
 import { flagEmoji } from '../lib/country';
 import Button from '../components/Button';
 import InitialsAvatar from '../components/InitialsAvatar';
@@ -59,13 +60,6 @@ function computeStreak(entries) {
   return streak;
 }
 
-// Same consecutive-days logic as computeStreak, restricted to entries
-// tagged with a Vibe (any tickle_nature value) — reuses computeStreak
-// rather than reimplementing the walk-back-from-today math.
-function computeVibeStreak(entries) {
-  return computeStreak(entries.filter((e) => e.tickle_nature));
-}
-
 // True when the person just resumed after a gap: the streak has only
 // just restarted (exactly 1 day) AND they have older entries predating
 // it — the second condition is what distinguishes a real "coming back"
@@ -89,6 +83,7 @@ export default function Home() {
   const [pickerEntryId, setPickerEntryId] = useState(null);
   const [shareEntryId, setShareEntryId] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [weeklyLikesGiven, setWeeklyLikesGiven] = useState(0);
   const [showGuide, setShowGuide] = useState(false);
   const [showRatePrompt, setShowRatePrompt] = useState(false);
   const [showReturnedMessage, setShowReturnedMessage] = useState(false);
@@ -191,6 +186,17 @@ export default function Home() {
     if (!error) setUnreadCount(count || 0);
   }, [session]);
 
+  const loadWeeklyLikesGiven = useCallback(async () => {
+    if (!session) return;
+    const { count, error } = await supabase
+      .from('likes')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', session.user.id)
+      .gte('created_at', currentWeekStartISO());
+
+    if (!error) setWeeklyLikesGiven(count || 0);
+  }, [session]);
+
   useFocusEffect(
     useCallback(() => {
       loadEntries();
@@ -207,6 +213,12 @@ export default function Home() {
     useCallback(() => {
       loadUnreadCount();
     }, [loadUnreadCount])
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      loadWeeklyLikesGiven();
+    }, [loadWeeklyLikesGiven])
   );
 
   const goalsById = Object.fromEntries(goals.map((g) => [g.id, g]));
@@ -292,9 +304,9 @@ export default function Home() {
     natureTooltipTimerRef.current = setTimeout(() => setActiveNatureTooltip(null), 2000);
   }
 
-  const streak = computeStreak(entries);
-  const vibeStreak = computeVibeStreak(entries);
   const totalTickles = entries.length;
+  const weeklyEntries = entries.filter((e) => isThisWeek(e.entry_date));
+  const weeklyTickles = weeklyEntries.length;
 
   // Milestone Rate-Us prompt (backlog #8) — flips true the moment it's
   // shown, not only on dismiss, so ignoring it never brings it back.
@@ -320,9 +332,9 @@ export default function Home() {
 
   const totalLikes = entries.reduce((sum, e) => sum + (e.like_count || 0), 0);
   const natureCounts = {
-    received: entries.filter((e) => e.tickle_nature === 'received').length,
-    given: entries.filter((e) => e.tickle_nature === 'given').length,
-    self: entries.filter((e) => e.tickle_nature === 'self').length,
+    received: weeklyEntries.filter((e) => e.tickle_nature === 'received').length,
+    given: weeklyEntries.filter((e) => e.tickle_nature === 'given').length,
+    self: weeklyEntries.filter((e) => e.tickle_nature === 'self').length,
   };
 
   const pinnedCutoff = dateStr(PINNED_WINDOW_DAYS - 1);
@@ -521,20 +533,17 @@ export default function Home() {
       <View style={styles.streakRow}>
         <View style={[styles.streakCard, { backgroundColor: accent.card }]}>
           <View style={[styles.streakSunburst, { backgroundColor: streakSunburstColor }]} />
-          <Text style={[styles.streakLabel, { color: textOn(accent.card) }]}>Days</Text>
-          <Text style={[styles.streakNumber, { color: textOn(accent.card) }]}>{streak}</Text>
-          <Text style={[styles.streakLabel, { color: textOn(accent.card) }]}>Tickle streak</Text>
+          <Text style={[styles.streakNumber, { color: textOn(accent.card) }]}>{weeklyTickles}</Text>
+          <Text style={[styles.streakLabel, { color: textOn(accent.card) }]}>Tickles this week</Text>
         </View>
         <View style={[styles.streakCard, { backgroundColor: accent.card }]}>
           <View style={[styles.streakSunburst, { backgroundColor: streakSunburstColor }]} />
-          <Text style={[styles.streakLabel, { color: textOn(accent.card) }]}>Days</Text>
-          <Text style={[styles.streakNumber, { color: textOn(accent.card) }]}>{vibeStreak}</Text>
-          <Text style={[styles.streakLabel, { color: textOn(accent.card) }]}>Vibe streak</Text>
+          <Text style={[styles.streakNumber, { color: textOn(accent.card) }]}>{weeklyLikesGiven}</Text>
+          <Text style={[styles.streakLabel, { color: textOn(accent.card) }]}>Likes given this week</Text>
         </View>
       </View>
 
-      <Button title="New Tickle" onPress={() => router.push('/create')} variant="primary" />
-
+      <Text style={styles.weeklyVibesLabel}>Weekly Vibes</Text>
       <View style={styles.selfCareRow}>
         {NATURE_ORDER.map((key) => (
           <TouchableOpacity
@@ -553,6 +562,8 @@ export default function Home() {
           </TouchableOpacity>
         ))}
       </View>
+
+      <Button title="New Tickle" onPress={() => router.push('/create')} variant="primary" />
 
       {pinned && (
         <TouchableOpacity
@@ -669,9 +680,13 @@ const styles = StyleSheet.create({
   statLabelTickles: { color: C.amberText },
   statLabelLikes: { color: C.tealText },
 
+  weeklyVibesLabel: {
+    fontSize: 12, fontWeight: '600', color: C.subtext, textAlign: 'center',
+    marginTop: 4, marginBottom: 8,
+  },
   selfCareRow: {
     flexDirection: 'row', justifyContent: 'center', gap: 12,
-    marginTop: 12, marginBottom: 8,
+    marginBottom: 16,
   },
   selfCareBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
