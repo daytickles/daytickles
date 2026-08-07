@@ -423,55 +423,62 @@ export default function Home() {
   return (
     <>
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.headerRow}>
-        <Text style={styles.title} numberOfLines={1}>DayTickles</Text>
-        <View style={styles.headerActions}>
-          <TouchableOpacity
-            onPress={() => router.push('/feed')}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons name="list-outline" size={20} color={C.subtext} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => router.push('/pinboard')}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons name="images-outline" size={20} color={C.subtext} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => router.push('/calendar')}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons name="calendar-outline" size={20} color={C.subtext} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => router.push('/notifications')}
-            style={styles.bellButton}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons name="notifications-outline" size={20} color={C.subtext} />
-            {unreadCount > 0 && (
-              <View style={styles.unreadBadge}>
-                <Text style={styles.unreadBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => router.push('/settings')}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Text style={styles.settingsLink}>⚙</Text>
-          </TouchableOpacity>
-        </View>
+      <View style={styles.headerIconRow}>
+        <TouchableOpacity
+          onPress={() => router.push('/feed')}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="list-outline" size={20} color={C.subtext} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => router.push('/pinboard')}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="images-outline" size={20} color={C.subtext} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => router.push('/calendar')}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="calendar-outline" size={20} color={C.subtext} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => router.push('/weekly-summary')}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="stats-chart-outline" size={20} color={C.subtext} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => router.push('/notifications')}
+          style={styles.bellButton}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="notifications-outline" size={20} color={C.subtext} />
+          {unreadCount > 0 && (
+            <View style={styles.unreadBadge}>
+              <Text style={styles.unreadBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => router.push('/settings')}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Text style={styles.settingsLink}>⚙</Text>
+        </TouchableOpacity>
       </View>
-      {profile && (
-        <View style={styles.profileRow}>
-          <InitialsAvatar username={profile.username} accentTheme={profile.accent_theme} size={20} />
-          <Text style={styles.profileText}>
-            {profile.username}{profile.country ? `  ${flagEmoji(profile.country)}` : ''}
-          </Text>
-        </View>
-      )}
+
+      <View style={styles.titleRow}>
+        <Text style={styles.title} numberOfLines={1}>DayTickles</Text>
+        {profile && (
+          <View style={styles.profileGroup}>
+            <InitialsAvatar username={profile.username} accentTheme={profile.accent_theme} size={20} />
+            <Text style={styles.profileText}>
+              {profile.username}{profile.country ? `  ${flagEmoji(profile.country)}` : ''}
+            </Text>
+          </View>
+        )}
+      </View>
 
       {showReturnedMessage && (
         <TouchableOpacity
@@ -606,11 +613,13 @@ export default function Home() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
   content: { padding: 20, paddingTop: 40, paddingBottom: 40 },
-  headerRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6,
+  headerIconRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 16, marginBottom: 12,
+  },
+  titleRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16,
   },
   title: { fontSize: 20, fontWeight: 'bold', color: C.rustDark, flexShrink: 1 },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   bellButton: { position: 'relative' },
   unreadBadge: {
     position: 'absolute', top: -6, right: -8, minWidth: 16, height: 16, borderRadius: 8,
@@ -618,7 +627,7 @@ const styles = StyleSheet.create({
   },
   unreadBadgeText: { fontSize: 10, fontWeight: '700', color: C.bg },
   settingsLink: { fontSize: 22, color: C.subtext },
-  profileRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
+  profileGroup: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   profileText: { fontSize: 16, color: C.text },
   returnedBanner: {
     backgroundColor: C.sparkleBg, borderRadius: 14,
