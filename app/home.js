@@ -60,10 +60,10 @@ function computeStreak(entries) {
 }
 
 // Same consecutive-days logic as computeStreak, restricted to entries
-// tagged with a goal — reuses computeStreak rather than reimplementing
-// the walk-back-from-today math.
-function computeGoalStreak(entries) {
-  return computeStreak(entries.filter((e) => e.goal_id));
+// tagged with a Vibe (any tickle_nature value) — reuses computeStreak
+// rather than reimplementing the walk-back-from-today math.
+function computeVibeStreak(entries) {
+  return computeStreak(entries.filter((e) => e.tickle_nature));
 }
 
 // True when the person just resumed after a gap: the streak has only
@@ -293,7 +293,7 @@ export default function Home() {
   }
 
   const streak = computeStreak(entries);
-  const goalStreak = computeGoalStreak(entries);
+  const vibeStreak = computeVibeStreak(entries);
   const totalTickles = entries.length;
 
   // Milestone Rate-Us prompt (backlog #8) — flips true the moment it's
@@ -528,8 +528,8 @@ export default function Home() {
         <View style={[styles.streakCard, { backgroundColor: accent.card }]}>
           <View style={[styles.streakSunburst, { backgroundColor: streakSunburstColor }]} />
           <Text style={[styles.streakLabel, { color: textOn(accent.card) }]}>Days</Text>
-          <Text style={[styles.streakNumber, { color: textOn(accent.card) }]}>{goalStreak}</Text>
-          <Text style={[styles.streakLabel, { color: textOn(accent.card) }]}>Goal streak</Text>
+          <Text style={[styles.streakNumber, { color: textOn(accent.card) }]}>{vibeStreak}</Text>
+          <Text style={[styles.streakLabel, { color: textOn(accent.card) }]}>Vibe streak</Text>
         </View>
       </View>
 
