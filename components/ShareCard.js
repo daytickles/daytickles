@@ -46,7 +46,11 @@ const ShareCard = forwardRef(function ShareCard({ photo, captionLabel, accentCol
         <View style={styles.dividerLine} />
       </View>
 
-      <Text style={styles.wordmark}>DayTickles</Text>
+      {/* "App" appended deliberately -- recipients who don't already know
+          DayTickles shouldn't read this as an ambiguous name. Revert to
+          plain "DayTickles" once there's real brand recognition; this
+          isn't a stray typo. */}
+      <Text style={styles.wordmark}>DayTickles App</Text>
     </View>
   );
 });

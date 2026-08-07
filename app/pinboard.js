@@ -164,8 +164,9 @@ export default function PinBoard() {
         <Text style={styles.title}>Tickle Pics</Text>
         <Text style={styles.subheading}>Share it, Save it, Tickle it</Text>
         <Text style={styles.permanentCaptionBold}>
-          Photos are stored only on this device. Tap Tickle to write about one, Share to send it,
-          or the Download icon to save a copy to your Photos app.
+          Photos are stored only on this device. Tap Tickle to write about one,{' '}
+          <Ionicons name="share-outline" size={13} color={C.subtext} /> to send it, or the{' '}
+          <Ionicons name="download-outline" size={13} color={C.subtext} /> to save a copy to your Photos app.
         </Text>
 
         {showNote && (
@@ -178,7 +179,8 @@ export default function PinBoard() {
               Photos you've added from your phone's library will remain safely in your Photos app
               — only the copy stored in DayTickles will be removed.
               {'\n\n'}
-              Want to keep a Tickle Pic? Simply tap the download icon to save it to your phone's
+              Want to keep a Tickle Pic? Simply tap the{' '}
+              <Ionicons name="download-outline" size={14} color={C.sparkleText} /> to save it to your phone's
               Photos app.
               {'\n\n'}
               When you share a Tickle Pic, it's sent directly from your device to the person or
