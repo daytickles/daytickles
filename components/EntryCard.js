@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { C, accentFor, darken, lighten, moodColorFor, moodDotSize, TICKLE_NATURE_ICONS } from '../lib/theme';
 import { flagEmoji } from '../lib/country';
+import InitialsAvatar from './InitialsAvatar';
 
 function formatEntryDate(entryDate) {
   return new Date(`${entryDate}T00:00:00Z`).toLocaleDateString('en-US', {
@@ -78,8 +79,9 @@ export default function EntryCard({
         <View style={styles.entryBody}>
           <View style={styles.headerRow}>
             <View style={styles.authorRow}>
+              <InitialsAvatar username={item.profiles?.username} accentTheme={item.profiles?.accent_theme} size={18} />
               <Text style={styles.authorText} numberOfLines={1}>
-                {item.profiles?.avatar_emoji} {item.profiles?.username}
+                {item.profiles?.username}
                 {item.profiles?.country ? `  ${flagEmoji(item.profiles.country)}` : ''}
               </Text>
               {!isOwnEntry && (
@@ -228,7 +230,7 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4,
   },
-  authorRow: { flexDirection: 'row', alignItems: 'center', flexShrink: 1, marginRight: 8 },
+  authorRow: { flexDirection: 'row', alignItems: 'center', flexShrink: 1, marginRight: 8, gap: 6 },
   authorText: { fontSize: 13, fontWeight: '600', color: C.rustDark, flexShrink: 1 },
   followAction: { marginLeft: 10 },
   iconGroup: { flexDirection: 'row', alignItems: 'center' },

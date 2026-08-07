@@ -1,21 +1,17 @@
 import React, { useState } from 'react';
 import {
-  View, TextInput, Text, StyleSheet, TouchableOpacity, Keyboard,
+  TextInput, Text, StyleSheet,
   KeyboardAvoidingView, ScrollView, Platform,
 } from 'react-native';
 import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { C, accentFor, darken } from '../lib/theme';
+import { C } from '../lib/theme';
 import Button from '../components/Button';
 
-const AVATAR_OPTIONS = ['😀', '🐸', '🌟', '🔥', '🌈', '🦊', '🎯', '🌻'];
-
 export default function Onboarding() {
-  const { session, profile, refreshProfile } = useAuth();
-  const accentDark = darken(accentFor(profile?.accent_theme).card, 0.35);
+  const { session, refreshProfile } = useAuth();
   const [username, setUsername] = useState('');
-  const [avatar, setAvatar] = useState(AVATAR_OPTIONS[0]);
   const [status, setStatus] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -31,7 +27,6 @@ export default function Onboarding() {
       .from('profiles')
       .update({
         username: username.trim(),
-        avatar_emoji: avatar,
         onboarded: true,
       })
       .eq('id', session.user.id);
@@ -64,25 +59,6 @@ export default function Onboarding() {
         autoCapitalize="none"
       />
 
-      <Text style={styles.label}>Pick an avatar</Text>
-      <View style={styles.avatarRow}>
-        {AVATAR_OPTIONS.map((emoji) => (
-          <TouchableOpacity
-            key={emoji}
-            onPress={() => {
-              Keyboard.dismiss();
-              setAvatar(emoji);
-            }}
-            style={[
-              styles.avatarOption,
-              avatar === emoji && { borderColor: accentDark, backgroundColor: C.sparkleBg },
-            ]}
-          >
-            <Text style={styles.avatarEmoji}>{emoji}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
       <Button
         title={saving ? 'Saving...' : 'Continue'}
         onPress={handleSave}
@@ -109,14 +85,5 @@ const styles = StyleSheet.create({
     backgroundColor: C.card,
     color: C.text,
   },
-  label: { fontSize: 14, color: C.subtext, marginBottom: 8 },
-  avatarRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 24 },
-  avatarOption: {
-    width: 50, height: 50, borderRadius: 25,
-    justifyContent: 'center', alignItems: 'center',
-    margin: 4, borderWidth: 2, borderColor: 'transparent',
-    backgroundColor: C.card,
-  },
-  avatarEmoji: { fontSize: 24 },
   status: { marginTop: 12, color: C.subtext, textAlign: 'center' },
 });

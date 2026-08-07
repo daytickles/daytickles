@@ -8,6 +8,7 @@ import { C, accentFor, moodColorFor, moodDotSize, textOn, lighten, withAlpha, TI
 import { shareEntry, shareStatus, SHARE_CAPTIONS } from '../lib/sharing';
 import { flagEmoji } from '../lib/country';
 import Button from '../components/Button';
+import InitialsAvatar from '../components/InitialsAvatar';
 import AboutModal from '../components/AboutModal';
 import GoalTagModal from '../components/GoalTagModal';
 import ShareModal from '../components/ShareModal';
@@ -464,9 +465,12 @@ export default function Home() {
         </View>
       </View>
       {profile && (
-        <Text style={styles.profileText}>
-          {profile.avatar_emoji} {profile.username}{profile.country ? `  ${flagEmoji(profile.country)}` : ''}
-        </Text>
+        <View style={styles.profileRow}>
+          <InitialsAvatar username={profile.username} accentTheme={profile.accent_theme} size={20} />
+          <Text style={styles.profileText}>
+            {profile.username}{profile.country ? `  ${flagEmoji(profile.country)}` : ''}
+          </Text>
+        </View>
       )}
 
       {showReturnedMessage && (
@@ -612,7 +616,8 @@ const styles = StyleSheet.create({
   },
   unreadBadgeText: { fontSize: 10, fontWeight: '700', color: C.bg },
   settingsLink: { fontSize: 22, color: C.subtext },
-  profileText: { marginBottom: 16, fontSize: 16, color: C.text },
+  profileRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
+  profileText: { fontSize: 16, color: C.text },
   returnedBanner: {
     backgroundColor: C.sparkleBg, borderRadius: 14,
     paddingVertical: 12, paddingHorizontal: 16, marginBottom: 12,
