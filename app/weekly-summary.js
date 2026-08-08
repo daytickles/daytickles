@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { C, accentFor, moodColorFor, moodDotSize, textOn, TICKLE_NATURE_ICONS, NATURE_ORDER } from '../lib/theme';
+import { C, accentFor, moodColorFor, moodDotSize, textOn, withAlpha, TICKLE_NATURE_ICONS, NATURE_ORDER } from '../lib/theme';
 import { currentWeekStartDate, currentWeekStartISO, localDateString, DEFAULT_WEEK_START_DAY } from '../lib/week';
 import { initPinBoardDb, getPinnedPhotoCountSince, getPhotoShareCountSince } from '../lib/pinBoardDb';
 
@@ -25,23 +25,6 @@ function formatWeekRange(weekStartDate) {
   return `${fmt(start)} – ${fmt(end)}`;
 }
 
-// Builds one warm sentence out of whichever connection stats are
-// actually nonzero this week, rather than a stat grid -- and rather
-// than an awkward "gave 0 likes, gained 0 followers" sentence when
-// nothing happened, returns null so the whole section can be skipped.
-function buildConnectionSentence({ likesGiven, newFollowers, thoughtOfYouSends }) {
-  const clauses = [];
-  if (likesGiven > 0) clauses.push(`gave ${likesGiven} ${likesGiven === 1 ? 'like' : 'likes'}`);
-  if (newFollowers > 0) clauses.push(`gained ${newFollowers} new ${newFollowers === 1 ? 'follower' : 'followers'}`);
-  if (thoughtOfYouSends > 0) {
-    clauses.push(`thought of someone ${thoughtOfYouSends} ${thoughtOfYouSends === 1 ? 'time' : 'times'}`);
-  }
-  if (clauses.length === 0) return null;
-  if (clauses.length === 1) return `You ${clauses[0]} this week.`;
-  if (clauses.length === 2) return `You ${clauses[0]} and ${clauses[1]} this week.`;
-  return `You ${clauses[0]}, ${clauses[1]}, and ${clauses[2]} this week.`;
-}
-
 export default function WeeklySummary() {
   const { session, profile } = useAuth();
   const accent = accentFor(profile?.accent_theme);
@@ -54,6 +37,7 @@ export default function WeeklySummary() {
   const [likesGiven, setLikesGiven] = useState(0);
   const [newFollowers, setNewFollowers] = useState(0);
   const [thoughtOfYouSends, setThoughtOfYouSends] = useState(0);
+  const [madeMeSmileSends, setMadeMeSmileSends] = useState(0);
   const [photoCount, setPhotoCount] = useState(0);
 
   const weekStartDate = currentWeekStartDate(weekStartDay);
@@ -73,8 +57,10 @@ export default function WeeklySummary() {
       goalsResult,
       likesGivenResult,
       followersResult,
-      sharesResult,
-      photoShareCount,
+      thoughtOfYouSharesResult,
+      madeMeSmileSharesResult,
+      thoughtOfYouPhotoShares,
+      madeMeSmilePhotoShares,
       pinnedPhotoCount,
     ] = await Promise.all([
       supabase
@@ -104,7 +90,14 @@ export default function WeeklySummary() {
         .eq('created_by', session.user.id)
         .eq('caption', 'thought_of_you')
         .gte('created_at', weekStartISO),
+      supabase
+        .from('tickle_shares')
+        .select('id', { count: 'exact', head: true })
+        .eq('created_by', session.user.id)
+        .eq('caption', 'made_me_smile')
+        .gte('created_at', weekStartISO),
       getPhotoShareCountSince(session.user.id, weekStartISO, 'thought_of_you'),
+      getPhotoShareCountSince(session.user.id, weekStartISO, 'made_me_smile'),
       getPinnedPhotoCountSince(session.user.id, weekStartDate),
     ]);
 
@@ -122,8 +115,11 @@ export default function WeeklySummary() {
     if (!likesGivenResult.error) setLikesGiven(likesGivenResult.count || 0);
     if (!followersResult.error) setNewFollowers(followersResult.count || 0);
 
-    const cloudShares = sharesResult.error ? 0 : (sharesResult.count || 0);
-    setThoughtOfYouSends(cloudShares + (photoShareCount || 0));
+    const cloudThoughtOfYou = thoughtOfYouSharesResult.error ? 0 : (thoughtOfYouSharesResult.count || 0);
+    setThoughtOfYouSends(cloudThoughtOfYou + (thoughtOfYouPhotoShares || 0));
+
+    const cloudMadeMeSmile = madeMeSmileSharesResult.error ? 0 : (madeMeSmileSharesResult.count || 0);
+    setMadeMeSmileSends(cloudMadeMeSmile + (madeMeSmilePhotoShares || 0));
 
     setPhotoCount(pinnedPhotoCount || 0);
     setLoading(false);
@@ -149,7 +145,7 @@ export default function WeeklySummary() {
     .map((goal) => ({ goal, count: weekEntries.filter((e) => e.goal_id === goal.id).length }))
     .filter(({ count }) => count > 0);
 
-  const connectionSentence = buildConnectionSentence({ likesGiven, newFollowers, thoughtOfYouSends });
+  const hasConnection = likesGiven > 0 || newFollowers > 0 || thoughtOfYouSends > 0 || madeMeSmileSends > 0;
 
   return (
     <View style={styles.container}>
@@ -223,13 +219,19 @@ export default function WeeklySummary() {
               <>
                 <Text style={styles.sectionLabel}>Goals</Text>
                 {achievedThisWeek.map((g) => (
-                  <View key={g.id} style={styles.goalRow}>
+                  <View
+                    key={g.id}
+                    style={[styles.goalCard, { backgroundColor: withAlpha(g.color, 0.14), borderColor: g.color }]}
+                  >
                     <View style={[styles.goalDot, { backgroundColor: g.color }]} />
                     <Text style={styles.goalText}>🎉 Achieved "{g.label}" this week</Text>
                   </View>
                 ))}
                 {goalProgress.map(({ goal, count }) => (
-                  <View key={goal.id} style={styles.goalRow}>
+                  <View
+                    key={goal.id}
+                    style={[styles.goalCard, { backgroundColor: withAlpha(goal.color, 0.14), borderColor: goal.color }]}
+                  >
                     <View style={[styles.goalDot, { backgroundColor: goal.color }]} />
                     <Text style={styles.goalText}>
                       {count} {count === 1 ? 'tickle' : 'tickles'} toward "{goal.label}"
@@ -239,19 +241,42 @@ export default function WeeklySummary() {
               </>
             )}
 
-            {connectionSentence && (
+            {hasConnection && (
               <>
                 <Text style={styles.sectionLabel}>Connection</Text>
-                <Text style={styles.connectionText}>{connectionSentence}</Text>
+                <View style={styles.connectionCard}>
+                  {likesGiven > 0 && (
+                    <Text style={styles.connectionCardText}>
+                      You gave {likesGiven} {likesGiven === 1 ? 'like' : 'likes'} this week.
+                    </Text>
+                  )}
+                  {newFollowers > 0 && (
+                    <Text style={styles.connectionCardText}>
+                      You gained {newFollowers} new {newFollowers === 1 ? 'follower' : 'followers'} this week.
+                    </Text>
+                  )}
+                  {thoughtOfYouSends > 0 && (
+                    <Text style={styles.connectionCardText}>
+                      You thought of someone {thoughtOfYouSends} {thoughtOfYouSends === 1 ? 'time' : 'times'}.
+                    </Text>
+                  )}
+                  {madeMeSmileSends > 0 && (
+                    <Text style={styles.connectionCardText}>
+                      You shared your smile with {madeMeSmileSends} {madeMeSmileSends === 1 ? 'person' : 'people'}.
+                    </Text>
+                  )}
+                </View>
               </>
             )}
 
             {photoCount > 0 && (
               <>
                 <Text style={styles.sectionLabel}>Tickle Pics</Text>
-                <Text style={styles.connectionText}>
-                  You added {photoCount} {photoCount === 1 ? 'photo' : 'photos'} to your Tickle Pics this week.
-                </Text>
+                <View style={styles.pinBoardCard}>
+                  <Text style={styles.pinBoardCardText}>
+                    You added {photoCount} {photoCount === 1 ? 'photo' : 'photos'} to your Tickle Pics this week.
+                  </Text>
+                </View>
               </>
             )}
           </>
@@ -290,9 +315,19 @@ const styles = StyleSheet.create({
   },
   vibesCount: { fontSize: 13, fontWeight: '600', color: C.text },
 
-  goalRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
+  goalCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    borderRadius: 14, borderWidth: 1, paddingVertical: 10, paddingHorizontal: 12,
+    marginBottom: 8,
+  },
   goalDot: { width: 10, height: 10, borderRadius: 5 },
   goalText: { flex: 1, fontSize: 14, color: C.text },
 
-  connectionText: { fontSize: 14, color: C.text, lineHeight: 20, marginBottom: 16 },
+  connectionCard: {
+    backgroundColor: C.teal, borderRadius: 16, padding: 14, marginBottom: 16, gap: 6,
+  },
+  connectionCardText: { fontSize: 14, color: C.tealText, lineHeight: 20 },
+
+  pinBoardCard: { backgroundColor: C.sparkleBg, borderRadius: 16, padding: 14, marginBottom: 16 },
+  pinBoardCardText: { fontSize: 14, color: C.sparkleText, lineHeight: 20 },
 });
