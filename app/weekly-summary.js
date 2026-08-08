@@ -170,7 +170,7 @@ export default function WeeklySummary() {
 
             {mostLiked && (
               <>
-                <Text style={styles.sectionLabel}>Most liked this week</Text>
+                <Text style={[styles.sectionLabel, styles.pinnedSectionLabel]}>Most liked this week</Text>
                 <TouchableOpacity
                   style={styles.entryCard}
                   activeOpacity={0.8}
@@ -300,7 +300,11 @@ const styles = StyleSheet.create({
 
   sectionLabel: { fontSize: 14, fontWeight: '600', color: C.subtext, marginTop: 8, marginBottom: 8 },
 
-  entryCard: { backgroundColor: C.card, borderRadius: 16, padding: 14, marginBottom: 16 },
+  entryCard: {
+    backgroundColor: C.sparkleBg, borderWidth: 1.5, borderColor: C.amberDark,
+    borderRadius: 16, padding: 14, marginBottom: 16,
+  },
+  pinnedSectionLabel: { color: C.sparkleText },
   entryRow: { flexDirection: 'row', alignItems: 'flex-start' },
   moodDot: { marginRight: 12, marginTop: 4 },
   entryBody: { flex: 1 },
@@ -316,7 +320,7 @@ const styles = StyleSheet.create({
   vibesCount: { fontSize: 13, fontWeight: '600', color: C.text },
 
   goalCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
     borderRadius: 14, borderWidth: 1, paddingVertical: 10, paddingHorizontal: 12,
     marginBottom: 8,
   },
@@ -324,7 +328,8 @@ const styles = StyleSheet.create({
   goalText: { flex: 1, fontSize: 14, color: C.text },
 
   connectionCard: {
-    backgroundColor: C.teal, borderRadius: 16, padding: 14, marginBottom: 16, gap: 6,
+    backgroundColor: withAlpha(C.teal, 0.14), borderWidth: 1, borderColor: C.teal,
+    borderRadius: 16, padding: 14, marginBottom: 16, gap: 6,
   },
   connectionCardText: { fontSize: 14, color: C.tealText, lineHeight: 20 },
 
