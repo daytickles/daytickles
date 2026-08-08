@@ -2,17 +2,19 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
-import { C, accentFor, darken, textOn } from '../lib/theme';
-import { shareEntry, shareStatus, SHARE_CAPTIONS } from '../lib/sharing';
-import { notifyLikeReceived } from '../lib/likeNotify';
-import GoalTagModal from '../components/GoalTagModal';
-import ShareModal from '../components/ShareModal';
-import PhotoEnlargeModal from '../components/PhotoEnlargeModal';
-import EntryCard, { CARD_SPACING } from '../components/EntryCard';
-import { getAllLinkedEntryIds, getPhotoForEntry } from '../lib/pinBoardDb';
-import { useShareCard } from '../lib/useShareCard';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
+import { C, accentFor, darken, textOn } from '../../lib/theme';
+import { shareEntry, shareStatus, SHARE_CAPTIONS } from '../../lib/sharing';
+import { notifyLikeReceived } from '../../lib/likeNotify';
+import GoalTagModal from '../../components/GoalTagModal';
+import ShareModal from '../../components/ShareModal';
+import PhotoEnlargeModal from '../../components/PhotoEnlargeModal';
+import EntryCard, { CARD_SPACING } from '../../components/EntryCard';
+import CornerNav from '../../components/CornerNav';
+import { getAllLinkedEntryIds, getPhotoForEntry } from '../../lib/pinBoardDb';
+import { useShareCard } from '../../lib/useShareCard';
 
 const TABS = [
   { id: 'everyone', label: 'Everyone' },
@@ -58,6 +60,7 @@ export default function Feed() {
   const { session, profile, refreshProfile } = useAuth();
   const accentDark = darken(accentFor(profile?.accent_theme).card, 0.35);
   const accentDarkText = textOn(accentDark);
+  const tabBarHeight = useBottomTabBarHeight();
   const params = useLocalSearchParams();
   const initialTab = TABS.some((t) => t.id === params.tab) ? params.tab : 'everyone';
   const [tab, setTab] = useState(initialTab);
@@ -437,12 +440,15 @@ export default function Feed() {
   return (
     <>
     <View style={styles.container}>
-      <TouchableOpacity
-        onPress={() => router.back()}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-      >
-        <Text style={styles.backLink}>‹ Back</Text>
-      </TouchableOpacity>
+      <CornerNav />
+      {highlightedEntryId && (
+        <TouchableOpacity
+          onPress={() => router.back()}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Text style={styles.backLink}>‹ Back</Text>
+        </TouchableOpacity>
+      )}
 
       <Text style={styles.title}>Feed</Text>
 
@@ -497,7 +503,7 @@ export default function Feed() {
         data={entries}
         keyExtractor={(item) => String(item.id)}
         renderItem={renderEntry}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, { paddingBottom: styles.listContent.paddingBottom + tabBarHeight }]}
         getItemLayout={(data, index) => {
           let offset = 0;
           for (let i = 0; i < index; i++) {

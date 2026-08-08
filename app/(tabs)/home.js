@@ -2,19 +2,21 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
-import { C, accentFor, moodColorFor, moodDotSize, textOn, lighten, withAlpha, TICKLE_NATURE_ICONS } from '../lib/theme';
-import { shareEntry, shareStatus, SHARE_CAPTIONS } from '../lib/sharing';
-import { isThisWeek, currentWeekStartISO, localDateString } from '../lib/week';
-import { flagEmoji } from '../lib/country';
-import Button from '../components/Button';
-import InitialsAvatar from '../components/InitialsAvatar';
-import AboutModal from '../components/AboutModal';
-import GoalTagModal from '../components/GoalTagModal';
-import ShareModal from '../components/ShareModal';
-import { requestReminderPermission, scheduleDailyReminder, cancelDailyReminder } from '../lib/reminders';
-import { isReviewAvailable, requestReview } from '../lib/rateUs';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
+import { C, accentFor, moodColorFor, moodDotSize, textOn, lighten, withAlpha, TICKLE_NATURE_ICONS } from '../../lib/theme';
+import { shareEntry, shareStatus, SHARE_CAPTIONS } from '../../lib/sharing';
+import { isThisWeek, currentWeekStartISO, localDateString } from '../../lib/week';
+import { flagEmoji } from '../../lib/country';
+import Button from '../../components/Button';
+import InitialsAvatar from '../../components/InitialsAvatar';
+import AboutModal from '../../components/AboutModal';
+import GoalTagModal from '../../components/GoalTagModal';
+import ShareModal from '../../components/ShareModal';
+import CornerNav from '../../components/CornerNav';
+import { requestReminderPermission, scheduleDailyReminder, cancelDailyReminder } from '../../lib/reminders';
+import { isReviewAvailable, requestReview } from '../../lib/rateUs';
 
 const PINNED_WINDOW_DAYS = 14;
 
@@ -71,13 +73,13 @@ export default function Home() {
   const { session, profile, refreshProfile } = useAuth();
   const accent = accentFor(profile?.accent_theme);
   const streakSunburstColor = withAlpha(lighten(accent.card, 0.5), 0.4);
+  const tabBarHeight = useBottomTabBarHeight();
 
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [goals, setGoals] = useState([]);
   const [pickerEntryId, setPickerEntryId] = useState(null);
   const [shareEntryId, setShareEntryId] = useState(null);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [weeklyLikesGiven, setWeeklyLikesGiven] = useState(0);
   const [showGuide, setShowGuide] = useState(false);
   const [showRatePrompt, setShowRatePrompt] = useState(false);
@@ -170,17 +172,6 @@ export default function Home() {
     if (!error) setGoals(data || []);
   }, [session]);
 
-  const loadUnreadCount = useCallback(async () => {
-    if (!session) return;
-    const { count, error } = await supabase
-      .from('notifications')
-      .select('id', { count: 'exact', head: true })
-      .eq('recipient_id', session.user.id)
-      .eq('is_read', false);
-
-    if (!error) setUnreadCount(count || 0);
-  }, [session]);
-
   const loadWeeklyLikesGiven = useCallback(async () => {
     if (!session) return;
     const { count, error } = await supabase
@@ -202,12 +193,6 @@ export default function Home() {
     useCallback(() => {
       loadGoals();
     }, [loadGoals])
-  );
-
-  useFocusEffect(
-    useCallback(() => {
-      loadUnreadCount();
-    }, [loadUnreadCount])
   );
 
   useFocusEffect(
@@ -429,51 +414,11 @@ export default function Home() {
 
   return (
     <>
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.headerIconRow}>
-        <TouchableOpacity
-          onPress={() => router.push('/feed')}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons name="list-outline" size={20} color={C.subtext} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => router.push('/pinboard')}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons name="images-outline" size={20} color={C.subtext} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => router.push('/calendar')}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons name="calendar-outline" size={20} color={C.subtext} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => router.push('/weekly-summary')}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons name="stats-chart-outline" size={20} color={C.subtext} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => router.push('/notifications')}
-          style={styles.bellButton}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons name="notifications-outline" size={20} color={C.subtext} />
-          {unreadCount > 0 && (
-            <View style={styles.unreadBadge}>
-              <Text style={styles.unreadBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => router.push('/settings')}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Text style={styles.settingsLink}>⚙</Text>
-        </TouchableOpacity>
-      </View>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={[styles.content, { paddingBottom: styles.content.paddingBottom + tabBarHeight }]}
+    >
+      <CornerNav />
 
       <View style={styles.titleRow}>
         <Text style={styles.title} numberOfLines={1}>DayTickles</Text>
@@ -619,20 +564,10 @@ export default function Home() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
   content: { padding: 20, paddingTop: 40, paddingBottom: 40 },
-  headerIconRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 16, marginBottom: 12,
-  },
   titleRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16,
   },
   title: { fontSize: 20, fontWeight: 'bold', color: C.rustDark, flexShrink: 1 },
-  bellButton: { position: 'relative' },
-  unreadBadge: {
-    position: 'absolute', top: -6, right: -8, minWidth: 16, height: 16, borderRadius: 8,
-    backgroundColor: C.teal, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3,
-  },
-  unreadBadgeText: { fontSize: 10, fontWeight: '700', color: C.bg },
-  settingsLink: { fontSize: 22, color: C.subtext },
   profileGroup: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   profileText: { fontSize: 16, color: C.text },
   returnedBanner: {

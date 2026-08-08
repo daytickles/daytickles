@@ -2,25 +2,28 @@ import { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { useAuth } from '../contexts/AuthContext';
-import { C, accentFor } from '../lib/theme';
-import { sharePhoto, shareStatus, SHARE_CAPTIONS } from '../lib/sharing';
-import Button from '../components/Button';
-import PolaroidCard from '../components/PolaroidCard';
-import PhotoEnlargeModal from '../components/PhotoEnlargeModal';
-import AddPhotoActionSheet from '../components/AddPhotoActionSheet';
-import ShareModal from '../components/ShareModal';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { useAuth } from '../../contexts/AuthContext';
+import { C, accentFor } from '../../lib/theme';
+import { sharePhoto, shareStatus, SHARE_CAPTIONS } from '../../lib/sharing';
+import Button from '../../components/Button';
+import PolaroidCard from '../../components/PolaroidCard';
+import PhotoEnlargeModal from '../../components/PhotoEnlargeModal';
+import AddPhotoActionSheet from '../../components/AddPhotoActionSheet';
+import ShareModal from '../../components/ShareModal';
+import CornerNav from '../../components/CornerNav';
 import {
   initPinBoardDb, listPinnedPhotos, addPinnedPhoto, deletePinnedPhoto, getLinkedPhotoIds,
-} from '../lib/pinBoardDb';
+} from '../../lib/pinBoardDb';
 import {
   pickFromCamera, pickFromLibrary, deletePinBoardPhotoFile, saveToDeviceLibrary,
-} from '../lib/pinBoardPhotos';
-import { hasSeenPinBoardNote, markPinBoardNoteSeen } from '../lib/pinBoardNote';
-import { useShareCard } from '../lib/useShareCard';
+} from '../../lib/pinBoardPhotos';
+import { hasSeenPinBoardNote, markPinBoardNoteSeen } from '../../lib/pinBoardNote';
+import { useShareCard } from '../../lib/useShareCard';
 
 export default function PinBoard() {
   const { session, profile, refreshProfile } = useAuth();
+  const tabBarHeight = useBottomTabBarHeight();
   const [photos, setPhotos] = useState([]);
   const [tickledIds, setTickledIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
@@ -153,13 +156,8 @@ export default function PinBoard() {
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Text style={styles.backLink}>‹ Back</Text>
-        </TouchableOpacity>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: styles.content.paddingBottom + tabBarHeight }]}>
+        <CornerNav />
 
         <Text style={styles.title}>Tickle Pics</Text>
         <Text style={styles.subheading}>Share it, Save it, Tickle it</Text>
@@ -246,7 +244,6 @@ export default function PinBoard() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
   content: { padding: 20, paddingTop: 60, paddingBottom: 40 },
-  backLink: { fontSize: 16, color: C.rust, marginBottom: 16 },
   title: { fontSize: 22, fontWeight: 'bold', color: C.rustDark },
   subheading: { fontSize: 15, fontWeight: '600', color: C.rustDark, marginTop: 4 },
   permanentCaptionBold: { fontSize: 12, fontWeight: '700', color: C.subtext, marginTop: 8, marginBottom: 16 },

@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
+import { useNotifications } from '../contexts/NotificationsContext';
 import { supabase } from '../lib/supabase';
 import { C } from '../lib/theme';
 import { flagEmoji } from '../lib/country';
@@ -39,6 +40,7 @@ function notificationText(n) {
 
 export default function Notifications() {
   const { session } = useAuth();
+  const { refreshUnreadCount } = useNotifications();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -76,6 +78,7 @@ export default function Notifications() {
         .eq('recipient_id', session.user.id);
 
       if (error) setNotifications(previous);
+      else refreshUnreadCount();
     }
 
     if (n.entry_id) {

@@ -2,18 +2,20 @@ import { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
-import { C, accentFor, darken, textOn, TICKLE_NATURE_ICONS } from '../lib/theme';
-import { shareEntry, shareStatus, SHARE_CAPTIONS } from '../lib/sharing';
-import GoalTagModal from '../components/GoalTagModal';
-import ShareModal from '../components/ShareModal';
-import PhotoEnlargeModal from '../components/PhotoEnlargeModal';
-import EntryCard from '../components/EntryCard';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
+import { C, accentFor, darken, textOn, TICKLE_NATURE_ICONS } from '../../lib/theme';
+import { shareEntry, shareStatus, SHARE_CAPTIONS } from '../../lib/sharing';
+import GoalTagModal from '../../components/GoalTagModal';
+import ShareModal from '../../components/ShareModal';
+import PhotoEnlargeModal from '../../components/PhotoEnlargeModal';
+import EntryCard from '../../components/EntryCard';
+import CornerNav from '../../components/CornerNav';
 import {
   initPinBoardDb, getAllLinkedEntryIds, getPhotoForEntry, getPinnedPhotoDatesInRange,
-} from '../lib/pinBoardDb';
-import { useShareCard } from '../lib/useShareCard';
+} from '../../lib/pinBoardDb';
+import { useShareCard } from '../../lib/useShareCard';
 
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
@@ -45,6 +47,7 @@ export default function Calendar() {
   // is the correct-contrast color for anything drawn on top of it.
   const accentCard = accentFor(profile?.accent_theme).card;
   const accentCardText = textOn(accentCard);
+  const tabBarHeight = useBottomTabBarHeight();
 
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
@@ -331,10 +334,11 @@ export default function Calendar() {
 
   return (
     <>
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Text style={styles.backLink}>‹ Back</Text>
-        </TouchableOpacity>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={[styles.content, { paddingBottom: styles.content.paddingBottom + tabBarHeight }]}
+      >
+        <CornerNav />
 
         <Text style={styles.title}>Calendar</Text>
 
@@ -505,7 +509,6 @@ export default function Calendar() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
   content: { padding: 20, paddingTop: 60, paddingBottom: 40 },
-  backLink: { fontSize: 16, color: C.rust, marginBottom: 16 },
   title: { fontSize: 22, fontWeight: 'bold', color: C.rustDark, marginBottom: 16 },
 
   monthNavRow: {
