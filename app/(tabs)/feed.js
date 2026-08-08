@@ -9,6 +9,7 @@ import { C, accentFor, darken, textOn } from '../../lib/theme';
 import { shareEntry, shareStatus, SHARE_CAPTIONS } from '../../lib/sharing';
 import { notifyLikeReceived } from '../../lib/likeNotify';
 import GoalTagModal from '../../components/GoalTagModal';
+import AwardPickerModal from '../../components/AwardPickerModal';
 import ShareModal from '../../components/ShareModal';
 import PhotoEnlargeModal from '../../components/PhotoEnlargeModal';
 import EntryCard, { CARD_SPACING } from '../../components/EntryCard';
@@ -70,10 +71,16 @@ export default function Feed() {
   const [goals, setGoals] = useState([]);
   const [pickerEntryId, setPickerEntryId] = useState(null);
   const [shareEntryId, setShareEntryId] = useState(null);
+  const [awardEntryId, setAwardEntryId] = useState(null);
   const [followedIds, setFollowedIds] = useState(new Set());
   const [favoritedIds, setFavoritedIds] = useState(new Set());
   const [likedIds, setLikedIds] = useState(new Set());
   const [photoLinkedIds, setPhotoLinkedIds] = useState(new Set());
+  // Map<entryId, awardType> -- only this viewer's own awards (awards
+  // RLS is private to the giver, same shape as favoritedIds), and a Map
+  // rather than a Set since the icon needs to know *which* award, not
+  // just whether one exists.
+  const [awardedTypes, setAwardedTypes] = useState(new Map());
   const [enlargeUri, setEnlargeUri] = useState(null);
   const { hiddenCard, captureCard } = useShareCard();
   const [highlightedEntryId, setHighlightedEntryId] = useState(
@@ -189,6 +196,23 @@ export default function Feed() {
       loadPhotoLinks();
     }, [loadPhotoLinks])
   );
+
+  // Same reasoning as loadFollowed/loadLiked above -- only this screen's
+  // own handleGiveAward can ever create an award row (awards RLS is
+  // private to the giver, and no other screen gives them), so this
+  // loads once per session rather than refetching on every focus.
+  const loadAwards = useCallback(async () => {
+    if (!session) return;
+    const { data, error } = await supabase
+      .from('awards')
+      .select('entry_id, award_type')
+      .eq('user_id', session.user.id);
+    if (!error) setAwardedTypes(new Map((data || []).map((a) => [a.entry_id, a.award_type])));
+  }, [session]);
+
+  useEffect(() => {
+    loadAwards();
+  }, [loadAwards]);
 
   async function handleOpenPhoto(entryId) {
     const photo = await getPhotoForEntry(session.user.id, entryId);
@@ -384,6 +408,28 @@ export default function Feed() {
     if (!isLiked) notifyLikeReceived(entryId, session.user.id);
   }
 
+  // No revert-to-previous-award-then-retry here, unlike the toggles
+  // above -- an award is a one-shot insert, not a toggle, so a failure
+  // just means it never happened; rolling awardedTypes back to "no
+  // award" is the correct/only recovery, not restoring some prior value.
+  async function handleGiveAward(entryId, awardType) {
+    setAwardEntryId(null);
+    setAwardedTypes((prev) => new Map(prev).set(entryId, awardType));
+
+    const { error } = await supabase
+      .from('awards')
+      .insert({ entry_id: entryId, user_id: session.user.id, award_type: awardType });
+
+    if (error) {
+      setAwardedTypes((prev) => {
+        const next = new Map(prev);
+        next.delete(entryId);
+        return next;
+      });
+      console.error('handleGiveAward failed', error);
+    }
+  }
+
   const goalsById = Object.fromEntries(goals.map((g) => [g.id, g]));
   // Achieved goals are never offered as a new tag target in the picker
   // — they only ever appear read-only, on entries already tagged before
@@ -474,6 +520,7 @@ export default function Feed() {
         isLiked={likedIds.has(item.id)}
         taggedGoal={item.goal_id ? goalsById[item.goal_id] : null}
         hasLinkedPhoto={photoLinkedIds.has(item.id)}
+        awardType={awardedTypes.get(item.id) || null}
         onOpenPhoto={handleOpenPhoto}
         onLayout={(e) => {
           cardHeights.current[item.id] = e.nativeEvent.layout.height + CARD_SPACING;
@@ -485,6 +532,7 @@ export default function Feed() {
         onToggleVisibility={handleToggleVisibility}
         onDelete={(entry) => handleDeleteEntry(entry.id)}
         onToggleLike={handleToggleLike}
+        onGiveAward={setAwardEntryId}
       />
     );
   }
@@ -591,6 +639,12 @@ export default function Feed() {
       taggedGoal={pickerEntry?.goal_id ? goalsById[pickerEntry.goal_id] : null}
       onAssign={(goalId) => assignGoal(pickerEntry.id, goalId)}
       onDismiss={() => setPickerEntryId(null)}
+    />
+
+    <AwardPickerModal
+      entryId={awardEntryId}
+      onGive={(awardType) => handleGiveAward(awardEntryId, awardType)}
+      onDismiss={() => setAwardEntryId(null)}
     />
 
     <ShareModal

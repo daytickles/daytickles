@@ -4,7 +4,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationsContext';
 import { supabase } from '../lib/supabase';
-import { C } from '../lib/theme';
+import { C, AWARD_TYPES } from '../lib/theme';
 import { flagEmoji } from '../lib/country';
 
 function formatTimestamp(createdAt) {
@@ -17,10 +17,10 @@ function formatTimestamp(createdAt) {
 }
 
 // The type column is a Postgres check constraint ('like' | 'comment' |
-// 'streak_milestone'), but only 'like' has real UI built on top of it
-// so far — comment/streak_milestone rows are handled defensively so a
-// row of either type never crashes this screen, just degrades to a
-// generic line.
+// 'streak_milestone' | 'favorite' | 'award', see migration 0020 for the
+// latter two), but 'comment' has no real UI built on top of it yet —
+// that row type is handled defensively so it never crashes this screen,
+// just degrades to a generic line.
 function notificationText(n) {
   const flag = n.profiles?.country ? ` ${flagEmoji(n.profiles.country)}` : '';
   const actorName = n.profiles?.username ? `${n.profiles.username}${flag}` : 'Someone';
@@ -29,6 +29,15 @@ function notificationText(n) {
   switch (n.type) {
     case 'like':
       return entryText ? `${actorName} liked your tickle: ${entryText}` : `${actorName} liked your tickle`;
+    case 'favorite':
+      return entryText ? `${actorName} favorited your tickle: ${entryText}` : `${actorName} favorited your tickle`;
+    case 'award': {
+      const award = AWARD_TYPES[n.award_type];
+      const awardPhrase = award ? `a ${award.label} award` : 'an award';
+      return entryText
+        ? `${actorName} gave your tickle ${awardPhrase}: ${entryText}`
+        : `${actorName} gave your tickle ${awardPhrase}`;
+    }
     case 'comment':
       return entryText ? `${actorName} commented on your tickle: ${entryText}` : `${actorName} commented on your tickle`;
     case 'streak_milestone':
@@ -36,6 +45,17 @@ function notificationText(n) {
     default:
       return 'New notification';
   }
+}
+
+// Left-border accent, distinct per type -- only favorite/award get one;
+// like/comment/streak_milestone keep the plain unaccented row they've
+// always had. Award reuses that specific award's own hue-verified color
+// (lib/theme.js's AWARD_TYPES) rather than inventing a fourth, since the
+// notification and the on-card icon should read as the same thing.
+function notificationAccent(n) {
+  if (n.type === 'favorite') return C.teal;
+  if (n.type === 'award') return AWARD_TYPES[n.award_type]?.color || null;
+  return null;
 }
 
 export default function Notifications() {
@@ -51,7 +71,7 @@ export default function Notifications() {
     const { data, error } = await supabase
       .from('notifications')
       .select(
-        'id, type, is_read, created_at, entry_id, actor_id, tickle_entries(text_content), profiles!notifications_actor_id_fkey(username, avatar_emoji, country)'
+        'id, type, award_type, is_read, created_at, entry_id, actor_id, tickle_entries(text_content), profiles!notifications_actor_id_fkey(username, avatar_emoji, country)'
       )
       .eq('recipient_id', session.user.id)
       .order('created_at', { ascending: false });
@@ -87,9 +107,14 @@ export default function Notifications() {
   }
 
   function renderNotification({ item }) {
+    const accent = notificationAccent(item);
     return (
       <TouchableOpacity
-        style={[styles.row, !item.is_read && styles.rowUnread]}
+        style={[
+          styles.row,
+          !item.is_read && styles.rowUnread,
+          accent && { borderLeftWidth: 4, borderLeftColor: accent },
+        ]}
         onPress={() => handlePress(item)}
       >
         {!item.is_read && <View style={styles.unreadDot} />}

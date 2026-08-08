@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
@@ -8,6 +8,7 @@ import { supabase } from '../../lib/supabase';
 import { C, accentFor, darken, textOn, TICKLE_NATURE_ICONS, NATURE_ORDER } from '../../lib/theme';
 import { shareEntry, shareStatus, SHARE_CAPTIONS } from '../../lib/sharing';
 import GoalTagModal from '../../components/GoalTagModal';
+import AwardPickerModal from '../../components/AwardPickerModal';
 import ShareModal from '../../components/ShareModal';
 import PhotoEnlargeModal from '../../components/PhotoEnlargeModal';
 import EntryCard from '../../components/EntryCard';
@@ -59,7 +60,11 @@ export default function Calendar() {
   const [goals, setGoals] = useState([]);
   const [pickerEntryId, setPickerEntryId] = useState(null);
   const [shareEntryId, setShareEntryId] = useState(null);
+  const [awardEntryId, setAwardEntryId] = useState(null);
   const [favoritedIds, setFavoritedIds] = useState(new Set());
+  // Map<entryId, awardType> -- same shape/reasoning as feed.js's own
+  // awardedTypes (private-to-giver RLS, loaded once per session below).
+  const [awardedTypes, setAwardedTypes] = useState(new Map());
   const [photoLinkedIds, setPhotoLinkedIds] = useState(new Set());
   const [photoDatesInMonth, setPhotoDatesInMonth] = useState(new Set());
   const [enlargeUri, setEnlargeUri] = useState(null);
@@ -144,10 +149,24 @@ export default function Calendar() {
     setPhotoDatesInMonth(new Set(photoDates));
   }, [session, viewYear, viewMonth]);
 
+  // Same reasoning as feed.js's own loadAwards -- only this screen's
+  // handleGiveAward (or feed.js's) can ever create an award row, and
+  // awards are permanent once given, so this loads once per session
+  // rather than refetching on every focus like the loaders above.
+  const loadAwards = useCallback(async () => {
+    if (!session) return;
+    const { data, error } = await supabase
+      .from('awards')
+      .select('entry_id, award_type')
+      .eq('user_id', session.user.id);
+    if (!error) setAwardedTypes(new Map((data || []).map((a) => [a.entry_id, a.award_type])));
+  }, [session]);
+
   useFocusEffect(useCallback(() => { loadGoals(); }, [loadGoals]));
   useFocusEffect(useCallback(() => { loadFavorited(); }, [loadFavorited]));
   useFocusEffect(useCallback(() => { loadMonth(); }, [loadMonth]));
   useFocusEffect(useCallback(() => { loadPinBoardData(); }, [loadPinBoardData]));
+  useEffect(() => { loadAwards(); }, [loadAwards]);
 
   async function handleOpenPhoto(entryId) {
     const photo = await getPhotoForEntry(session.user.id, entryId);
@@ -213,6 +232,28 @@ export default function Calendar() {
       : await supabase.from('favorites').insert({ user_id: session.user.id, entry_id: entryId });
 
     if (error) setFavoritedIds(previous);
+  }
+
+  // No revert-to-previous-award-then-retry, unlike the toggle above -- an
+  // award is a one-shot insert, not a toggle, so a failure just means it
+  // never happened; rolling awardedTypes back to "no award" is the
+  // correct/only recovery. Same shape as feed.js's own handleGiveAward.
+  async function handleGiveAward(entryId, awardType) {
+    setAwardEntryId(null);
+    setAwardedTypes((prev) => new Map(prev).set(entryId, awardType));
+
+    const { error } = await supabase
+      .from('awards')
+      .insert({ entry_id: entryId, user_id: session.user.id, award_type: awardType });
+
+    if (error) {
+      setAwardedTypes((prev) => {
+        const next = new Map(prev);
+        next.delete(entryId);
+        return next;
+      });
+      console.error('handleGiveAward failed', error);
+    }
   }
 
   async function handleToggleVisibility(entry) {
@@ -468,12 +509,14 @@ export default function Calendar() {
                   isLiked={false}
                   taggedGoal={item.goal_id ? goalsById[item.goal_id] : null}
                   hasLinkedPhoto={photoLinkedIds.has(item.id)}
+                  awardType={awardedTypes.get(item.id) || null}
                   onOpenPhoto={handleOpenPhoto}
                   onPickGoal={setPickerEntryId}
                   onShare={setShareEntryId}
                   onToggleFavorite={handleToggleFavorite}
                   onToggleVisibility={handleToggleVisibility}
                   onDelete={(entry) => handleDeleteEntry(entry.id)}
+                  onGiveAward={setAwardEntryId}
                 />
               ))
             )}
@@ -487,6 +530,12 @@ export default function Calendar() {
         taggedGoal={pickerEntry?.goal_id ? goalsById[pickerEntry.goal_id] : null}
         onAssign={(goalId) => assignGoal(pickerEntry.id, goalId)}
         onDismiss={() => setPickerEntryId(null)}
+      />
+
+      <AwardPickerModal
+        entryId={awardEntryId}
+        onGive={(awardType) => handleGiveAward(awardEntryId, awardType)}
+        onDismiss={() => setAwardEntryId(null)}
       />
 
       <ShareModal

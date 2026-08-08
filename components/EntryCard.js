@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { C, accentFor, darken, lighten, moodColorFor, moodDotSize, TICKLE_NATURE_ICONS } from '../lib/theme';
+import { C, accentFor, darken, lighten, moodColorFor, moodDotSize, TICKLE_NATURE_ICONS, AWARD_TYPES } from '../lib/theme';
 import { flagEmoji } from '../lib/country';
 import InitialsAvatar from './InitialsAvatar';
 
@@ -34,6 +34,7 @@ export default function EntryCard({
   isLiked,
   taggedGoal,
   hasLinkedPhoto,
+  awardType,
   onLayout,
   onToggleFollow,
   onPickGoal,
@@ -43,6 +44,7 @@ export default function EntryCard({
   onDelete,
   onToggleLike,
   onOpenPhoto,
+  onGiveAward,
 }) {
   const accent = accentFor(item.profiles?.accent_theme);
   const isOwnEntry = item.user_id === currentUserId;
@@ -164,6 +166,31 @@ export default function EntryCard({
                   {isFavorited ? '★' : '☆'}
                 </Text>
               </TouchableOpacity>
+              {/* Unlike the favorite star above (favoriting your own
+                  entry is allowed), awarding your own entry is blocked
+                  -- both here client-side and server-side via migration
+                  0020's prevent_self_award trigger, same defense-in-
+                  depth shape as the Like button's own !isOwnEntry gate
+                  further down this file. */}
+              {isFavorited && !isOwnEntry && (
+                awardType ? (
+                  // Permanent once given (see migration 0020) -- a plain
+                  // View, not a TouchableOpacity, since there's nothing
+                  // left to tap: no edit/change affordance exists for an
+                  // already-given award.
+                  <View style={styles.awardAction}>
+                    <Ionicons name={AWARD_TYPES[awardType].iconActive} size={16} color={AWARD_TYPES[awardType].color} />
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    onPress={() => onGiveAward?.(item.id)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    style={styles.awardAction}
+                  >
+                    <Ionicons name="ribbon-outline" size={16} color={C.faint} />
+                  </TouchableOpacity>
+                )
+              )}
               {showMineActions && (
                 <TouchableOpacity
                   onPress={() => onToggleVisibility?.(item)}
@@ -247,6 +274,7 @@ const styles = StyleSheet.create({
   shareAction: { marginLeft: 12 },
   editAction: { marginLeft: 12 },
   starAction: { marginLeft: 12 },
+  awardAction: { marginLeft: 12 },
   visibilityAction: { marginLeft: 12 },
   deleteAction: { marginLeft: 12 },
   entryText: { fontSize: 15, color: C.text, lineHeight: 20 },
