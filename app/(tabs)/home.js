@@ -552,7 +552,7 @@ export default function Home() {
     />
 
     <ShareModal
-      entry={shareTargetEntry}
+      visible={shareTargetEntry}
       captions={SHARE_CAPTIONS}
       blocked={shareBlocked}
       cap={shareStat?.cap}
