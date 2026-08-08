@@ -86,10 +86,30 @@ export default function Feed() {
   // it shouldn't itself trigger a re-render.
   const cardHeights = useRef({});
 
-  // Follow/favorite/like state is loaded independently of the active
-  // tab — Everyone needs followedIds for its Follow/Following buttons,
-  // every tab needs favoritedIds and likedIds for its star/sparkle
-  // icons, regardless of which tab is currently showing.
+  // Feed used to be a plain stack screen that unmounted/remounted on
+  // every visit, so the useState initializers above were enough to pick
+  // up a fresh tab/highlightEntry each time. Now that Feed lives in the
+  // bottom Tabs navigator it stays mounted across tab switches, so a
+  // repeat router.push('/feed', { tab, highlightEntry }) from Home,
+  // Weekly Summary, or notifications.js just refocuses this same
+  // instance instead of remounting it -- without this resync, those
+  // pushes silently stop switching tabs/highlighting after the first
+  // time Feed is opened in a session.
+  useEffect(() => {
+    if (!TABS.some((t) => t.id === params.tab)) return;
+    setTab(params.tab);
+    setHighlightedEntryId(
+      Array.isArray(params.highlightEntry) ? params.highlightEntry[0] : params.highlightEntry || null
+    );
+  }, [params.tab, params.highlightEntry]);
+
+  // followedIds/likedIds are only ever mutated by this screen's own
+  // optimistic toggle handlers below (handleToggleFollow/handleToggleLike)
+  // -- no other screen writes to follows/likes -- so they only need to
+  // load once per session rather than refetch on every tab focus.
+  // favoritedIds and goals, by contrast, can genuinely change from other
+  // screens while Feed is backgrounded (Calendar's favorite toggle, the
+  // Goals screen), so those two keep reloading on every focus below.
   const loadFollowed = useCallback(async () => {
     if (!session) return;
     const { data, error } = await supabase
@@ -129,11 +149,9 @@ export default function Feed() {
     if (!error) setGoals(data || []);
   }, [session]);
 
-  useFocusEffect(
-    useCallback(() => {
-      loadFollowed();
-    }, [loadFollowed])
-  );
+  useEffect(() => {
+    loadFollowed();
+  }, [loadFollowed]);
 
   useFocusEffect(
     useCallback(() => {
@@ -141,11 +159,9 @@ export default function Feed() {
     }, [loadFavorited])
   );
 
-  useFocusEffect(
-    useCallback(() => {
-      loadLiked();
-    }, [loadLiked])
-  );
+  useEffect(() => {
+    loadLiked();
+  }, [loadLiked]);
 
   useFocusEffect(
     useCallback(() => {
@@ -179,9 +195,33 @@ export default function Feed() {
     if (photo) setEnlargeUri(photo.file_path);
   }
 
+  // Mirrors `entries.length > 0` for loadFeed without making `entries`
+  // one of its dependencies -- react-navigation's useFocusEffect re-runs
+  // its effect (and so re-invokes loadFeed immediately, screen already
+  // focused) whenever the wrapped callback's identity changes, so a
+  // loadFeed that depended on entries would retrigger itself every time
+  // it finished loading, in a loop.
+  const hasEntriesRef = useRef(false);
+  useEffect(() => {
+    hasEntriesRef.current = entries.length > 0;
+  }, [entries]);
+
+  // Tracks which tab/natureFilter combination the currently-shown
+  // entries belong to, so loadFeed can tell a genuine tab/filter switch
+  // (new content incoming, worth a brief spinner) apart from a same-tab
+  // refocus or a followedIds/favoritedIds/likedIds-driven refetch (same
+  // content, just refreshing in place -- no spinner flash needed).
+  const lastLoadedKeyRef = useRef(null);
+
   const loadFeed = useCallback(async () => {
     if (!session) return;
-    setLoading(true);
+    const loadKey = `${tab}:${natureFilter}`;
+    const isTabChange = loadKey !== lastLoadedKeyRef.current;
+    lastLoadedKeyRef.current = loadKey;
+    // Show the spinner for a genuine tab/filter switch, or when there's
+    // nothing on screen yet -- skip it for a same-tab refocus where the
+    // list is just refreshing in place.
+    if (isTabChange || !hasEntriesRef.current) setLoading(true);
 
     if (tab === 'following') {
       // Followed accounts' public entries only — RLS blocks their private
@@ -258,6 +298,18 @@ export default function Feed() {
 
     listRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
   }, [tab, highlightedEntryId, entries]);
+
+  // Scroll back to the top on every tab switch (Everyone/Following/
+  // Mine/Fav's) or Mine's nature-filter chip switch (All/My smiles/
+  // Given/For me/DJ) so a newly-selected tab or filter doesn't inherit
+  // whatever scroll position the previous one was left at. Skipped when
+  // a highlightEntry deep link just set the tab -- that case scrolls to
+  // the specific highlighted entry via the effect above instead, and
+  // this would otherwise stomp on that scroll immediately after.
+  useEffect(() => {
+    if (highlightedEntryId) return;
+    listRef.current?.scrollToOffset({ offset: 0, animated: true });
+  }, [tab, natureFilter]);
 
   function handleTabPress(tabId) {
     setTab(tabId);
