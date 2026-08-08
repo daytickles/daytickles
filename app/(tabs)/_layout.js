@@ -2,14 +2,19 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { StyleSheet } from 'react-native';
-import { C } from '../../lib/theme';
+import { C, lighten } from '../../lib/theme';
+
+// Roughly midway between C.text and C.subtext -- distinct enough from
+// the inactive icons' C.subtext to still show which tab is selected,
+// without the much heavier/darker contrast plain C.text had.
+const tabBarActiveColor = lighten(C.text, 0.35);
 
 export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: C.text,
+        tabBarActiveTintColor: tabBarActiveColor,
         tabBarInactiveTintColor: C.subtext,
         tabBarShowLabel: false,
         tabBarStyle: {
@@ -19,7 +24,7 @@ export default function TabsLayout() {
           elevation: 0,
         },
         tabBarBackground: () => (
-          <BlurView intensity={40} tint="light" style={StyleSheet.absoluteFill} />
+          <BlurView intensity={75} tint="light" style={StyleSheet.absoluteFill} />
         ),
       }}
     >
