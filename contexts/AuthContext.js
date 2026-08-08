@@ -23,6 +23,7 @@ const RENDER_RELEVANT_FIELDS = [
   'share_count_this_period',
   'trial_started_at',
   'day_journal_enabled',
+  'week_start_day',
 ];
 
 function profilesEqual(a, b) {

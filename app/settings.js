@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { C, ACCENT_THEMES, accentFor, darken, textOn } from '../lib/theme';
+import { DEFAULT_WEEK_START_DAY } from '../lib/week';
 import { flagEmoji, countryNameFor } from '../lib/country';
 import Button from '../components/Button';
 import HomeGuide from '../components/HomeGuide';
@@ -22,6 +23,19 @@ import { isReviewAvailable, requestReview } from '../lib/rateUs';
 import { hasPinSet, clearPin } from '../lib/pinLock';
 import { deleteAccount } from '../lib/deleteAccount';
 
+// 0=Sunday..6=Saturday, matching lib/week.js/profiles.week_start_day's
+// own convention -- no translation needed between this list and what
+// gets saved.
+const WEEK_START_OPTIONS = [
+  { day: 0, label: 'Su' },
+  { day: 1, label: 'Mo' },
+  { day: 2, label: 'Tu' },
+  { day: 3, label: 'We' },
+  { day: 4, label: 'Th' },
+  { day: 5, label: 'Fr' },
+  { day: 6, label: 'Sa' },
+];
+
 export default function Settings() {
   const { profile, setProfile, refreshProfile } = useAuth();
   const accentDark = darken(accentFor(profile?.accent_theme).card, 0.35);
@@ -29,6 +43,7 @@ export default function Settings() {
   const [showAbout, setShowAbout] = useState(false);
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [savingTheme, setSavingTheme] = useState(null);
+  const [savingWeekStartDay, setSavingWeekStartDay] = useState(null);
   const [savingDayJournal, setSavingDayJournal] = useState(false);
   const [savingNotifyOnLikes, setSavingNotifyOnLikes] = useState(false);
   const [savingCountry, setSavingCountry] = useState(false);
@@ -102,6 +117,24 @@ export default function Settings() {
 
     const { error } = await supabase.from('profiles').update({ accent_theme: themeId }).eq('id', profile.id);
     setSavingTheme(null);
+
+    if (error) {
+      setProfile(previous);
+    } else {
+      refreshProfile();
+    }
+  }
+
+  async function handlePickWeekStartDay(day) {
+    const current = profile?.week_start_day ?? DEFAULT_WEEK_START_DAY;
+    if (!profile || day === current) return;
+    const previous = profile;
+
+    setProfile({ ...profile, week_start_day: day });
+    setSavingWeekStartDay(day);
+
+    const { error } = await supabase.from('profiles').update({ week_start_day: day }).eq('id', profile.id);
+    setSavingWeekStartDay(null);
 
     if (error) {
       setProfile(previous);
@@ -285,6 +318,30 @@ export default function Settings() {
       </View>
       <View style={styles.spacer} />
 
+      <Text style={styles.label}>Week starts on</Text>
+      <View style={styles.weekDayRow}>
+        {WEEK_START_OPTIONS.map((option) => {
+          const selected = (profile?.week_start_day ?? DEFAULT_WEEK_START_DAY) === option.day;
+          return (
+            <TouchableOpacity
+              key={option.day}
+              onPress={() => handlePickWeekStartDay(option.day)}
+              disabled={savingWeekStartDay !== null}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <View style={[styles.daySwatch, selected && { backgroundColor: accentDark, borderColor: accentDark }]}>
+                {selected ? (
+                  <Ionicons name="checkmark" size={16} color={textOn(accentDark)} />
+                ) : (
+                  <Text style={styles.daySwatchLabel}>{option.label}</Text>
+                )}
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+      <View style={styles.spacer} />
+
       <View style={styles.toggleRow}>
         <Text style={styles.toggleLabel}>Day Journal</Text>
         <Switch
@@ -427,6 +484,15 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 2, borderColor: 'transparent',
   },
+  // Narrower gap than swatchRow -- 7 day options vs 5 accent colors
+  // need to fit the same content width.
+  weekDayRow: { flexDirection: 'row', gap: 8 },
+  daySwatch: {
+    width: 36, height: 36, borderRadius: 10,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: C.border, backgroundColor: C.card,
+  },
+  daySwatchLabel: { fontSize: 12, fontWeight: '600', color: C.subtext },
   toggleRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
   },
