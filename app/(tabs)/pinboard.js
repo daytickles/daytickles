@@ -148,7 +148,7 @@ export default function PinBoard() {
       return;
     }
 
-    await sharePhoto({ profile, captionId, onProfileUpdated: refreshProfile, cardImageUri });
+    await sharePhoto({ profile, photoId: photo.id, captionId, onProfileUpdated: refreshProfile, cardImageUri });
   }
 
   const shareStat = profile ? shareStatus(profile) : null;
