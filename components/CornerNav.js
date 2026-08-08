@@ -11,7 +11,7 @@ import { useNotifications } from '../contexts/NotificationsContext';
 // header row; now that Feed/Calendar/Tickle Pics are peer tabs rather
 // than screens only reached via Home, they need to be reachable from
 // all four.
-export default function CornerNav() {
+export default function CornerNav({ style }) {
   const { unreadCount, refreshUnreadCount } = useNotifications();
 
   // Refetches on every focus of whichever tab hosts this component --
@@ -24,7 +24,7 @@ export default function CornerNav() {
   );
 
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, style]}>
       <TouchableOpacity
         onPress={() => router.push('/weekly-summary')}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}

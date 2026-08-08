@@ -418,19 +418,19 @@ export default function Home() {
       style={styles.container}
       contentContainerStyle={[styles.content, { paddingBottom: styles.content.paddingBottom + tabBarHeight }]}
     >
-      <CornerNav />
-
       <View style={styles.titleRow}>
         <Text style={styles.title} numberOfLines={1}>DayTickles</Text>
-        {profile && (
-          <View style={styles.profileGroup}>
-            <InitialsAvatar username={profile.username} accentTheme={profile.accent_theme} size={20} />
-            <Text style={styles.profileText}>
-              {profile.username}{profile.country ? `  ${flagEmoji(profile.country)}` : ''}
-            </Text>
-          </View>
-        )}
+        <CornerNav style={styles.cornerNavInline} />
       </View>
+
+      {profile && (
+        <View style={styles.profileRow}>
+          <InitialsAvatar username={profile.username} accentTheme={profile.accent_theme} size={20} />
+          <Text style={styles.profileText}>
+            {profile.username}{profile.country ? `  ${flagEmoji(profile.country)}` : ''}
+          </Text>
+        </View>
+      )}
 
       {showReturnedMessage && (
         <TouchableOpacity
@@ -565,10 +565,16 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
   content: { padding: 20, paddingTop: 40, paddingBottom: 40 },
   titleRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6,
   },
+  // Cancels CornerNav's own marginBottom (meant for when it stands alone
+  // at the top of Feed/Calendar/Tickle Pics) now that it's nested inside
+  // titleRow -- titleRow's own marginBottom above already provides the
+  // gap to profileRow below; without this the row would carry a double
+  // margin and an uneven height between the title text and the icons.
+  cornerNavInline: { marginBottom: 0 },
   title: { fontSize: 20, fontWeight: 'bold', color: C.rustDark, flexShrink: 1 },
-  profileGroup: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  profileRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
   profileText: { fontSize: 16, color: C.text },
   returnedBanner: {
     backgroundColor: C.sparkleBg, borderRadius: 14,
