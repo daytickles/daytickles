@@ -13,7 +13,7 @@ import ShareModal from '../../components/ShareModal';
 import PhotoEnlargeModal from '../../components/PhotoEnlargeModal';
 import EntryCard, { CARD_SPACING } from '../../components/EntryCard';
 import CornerNav from '../../components/CornerNav';
-import { getAllLinkedEntryIds, getPhotoForEntry } from '../../lib/pinBoardDb';
+import { initPinBoardDb, getAllLinkedEntryIds, getPhotoForEntry } from '../../lib/pinBoardDb';
 import { useShareCard } from '../../lib/useShareCard';
 
 const TABS = [
@@ -156,9 +156,14 @@ export default function Feed() {
   // Local-only Pin Board links (see lib/pinBoardDb.js) — loaded the same
   // way as followedIds/favoritedIds/likedIds above: independent of tab,
   // since a link only ever exists for this device's own entries no
-  // matter which tab surfaces them.
+  // matter which tab surfaces them. initPinBoardDb() first, same as
+  // Calendar's loadPinBoardData and Pinboard's loadBoard -- Feed can be
+  // the very first screen a fresh install ever visits (it's a bottom
+  // tab now), so it can't assume Calendar/Tickle Pics already created
+  // the local SQLite tables.
   const loadPhotoLinks = useCallback(async () => {
     if (!session) return;
+    await initPinBoardDb(session.user.id);
     const ids = await getAllLinkedEntryIds(session.user.id);
     setPhotoLinkedIds(new Set(ids));
   }, [session]);
