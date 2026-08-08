@@ -333,6 +333,9 @@ const styles = StyleSheet.create({
   },
   connectionCardText: { fontSize: 14, color: C.tealText, lineHeight: 20 },
 
-  pinBoardCard: { backgroundColor: C.sparkleBg, borderRadius: 16, padding: 14, marginBottom: 16 },
+  pinBoardCard: {
+    backgroundColor: C.sparkleBg, borderWidth: 1, borderColor: C.amberDark,
+    borderRadius: 16, padding: 14, marginBottom: 16,
+  },
   pinBoardCardText: { fontSize: 14, color: C.sparkleText, lineHeight: 20 },
 });
