@@ -508,7 +508,7 @@ export default function Home() {
         ))}
       </View>
 
-      <Button title="New Tickle" onPress={() => router.push('/create')} variant="primary" />
+      <Button title="New Tickle" onPress={() => router.push('/create')} variant="secondary" />
 
       {pinned && (
         <TouchableOpacity
