@@ -6,9 +6,9 @@ import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { C, accentFor, moodColorFor, moodDotSize, textOn, lighten, withAlpha, TICKLE_NATURE_ICONS } from '../../lib/theme';
+import { C, accentFor, moodColorFor, moodDotSize, textOn, lighten, withAlpha, TICKLE_NATURE_ICONS, NATURE_ORDER } from '../../lib/theme';
 import { shareEntry, shareStatus, SHARE_CAPTIONS } from '../../lib/sharing';
-import { isThisWeek, currentWeekStartISO, localDateString } from '../../lib/week';
+import { isThisWeek, currentWeekStartISO, localDateString, DEFAULT_WEEK_START_DAY } from '../../lib/week';
 import { flagEmoji } from '../../lib/country';
 import Button from '../../components/Button';
 import InitialsAvatar from '../../components/InitialsAvatar';
@@ -21,9 +21,8 @@ import { isReviewAvailable, requestReview } from '../../lib/rateUs';
 
 const PINNED_WINDOW_DAYS = 14;
 
-// Display order + labels for the self-care badge row — mirrors
+// Labels for the self-care badge row's tap-to-reveal tooltip — mirrors
 // create.js's TICKLE_NATURE_OPTIONS order (received, given, self).
-const NATURE_ORDER = ['received', 'given', 'self'];
 const NATURE_LABELS = {
   received: 'Made me smile',
   given: 'I paid forward',
@@ -180,10 +179,10 @@ export default function Home() {
       .from('likes')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', session.user.id)
-      .gte('created_at', currentWeekStartISO());
+      .gte('created_at', currentWeekStartISO(profile?.week_start_day ?? DEFAULT_WEEK_START_DAY));
 
     if (!error) setWeeklyLikesGiven(count || 0);
-  }, [session]);
+  }, [session, profile?.week_start_day]);
 
   useFocusEffect(
     useCallback(() => {
@@ -287,7 +286,7 @@ export default function Home() {
   }
 
   const totalTickles = entries.length;
-  const weeklyEntries = entries.filter((e) => isThisWeek(e.entry_date));
+  const weeklyEntries = entries.filter((e) => isThisWeek(e.entry_date, profile?.week_start_day ?? DEFAULT_WEEK_START_DAY));
   const weeklyTickles = weeklyEntries.length;
 
   // Milestone Rate-Us prompt (backlog #8) — flips true the moment it's

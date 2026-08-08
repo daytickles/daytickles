@@ -5,7 +5,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { C, accentFor, darken, textOn, TICKLE_NATURE_ICONS } from '../../lib/theme';
+import { C, accentFor, darken, textOn, TICKLE_NATURE_ICONS, NATURE_ORDER } from '../../lib/theme';
 import { shareEntry, shareStatus, SHARE_CAPTIONS } from '../../lib/sharing';
 import GoalTagModal from '../../components/GoalTagModal';
 import ShareModal from '../../components/ShareModal';
@@ -18,12 +18,6 @@ import {
 import { useShareCard } from '../../lib/useShareCard';
 
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-
-// Fixed display order for Tickle Vibes' per-day icon row -- Set
-// iteration would otherwise follow query result order (arbitrary,
-// since loadMonth has no ORDER BY), making icons jump around between
-// days rather than always reading sunny/heart/leaf left to right.
-const NATURE_ORDER = ['received', 'given', 'self'];
 
 const ENTRY_SELECT =
   'id, entry_date, text_content, mood, like_count, tickle_nature, goal_id, visibility, is_edited, created_at, user_id, profiles!tickle_entries_user_id_fkey(username, avatar_emoji, accent_theme, country)';
