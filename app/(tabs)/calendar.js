@@ -307,6 +307,10 @@ export default function Calendar() {
       ? viewMode === 'vibes'
         ? 'No Vibes entries this day.'
         : 'No goal-tagged entries this day.'
+      : viewMode === 'vibes'
+      ? 'No Vibes entries this day.'
+      : viewMode === 'goals'
+      ? 'No goal-tagged entries this day.'
       : 'No tickles logged this day.';
 
   const pickerEntry = dayEntries.find((e) => e.id === pickerEntryId) || null;
