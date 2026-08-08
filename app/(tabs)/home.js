@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { C, accentFor, moodColorFor, moodDotSize, textOn, lighten, withAlpha, TICKLE_NATURE_ICONS } from '../../lib/theme';
@@ -74,6 +75,7 @@ export default function Home() {
   const accent = accentFor(profile?.accent_theme);
   const streakSunburstColor = withAlpha(lighten(accent.card, 0.5), 0.4);
   const tabBarHeight = useBottomTabBarHeight();
+  const insets = useSafeAreaInsets();
 
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -416,7 +418,10 @@ export default function Home() {
     <>
     <ScrollView
       style={styles.container}
-      contentContainerStyle={[styles.content, { paddingBottom: styles.content.paddingBottom + tabBarHeight }]}
+      contentContainerStyle={[
+        styles.content,
+        { paddingTop: insets.top + 12, paddingBottom: styles.content.paddingBottom + tabBarHeight },
+      ]}
     >
       <View style={styles.titleRow}>
         <Text style={styles.title} numberOfLines={1}>DayTickles</Text>
@@ -522,7 +527,11 @@ export default function Home() {
         <Text style={styles.emptyText}>No tickles yet — write about what made you smile today.</Text>
       )}
 
-      {!loading && entries.length > 0 && (
+      {/* Skip re-rendering the same entry twice -- pinned (highest
+          like_count in the last 14 days) and entries[0] (the single most
+          recent entry) frequently coincide, especially for newer/lower-
+          activity accounts. */}
+      {!loading && entries.length > 0 && entries[0].id !== pinned?.id && (
         <>
           <Text style={styles.sectionLabel}>Latest tickle</Text>
           <TouchableOpacity
@@ -563,7 +572,7 @@ export default function Home() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
-  content: { padding: 20, paddingTop: 40, paddingBottom: 40 },
+  content: { padding: 20, paddingBottom: 40 },
   titleRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6,
   },
@@ -590,9 +599,9 @@ const styles = StyleSheet.create({
   ratePromptActions: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   ratePromptRateText: { fontSize: 14, fontWeight: '700', color: C.sparkleText },
 
-  streakRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
+  streakRow: { flexDirection: 'row', gap: 12, marginBottom: 8 },
   streakCard: {
-    flex: 1, borderRadius: 18, paddingVertical: 14,
+    flex: 1, borderRadius: 18, paddingVertical: 10,
     alignItems: 'center', overflow: 'hidden',
   },
   streakSunburst: {
@@ -602,10 +611,10 @@ const styles = StyleSheet.create({
   streakNumber: { fontSize: 24, fontWeight: 'bold' },
   streakLabel: { fontSize: 14, marginTop: 2 },
 
-  statsRow: { flexDirection: 'row', gap: 12, marginBottom: 20 },
+  statsRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
   statCard: {
     flex: 1, borderRadius: 18,
-    paddingVertical: 16, alignItems: 'center',
+    paddingVertical: 12, alignItems: 'center',
   },
   statCardTickles: { backgroundColor: C.amberBg },
   statCardLikes: { backgroundColor: C.teal },
@@ -622,12 +631,12 @@ const styles = StyleSheet.create({
   },
   selfCareRow: {
     flexDirection: 'row', justifyContent: 'center', gap: 12,
-    marginBottom: 16,
+    marginBottom: 10,
   },
   selfCareBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: C.card, borderRadius: 14, borderWidth: 1, borderColor: C.border,
-    paddingVertical: 8, paddingHorizontal: 14,
+    paddingVertical: 6, paddingHorizontal: 14,
   },
   selfCareCount: { fontSize: 13, fontWeight: '600', color: C.text },
   natureTooltip: {
@@ -641,19 +650,19 @@ const styles = StyleSheet.create({
   },
 
   pinnedCard: {
-    marginTop: 20, borderWidth: 1.5, borderColor: C.amberDark, backgroundColor: C.sparkleBg,
+    marginTop: 12, borderWidth: 1.5, borderColor: C.amberDark, backgroundColor: C.sparkleBg,
   },
   pinnedLabel: {
     fontSize: 12, fontWeight: '600', color: C.sparkleText,
     marginBottom: 8,
   },
 
-  sectionLabel: { fontSize: 14, fontWeight: '600', color: C.subtext, marginTop: 8, marginBottom: 8 },
+  sectionLabel: { fontSize: 14, fontWeight: '600', color: C.subtext, marginTop: 6, marginBottom: 6 },
   loader: { marginTop: 12 },
   emptyText: { color: C.subtext, textAlign: 'center', marginTop: 12 },
 
   entryCard: {
-    backgroundColor: C.card, borderRadius: 16, padding: 14, marginBottom: 12,
+    backgroundColor: C.card, borderRadius: 16, padding: 10, marginBottom: 12,
   },
   entryRow: { flexDirection: 'row', alignItems: 'flex-start' },
   moodDot: { marginRight: 12, marginTop: 4 },
