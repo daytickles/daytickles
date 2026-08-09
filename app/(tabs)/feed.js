@@ -57,6 +57,22 @@ const ENTRY_SELECT =
 // from EntryCard.js so the two can't silently drift apart).
 const DEFAULT_ITEM_HEIGHT = 114;
 
+// Public award flag (entry_id only, see migration 0021) for a given
+// page of entries. Called from inside loadFeed itself, right alongside
+// setEntries, rather than as a separate effect reacting to `entries` --
+// that shape used to fire a second render right after every content
+// refresh (setEntries, then the effect noticing entries changed,
+// querying, then setAwardedEntryIds); calling it here lets both land in
+// the same batch instead.
+async function fetchAwardedEntryIds(entryIds) {
+  if (entryIds.length === 0) return new Set();
+  const { data, error } = await supabase
+    .from('awarded_entries')
+    .select('entry_id')
+    .in('entry_id', entryIds);
+  return error ? new Set() : new Set((data || []).map((a) => a.entry_id));
+}
+
 export default function Feed() {
   const { session, profile, refreshProfile } = useAuth();
   const accentDark = darken(accentFor(profile?.accent_theme).card, 0.35);
@@ -83,10 +99,10 @@ export default function Feed() {
   const [awardedTypes, setAwardedTypes] = useState(new Map());
   // Set<entryId> -- the PUBLIC "has any award, from anyone" flag (via
   // awarded_entries, entry_id only), unlike awardedTypes above which is
-  // private/viewer-scoped. Loaded per the current page of entries (see
-  // the entries-reactive effect below), not per-session like the other
-  // Sets, since it needs to cover every entry on screen, not just ones
-  // this viewer has personally interacted with.
+  // private/viewer-scoped. Loaded inside loadFeed itself, alongside
+  // setEntries (see fetchAwardedEntryIds above), not per-session like
+  // the other Sets, since it needs to cover every entry on screen, not
+  // just ones this viewer has personally interacted with.
   const [awardedEntryIds, setAwardedEntryIds] = useState(new Set());
   const [enlargeUri, setEnlargeUri] = useState(null);
   const { hiddenCard, captureCard } = useShareCard();
@@ -260,6 +276,7 @@ export default function Feed() {
       const followeeIds = Array.from(followedIds);
       if (followeeIds.length === 0) {
         setEntries([]);
+        setAwardedEntryIds(new Set());
         setLoading(false);
         return;
       }
@@ -269,7 +286,12 @@ export default function Feed() {
         .eq('visibility', 'public')
         .in('user_id', followeeIds)
         .order('created_at', { ascending: false });
-      if (!error) setEntries(data || []);
+      if (!error) {
+        const entriesData = data || [];
+        const awardedIds = await fetchAwardedEntryIds(entriesData.map((e) => e.id));
+        setEntries(entriesData);
+        setAwardedEntryIds(awardedIds);
+      }
       setLoading(false);
       return;
     }
@@ -282,6 +304,7 @@ export default function Feed() {
       const favIds = Array.from(favoritedIds);
       if (favIds.length === 0) {
         setEntries([]);
+        setAwardedEntryIds(new Set());
         setLoading(false);
         return;
       }
@@ -290,7 +313,12 @@ export default function Feed() {
         .select(ENTRY_SELECT)
         .in('id', favIds)
         .order('created_at', { ascending: false });
-      if (!error) setEntries(data || []);
+      if (!error) {
+        const entriesData = data || [];
+        const awardedIds = await fetchAwardedEntryIds(entriesData.map((e) => e.id));
+        setEntries(entriesData);
+        setAwardedEntryIds(awardedIds);
+      }
       setLoading(false);
       return;
     }
@@ -309,7 +337,12 @@ export default function Feed() {
     }
 
     const { data, error } = await query;
-    if (!error) setEntries(data || []);
+    if (!error) {
+      const entriesData = data || [];
+      const awardedIds = await fetchAwardedEntryIds(entriesData.map((e) => e.id));
+      setEntries(entriesData);
+      setAwardedEntryIds(awardedIds);
+    }
     setLoading(false);
     // likedIds isn't used to filter any query above — it's a dependency
     // purely so a like/unlike triggers this refetch, pulling like_count
@@ -321,25 +354,6 @@ export default function Feed() {
       loadFeed();
     }, [loadFeed])
   );
-
-  // Public award flag for whatever's currently on screen -- reacts to
-  // `entries` itself (not session/focus like the other loaders), and
-  // scoped via .in() to just this page of entries rather than the whole
-  // awarded_entries view, so it can't grow into an unbounded query as
-  // the app accumulates awards over time.
-  useEffect(() => {
-    if (entries.length === 0) {
-      setAwardedEntryIds(new Set());
-      return;
-    }
-    supabase
-      .from('awarded_entries')
-      .select('entry_id')
-      .in('entry_id', entries.map((e) => e.id))
-      .then(({ data, error }) => {
-        if (!error) setAwardedEntryIds(new Set((data || []).map((a) => a.entry_id)));
-      });
-  }, [entries]);
 
   useEffect(() => {
     if (tab !== 'mine' || !highlightedEntryId) return;
