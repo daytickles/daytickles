@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { C, accentFor, darken, lighten, moodColorFor, moodDotSize, TICKLE_NATURE_ICONS, AWARD_TYPES, AWARD_BADGE_COLOR } from '../lib/theme';
@@ -50,6 +51,11 @@ export default function EntryCard({
   const accent = accentFor(item.profiles?.accent_theme);
   const isOwnEntry = item.user_id === currentUserId;
   const dotSize = moodDotSize(item.mood);
+  // Local to this card, not lifted to feed.js/calendar.js -- each menu
+  // only ever acts on its own item via props already passed down
+  // (onToggleVisibility/onDelete/router push for edit), so there's
+  // nothing a parent screen needs to coordinate across cards.
+  const [menuOpen, setMenuOpen] = useState(false);
 
   function confirmDelete() {
     Alert.alert(
@@ -167,15 +173,6 @@ export default function EntryCard({
                   <Text style={styles.shareLink}>Share</Text>
                 </TouchableOpacity>
               )}
-              {showMineActions && (
-                <TouchableOpacity
-                  onPress={() => router.push({ pathname: '/create', params: { entryId: item.id } })}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  style={styles.editAction}
-                >
-                  <Ionicons name="pencil-outline" size={16} color={C.subtext} />
-                </TouchableOpacity>
-              )}
               <TouchableOpacity
                 onPress={() => onToggleFavorite?.(item.id)}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -210,26 +207,21 @@ export default function EntryCard({
                   </TouchableOpacity>
                 )
               )}
+              {/* Edit/visibility/delete used to each be their own inline
+                  icon -- collapsed into this single menu (see the Modal
+                  below) once the row started overflowing the screen's
+                  right edge on Mine-tab/Calendar cards, the three most
+                  crowded showMineActions icons combined with the new
+                  public award badge being what tipped it over. Goal tag,
+                  Share, and Favorite stay inline as the higher-frequency
+                  actions. */}
               {showMineActions && (
                 <TouchableOpacity
-                  onPress={() => onToggleVisibility?.(item)}
+                  onPress={() => setMenuOpen(true)}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  style={styles.visibilityAction}
+                  style={styles.moreAction}
                 >
-                  <Ionicons
-                    name={item.visibility === 'public' ? 'eye-outline' : 'eye-off-outline'}
-                    size={16}
-                    color={C.subtext}
-                  />
-                </TouchableOpacity>
-              )}
-              {showMineActions && (
-                <TouchableOpacity
-                  onPress={confirmDelete}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  style={styles.deleteAction}
-                >
-                  <Ionicons name="trash-outline" size={16} color={C.rust} />
+                  <Ionicons name="ellipsis-vertical" size={16} color={C.subtext} />
                 </TouchableOpacity>
               )}
             </View>
@@ -259,6 +251,51 @@ export default function EntryCard({
           </View>
         </View>
       </View>
+
+      <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
+        <TouchableOpacity style={styles.menuBackdrop} activeOpacity={1} onPress={() => setMenuOpen(false)}>
+          <TouchableOpacity activeOpacity={1} style={styles.menuSheet} onPress={() => {}}>
+            <TouchableOpacity
+              style={styles.menuRow}
+              onPress={() => {
+                setMenuOpen(false);
+                router.push({ pathname: '/create', params: { entryId: item.id } });
+              }}
+            >
+              <Ionicons name="pencil-outline" size={18} color={C.text} />
+              <Text style={styles.menuRowLabel}>Edit</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.menuRow}
+              onPress={() => {
+                setMenuOpen(false);
+                onToggleVisibility?.(item);
+              }}
+            >
+              <Ionicons
+                name={item.visibility === 'public' ? 'eye-off-outline' : 'eye-outline'}
+                size={18}
+                color={C.text}
+              />
+              <Text style={styles.menuRowLabel}>
+                {item.visibility === 'public' ? 'Make private' : 'Make public'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.menuRow}
+              onPress={() => {
+                setMenuOpen(false);
+                confirmDelete();
+              }}
+            >
+              <Ionicons name="trash-outline" size={18} color={C.rust} />
+              <Text style={[styles.menuRowLabel, styles.menuRowLabelDestructive]}>Delete</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -295,11 +332,22 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed', borderColor: C.faint,
   },
   shareAction: { marginLeft: 12 },
-  editAction: { marginLeft: 12 },
   starAction: { marginLeft: 12 },
   awardAction: { marginLeft: 12 },
-  visibilityAction: { marginLeft: 12 },
-  deleteAction: { marginLeft: 12 },
+  moreAction: { marginLeft: 12 },
+  menuBackdrop: {
+    flex: 1, backgroundColor: 'rgba(44,44,42,0.4)',
+    justifyContent: 'center', alignItems: 'center', padding: 32,
+  },
+  menuSheet: {
+    width: '100%', maxWidth: 280, backgroundColor: C.card, borderRadius: 18, padding: 8,
+  },
+  menuRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingVertical: 12, paddingHorizontal: 14, borderRadius: 12,
+  },
+  menuRowLabel: { fontSize: 15, color: C.text },
+  menuRowLabelDestructive: { color: C.rust },
   entryText: { fontSize: 15, color: C.text, lineHeight: 20 },
 
   entryMetaRow: {
