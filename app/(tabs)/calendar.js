@@ -65,6 +65,10 @@ export default function Calendar() {
   // Map<entryId, awardType> -- same shape/reasoning as feed.js's own
   // awardedTypes (private-to-giver RLS, loaded once per session below).
   const [awardedTypes, setAwardedTypes] = useState(new Map());
+  // Set<entryId> -- same PUBLIC "has any award" flag as feed.js's own
+  // awardedEntryIds, but reacts to dayEntries here (the currently-shown
+  // day's entries) rather than a screen-wide entries list.
+  const [awardedEntryIds, setAwardedEntryIds] = useState(new Set());
   const [photoLinkedIds, setPhotoLinkedIds] = useState(new Set());
   const [photoDatesInMonth, setPhotoDatesInMonth] = useState(new Set());
   const [enlargeUri, setEnlargeUri] = useState(null);
@@ -188,6 +192,23 @@ export default function Calendar() {
     },
     [session]
   );
+
+  // Same reasoning as feed.js's own entries-reactive effect -- scoped
+  // via .in() to just the currently-shown day's entries, not the whole
+  // awarded_entries view.
+  useEffect(() => {
+    if (dayEntries.length === 0) {
+      setAwardedEntryIds(new Set());
+      return;
+    }
+    supabase
+      .from('awarded_entries')
+      .select('entry_id')
+      .in('entry_id', dayEntries.map((e) => e.id))
+      .then(({ data, error }) => {
+        if (!error) setAwardedEntryIds(new Set((data || []).map((a) => a.entry_id)));
+      });
+  }, [dayEntries]);
 
   function selectDate(dateStr) {
     setSelectedDate(dateStr);
@@ -510,6 +531,7 @@ export default function Calendar() {
                   taggedGoal={item.goal_id ? goalsById[item.goal_id] : null}
                   hasLinkedPhoto={photoLinkedIds.has(item.id)}
                   awardType={awardedTypes.get(item.id) || null}
+                  hasAward={awardedEntryIds.has(item.id)}
                   onOpenPhoto={handleOpenPhoto}
                   onPickGoal={setPickerEntryId}
                   onShare={setShareEntryId}

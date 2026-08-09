@@ -81,6 +81,13 @@ export default function Feed() {
   // rather than a Set since the icon needs to know *which* award, not
   // just whether one exists.
   const [awardedTypes, setAwardedTypes] = useState(new Map());
+  // Set<entryId> -- the PUBLIC "has any award, from anyone" flag (via
+  // awarded_entries, entry_id only), unlike awardedTypes above which is
+  // private/viewer-scoped. Loaded per the current page of entries (see
+  // the entries-reactive effect below), not per-session like the other
+  // Sets, since it needs to cover every entry on screen, not just ones
+  // this viewer has personally interacted with.
+  const [awardedEntryIds, setAwardedEntryIds] = useState(new Set());
   const [enlargeUri, setEnlargeUri] = useState(null);
   const { hiddenCard, captureCard } = useShareCard();
   const [highlightedEntryId, setHighlightedEntryId] = useState(
@@ -315,6 +322,25 @@ export default function Feed() {
     }, [loadFeed])
   );
 
+  // Public award flag for whatever's currently on screen -- reacts to
+  // `entries` itself (not session/focus like the other loaders), and
+  // scoped via .in() to just this page of entries rather than the whole
+  // awarded_entries view, so it can't grow into an unbounded query as
+  // the app accumulates awards over time.
+  useEffect(() => {
+    if (entries.length === 0) {
+      setAwardedEntryIds(new Set());
+      return;
+    }
+    supabase
+      .from('awarded_entries')
+      .select('entry_id')
+      .in('entry_id', entries.map((e) => e.id))
+      .then(({ data, error }) => {
+        if (!error) setAwardedEntryIds(new Set((data || []).map((a) => a.entry_id)));
+      });
+  }, [entries]);
+
   useEffect(() => {
     if (tab !== 'mine' || !highlightedEntryId) return;
     const index = entries.findIndex((e) => e.id === highlightedEntryId);
@@ -521,6 +547,7 @@ export default function Feed() {
         taggedGoal={item.goal_id ? goalsById[item.goal_id] : null}
         hasLinkedPhoto={photoLinkedIds.has(item.id)}
         awardType={awardedTypes.get(item.id) || null}
+        hasAward={awardedEntryIds.has(item.id)}
         onOpenPhoto={handleOpenPhoto}
         onLayout={(e) => {
           cardHeights.current[item.id] = e.nativeEvent.layout.height + CARD_SPACING;

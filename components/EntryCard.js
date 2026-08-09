@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { C, accentFor, darken, lighten, moodColorFor, moodDotSize, TICKLE_NATURE_ICONS, AWARD_TYPES } from '../lib/theme';
+import { C, accentFor, darken, lighten, moodColorFor, moodDotSize, TICKLE_NATURE_ICONS, AWARD_TYPES, AWARD_BADGE_COLOR } from '../lib/theme';
 import { flagEmoji } from '../lib/country';
 import InitialsAvatar from './InitialsAvatar';
 
@@ -35,6 +35,7 @@ export default function EntryCard({
   taggedGoal,
   hasLinkedPhoto,
   awardType,
+  hasAward,
   onLayout,
   onToggleFollow,
   onPickGoal,
@@ -63,7 +64,14 @@ export default function EntryCard({
 
   return (
     <View
-      style={[styles.entryCard, isHighlighted && styles.highlightedCard]}
+      style={[
+        styles.entryCard,
+        isHighlighted && styles.highlightedCard,
+        // Ordered after highlightedCard so its left edge always wins --
+        // a highlighted *and* awarded card should still show the gold
+        // stripe, not have it swallowed by the highlight's own border.
+        hasAward && styles.publicAwardStripe,
+      ]}
       onLayout={onLayout}
     >
       <View style={styles.entryRow}>
@@ -115,6 +123,17 @@ export default function EntryCard({
                 >
                   <Ionicons name="image-outline" size={16} color={C.subtext} />
                 </TouchableOpacity>
+              )}
+              {/* Public "this post received some recognition" badge --
+                  unlike the private awardType icon further down (gated
+                  on isFavorited/!isOwnEntry, and colored per the actual
+                  award), this shows to everyone, on any awarded post,
+                  including the owner's own, always in the one shared
+                  AWARD_BADGE_COLOR regardless of which award it was. */}
+              {hasAward && (
+                <View style={styles.publicAwardBadge}>
+                  <Ionicons name="ribbon" size={16} color={AWARD_BADGE_COLOR} />
+                </View>
               )}
               {showMineActions && (
                 <TouchableOpacity
@@ -251,6 +270,9 @@ const styles = StyleSheet.create({
   highlightedCard: {
     borderWidth: 1.5, borderColor: C.amberDark, backgroundColor: C.sparkleBg,
   },
+  publicAwardStripe: {
+    borderLeftWidth: 4, borderLeftColor: AWARD_BADGE_COLOR,
+  },
   entryRow: { flexDirection: 'row', alignItems: 'flex-start' },
   moodDot: { marginRight: 12, marginTop: 4 },
   entryBody: { flex: 1 },
@@ -263,6 +285,7 @@ const styles = StyleSheet.create({
   iconGroup: { flexDirection: 'row', alignItems: 'center' },
   natureIcon: { marginLeft: 12 },
   photoAction: { marginLeft: 12 },
+  publicAwardBadge: { marginLeft: 12 },
   goalDot: {
     width: 16, height: 16, borderRadius: 8, marginLeft: 12,
     alignItems: 'center', justifyContent: 'center',
