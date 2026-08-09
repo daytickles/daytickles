@@ -4,9 +4,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { C, accentFor, moodColorFor, moodDotSize, textOn, withAlpha, TICKLE_NATURE_ICONS, NATURE_ORDER } from '../lib/theme';
+import { C, accentFor, moodColorFor, moodDotSize, textOn, withAlpha, TICKLE_NATURE_ICONS, NATURE_ORDER, AWARD_TYPES } from '../lib/theme';
 import { currentWeekStartDate, currentWeekStartISO, localDateString, DEFAULT_WEEK_START_DAY } from '../lib/week';
 import { initPinBoardDb, getPinnedPhotoCountSince, getPhotoShareCountSince } from '../lib/pinBoardDb';
+import { flagEmoji } from '../lib/country';
 
 // "Most liked" below is a distinct concept from the calendar-week stats
 // above it -- a trailing window from today, not tied to week_start_day,
@@ -34,6 +35,13 @@ export default function WeeklySummary() {
   const [weekEntries, setWeekEntries] = useState([]);
   const [mostLiked, setMostLiked] = useState(null);
   const [goals, setGoals] = useState([]);
+  // "Given" reads straight from awards (RLS already lets the giver read
+  // their own rows). "Received" can't -- awards RLS is private to the
+  // giver, so there's no policy letting a recipient query it directly --
+  // sourced from notifications instead, which already stores award_type
+  // per-row and already allows the recipient to read their own rows.
+  const [awardsGiven, setAwardsGiven] = useState([]);
+  const [awardsReceived, setAwardsReceived] = useState([]);
   const [likesGiven, setLikesGiven] = useState(0);
   const [newFollowers, setNewFollowers] = useState(0);
   const [thoughtOfYouSends, setThoughtOfYouSends] = useState(0);
@@ -55,6 +63,8 @@ export default function WeeklySummary() {
       weekEntriesResult,
       trailingEntriesResult,
       goalsResult,
+      awardsGivenResult,
+      awardsReceivedResult,
       likesGivenResult,
       followersResult,
       thoughtOfYouSharesResult,
@@ -74,6 +84,19 @@ export default function WeeklySummary() {
         .eq('user_id', session.user.id)
         .gte('entry_date', trailingCutoff),
       supabase.from('goals').select('*').order('created_at', { ascending: true }),
+      supabase
+        .from('awards')
+        .select('id, award_type, created_at, tickle_entries(text_content)')
+        .eq('user_id', session.user.id)
+        .gte('created_at', weekStartISO),
+      supabase
+        .from('notifications')
+        .select(
+          'id, award_type, created_at, tickle_entries(text_content), profiles!notifications_actor_id_fkey(username, avatar_emoji, country)'
+        )
+        .eq('recipient_id', session.user.id)
+        .eq('type', 'award')
+        .gte('created_at', weekStartISO),
       supabase
         .from('likes')
         .select('id', { count: 'exact', head: true })
@@ -112,6 +135,8 @@ export default function WeeklySummary() {
     }
 
     if (!goalsResult.error) setGoals(goalsResult.data || []);
+    if (!awardsGivenResult.error) setAwardsGiven(awardsGivenResult.data || []);
+    if (!awardsReceivedResult.error) setAwardsReceived(awardsReceivedResult.data || []);
     if (!likesGivenResult.error) setLikesGiven(likesGivenResult.count || 0);
     if (!followersResult.error) setNewFollowers(followersResult.count || 0);
 
@@ -215,6 +240,44 @@ export default function WeeklySummary() {
               </>
             )}
 
+            {hasConnection && (
+              <>
+                <Text style={styles.sectionLabel}>Connection</Text>
+                {likesGiven > 0 && (
+                  <View style={styles.connectionCard}>
+                    <View style={styles.connectionDot} />
+                    <Text style={styles.connectionCardText}>
+                      You gave {likesGiven} {likesGiven === 1 ? 'like' : 'likes'} this week.
+                    </Text>
+                  </View>
+                )}
+                {newFollowers > 0 && (
+                  <View style={styles.connectionCard}>
+                    <View style={styles.connectionDot} />
+                    <Text style={styles.connectionCardText}>
+                      You gained {newFollowers} new {newFollowers === 1 ? 'follower' : 'followers'} this week.
+                    </Text>
+                  </View>
+                )}
+                {thoughtOfYouSends > 0 && (
+                  <View style={styles.connectionCard}>
+                    <View style={styles.connectionDot} />
+                    <Text style={styles.connectionCardText}>
+                      You thought of someone {thoughtOfYouSends} {thoughtOfYouSends === 1 ? 'time' : 'times'}.
+                    </Text>
+                  </View>
+                )}
+                {madeMeSmileSends > 0 && (
+                  <View style={styles.connectionCard}>
+                    <View style={styles.connectionDot} />
+                    <Text style={styles.connectionCardText}>
+                      You shared your smile with {madeMeSmileSends} {madeMeSmileSends === 1 ? 'person' : 'people'}.
+                    </Text>
+                  </View>
+                )}
+              </>
+            )}
+
             {(achievedThisWeek.length > 0 || goalProgress.length > 0) && (
               <>
                 <Text style={styles.sectionLabel}>Goals</Text>
@@ -241,31 +304,41 @@ export default function WeeklySummary() {
               </>
             )}
 
-            {hasConnection && (
+            {(awardsReceived.length > 0 || awardsGiven.length > 0) && (
               <>
-                <Text style={styles.sectionLabel}>Connection</Text>
-                <View style={styles.connectionCard}>
-                  {likesGiven > 0 && (
-                    <Text style={styles.connectionCardText}>
-                      You gave {likesGiven} {likesGiven === 1 ? 'like' : 'likes'} this week.
-                    </Text>
-                  )}
-                  {newFollowers > 0 && (
-                    <Text style={styles.connectionCardText}>
-                      You gained {newFollowers} new {newFollowers === 1 ? 'follower' : 'followers'} this week.
-                    </Text>
-                  )}
-                  {thoughtOfYouSends > 0 && (
-                    <Text style={styles.connectionCardText}>
-                      You thought of someone {thoughtOfYouSends} {thoughtOfYouSends === 1 ? 'time' : 'times'}.
-                    </Text>
-                  )}
-                  {madeMeSmileSends > 0 && (
-                    <Text style={styles.connectionCardText}>
-                      You shared your smile with {madeMeSmileSends} {madeMeSmileSends === 1 ? 'person' : 'people'}.
-                    </Text>
-                  )}
-                </View>
+                <Text style={styles.sectionLabel}>Awards</Text>
+                {awardsReceived.map((n) => {
+                  const award = AWARD_TYPES[n.award_type];
+                  const flag = n.profiles?.country ? ` ${flagEmoji(n.profiles.country)}` : '';
+                  const actorName = n.profiles?.username ? `${n.profiles.username}${flag}` : 'Someone';
+                  return (
+                    <View
+                      key={n.id}
+                      style={[styles.awardCard, { backgroundColor: withAlpha(award.color, 0.14), borderColor: award.color }]}
+                    >
+                      <Ionicons name={award.iconActive} size={16} color={award.color} />
+                      <Text style={styles.awardText} numberOfLines={2}>
+                        {actorName} gave you a {award.label} award
+                        {n.tickle_entries?.text_content ? `: ${n.tickle_entries.text_content}` : ''}
+                      </Text>
+                    </View>
+                  );
+                })}
+                {awardsGiven.map((a) => {
+                  const award = AWARD_TYPES[a.award_type];
+                  return (
+                    <View
+                      key={a.id}
+                      style={[styles.awardCard, { backgroundColor: withAlpha(award.color, 0.14), borderColor: award.color }]}
+                    >
+                      <Ionicons name={award.iconActive} size={16} color={award.color} />
+                      <Text style={styles.awardText} numberOfLines={2}>
+                        You gave a {award.label} award
+                        {a.tickle_entries?.text_content ? `: ${a.tickle_entries.text_content}` : ''}
+                      </Text>
+                    </View>
+                  );
+                })}
               </>
             )}
 
@@ -327,11 +400,21 @@ const styles = StyleSheet.create({
   goalDot: { width: 10, height: 10, borderRadius: 5 },
   goalText: { flex: 1, fontSize: 14, color: C.text },
 
-  connectionCard: {
-    backgroundColor: withAlpha(C.teal, 0.14), borderWidth: 1, borderColor: C.teal,
-    borderRadius: 16, padding: 14, marginBottom: 16, gap: 6,
+  awardCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    borderRadius: 14, borderWidth: 1, paddingVertical: 10, paddingHorizontal: 12,
+    marginBottom: 8,
   },
-  connectionCardText: { fontSize: 14, color: C.tealText, lineHeight: 20 },
+  awardText: { flex: 1, fontSize: 14, color: C.text },
+
+  connectionCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: withAlpha(C.teal, 0.14), borderWidth: 1, borderColor: C.teal,
+    borderRadius: 14, paddingVertical: 10, paddingHorizontal: 12,
+    marginBottom: 8,
+  },
+  connectionDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: C.teal },
+  connectionCardText: { flex: 1, fontSize: 14, color: C.tealText, lineHeight: 20 },
 
   pinBoardCard: {
     backgroundColor: C.sparkleBg, borderWidth: 1, borderColor: C.amberDark,
