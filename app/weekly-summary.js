@@ -271,7 +271,7 @@ export default function WeeklySummary() {
                   <View style={styles.connectionCard}>
                     <View style={styles.connectionDot} />
                     <Text style={styles.connectionCardText}>
-                      You shared your smile with {madeMeSmileSends} {madeMeSmileSends === 1 ? 'person' : 'people'}.
+                      You shared your smile {madeMeSmileSends} {madeMeSmileSends === 1 ? 'time' : 'times'}.
                     </Text>
                   </View>
                 )}
