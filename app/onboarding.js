@@ -72,7 +72,7 @@ export default function Onboarding() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
+  container: { flex: 1 },
   content: { flexGrow: 1, justifyContent: 'center', padding: 24 },
   title: { fontSize: 20, fontWeight: 'bold', marginBottom: 24, textAlign: 'center', color: C.rustDark },
   input: {

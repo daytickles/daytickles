@@ -242,7 +242,7 @@ export default function PinBoard() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
+  container: { flex: 1 },
   content: { padding: 20, paddingTop: 60, paddingBottom: 40 },
   title: { fontSize: 22, fontWeight: 'bold', color: C.rustDark },
   subheading: { fontSize: 15, fontWeight: '600', color: C.rustDark, marginTop: 4 },

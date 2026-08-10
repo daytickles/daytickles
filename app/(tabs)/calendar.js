@@ -576,7 +576,7 @@ export default function Calendar() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
+  container: { flex: 1 },
   content: { padding: 20, paddingTop: 60, paddingBottom: 40 },
   title: { fontSize: 22, fontWeight: 'bold', color: C.rustDark, marginBottom: 16 },
 

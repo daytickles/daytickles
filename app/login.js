@@ -54,7 +54,7 @@ export default function Login() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20, backgroundColor: C.bg },
+  container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
   disclosure: { marginTop: 16, fontSize: 12, color: C.subtext, textAlign: 'center' },
   disclosureLink: { textDecorationLine: 'underline' },
   status: { marginTop: 20, color: C.subtext },
