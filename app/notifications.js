@@ -6,6 +6,7 @@ import { useNotifications } from '../contexts/NotificationsContext';
 import { supabase } from '../lib/supabase';
 import { C, AWARD_TYPES } from '../lib/theme';
 import { flagEmoji } from '../lib/country';
+import WallpaperBackground from '../components/WallpaperBackground';
 
 function formatTimestamp(createdAt) {
   return new Date(createdAt).toLocaleDateString('en-US', {
@@ -127,29 +128,31 @@ export default function Notifications() {
   }
 
   return (
-    <View style={styles.container}>
-      <TouchableOpacity
-        onPress={() => router.back()}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-      >
-        <Text style={styles.backLink}>‹ Back</Text>
-      </TouchableOpacity>
+    <WallpaperBackground>
+      <View style={styles.container}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Text style={styles.backLink}>‹ Back</Text>
+        </TouchableOpacity>
 
-      <Text style={styles.title}>Notifications</Text>
+        <Text style={styles.title}>Notifications</Text>
 
-      {loading && <ActivityIndicator color={C.rust} style={styles.loader} />}
+        {loading && <ActivityIndicator color={C.rust} style={styles.loader} />}
 
-      <FlatList
-        style={styles.list}
-        data={notifications}
-        keyExtractor={(item) => String(item.id)}
-        renderItem={renderNotification}
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={
-          !loading && <Text style={styles.emptyText}>No notifications yet.</Text>
-        }
-      />
-    </View>
+        <FlatList
+          style={styles.list}
+          data={notifications}
+          keyExtractor={(item) => String(item.id)}
+          renderItem={renderNotification}
+          contentContainerStyle={styles.listContent}
+          ListEmptyComponent={
+            !loading && <Text style={styles.emptyText}>No notifications yet.</Text>
+          }
+        />
+      </View>
+    </WallpaperBackground>
   );
 }
 

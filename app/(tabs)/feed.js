@@ -14,6 +14,7 @@ import ShareModal from '../../components/ShareModal';
 import PhotoEnlargeModal from '../../components/PhotoEnlargeModal';
 import EntryCard, { CARD_SPACING } from '../../components/EntryCard';
 import CornerNav from '../../components/CornerNav';
+import WallpaperBackground from '../../components/WallpaperBackground';
 import { initPinBoardDb, getAllLinkedEntryIds, getPhotoForEntry } from '../../lib/pinBoardDb';
 import { useShareCard } from '../../lib/useShareCard';
 
@@ -585,6 +586,7 @@ export default function Feed() {
 
   return (
     <>
+    <WallpaperBackground>
     <View style={styles.container}>
       <CornerNav />
       {highlightedEntryId && (
@@ -673,6 +675,7 @@ export default function Feed() {
         ListEmptyComponent={!loading && <Text style={styles.emptyText}>{EMPTY_TEXT[tab]}</Text>}
       />
     </View>
+    </WallpaperBackground>
 
     <GoalTagModal
       entry={pickerEntry}

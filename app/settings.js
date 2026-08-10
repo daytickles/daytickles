@@ -13,6 +13,7 @@ import AboutModal from '../components/AboutModal';
 import CountryPickerModal from '../components/CountryPickerModal';
 import PinSetupModal from '../components/PinSetupModal';
 import DeleteAccountModal from '../components/DeleteAccountModal';
+import WallpaperBackground from '../components/WallpaperBackground';
 import {
   requestReminderPermission,
   scheduleDailyReminder,
@@ -282,6 +283,7 @@ export default function Settings() {
   }
 
   return (
+    <WallpaperBackground>
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <TouchableOpacity
         onPress={() => router.back()}
@@ -469,6 +471,7 @@ export default function Settings() {
         onComplete={handlePinSetupComplete}
       />
     </ScrollView>
+    </WallpaperBackground>
   );
 }
 

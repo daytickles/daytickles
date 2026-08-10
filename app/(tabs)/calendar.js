@@ -13,6 +13,7 @@ import ShareModal from '../../components/ShareModal';
 import PhotoEnlargeModal from '../../components/PhotoEnlargeModal';
 import EntryCard from '../../components/EntryCard';
 import CornerNav from '../../components/CornerNav';
+import WallpaperBackground from '../../components/WallpaperBackground';
 import {
   initPinBoardDb, getAllLinkedEntryIds, getPhotoForEntry, getPinnedPhotoDatesInRange,
 } from '../../lib/pinBoardDb';
@@ -394,6 +395,7 @@ export default function Calendar() {
 
   return (
     <>
+      <WallpaperBackground>
       <ScrollView
         style={styles.container}
         contentContainerStyle={[styles.content, { paddingBottom: styles.content.paddingBottom + tabBarHeight }]}
@@ -545,6 +547,7 @@ export default function Calendar() {
           </View>
         )}
       </ScrollView>
+      </WallpaperBackground>
 
       <GoalTagModal
         entry={pickerEntry}

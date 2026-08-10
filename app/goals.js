@@ -9,6 +9,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { C, GOAL_COLORS, MAX_GOALS, accentFor, darken, lighten } from '../lib/theme';
 import Button from '../components/Button';
+import WallpaperBackground from '../components/WallpaperBackground';
 
 export default function Goals() {
   const { session, profile } = useAuth();
@@ -133,6 +134,7 @@ export default function Goals() {
   }
 
   return (
+    <WallpaperBackground>
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -234,6 +236,7 @@ export default function Goals() {
       )}
     </ScrollView>
     </KeyboardAvoidingView>
+    </WallpaperBackground>
   );
 }
 

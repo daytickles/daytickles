@@ -8,6 +8,7 @@ import { C, accentFor, moodColorFor, moodDotSize, textOn, withAlpha, TICKLE_NATU
 import { currentWeekStartDate, currentWeekStartISO, localDateString, DEFAULT_WEEK_START_DAY } from '../lib/week';
 import { initPinBoardDb, getPinnedPhotoCountSince, getPhotoShareCountSince } from '../lib/pinBoardDb';
 import { flagEmoji } from '../lib/country';
+import WallpaperBackground from '../components/WallpaperBackground';
 
 // "Most liked" below is a distinct concept from the calendar-week stats
 // above it -- a trailing window from today, not tied to week_start_day,
@@ -173,6 +174,7 @@ export default function WeeklySummary() {
   const hasConnection = likesGiven > 0 || newFollowers > 0 || thoughtOfYouSends > 0 || madeMeSmileSends > 0;
 
   return (
+    <WallpaperBackground>
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
@@ -356,6 +358,7 @@ export default function WeeklySummary() {
         )}
       </ScrollView>
     </View>
+    </WallpaperBackground>
   );
 }
 

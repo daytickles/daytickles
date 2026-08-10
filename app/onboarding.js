@@ -8,6 +8,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { C } from '../lib/theme';
 import Button from '../components/Button';
+import WallpaperBackground from '../components/WallpaperBackground';
 
 export default function Onboarding() {
   const { session, refreshProfile } = useAuth();
@@ -43,6 +44,7 @@ export default function Onboarding() {
   }
 
   return (
+    <WallpaperBackground>
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -68,6 +70,7 @@ export default function Onboarding() {
       <Text style={styles.status}>{status}</Text>
     </ScrollView>
     </KeyboardAvoidingView>
+    </WallpaperBackground>
   );
 }
 

@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { C } from '../lib/theme';
 import Button from '../components/Button';
+import WallpaperBackground from '../components/WallpaperBackground';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -40,16 +41,18 @@ export default function Login() {
   }
 
   return (
-    <View style={styles.container}>
-      <Button title="Sign in with Google" onPress={signInWithGoogle} variant="primary" />
-      <Text style={styles.disclosure}>
-        By continuing, you agree to our{' '}
-        <Text style={styles.disclosureLink} onPress={() => Linking.openURL('https://daytickles.com/privacy')}>
-          Privacy Policy
+    <WallpaperBackground>
+      <View style={styles.container}>
+        <Button title="Sign in with Google" onPress={signInWithGoogle} variant="primary" />
+        <Text style={styles.disclosure}>
+          By continuing, you agree to our{' '}
+          <Text style={styles.disclosureLink} onPress={() => Linking.openURL('https://daytickles.com/privacy')}>
+            Privacy Policy
+          </Text>
         </Text>
-      </Text>
-      <Text style={styles.status}>{status}</Text>
-    </View>
+        <Text style={styles.status}>{status}</Text>
+      </View>
+    </WallpaperBackground>
   );
 }
 

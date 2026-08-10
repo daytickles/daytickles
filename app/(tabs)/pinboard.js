@@ -20,6 +20,7 @@ import {
 } from '../../lib/pinBoardPhotos';
 import { hasSeenPinBoardNote, markPinBoardNoteSeen } from '../../lib/pinBoardNote';
 import { useShareCard } from '../../lib/useShareCard';
+import WallpaperBackground from '../../components/WallpaperBackground';
 
 export default function PinBoard() {
   const { session, profile, refreshProfile } = useAuth();
@@ -155,6 +156,7 @@ export default function PinBoard() {
   const shareBlocked = !!shareStat && !shareStat.unlimited && shareStat.remaining <= 0;
 
   return (
+    <WallpaperBackground>
     <View style={styles.container}>
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: styles.content.paddingBottom + tabBarHeight }]}>
         <CornerNav />
@@ -238,6 +240,7 @@ export default function PinBoard() {
 
       {hiddenCard}
     </View>
+    </WallpaperBackground>
   );
 }
 

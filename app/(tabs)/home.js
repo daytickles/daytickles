@@ -16,6 +16,7 @@ import AboutModal from '../../components/AboutModal';
 import GoalTagModal from '../../components/GoalTagModal';
 import ShareModal from '../../components/ShareModal';
 import CornerNav from '../../components/CornerNav';
+import WallpaperBackground from '../../components/WallpaperBackground';
 import { requestReminderPermission, scheduleDailyReminder, cancelDailyReminder } from '../../lib/reminders';
 import { isReviewAvailable, requestReview } from '../../lib/rateUs';
 
@@ -415,6 +416,7 @@ export default function Home() {
 
   return (
     <>
+    <WallpaperBackground>
     <ScrollView
       style={styles.container}
       contentContainerStyle={[
@@ -543,6 +545,7 @@ export default function Home() {
         </>
       )}
     </ScrollView>
+    </WallpaperBackground>
 
     <GoalTagModal
       entry={pickerEntry}

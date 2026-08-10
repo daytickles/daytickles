@@ -34,7 +34,6 @@ export default function TabsLayout() {
           title: 'Home',
           tabBarAccessibilityLabel: 'Home',
           tabBarIcon: ({ color, size }) => <Ionicons name="home-outline" color={color} size={size} />,
-          sceneStyle: { backgroundColor: 'transparent' },
         }}
       />
       <Tabs.Screen
@@ -43,7 +42,6 @@ export default function TabsLayout() {
           title: 'Feed',
           tabBarAccessibilityLabel: 'Feed',
           tabBarIcon: ({ color, size }) => <Ionicons name="list-outline" color={color} size={size} />,
-          sceneStyle: { backgroundColor: 'transparent' },
         }}
       />
       <Tabs.Screen
@@ -52,7 +50,6 @@ export default function TabsLayout() {
           title: 'Calendar',
           tabBarAccessibilityLabel: 'Calendar',
           tabBarIcon: ({ color, size }) => <Ionicons name="calendar-outline" color={color} size={size} />,
-          sceneStyle: { backgroundColor: 'transparent' },
         }}
       />
       <Tabs.Screen
@@ -61,7 +58,6 @@ export default function TabsLayout() {
           title: 'Tickle Pics',
           tabBarAccessibilityLabel: 'Tickle Pics',
           tabBarIcon: ({ color, size }) => <Ionicons name="images-outline" color={color} size={size} />,
-          sceneStyle: { backgroundColor: 'transparent' },
         }}
       />
     </Tabs>

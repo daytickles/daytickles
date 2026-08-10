@@ -9,6 +9,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { C, MOODS, accentFor, moodColorFor, darken, textOn } from '../lib/theme';
 import Button from '../components/Button';
+import WallpaperBackground from '../components/WallpaperBackground';
 import { linkPhotoToEntry } from '../lib/pinBoardDb';
 import { localDateString } from '../lib/week';
 
@@ -138,9 +139,11 @@ export default function Create() {
 
   if (loadingEntry) {
     return (
-      <View style={[styles.container, styles.loadingContainer]}>
-        <ActivityIndicator color={accentDark} />
-      </View>
+      <WallpaperBackground>
+        <View style={[styles.container, styles.loadingContainer]}>
+          <ActivityIndicator color={accentDark} />
+        </View>
+      </WallpaperBackground>
     );
   }
 
@@ -153,6 +156,7 @@ export default function Create() {
   const dayJournalSelected = tickleNature === DAY_JOURNAL_OPTION.id;
 
   return (
+    <WallpaperBackground>
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -285,6 +289,7 @@ export default function Create() {
       />
     </ScrollView>
     </KeyboardAvoidingView>
+    </WallpaperBackground>
   );
 }
 
