@@ -509,7 +509,7 @@ export default function Home() {
         ))}
       </View>
 
-      <Button title="New Tickle" onPress={() => router.push('/create')} variant="secondary" />
+      <Button title="New Tickle" onPress={() => router.push('/create')} variant="secondary" style={styles.newTickleShadow} />
 
       {pinned && (
         <TouchableOpacity
@@ -649,6 +649,11 @@ const styles = StyleSheet.create({
     fontSize: 11, fontWeight: '600', color: C.bg,
     backgroundColor: C.rustDark, borderRadius: 8, overflow: 'hidden',
     paddingVertical: 4, paddingHorizontal: 10,
+  },
+
+  newTickleShadow: {
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15, shadowRadius: 4, elevation: 3,
   },
 
   pinnedCard: {

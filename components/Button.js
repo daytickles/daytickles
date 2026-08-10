@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 // No accent_theme yet (e.g. pre-auth on login) falls through
 // accentFor(undefined) to the rust theme — same shade this defaulted to
 // before accent-awareness existed here, so nothing changes for that case.
-export default function Button({ title, onPress, variant = 'primary', disabled = false, color, textColor }) {
+export default function Button({ title, onPress, variant = 'primary', disabled = false, color, textColor, style }) {
   const isPrimary = variant === 'primary';
   const { profile } = useAuth();
   const accentDark = darken(accentFor(profile?.accent_theme).card, 0.35);
@@ -25,6 +25,7 @@ export default function Button({ title, onPress, variant = 'primary', disabled =
           ? { backgroundColor: resolvedColor }
           : { backgroundColor: C.bg, borderWidth: 1.5, borderColor: resolvedColor },
         disabled && styles.disabled,
+        style,
       ]}
     >
       <Text style={[styles.text, { color: resolvedTextColor }]}>{title}</Text>
