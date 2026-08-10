@@ -657,7 +657,7 @@ const styles = StyleSheet.create({
   },
 
   pinnedCard: {
-    marginTop: 12, borderWidth: 1.5, borderColor: C.amberDark, backgroundColor: withAlpha(C.amberDark, 0.14),
+    marginTop: 12, borderWidth: 1.5, borderColor: C.amberDark, backgroundColor: withAlpha(C.amberDark, 0.16),
   },
   pinnedLabel: {
     fontSize: 12, fontWeight: '600', color: C.sparkleText,

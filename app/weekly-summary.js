@@ -377,7 +377,7 @@ const styles = StyleSheet.create({
   sectionLabel: { fontSize: 14, fontWeight: '600', color: C.subtext, marginTop: 8, marginBottom: 8 },
 
   entryCard: {
-    backgroundColor: C.sparkleBg, borderWidth: 1.5, borderColor: C.amberDark,
+    backgroundColor: withAlpha(C.amberDark, 0.16), borderWidth: 1.5, borderColor: C.amberDark,
     borderRadius: 16, padding: 14, marginBottom: 16,
   },
   pinnedSectionLabel: { color: C.sparkleText },
