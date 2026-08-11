@@ -9,10 +9,12 @@ import { useAuth } from '../contexts/AuthContext';
 import { C } from '../lib/theme';
 import Button from '../components/Button';
 import WallpaperBackground from '../components/WallpaperBackground';
+import { redeemFoundingMemberReferralCode } from '../lib/foundingMember';
 
 export default function Onboarding() {
   const { session, refreshProfile } = useAuth();
   const [username, setUsername] = useState('');
+  const [referralCode, setReferralCode] = useState('');
   const [status, setStatus] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -32,13 +34,25 @@ export default function Onboarding() {
       })
       .eq('id', session.user.id);
 
-    setSaving(false);
-
     if (error) {
+      setSaving(false);
       setStatus(`Error: ${error.message}`);
       return;
     }
 
+    // Optional, and never blocks onboarding -- a typo'd, invalid, or
+    // missing code just means no referral gets credited, not a failed
+    // signup. Navigation happens immediately either way, so there's no
+    // useful moment to surface a redemption error here.
+    if (referralCode.trim()) {
+      try {
+        await redeemFoundingMemberReferralCode(referralCode.trim());
+      } catch {
+        // Swallowed for the same reason.
+      }
+    }
+
+    setSaving(false);
     await refreshProfile();
     router.replace('/home');
   }
@@ -59,6 +73,15 @@ export default function Onboarding() {
         value={username}
         onChangeText={setUsername}
         autoCapitalize="none"
+      />
+
+      <TextInput
+        style={styles.input}
+        placeholder="Referral code (optional)"
+        placeholderTextColor={C.faint}
+        value={referralCode}
+        onChangeText={setReferralCode}
+        autoCapitalize="characters"
       />
 
       <Button

@@ -24,6 +24,12 @@ const RENDER_RELEVANT_FIELDS = [
   'trial_started_at',
   'day_journal_enabled',
   'week_start_day',
+  'is_founding_member',
+  'founding_member_number',
+  'founding_member_taking_part',
+  'founding_member_reminders_enabled',
+  'founding_member_failure_message_seen',
+  'referral_code',
 ];
 
 function profilesEqual(a, b) {
