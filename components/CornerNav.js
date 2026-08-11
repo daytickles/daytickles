@@ -1,9 +1,10 @@
 import { useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { C } from '../lib/theme';
 import { useNotifications } from '../contexts/NotificationsContext';
+import { useAuth } from '../contexts/AuthContext';
 
 // Shared Weekly Summary / Notifications / Settings row, rendered
 // identically at the top of each of the four tab screens (Home, Feed,
@@ -13,6 +14,18 @@ import { useNotifications } from '../contexts/NotificationsContext';
 // all four.
 export default function CornerNav({ style }) {
   const { unreadCount, refreshUnreadCount } = useNotifications();
+  const { profile } = useAuth();
+
+  // "Taking part" off just stops surfacing the icon (progress keeps
+  // counting underneath -- see lib/foundingMember.js); the failure-seen
+  // flag hides it for good after the one-time closing message has been
+  // shown, per the spec's "the FM page and its nav icon quietly
+  // disappear" on non-recoverable failure. Defaults to shown (both
+  // profile fields default true/false respectively) for anyone whose
+  // profile hasn't loaded yet, matching "visible to all users by
+  // default."
+  const showFoundingMember =
+    profile?.founding_member_taking_part !== false && !profile?.founding_member_failure_message_seen;
 
   // Refetches on every focus of whichever tab hosts this component --
   // not just Home's -- so the badge stays current regardless of which
@@ -43,6 +56,14 @@ export default function CornerNav({ style }) {
           </View>
         )}
       </TouchableOpacity>
+      {showFoundingMember && (
+        <TouchableOpacity
+          onPress={() => router.push('/founding-member')}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <MaterialCommunityIcons name="crown-outline" size={20} color={C.subtext} />
+        </TouchableOpacity>
+      )}
       <TouchableOpacity
         onPress={() => router.push('/settings')}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
