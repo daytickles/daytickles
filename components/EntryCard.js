@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { C, accentFor, darken, lighten, moodColorFor, moodDotSize, TICKLE_NATURE_ICONS, AWARD_TYPES, AWARD_BADGE_COLOR } from '../lib/theme';
 import { flagEmoji } from '../lib/country';
 import InitialsAvatar from './InitialsAvatar';
+import FoundingMemberBadge from './FoundingMemberBadge';
 
 function formatEntryDate(entryDate) {
   return new Date(`${entryDate}T00:00:00Z`).toLocaleDateString('en-US', {
@@ -100,6 +101,9 @@ export default function EntryCard({
                 {item.profiles?.username}
                 {item.profiles?.country ? `  ${flagEmoji(item.profiles.country)}` : ''}
               </Text>
+              {!!item.profiles?.founding_member_number && (
+                <FoundingMemberBadge number={item.profiles.founding_member_number} />
+              )}
               {!isOwnEntry && (
                 <TouchableOpacity
                   onPress={() => onToggleFollow?.(item.user_id)}

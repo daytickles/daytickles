@@ -13,6 +13,7 @@ import { flagEmoji } from '../../lib/country';
 import Button from '../../components/Button';
 import InitialsAvatar from '../../components/InitialsAvatar';
 import AboutModal from '../../components/AboutModal';
+import FoundingMemberBadge from '../../components/FoundingMemberBadge';
 import GoalTagModal from '../../components/GoalTagModal';
 import ShareModal from '../../components/ShareModal';
 import CornerNav from '../../components/CornerNav';
@@ -435,6 +436,9 @@ export default function Home() {
           <Text style={styles.profileText}>
             {profile.username}{profile.country ? `  ${flagEmoji(profile.country)}` : ''}
           </Text>
+          {!!profile.founding_member_number && (
+            <FoundingMemberBadge number={profile.founding_member_number} />
+          )}
         </View>
       )}
 
