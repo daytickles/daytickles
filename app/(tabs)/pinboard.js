@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { C, accentFor } from '../../lib/theme';
 import { sharePhoto, shareStatus, SHARE_CAPTIONS } from '../../lib/sharing';
@@ -25,6 +26,7 @@ import WallpaperBackground from '../../components/WallpaperBackground';
 export default function PinBoard() {
   const { session, profile, refreshProfile } = useAuth();
   const tabBarHeight = useBottomTabBarHeight();
+  const insets = useSafeAreaInsets();
   const [photos, setPhotos] = useState([]);
   const [tickledIds, setTickledIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
@@ -158,10 +160,16 @@ export default function PinBoard() {
   return (
     <WallpaperBackground>
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: styles.content.paddingBottom + tabBarHeight }]}>
-        <CornerNav />
-
-        <Text style={styles.title}>Tickle Pics</Text>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top + 12, paddingBottom: styles.content.paddingBottom + tabBarHeight },
+        ]}
+      >
+        <View style={styles.titleRow}>
+          <Text style={styles.title} numberOfLines={1}>Tickle Pics</Text>
+          <CornerNav style={styles.cornerNavInline} />
+        </View>
         <Text style={styles.subheading}>Share it, Save it, Tickle it</Text>
         <Text style={styles.permanentCaptionBold}>
           Photos are stored only on this device. Tap Tickle to write about one,{' '}
@@ -246,8 +254,15 @@ export default function PinBoard() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: 20, paddingTop: 60, paddingBottom: 40 },
-  title: { fontSize: 22, fontWeight: 'bold', color: C.rustDark },
+  content: { padding: 20, paddingBottom: 40 },
+  titleRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6,
+  },
+  // Cancels CornerNav's own marginBottom now that it's nested inside
+  // titleRow instead of standing alone -- same reasoning/pattern as
+  // home.js's own cornerNavInline.
+  cornerNavInline: { marginBottom: 0 },
+  title: { fontSize: 22, fontWeight: 'bold', color: C.rustDark, flexShrink: 1 },
   subheading: { fontSize: 15, fontWeight: '600', color: C.rustDark, marginTop: 4 },
   permanentCaptionBold: { fontSize: 12, fontWeight: '700', color: C.subtext, marginTop: 8, marginBottom: 16 },
   noteBanner: {

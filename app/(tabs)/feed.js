@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity }
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { C, accentFor, darken, textOn } from '../../lib/theme';
@@ -45,7 +46,7 @@ const EMPTY_TEXT = {
 };
 
 const ENTRY_SELECT =
-  'id, entry_date, text_content, mood, like_count, tickle_nature, goal_id, visibility, is_edited, created_at, user_id, profiles!tickle_entries_user_id_fkey(username, avatar_emoji, accent_theme, country)';
+  'id, entry_date, text_content, mood, like_count, tickle_nature, goal_id, visibility, is_edited, created_at, user_id, profiles!tickle_entries_user_id_fkey(username, avatar_emoji, accent_theme, country, founding_member_number)';
 
 // Mine shows entries fully untruncated (deliberate — people should be
 // able to read the complete text), so real cards range from one line to
@@ -79,6 +80,7 @@ export default function Feed() {
   const accentDark = darken(accentFor(profile?.accent_theme).card, 0.35);
   const accentDarkText = textOn(accentDark);
   const tabBarHeight = useBottomTabBarHeight();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const initialTab = TABS.some((t) => t.id === params.tab) ? params.tab : 'everyone';
   const [tab, setTab] = useState(initialTab);
@@ -587,8 +589,11 @@ export default function Feed() {
   return (
     <>
     <WallpaperBackground>
-    <View style={styles.container}>
-      <CornerNav />
+    <View style={[styles.container, { paddingTop: insets.top + 12 }]}>
+      <View style={styles.titleRow}>
+        <Text style={styles.title} numberOfLines={1}>Feed</Text>
+        <CornerNav style={styles.cornerNavInline} />
+      </View>
       {highlightedEntryId && (
         <TouchableOpacity
           onPress={() => router.back()}
@@ -597,8 +602,6 @@ export default function Feed() {
           <Text style={styles.backLink}>‹ Back</Text>
         </TouchableOpacity>
       )}
-
-      <Text style={styles.title}>Feed</Text>
 
       <View style={styles.tabRow}>
         {TABS.map((t) => (
@@ -707,9 +710,16 @@ export default function Feed() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 60, paddingHorizontal: 20 },
+  container: { flex: 1, paddingHorizontal: 20 },
+  titleRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6,
+  },
+  // Cancels CornerNav's own marginBottom now that it's nested inside
+  // titleRow instead of standing alone -- same reasoning/pattern as
+  // home.js's own cornerNavInline.
+  cornerNavInline: { marginBottom: 0 },
   backLink: { fontSize: 16, color: C.rust, marginBottom: 16 },
-  title: { fontSize: 22, fontWeight: 'bold', color: C.rustDark, marginBottom: 16 },
+  title: { fontSize: 22, fontWeight: 'bold', color: C.rustDark, flexShrink: 1 },
 
   tabRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16 },
   tabButton: {

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { C, accentFor, darken, textOn, TICKLE_NATURE_ICONS, NATURE_ORDER } from '../../lib/theme';
@@ -22,7 +23,7 @@ import { useShareCard } from '../../lib/useShareCard';
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 const ENTRY_SELECT =
-  'id, entry_date, text_content, mood, like_count, tickle_nature, goal_id, visibility, is_edited, created_at, user_id, profiles!tickle_entries_user_id_fkey(username, avatar_emoji, accent_theme, country)';
+  'id, entry_date, text_content, mood, like_count, tickle_nature, goal_id, visibility, is_edited, created_at, user_id, profiles!tickle_entries_user_id_fkey(username, avatar_emoji, accent_theme, country, founding_member_number)';
 
 function pad(n) {
   return String(n).padStart(2, '0');
@@ -44,6 +45,7 @@ export default function Calendar() {
   const accentCard = accentFor(profile?.accent_theme).card;
   const accentCardText = textOn(accentCard);
   const tabBarHeight = useBottomTabBarHeight();
+  const insets = useSafeAreaInsets();
 
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
@@ -398,11 +400,15 @@ export default function Calendar() {
       <WallpaperBackground>
       <ScrollView
         style={styles.container}
-        contentContainerStyle={[styles.content, { paddingBottom: styles.content.paddingBottom + tabBarHeight }]}
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top + 12, paddingBottom: styles.content.paddingBottom + tabBarHeight },
+        ]}
       >
-        <CornerNav />
-
-        <Text style={styles.title}>Calendar</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.title} numberOfLines={1}>Calendar</Text>
+          <CornerNav style={styles.cornerNavInline} />
+        </View>
 
         <View style={styles.monthNavRow}>
           <TouchableOpacity onPress={() => goToMonth(-1)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
@@ -580,8 +586,15 @@ export default function Calendar() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: 20, paddingTop: 60, paddingBottom: 40 },
-  title: { fontSize: 22, fontWeight: 'bold', color: C.rustDark, marginBottom: 16 },
+  content: { padding: 20, paddingBottom: 40 },
+  titleRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6,
+  },
+  // Cancels CornerNav's own marginBottom now that it's nested inside
+  // titleRow instead of standing alone -- same reasoning/pattern as
+  // home.js's own cornerNavInline.
+  cornerNavInline: { marginBottom: 0 },
+  title: { fontSize: 22, fontWeight: 'bold', color: C.rustDark, flexShrink: 1 },
 
   monthNavRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12,
