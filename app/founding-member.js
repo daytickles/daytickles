@@ -28,6 +28,10 @@ export default function FoundingMember() {
   const [monthIndex, setMonthIndex] = useState(1);
   const [progress, setProgress] = useState(null);
   const [referralCount, setReferralCount] = useState(0);
+  // 1000 here is just a pre-load placeholder, not the real cap -- the
+  // pool now auto-expands in 100-number blocks server-side (see
+  // supabase/migrations/0030), so app_config.founding_members_cap
+  // (fetched below) is the only real source of truth for this value.
   const [poolStats, setPoolStats] = useState({ granted: 0, cap: 1000, nextNumber: null });
   const [savingTakingPart, setSavingTakingPart] = useState(false);
   const [savingReminders, setSavingReminders] = useState(false);
