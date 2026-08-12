@@ -195,6 +195,12 @@ export default function FoundingMember() {
               This opportunity has closed for now — you're on the regular free plan.
             </Text>
             <Text style={styles.cardSubtext}>
+              This can't be undone. If you'd like another shot at becoming a Founding Member later, you'd
+              need to delete your account and start fresh — which means losing all your tickles and data,
+              so it's here but we don't recommend it lightly. A lighter option: a subscription unlocks more
+              functionality without starting over, and it's inexpensive.
+            </Text>
+            <Text style={styles.cardSubtext}>
               You shared DayTickles and connected with others along the way — that's the part that mattered.
             </Text>
           </View>
