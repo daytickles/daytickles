@@ -142,7 +142,7 @@ export default function FoundingMember() {
   function confirmOptOutFinal() {
     Alert.alert(
       'Are you sure?',
-      "This is the last step -- once confirmed, you're on the regular free plan for good.",
+      "This is the last step — once confirmed, you're on the regular free plan. For more functionality, consider a subscription — it's inexpensive.",
       [
         { text: 'Cancel', style: 'cancel' },
         { text: "Yes, I'm sure", style: 'destructive', onPress: handleOptOut },
