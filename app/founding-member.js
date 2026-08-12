@@ -219,7 +219,35 @@ export default function FoundingMember() {
           </>
         ) : (
           <>
-            <View style={[styles.card, { backgroundColor: withAlpha(accentDark, 0.14), borderColor: accentDark }]}>
+            <View style={[styles.card, { backgroundColor: accentDark, borderColor: accentDark }]}>
+              <Text style={[styles.cardSubtext, { color: textOn(accentDark) }]}>
+                Next FM number available is:{' '}
+                {poolStats.nextNumber ? formatBadge(poolStats.nextNumber) : 'none left'}
+              </Text>
+              <Text style={[styles.cardSubtext, { color: textOn(accentDark) }]}>
+                {poolStats.granted} of {poolStats.cap} claimed
+              </Text>
+
+              <Text style={[styles.cardHeading, { color: textOn(accentDark), marginTop: 12 }]}>
+                Refer a Friend
+              </Text>
+              <Text style={[styles.cardSubtext, { color: textOn(accentDark) }]}>
+                Refer 2 people and lock in the next available number right away — you'll still need to
+                finish to keep it.
+              </Text>
+              <Text style={[styles.referralCode, { color: textOn(accentDark) }]}>{profile?.referral_code}</Text>
+              <Text style={[styles.cardSubtext, { color: textOn(accentDark) }]}>
+                {badgeNumber
+                  ? `${badgeNumber} reserved — finish your 6 months to keep it`
+                  : `${referralCount}/2 referred`}
+              </Text>
+              <TouchableOpacity onPress={shareReferralCode} style={styles.shareButton}>
+                <Text style={[styles.shareButtonText, { color: textOn(accentDark) }]}>Share my code</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.sectionLabel}>Your quest.</Text>
+            <View style={[styles.card, { backgroundColor: C.card, borderColor: C.border }]}>
               <Text style={styles.cardHeading}>Month {monthIndex} of 6</Text>
               {MONTHLY_REQUIREMENTS.map((r) => {
                 const count = progress?.[r.key] || 0;
@@ -240,16 +268,6 @@ export default function FoundingMember() {
             </View>
 
             <View style={styles.toggleRow}>
-              <Text style={styles.toggleLabel}>Taking part</Text>
-              <Switch
-                value={takingPart}
-                onValueChange={handleToggleTakingPart}
-                disabled={savingTakingPart}
-                trackColor={{ false: C.border, true: accentDark }}
-                thumbColor={C.card}
-              />
-            </View>
-            <View style={styles.toggleRow}>
               <Text style={[styles.toggleLabel, !takingPart && styles.toggleLabelDisabled]}>
                 Home-screen reminders
               </Text>
@@ -261,27 +279,20 @@ export default function FoundingMember() {
                 thumbColor={C.card}
               />
             </View>
-
-            <View style={[styles.card, { backgroundColor: C.card, borderColor: C.border }]}>
-              <Text style={styles.cardHeading}>Refer a friend</Text>
-              <Text style={styles.cardSubtext}>
-                Refer 2 people and lock in the next available number right away — you'll still need to finish
-                to keep it.
-              </Text>
-              <Text style={styles.referralCode}>{profile?.referral_code}</Text>
-              <Text style={styles.cardSubtext}>
-                {badgeNumber
-                  ? `${badgeNumber} reserved — finish your 6 months to keep it`
-                  : `${referralCount}/2 referred`}
-              </Text>
-              <TouchableOpacity onPress={shareReferralCode} style={styles.shareButton}>
-                <Text style={[styles.shareButtonText, { color: accentDark }]}>Share my code</Text>
-              </TouchableOpacity>
+            <View style={styles.toggleRow}>
+              <Text style={styles.toggleLabel}>Taking part</Text>
+              <Switch
+                value={takingPart}
+                onValueChange={handleToggleTakingPart}
+                disabled={savingTakingPart}
+                trackColor={{ false: C.border, true: accentDark }}
+                thumbColor={C.card}
+              />
             </View>
           </>
         )}
 
-        {enrollment && enrollment.status !== 'failed' && (
+        {enrollment?.status === 'completed' && (
           <View style={[styles.card, { backgroundColor: C.card, borderColor: C.border }]}>
             <Text style={styles.cardHeading}>Founding Member numbers</Text>
             <Text style={styles.cardSubtext}>
@@ -304,6 +315,7 @@ const styles = StyleSheet.create({
   backLink: { fontSize: 16, color: C.rust, marginBottom: 16 },
   title: { fontSize: 22, fontWeight: 'bold', color: C.rustDark, marginBottom: 20 },
   loader: { marginTop: 40 },
+  sectionLabel: { fontSize: 14, fontWeight: '700', color: C.subtext, marginBottom: 8 },
 
   card: { borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 16 },
   cardHeading: { fontSize: 16, fontWeight: '600', color: C.text, marginBottom: 8 },
