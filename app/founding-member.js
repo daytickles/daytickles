@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Share, Switch, Alert } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
@@ -37,8 +37,34 @@ export default function FoundingMember() {
   const [savingTakingPart, setSavingTakingPart] = useState(false);
   const [savingReminders, setSavingReminders] = useState(false);
 
-  const load = useCallback(async () => {
+  // TEMP DEBUG (bug-1 follow-up) -- confirms exactly when this screen
+  // itself unmounts relative to the checkpoint logs in handleOptOut/
+  // load(), which pins down whether the navigation-away happens mid-
+  // flight (interrupting the async chain) or only after everything
+  // already completed. Remove once resolved.
+  useEffect(() => {
+    console.log('[FM] mounted');
+    return () => console.log('[FM] UNMOUNTING');
+  }, []);
+
+  // Defense-in-depth against re-entrant calls (see the refreshProfile
+  // fix in AuthContext.js for the actual root cause) -- if load() is
+  // already running, a second trigger (real or spurious) is a no-op
+  // instead of racing a second concurrent fetch/setState sequence
+  // against the first.
+  const loadInFlightRef = useRef(false);
+
+  // TEMP DEBUG (bug-1 follow-up) -- `source` tags which call site
+  // triggered this, so the two racing invocations seen in the last
+  // test can be told apart in the logs. Remove once resolved.
+  const load = useCallback(async (source = 'unknown') => {
     if (!session) return;
+    if (loadInFlightRef.current) {
+      console.log('[FM load] skipped -- already in flight, source =', source);
+      return;
+    }
+    loadInFlightRef.current = true;
+    console.log('[FM load] called, source =', source);
     setLoading(true);
     setLoadError('');
 
@@ -46,6 +72,7 @@ export default function FoundingMember() {
       const userId = session.user.id;
       const currentEnrollment = await advanceFoundingMemberProgress(userId);
       setEnrollment(currentEnrollment);
+      console.log('[FM load] setEnrollment ->', currentEnrollment.status, '(source:', source + ')');
 
       // advanceFoundingMemberProgress can change profiles state on the
       // server (referral_code backfill, is_founding_member/
@@ -113,12 +140,18 @@ export default function FoundingMember() {
       setLoadError(err.message || 'Something went wrong loading this page.');
     } finally {
       setLoading(false);
+      loadInFlightRef.current = false;
     }
   }, [session, refreshProfile]);
 
   useFocusEffect(
     useCallback(() => {
-      load();
+      // TEMP DEBUG (bug-1 follow-up) -- logged separately from load()'s
+      // own internal log so we can see how many times this effect
+      // itself re-fires, independent of the source tag. Remove once
+      // resolved.
+      console.log('[FM] useFocusEffect fired');
+      load('focus-effect');
     }, [load])
   );
 
@@ -161,19 +194,28 @@ export default function FoundingMember() {
   }
 
   async function handleOptOut() {
+    // TEMP DEBUG (bug-1 follow-up: "lands on Home" investigation) --
+    // sequential checkpoints to see exactly how far this gets before
+    // whatever redirects to Home. Remove once resolved.
+    console.log('[FM opt-out] start');
     // Alert's onPress doesn't await or catch this -- a thrown/rejected
     // call here would otherwise silently die with no error shown and
     // no state ever updated, leaving the page stuck showing pre-opt-
     // out content with no sign anything went wrong.
     setSavingTakingPart(true);
     try {
-      await optOutOfFoundingMember(session.user.id);
+      const result = await optOutOfFoundingMember(session.user.id);
+      console.log('[FM opt-out] RPC result:', JSON.stringify(result));
       await refreshProfile();
-      await load();
+      console.log('[FM opt-out] refreshProfile done');
+      await load('opt-out');
+      console.log('[FM opt-out] load done');
     } catch (err) {
+      console.log('[FM opt-out] caught error:', err.message);
       setLoadError(err.message || 'Something went wrong ending your enrollment. Please try again.');
     } finally {
       setSavingTakingPart(false);
+      console.log('[FM opt-out] finally reached');
     }
   }
 

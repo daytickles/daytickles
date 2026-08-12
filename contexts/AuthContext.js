@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
+import React, { createContext, useContext, useCallback, useEffect, useState, useRef } from 'react';
 import * as Linking from 'expo-linking';
 import { supabase } from '../lib/supabase';
 import { registerPushToken } from '../lib/pushToken';
@@ -56,7 +56,10 @@ export function AuthProvider({ children }) {
     return prompt;
   }
 
-  async function loadProfile(userId) {
+  // Wrapped in useCallback (stable deps -- only ever touches setProfile,
+  // a stable setState setter) so refreshProfile below can depend on it
+  // without picking up a new identity on every call.
+  const loadProfile = useCallback(async (userId) => {
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
@@ -68,7 +71,7 @@ export function AuthProvider({ children }) {
     } else {
       setProfile((prev) => (profilesEqual(prev, data) ? prev : data));
     }
-  }
+  }, []);
 
   async function handleUrl(url) {
     if (!url || handledRef.current) return;
@@ -135,9 +138,16 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
-  async function refreshProfile() {
+  // Stable identity (only changes if `session` itself changes) -- was
+  // previously a plain function, recreated on every AuthProvider
+  // re-render (i.e. every single profile update, including its own).
+  // Any consumer with this in a useCallback/effect dependency array
+  // (e.g. founding-member.js's load()) would get spuriously re-created
+  // -- and re-fired, if wired into a useFocusEffect -- on every
+  // refresh, not just when session truly changes.
+  const refreshProfile = useCallback(async () => {
     if (session) await loadProfile(session.user.id);
-  }
+  }, [session, loadProfile]);
 
   return (
     <AuthContext.Provider value={{ session, profile, setProfile, loading, refreshProfile, getNextPrompt }}>
