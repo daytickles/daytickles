@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Share, Switch } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Share, Switch, Alert } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
@@ -12,6 +12,7 @@ import {
   fetchMonthProgress,
   fetchEvaluatedMonthIndexes,
   advanceFoundingMemberProgress,
+  optOutOfFoundingMember,
 } from '../lib/foundingMember';
 
 function formatBadge(number) {
@@ -111,11 +112,50 @@ export default function FoundingMember() {
     }, [load])
   );
 
-  async function handleToggleTakingPart(value) {
+  // Turning this off is now a real, permanent exit (see the addendum
+  // -- previously it was just a reversible visibility flag). There's
+  // no direct write for "off" anymore: it always routes through the
+  // double-warning confirmation below, then the opt_out_of_founding_
+  // member RPC, which drives the same terminal state as genuinely
+  // failing the quest. Turning it *on* has nothing left to do -- the
+  // only thing that ever sets it false is the opt-out RPC itself,
+  // which also ends the enrollment, so there's no reversible "off"
+  // state left to turn back on from; this branch only exists to
+  // absorb Switch's onValueChange(true) callback if it fires.
+  function handleToggleTakingPart(value) {
+    if (value === false) {
+      confirmOptOut();
+    }
+  }
+
+  function confirmOptOut() {
+    Alert.alert(
+      'Stop taking part in Founding Member?',
+      "This can't be undone. If you'd like another shot at becoming a Founding Member later, you'd need to delete your account and start fresh, which means losing all your tickles and data.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Continue', style: 'destructive', onPress: confirmOptOutFinal },
+      ]
+    );
+  }
+
+  function confirmOptOutFinal() {
+    Alert.alert(
+      'Are you sure?',
+      "This is the last step -- once confirmed, you're on the regular free plan for good.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: "Yes, I'm sure", style: 'destructive', onPress: handleOptOut },
+      ]
+    );
+  }
+
+  async function handleOptOut() {
     setSavingTakingPart(true);
-    await supabase.from('profiles').update({ founding_member_taking_part: value }).eq('id', session.user.id);
+    await optOutOfFoundingMember(session.user.id);
     setSavingTakingPart(false);
     await refreshProfile();
+    await load();
   }
 
   async function handleToggleReminders(value) {
