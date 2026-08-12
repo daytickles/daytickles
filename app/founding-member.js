@@ -188,8 +188,8 @@ export default function FoundingMember() {
       // message reaches the user either way. Same copy as the closed-
       // state card, for consistency.
       Alert.alert(
-        "This opportunity has closed for now — you're on the regular free plan.",
-        "This can't be undone. If you'd like another shot at becoming a Founding Member later, you'd need to delete your account and start fresh — which means losing all your tickles and data, so it's here but we don't recommend it lightly. A lighter option: a subscription unlocks more functionality without starting over, and it's inexpensive."
+        'This opportunity has closed for now.',
+        "You're on the regular free plan. This can't be undone. If you'd like another shot at becoming a Founding Member later, you'd need to delete your account and start fresh — which means losing all your tickles and data, so it's here but we don't recommend it lightly. A lighter option: a subscription unlocks more functionality without starting over, and it's inexpensive."
       );
 
       await refreshProfile();
