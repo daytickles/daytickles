@@ -54,10 +54,20 @@ export default function FoundingMember() {
       // toggle handlers already do after their own writes.
       await refreshProfile();
 
-      // Shown exactly once -- see supabase/migrations/0027. Marking it
-      // seen here (not behind a separate "Got it" tap) matches how
-      // home_guide_seen already works elsewhere in this app.
-      if (currentEnrollment.status === 'failed' && !profile?.founding_member_failure_message_seen) {
+      // Shown exactly once -- see supabase/migrations/0027 (now also
+      // set atomically server-side by 0031's fail_founding_member_
+      // enrollment for both failure paths, so this is a safety net for
+      // any pre-0031 'failed' rows rather than the primary setter).
+      // Deliberately does NOT gate on `profile?.founding_member_
+      // failure_message_seen` -- that read a stale closure when this
+      // load() ran as part of handleOptOut's chain (called right after
+      // handleOptOut's own refreshProfile(), but load() itself was
+      // captured as a function reference back at an earlier render, so
+      // its closure still saw the pre-refresh `profile`). The update
+      // below is idempotent (true -> true is a harmless no-op), so
+      // just always issuing it when status is 'failed' is simpler and
+      // correct rather than plumbing a fresh read through.
+      if (currentEnrollment.status === 'failed') {
         await supabase
           .from('profiles')
           .update({ founding_member_failure_message_seen: true })
@@ -104,7 +114,7 @@ export default function FoundingMember() {
     } finally {
       setLoading(false);
     }
-  }, [session, profile?.founding_member_failure_message_seen, refreshProfile]);
+  }, [session, refreshProfile]);
 
   useFocusEffect(
     useCallback(() => {
@@ -151,11 +161,20 @@ export default function FoundingMember() {
   }
 
   async function handleOptOut() {
+    // Alert's onPress doesn't await or catch this -- a thrown/rejected
+    // call here would otherwise silently die with no error shown and
+    // no state ever updated, leaving the page stuck showing pre-opt-
+    // out content with no sign anything went wrong.
     setSavingTakingPart(true);
-    await optOutOfFoundingMember(session.user.id);
-    setSavingTakingPart(false);
-    await refreshProfile();
-    await load();
+    try {
+      await optOutOfFoundingMember(session.user.id);
+      await refreshProfile();
+      await load();
+    } catch (err) {
+      setLoadError(err.message || 'Something went wrong ending your enrollment. Please try again.');
+    } finally {
+      setSavingTakingPart(false);
+    }
   }
 
   async function handleToggleReminders(value) {
