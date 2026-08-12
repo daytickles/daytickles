@@ -2,7 +2,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { FOUNDING_MEMBER_BADGE_COLOR, textOn } from '../lib/theme';
 
-// FM0021-style pill, next to a username wherever one appears. Ionicons
+// FM26-style pill, next to a username wherever one appears. Ionicons
 // (used everywhere else in this app) has no crown glyph at all --
 // checked the actual glyph map, not just guessed -- so this is the one
 // spot that reaches for MaterialCommunityIcons instead, which does
@@ -14,7 +14,7 @@ export default function FoundingMemberBadge({ number, style = undefined }) {
   return (
     <View style={[styles.badge, { backgroundColor: FOUNDING_MEMBER_BADGE_COLOR }, style]}>
       <MaterialCommunityIcons name="crown" size={11} color={textColor} />
-      <Text style={[styles.text, { color: textColor }]}>{`FM${String(number).padStart(4, '0')}`}</Text>
+      <Text style={[styles.text, { color: textColor }]}>{`FM${number}`}</Text>
     </View>
   );
 }

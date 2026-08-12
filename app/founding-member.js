@@ -15,7 +15,7 @@ import {
 } from '../lib/foundingMember';
 
 function formatBadge(number) {
-  return number ? `FM${String(number).padStart(4, '0')}` : null;
+  return number ? `FM${number}` : null;
 }
 
 export default function FoundingMember() {
