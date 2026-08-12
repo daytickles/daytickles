@@ -4,7 +4,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { C, accentFor, darken, textOn, withAlpha } from '../lib/theme';
+import { C, accentFor, darken, textOn, withAlpha, FOUNDING_MEMBER_HERO_COLOR } from '../lib/theme';
 import WallpaperBackground from '../components/WallpaperBackground';
 import {
   MONTHLY_REQUIREMENTS,
@@ -219,35 +219,35 @@ export default function FoundingMember() {
           </>
         ) : (
           <>
-            <View style={[styles.card, { backgroundColor: accentDark, borderColor: accentDark }]}>
-              <Text style={[styles.cardSubtext, { color: textOn(accentDark) }]}>
+            <View style={[styles.card, { backgroundColor: FOUNDING_MEMBER_HERO_COLOR, borderColor: FOUNDING_MEMBER_HERO_COLOR }]}>
+              <Text style={[styles.cardSubtext, { color: textOn(FOUNDING_MEMBER_HERO_COLOR) }]}>
                 Next FM number available is:{' '}
                 {poolStats.nextNumber ? formatBadge(poolStats.nextNumber) : 'none left'}
               </Text>
-              <Text style={[styles.cardSubtext, { color: textOn(accentDark) }]}>
+              <Text style={[styles.cardSubtext, { color: textOn(FOUNDING_MEMBER_HERO_COLOR) }]}>
                 {poolStats.granted} of {poolStats.cap} claimed
               </Text>
 
-              <Text style={[styles.cardHeading, { color: textOn(accentDark), marginTop: 12 }]}>
+              <Text style={[styles.cardHeading, { color: textOn(FOUNDING_MEMBER_HERO_COLOR), marginTop: 12 }]}>
                 Refer a Friend
               </Text>
-              <Text style={[styles.cardSubtext, { color: textOn(accentDark) }]}>
+              <Text style={[styles.cardSubtext, { color: textOn(FOUNDING_MEMBER_HERO_COLOR) }]}>
                 Refer 2 people and lock in the next available number right away — you'll still need to
                 finish to keep it.
               </Text>
-              <Text style={[styles.referralCode, { color: textOn(accentDark) }]}>{profile?.referral_code}</Text>
-              <Text style={[styles.cardSubtext, { color: textOn(accentDark) }]}>
+              <Text style={[styles.referralCode, { color: textOn(FOUNDING_MEMBER_HERO_COLOR) }]}>{profile?.referral_code}</Text>
+              <Text style={[styles.cardSubtext, { color: textOn(FOUNDING_MEMBER_HERO_COLOR) }]}>
                 {badgeNumber
                   ? `${badgeNumber} reserved — finish your 6 months to keep it`
                   : `${referralCount}/2 referred`}
               </Text>
               <TouchableOpacity onPress={shareReferralCode} style={styles.shareButton}>
-                <Text style={[styles.shareButtonText, { color: textOn(accentDark) }]}>Share my code</Text>
+                <Text style={[styles.shareButtonText, { color: textOn(FOUNDING_MEMBER_HERO_COLOR) }]}>Share my code</Text>
               </TouchableOpacity>
             </View>
 
             <Text style={styles.sectionLabel}>Your quest.</Text>
-            <View style={[styles.card, { backgroundColor: C.card, borderColor: C.border }]}>
+            <View style={[styles.card, { backgroundColor: withAlpha(C.subtext, 0.1), borderColor: C.border }]}>
               <Text style={styles.cardHeading}>Month {monthIndex} of 6</Text>
               {MONTHLY_REQUIREMENTS.map((r) => {
                 const count = progress?.[r.key] || 0;
