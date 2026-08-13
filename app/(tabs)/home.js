@@ -6,11 +6,13 @@ import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { C, accentFor, moodColorFor, moodDotSize, textOn, lighten, withAlpha, TICKLE_NATURE_ICONS, NATURE_ORDER } from '../../lib/theme';
+import { C, accentFor, moodColorFor, moodDotSize, withAlpha, NATURE_ORDER, VIBE_COLORS } from '../../lib/theme';
 import { shareEntry, shareStatus, SHARE_CAPTIONS } from '../../lib/sharing';
-import { isThisWeek, currentWeekStartISO, localDateString, DEFAULT_WEEK_START_DAY } from '../../lib/week';
+import { isThisWeek, isThisMonth, localDateString, DEFAULT_WEEK_START_DAY } from '../../lib/week';
 import { flagEmoji } from '../../lib/country';
 import Button from '../../components/Button';
+import VibeCard from '../../components/VibeCard';
+import NatureIcon from '../../components/NatureIcon';
 import InitialsAvatar from '../../components/InitialsAvatar';
 import AboutModal from '../../components/AboutModal';
 import FoundingMemberBadge from '../../components/FoundingMemberBadge';
@@ -23,8 +25,8 @@ import { isReviewAvailable, requestReview } from '../../lib/rateUs';
 
 const PINNED_WINDOW_DAYS = 14;
 
-// Labels for the self-care badge row's tap-to-reveal tooltip — mirrors
-// create.js's TICKLE_NATURE_OPTIONS order (received, given, self).
+// Labels rendered below each Vibe card — mirrors create.js's
+// TICKLE_NATURE_OPTIONS order (received, given, self).
 const NATURE_LABELS = {
   received: 'Made me smile',
   given: 'I paid forward',
@@ -74,7 +76,6 @@ function computeReturnedFromGap(entries) {
 export default function Home() {
   const { session, profile, refreshProfile } = useAuth();
   const accent = accentFor(profile?.accent_theme);
-  const streakSunburstColor = withAlpha(lighten(accent.card, 0.5), 0.4);
   const tabBarHeight = useBottomTabBarHeight();
   const insets = useSafeAreaInsets();
 
@@ -83,13 +84,13 @@ export default function Home() {
   const [goals, setGoals] = useState([]);
   const [pickerEntryId, setPickerEntryId] = useState(null);
   const [shareEntryId, setShareEntryId] = useState(null);
-  const [weeklyLikesGiven, setWeeklyLikesGiven] = useState(0);
+  const [sharesTotal, setSharesTotal] = useState(0);
   const [showGuide, setShowGuide] = useState(false);
   const [showRatePrompt, setShowRatePrompt] = useState(false);
   const [showReturnedMessage, setShowReturnedMessage] = useState(false);
   const returnedMessageShownRef = useRef(false);
-  const [activeNatureTooltip, setActiveNatureTooltip] = useState(null);
-  const natureTooltipTimerRef = useRef(null);
+  const [activeStatTooltip, setActiveStatTooltip] = useState(null);
+  const statTooltipTimerRef = useRef(null);
 
   // Auto-show the first-time intro exactly once, gated on the DB flag —
   // not local/session state, so it stays correctly "seen" across
@@ -175,16 +176,22 @@ export default function Home() {
     if (!error) setGoals(data || []);
   }, [session]);
 
-  const loadWeeklyLikesGiven = useCallback(async () => {
+  // All-time total, cloud-only -- tickle_shares (entry shares) +
+  // photo_share_events (bare Pin Board photo shares), same combined
+  // definition the Founding Member month-progress RPC uses (migration
+  // 0023). Deliberately NOT lib/pinBoardDb.js's local-only photo_shares
+  // table -- that's device-local and wouldn't survive a reinstall or a
+  // second device, which would make an "all-time" total silently wrong.
+  const loadSharesTotal = useCallback(async () => {
     if (!session) return;
-    const { count, error } = await supabase
-      .from('likes')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', session.user.id)
-      .gte('created_at', currentWeekStartISO(profile?.week_start_day ?? DEFAULT_WEEK_START_DAY));
-
-    if (!error) setWeeklyLikesGiven(count || 0);
-  }, [session, profile?.week_start_day]);
+    const [tickleSharesResult, photoShareEventsResult] = await Promise.all([
+      supabase.from('tickle_shares').select('id', { count: 'exact', head: true }).eq('created_by', session.user.id),
+      supabase.from('photo_share_events').select('id', { count: 'exact', head: true }).eq('user_id', session.user.id),
+    ]);
+    const tickleSharesCount = tickleSharesResult.error ? 0 : (tickleSharesResult.count || 0);
+    const photoShareEventsCount = photoShareEventsResult.error ? 0 : (photoShareEventsResult.count || 0);
+    setSharesTotal(tickleSharesCount + photoShareEventsCount);
+  }, [session]);
 
   useFocusEffect(
     useCallback(() => {
@@ -200,8 +207,8 @@ export default function Home() {
 
   useFocusEffect(
     useCallback(() => {
-      loadWeeklyLikesGiven();
-    }, [loadWeeklyLikesGiven])
+      loadSharesTotal();
+    }, [loadSharesTotal])
   );
 
   const goalsById = Object.fromEntries(goals.map((g) => [g.id, g]));
@@ -274,22 +281,49 @@ export default function Home() {
     router.push({ pathname: '/feed', params: { tab: 'mine', highlightEntry: entryId } });
   }
 
-  // Tapping the already-shown badge dismisses it early; tapping a
-  // different badge replaces it. Either way it also auto-hides after a
-  // couple seconds via the timer.
-  function showNatureTooltip(key) {
-    if (natureTooltipTimerRef.current) clearTimeout(natureTooltipTimerRef.current);
-    if (activeNatureTooltip === key) {
-      setActiveNatureTooltip(null);
+  // Same tap-to-show/auto-hide-after-2s mechanism the old self-care
+  // badge row used (showNatureTooltip, removed during this redesign) --
+  // now applied to the Tickles/Likes/Shares stat pills instead. Tapping
+  // the already-shown pill dismisses it early; tapping a different pill
+  // replaces it.
+  function showStatTooltip(key) {
+    if (statTooltipTimerRef.current) clearTimeout(statTooltipTimerRef.current);
+    if (activeStatTooltip === key) {
+      setActiveStatTooltip(null);
       return;
     }
-    setActiveNatureTooltip(key);
-    natureTooltipTimerRef.current = setTimeout(() => setActiveNatureTooltip(null), 2000);
+    setActiveStatTooltip(key);
+    statTooltipTimerRef.current = setTimeout(() => setActiveStatTooltip(null), 2000);
   }
 
   const totalTickles = entries.length;
-  const weeklyEntries = entries.filter((e) => isThisWeek(e.entry_date, profile?.week_start_day ?? DEFAULT_WEEK_START_DAY));
-  const weeklyTickles = weeklyEntries.length;
+
+  // Single pass over the full (already-loaded, unfiltered) entries
+  // history -- no new query needed for this, since home.js already
+  // loads every entry the user has ever written. Four windows at once
+  // per vibe: this week / this month / all-time (the vibe card's three
+  // stacked numbers) and today (the lightbulb's lit/unlit check).
+  const todayDateForVibes = localDateString(0);
+  const vibeWeekCounts = { received: 0, given: 0, self: 0 };
+  const vibeMonthCounts = { received: 0, given: 0, self: 0 };
+  const vibeAllTimeCounts = { received: 0, given: 0, self: 0 };
+  const vibeTodayCounts = { received: 0, given: 0, self: 0 };
+  for (const e of entries) {
+    const nature = e.tickle_nature;
+    if (!nature || !(nature in vibeAllTimeCounts)) continue;
+    vibeAllTimeCounts[nature]++;
+    if (isThisWeek(e.entry_date, profile?.week_start_day ?? DEFAULT_WEEK_START_DAY)) vibeWeekCounts[nature]++;
+    if (isThisMonth(e.entry_date)) vibeMonthCounts[nature]++;
+    if (e.entry_date === todayDateForVibes) vibeTodayCounts[nature]++;
+  }
+
+  // null/0 daily_goal_<vibe> both mean "no goal set" -- that vibe's
+  // bulb never lights, distinct from a goal that's merely not yet met.
+  function isVibeLit(key) {
+    const target = profile?.[`daily_goal_${key}`];
+    if (!target) return false;
+    return vibeTodayCounts[key] >= target;
+  }
 
   // Milestone Rate-Us prompt (backlog #8) — flips true the moment it's
   // shown, not only on dismiss, so ignoring it never brings it back.
@@ -314,11 +348,6 @@ export default function Home() {
   }
 
   const totalLikes = entries.reduce((sum, e) => sum + (e.like_count || 0), 0);
-  const natureCounts = {
-    received: weeklyEntries.filter((e) => e.tickle_nature === 'received').length,
-    given: weeklyEntries.filter((e) => e.tickle_nature === 'given').length,
-    self: weeklyEntries.filter((e) => e.tickle_nature === 'self').length,
-  };
 
   const pinnedCutoff = localDateString(PINNED_WINDOW_DAYS - 1);
   const pinned = entries
@@ -355,8 +384,8 @@ export default function Home() {
         </View>
         <View style={styles.iconRow}>
           {entry.tickle_nature && (
-            <Ionicons
-              name={TICKLE_NATURE_ICONS[entry.tickle_nature]}
+            <NatureIcon
+              nature={entry.tickle_nature}
               size={16}
               color={C.subtext}
               style={styles.natureIcon}
@@ -415,6 +444,12 @@ export default function Home() {
   const shareStat = profile ? shareStatus(profile) : null;
   const shareBlocked = !!shareStat && !shareStat.unlimited && shareStat.remaining <= 0;
 
+  const STAT_PILLS = [
+    { key: 'tickles', icon: 'create-outline', value: totalTickles, tooltip: "Tickles you've written, all-time" },
+    { key: 'likes', icon: 'thumbs-up-outline', value: totalLikes, tooltip: "Likes you've received, all-time" },
+    { key: 'shares', icon: 'share-social-outline', value: sharesTotal, tooltip: "Tickles and photos you've shared, all-time" },
+  ];
+
   return (
     <>
     <WallpaperBackground>
@@ -469,44 +504,39 @@ export default function Home() {
         </View>
       )}
 
-      <View style={styles.statsRow}>
-        <View style={[styles.statCard, styles.statCardTickles]}>
-          <Text style={[styles.statNumber, styles.statNumberTickles]}>{totalTickles}</Text>
-          <Text style={[styles.statLabel, styles.statLabelTickles]}>Tickles</Text>
-        </View>
-        <View style={[styles.statCard, styles.statCardLikes]}>
-          <Text style={[styles.statNumber, styles.statNumberLikes]}>{totalLikes}</Text>
-          <Text style={[styles.statLabel, styles.statLabelLikes]}>Likes</Text>
-        </View>
-      </View>
-
-      <View style={styles.streakRow}>
-        <View style={[styles.streakCard, { backgroundColor: accent.card }]}>
-          <View style={[styles.streakSunburst, { backgroundColor: streakSunburstColor }]} />
-          <Text style={[styles.streakNumber, { color: textOn(accent.card) }]}>{weeklyTickles}</Text>
-          <Text style={[styles.streakLabel, { color: textOn(accent.card) }]}>Weekly Tickles</Text>
-        </View>
-        <View style={[styles.streakCard, { backgroundColor: accent.card }]}>
-          <View style={[styles.streakSunburst, { backgroundColor: streakSunburstColor }]} />
-          <Text style={[styles.streakNumber, { color: textOn(accent.card) }]}>{weeklyLikesGiven}</Text>
-          <Text style={[styles.streakLabel, { color: textOn(accent.card) }]}>Weekly likes given</Text>
-        </View>
-      </View>
-
-      <Text style={styles.weeklyVibesLabel}>Weekly Vibes</Text>
-      <View style={styles.selfCareRow}>
+      <View style={styles.vibeCardsRow}>
         {NATURE_ORDER.map((key) => (
-          <TouchableOpacity
+          <VibeCard
             key={key}
-            style={styles.selfCareBadge}
+            nature={key}
+            color={VIBE_COLORS[key]}
+            lit={isVibeLit(key)}
+            accentColor={accent.card}
+            weekCount={vibeWeekCounts[key]}
+            monthCount={vibeMonthCounts[key]}
+            allTimeCount={vibeAllTimeCounts[key]}
+          />
+        ))}
+      </View>
+      <View style={styles.vibeLabelsRow}>
+        {NATURE_ORDER.map((key) => (
+          <Text key={key} style={styles.vibeLabel} numberOfLines={1}>{NATURE_LABELS[key]}</Text>
+        ))}
+      </View>
+
+      <View style={styles.statPillsRow}>
+        {STAT_PILLS.map((pill) => (
+          <TouchableOpacity
+            key={pill.key}
+            style={[styles.statPill, { borderColor: accent.card }]}
             activeOpacity={0.7}
-            onPress={() => showNatureTooltip(key)}
+            onPress={() => showStatTooltip(pill.key)}
           >
-            <Ionicons name={TICKLE_NATURE_ICONS[key]} size={16} color={C.subtext} />
-            <Text style={styles.selfCareCount}>{natureCounts[key]}</Text>
-            {activeNatureTooltip === key && (
-              <View style={styles.natureTooltip} pointerEvents="none">
-                <Text style={styles.natureTooltipText}>{NATURE_LABELS[key]}</Text>
+            <Ionicons name={pill.icon} size={13} color={C.subtext} />
+            <Text style={styles.statPillNumber}>{pill.value}</Text>
+            {activeStatTooltip === pill.key && (
+              <View style={styles.statTooltip} pointerEvents="none">
+                <Text style={styles.statTooltipText}>{pill.tooltip}</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -605,52 +635,30 @@ const styles = StyleSheet.create({
   ratePromptActions: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   ratePromptRateText: { fontSize: 14, fontWeight: '700', color: C.sparkleText },
 
-  streakRow: { flexDirection: 'row', gap: 12, marginBottom: 8 },
-  streakCard: {
-    flex: 1, borderRadius: 18, paddingVertical: 10,
-    alignItems: 'center', overflow: 'hidden',
+  vibeCardsRow: { flexDirection: 'row', gap: 12, marginBottom: 6 },
+  vibeLabelsRow: { flexDirection: 'row', gap: 12, marginBottom: 14 },
+  vibeLabel: {
+    flex: 1, fontSize: 12, fontWeight: '600', color: C.subtext, textAlign: 'center',
   },
-  streakSunburst: {
-    position: 'absolute', top: -30, right: -30,
-    width: 90, height: 90, borderRadius: 45,
-  },
-  streakNumber: { fontSize: 24, fontWeight: 'bold' },
-  streakLabel: { fontSize: 14, marginTop: 2 },
 
-  statsRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
-  statCard: {
-    flex: 1, borderRadius: 18,
-    paddingVertical: 12, alignItems: 'center',
+  statPillsRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
+  statPill: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
+    backgroundColor: C.card, borderWidth: 1.2,
+    // Large enough to always exceed half the box's actual height --
+    // RN clamps borderRadius to min(radius, height/2), so this reads as
+    // a genuine pill regardless of exact content-driven height, without
+    // having to hardcode that height ourselves.
+    borderRadius: 999,
+    paddingVertical: 6,
   },
-  statCardTickles: { backgroundColor: C.amberBg },
-  statCardLikes: { backgroundColor: C.teal },
-  statNumber: { fontSize: 24, fontWeight: 'bold' },
-  statNumberTickles: { color: C.amberText },
-  statNumberLikes: { color: C.tealText },
-  statLabel: { fontSize: 12, marginTop: 2 },
-  statLabelTickles: { color: C.amberText },
-  statLabelLikes: { color: C.tealText },
-
-  weeklyVibesLabel: {
-    fontSize: 12, fontWeight: '600', color: C.subtext, textAlign: 'center',
-    marginTop: 4, marginBottom: 8,
-  },
-  selfCareRow: {
-    flexDirection: 'row', justifyContent: 'center', gap: 12,
-    marginBottom: 10,
-  },
-  selfCareBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: C.card, borderRadius: 14, borderWidth: 1, borderColor: C.border,
-    paddingVertical: 6, paddingHorizontal: 14,
-  },
-  selfCareCount: { fontSize: 13, fontWeight: '600', color: C.text },
-  natureTooltip: {
-    position: 'absolute', top: -34, left: -40, right: -40,
+  statPillNumber: { fontSize: 13, fontWeight: '700', color: C.text },
+  statTooltip: {
+    position: 'absolute', top: -34, left: -30, right: -30,
     alignItems: 'center',
   },
-  natureTooltipText: {
-    fontSize: 11, fontWeight: '600', color: C.bg,
+  statTooltipText: {
+    fontSize: 11, fontWeight: '600', color: C.bg, textAlign: 'center',
     backgroundColor: C.rustDark, borderRadius: 8, overflow: 'hidden',
     paddingVertical: 4, paddingHorizontal: 10,
   },

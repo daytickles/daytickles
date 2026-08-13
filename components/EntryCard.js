@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { C, accentFor, darken, lighten, moodColorFor, moodDotSize, TICKLE_NATURE_ICONS, AWARD_TYPES, AWARD_BADGE_COLOR } from '../lib/theme';
+import { C, accentFor, darken, lighten, moodColorFor, moodDotSize, AWARD_TYPES, AWARD_BADGE_COLOR } from '../lib/theme';
 import { flagEmoji } from '../lib/country';
 import InitialsAvatar from './InitialsAvatar';
 import FoundingMemberBadge from './FoundingMemberBadge';
+import NatureIcon from './NatureIcon';
 
 function formatEntryDate(entryDate) {
   return new Date(`${entryDate}T00:00:00Z`).toLocaleDateString('en-US', {
@@ -118,8 +119,8 @@ export default function EntryCard({
             </View>
             <View style={styles.iconGroup}>
               {item.tickle_nature && (
-                <Ionicons
-                  name={TICKLE_NATURE_ICONS[item.tickle_nature]}
+                <NatureIcon
+                  nature={item.tickle_nature}
                   size={16}
                   color={C.subtext}
                   style={styles.natureIcon}
@@ -244,7 +245,7 @@ export default function EntryCard({
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
                   <Ionicons
-                    name={isLiked ? 'happy' : 'happy-outline'}
+                    name={isLiked ? 'thumbs-up' : 'thumbs-up-outline'}
                     size={16}
                     color={isLiked ? C.amberBg : C.faint}
                   />

@@ -4,8 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { C, accentFor, moodColorFor, moodDotSize, textOn, withAlpha, TICKLE_NATURE_ICONS, NATURE_ORDER, AWARD_TYPES } from '../lib/theme';
-import { currentWeekStartDate, currentWeekStartISO, localDateString, DEFAULT_WEEK_START_DAY } from '../lib/week';
+import { C, accentFor, moodColorFor, moodDotSize, textOn, withAlpha, NATURE_ORDER, VIBE_COLORS, AWARD_TYPES } from '../lib/theme';
+import { currentWeekStartDate, currentWeekStartISO, currentWeekDates, localDateString, DEFAULT_WEEK_START_DAY } from '../lib/week';
 import { initPinBoardDb, getPinnedPhotoCountSince, getPhotoShareCountSince } from '../lib/pinBoardDb';
 import { flagEmoji } from '../lib/country';
 import WallpaperBackground from '../components/WallpaperBackground';
@@ -16,6 +16,18 @@ import WallpaperBackground from '../components/WallpaperBackground';
 // just scoped to 7 instead.
 const TRAILING_WINDOW_DAYS = 7;
 
+// Mirrors home.js's/settings.js's own NATURE_LABELS -- received/given/
+// self, in that order.
+const NATURE_LABELS = {
+  received: 'Made me smile',
+  given: 'I paid forward',
+  self: 'Mood boost',
+};
+
+// Rhythm chart bars grow up from a fixed-height baseline -- height in
+// px, also used directly by rhythmChartWrap's style below.
+const RHYTHM_CHART_HEIGHT = 100;
+
 function formatWeekRange(weekStartDate) {
   // No 'Z'/timeZone override, unlike entry_date's display formatter --
   // weekStartDate is already a local calendar-date string computed on
@@ -25,6 +37,12 @@ function formatWeekRange(weekStartDate) {
   const end = new Date();
   const fmt = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   return `${fmt(start)} – ${fmt(end)}`;
+}
+
+// Same no-'Z' local-date convention as formatWeekRange -- date is
+// already a local 'YYYY-MM-DD' string, read back as local.
+function weekdayLabel(date) {
+  return new Date(`${date}T00:00:00`).toLocaleDateString('en-US', { weekday: 'short' });
 }
 
 export default function WeeklySummary() {
@@ -158,12 +176,39 @@ export default function WeeklySummary() {
   );
 
   const weeklyTickles = weekEntries.length;
-  const natureCounts = {
-    received: weekEntries.filter((e) => e.tickle_nature === 'received').length,
-    given: weekEntries.filter((e) => e.tickle_nature === 'given').length,
-    self: weekEntries.filter((e) => e.tickle_nature === 'self').length,
-  };
+
+  // Per-day-per-vibe breakdown for the rhythm chart -- weekEntries is
+  // already scoped to this week (see loadSummary's query), so this is
+  // just a client-side grouping pass, same reuse-what's-already-loaded
+  // shape as Home's own vibe-card counts. Day order follows the
+  // person's own week_start_day (Settings > "Week starts on"), not a
+  // hardcoded Mon-Sun layout, matching every other "this week" concept
+  // in the app.
+  const weekDates = currentWeekDates(weekStartDay);
+  const dayTotals = Object.fromEntries(weekDates.map((d) => [d, { received: 0, given: 0, self: 0 }]));
+  for (const e of weekEntries) {
+    if (e.tickle_nature && dayTotals[e.entry_date]) {
+      dayTotals[e.entry_date][e.tickle_nature]++;
+    }
+  }
+  const natureCounts = weekDates.reduce(
+    (totals, d) => ({
+      received: totals.received + dayTotals[d].received,
+      given: totals.given + dayTotals[d].given,
+      self: totals.self + dayTotals[d].self,
+    }),
+    { received: 0, given: 0, self: 0 }
+  );
   const hasVibes = natureCounts.received > 0 || natureCounts.given > 0 || natureCounts.self > 0;
+
+  // Scale so the tallest day (or the goal line itself, if it's higher
+  // than any actual day) always fits within the chart -- avoids a
+  // goal line that clips off the top, and avoids a div-by-zero on a
+  // vibe-free week.
+  const dailyGoal = profile?.daily_total_goal || 0;
+  const dayTotalSums = weekDates.map((d) => dayTotals[d].received + dayTotals[d].given + dayTotals[d].self);
+  const maxDayTotal = Math.max(1, dailyGoal, ...dayTotalSums);
+  const goalLineBottom = dailyGoal > 0 ? (dailyGoal / maxDayTotal) * RHYTHM_CHART_HEIGHT : null;
 
   const activeGoals = goals.filter((g) => !g.achieved_at);
   const achievedThisWeek = goals.filter((g) => g.achieved_at && g.achieved_at >= currentWeekStartISO(weekStartDay));
@@ -231,11 +276,42 @@ export default function WeeklySummary() {
             {hasVibes && (
               <>
                 <Text style={styles.sectionLabel}>Weekly Vibes</Text>
-                <View style={styles.vibesRow}>
+                <View style={styles.rhythmChartWrap}>
+                  {goalLineBottom !== null && (
+                    <View style={[styles.rhythmGoalLine, { bottom: goalLineBottom }]} />
+                  )}
+                  <View style={styles.rhythmBarsRow}>
+                    {weekDates.map((date) => (
+                      <View key={date} style={styles.rhythmBarColumn}>
+                        <View style={styles.rhythmBarStack}>
+                          {NATURE_ORDER.map((key) => {
+                            const count = dayTotals[date][key];
+                            if (count <= 0) return null;
+                            return (
+                              <View
+                                key={key}
+                                style={[
+                                  styles.rhythmSegment,
+                                  { height: (count / maxDayTotal) * RHYTHM_CHART_HEIGHT, backgroundColor: VIBE_COLORS[key] },
+                                ]}
+                              />
+                            );
+                          })}
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+                <View style={styles.rhythmLabelsRow}>
+                  {weekDates.map((date) => (
+                    <Text key={date} style={styles.rhythmDayLabel}>{weekdayLabel(date)}</Text>
+                  ))}
+                </View>
+                <View style={styles.rhythmLegendRow}>
                   {NATURE_ORDER.map((key) => (
-                    <View key={key} style={styles.vibesBadge}>
-                      <Ionicons name={TICKLE_NATURE_ICONS[key]} size={16} color={C.subtext} />
-                      <Text style={styles.vibesCount}>{natureCounts[key]}</Text>
+                    <View key={key} style={styles.rhythmLegendItem}>
+                      <View style={[styles.rhythmLegendDot, { backgroundColor: VIBE_COLORS[key] }]} />
+                      <Text style={styles.rhythmLegendText}>{NATURE_LABELS[key]}</Text>
                     </View>
                   ))}
                 </View>
@@ -387,13 +463,31 @@ const styles = StyleSheet.create({
   entryText: { fontSize: 15, color: C.text, lineHeight: 20 },
   entryLikes: { fontSize: 12, color: C.teal, fontWeight: '600', marginTop: 6 },
 
-  vibesRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
-  vibesBadge: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+  // rhythmChartWrap is the positioning context for the goal line
+  // (position: 'absolute', bottom: <px>) -- its height must match
+  // RHYTHM_CHART_HEIGHT exactly, same value the bar/goal-line math
+  // above is computed against.
+  rhythmChartWrap: {
+    height: RHYTHM_CHART_HEIGHT, position: 'relative', marginBottom: 6,
     backgroundColor: C.card, borderRadius: 14, borderWidth: 1, borderColor: C.border,
-    paddingVertical: 10,
+    paddingHorizontal: 10,
   },
-  vibesCount: { fontSize: 13, fontWeight: '600', color: C.text },
+  rhythmGoalLine: {
+    position: 'absolute', left: 10, right: 10,
+    borderTopWidth: 1, borderStyle: 'dashed', borderColor: C.subtext,
+  },
+  rhythmBarsRow: {
+    flex: 1, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between',
+  },
+  rhythmBarColumn: { flex: 1, height: '100%', justifyContent: 'flex-end', alignItems: 'center' },
+  rhythmBarStack: { width: 18, flexDirection: 'column-reverse' },
+  rhythmSegment: { width: '100%' },
+  rhythmLabelsRow: { flexDirection: 'row', marginBottom: 10 },
+  rhythmDayLabel: { flex: 1, fontSize: 11, color: C.subtext, textAlign: 'center' },
+  rhythmLegendRow: { flexDirection: 'row', justifyContent: 'center', gap: 16, marginBottom: 16 },
+  rhythmLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  rhythmLegendDot: { width: 8, height: 8, borderRadius: 4 },
+  rhythmLegendText: { fontSize: 11, color: C.subtext },
 
   goalCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,

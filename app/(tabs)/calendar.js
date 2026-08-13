@@ -10,6 +10,7 @@ import { C, accentFor, darken, textOn, TICKLE_NATURE_ICONS, NATURE_ORDER } from 
 import { shareEntry, shareStatus, SHARE_CAPTIONS } from '../../lib/sharing';
 import GoalTagModal from '../../components/GoalTagModal';
 import AwardPickerModal from '../../components/AwardPickerModal';
+import NatureIcon from '../../components/NatureIcon';
 import ShareModal from '../../components/ShareModal';
 import PhotoEnlargeModal from '../../components/PhotoEnlargeModal';
 import EntryCard from '../../components/EntryCard';
@@ -482,9 +483,9 @@ export default function Calendar() {
                       <View style={styles.vibesIconRow}>
                         {NATURE_ORDER.filter((nature) => natureCategoriesByDate[dateStr]?.has(nature)).map(
                           (nature) => (
-                            <Ionicons
+                            <NatureIcon
                               key={nature}
-                              name={TICKLE_NATURE_ICONS[nature]}
+                              nature={nature}
                               size={9}
                               color={isSelected ? accentCardText : accentDark}
                             />

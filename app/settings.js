@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { C, ACCENT_THEMES, accentFor, darken, textOn } from '../lib/theme';
+import { C, ACCENT_THEMES, accentFor, darken, textOn, NATURE_ORDER } from '../lib/theme';
 import { DEFAULT_WEEK_START_DAY } from '../lib/week';
 import { flagEmoji, countryNameFor } from '../lib/country';
 import Button from '../components/Button';
@@ -13,6 +13,7 @@ import AboutModal from '../components/AboutModal';
 import CountryPickerModal from '../components/CountryPickerModal';
 import PinSetupModal from '../components/PinSetupModal';
 import DeleteAccountModal from '../components/DeleteAccountModal';
+import NatureIcon from '../components/NatureIcon';
 import WallpaperBackground from '../components/WallpaperBackground';
 import {
   requestReminderPermission,
@@ -37,6 +38,14 @@ const WEEK_START_OPTIONS = [
   { day: 6, label: 'Sa' },
 ];
 
+// Mirrors home.js's own NATURE_LABELS (and create.js's
+// TICKLE_NATURE_OPTIONS order) -- received/given/self, in that order.
+const NATURE_LABELS = {
+  received: 'Made me smile',
+  given: 'I paid forward',
+  self: 'Mood boost',
+};
+
 export default function Settings() {
   const { profile, setProfile, refreshProfile } = useAuth();
   const accentDark = darken(accentFor(profile?.accent_theme).card, 0.35);
@@ -49,6 +58,7 @@ export default function Settings() {
   const [savingNotifyOnLikes, setSavingNotifyOnLikes] = useState(false);
   const [savingCountry, setSavingCountry] = useState(false);
   const [savingDailyReminder, setSavingDailyReminder] = useState(false);
+  const [savingGoal, setSavingGoal] = useState(null);
   const [reminderPermissionDenied, setReminderPermissionDenied] = useState(false);
   const [pinEnabled, setPinEnabled] = useState(false);
   const [togglingPinLock, setTogglingPinLock] = useState(false);
@@ -228,6 +238,33 @@ export default function Settings() {
     }
   }
 
+  // Stepper, not a free-text field -- clamps at 0 (stored as null, "off")
+  // rather than going negative. null/0 both render as "Off"; there's no
+  // separate concept of an explicit zero target. Takes the literal
+  // column name rather than deriving it internally, since it now backs
+  // two different kinds of goal: daily_goal_<nature> (Daily Vibe Goals)
+  // and daily_total_goal (Weekly Rhythm Goal) -- same stepper mechanic,
+  // different columns, callers just pass whichever one applies.
+  async function handleAdjustGoal(column, delta) {
+    if (!profile) return;
+    const current = profile[column] || 0;
+    const next = Math.max(0, current + delta);
+    const value = next === 0 ? null : next;
+    const previous = profile;
+
+    setProfile({ ...profile, [column]: value });
+    setSavingGoal(column);
+
+    const { error } = await supabase.from('profiles').update({ [column]: value }).eq('id', profile.id);
+    setSavingGoal(null);
+
+    if (error) {
+      setProfile(previous);
+    } else {
+      refreshProfile();
+    }
+  }
+
   // Enabling only flips the Switch once PinSetupModal's enter-twice flow
   // actually saves a PIN (handlePinSetupComplete) — the toggle stays off
   // while the modal is open. Disabling has no confirmation step, matching
@@ -342,6 +379,81 @@ export default function Settings() {
           );
         })}
       </View>
+      <View style={styles.spacer} />
+
+      <Text style={styles.label}>Daily Vibe Goals</Text>
+      <Text style={styles.explainerText}>
+        Optional — set a target for any vibe and its lightbulb lights up on Home once you hit it
+        that day. Off by default; step back down to "Off" anytime to turn one off again.
+      </Text>
+      <View style={{ height: 8 }} />
+      {NATURE_ORDER.map((key) => {
+        const column = `daily_goal_${key}`;
+        const value = profile?.[column] || null;
+        const saving = savingGoal === column;
+        return (
+          <View key={key} style={styles.vibeGoalRow}>
+            <NatureIcon nature={key} size={18} color={C.subtext} style={styles.vibeGoalIcon} />
+            <Text style={styles.vibeGoalLabel}>{NATURE_LABELS[key]}</Text>
+            <View style={styles.stepper}>
+              <TouchableOpacity
+                onPress={() => handleAdjustGoal(column, -1)}
+                disabled={saving || !value}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="remove-circle-outline" size={20} color={value ? C.text : C.faint} />
+              </TouchableOpacity>
+              <Text style={styles.stepperValue}>{value || 'Off'}</Text>
+              <TouchableOpacity
+                onPress={() => handleAdjustGoal(column, 1)}
+                disabled={saving}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="add-circle-outline" size={20} color={C.text} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        );
+      })}
+      <View style={styles.spacer} />
+
+      {/* Deliberately its own section, separate from Daily Vibe Goals
+          above -- different kind of goal (one combined per-day total
+          vs. three independent per-vibe ones) even though both are
+          measured per-day, easy to conflate if presented together. */}
+      <Text style={styles.label}>Weekly Rhythm Goal</Text>
+      <Text style={styles.explainerText}>
+        Optional — set an overall daily target (any vibe combined) to show as a goal line on your
+        Weekly Summary rhythm chart. Off by default.
+      </Text>
+      <View style={{ height: 8 }} />
+      {(() => {
+        const value = profile?.daily_total_goal || null;
+        const saving = savingGoal === 'daily_total_goal';
+        return (
+          <View style={styles.vibeGoalRow}>
+            <Ionicons name="pulse-outline" size={18} color={C.subtext} style={styles.vibeGoalIcon} />
+            <Text style={styles.vibeGoalLabel}>Tickles per day</Text>
+            <View style={styles.stepper}>
+              <TouchableOpacity
+                onPress={() => handleAdjustGoal('daily_total_goal', -1)}
+                disabled={saving || !value}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="remove-circle-outline" size={20} color={value ? C.text : C.faint} />
+              </TouchableOpacity>
+              <Text style={styles.stepperValue}>{value || 'Off'}</Text>
+              <TouchableOpacity
+                onPress={() => handleAdjustGoal('daily_total_goal', 1)}
+                disabled={saving}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="add-circle-outline" size={20} color={C.text} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        );
+      })()}
       <View style={styles.spacer} />
 
       <View style={styles.toggleRow}>
@@ -500,6 +612,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
   },
   toggleLabel: { flex: 1, fontSize: 15, color: C.text, marginRight: 12 },
+  vibeGoalRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 6,
+  },
+  vibeGoalIcon: { marginRight: 10 },
+  vibeGoalLabel: { flex: 1, fontSize: 15, color: C.text },
+  stepper: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  stepperValue: { fontSize: 15, fontWeight: '600', color: C.text, minWidth: 28, textAlign: 'center' },
   countryRow: {
     paddingVertical: 12, paddingHorizontal: 14, marginBottom: 6,
     backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border,
