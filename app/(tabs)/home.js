@@ -433,8 +433,14 @@ export default function Home() {
 
   const totalLikes = entries.reduce((sum, e) => sum + (e.like_count || 0), 0);
 
+  // Day Journal entries are private/reflective by design -- excluded
+  // from both spotlight picks below, same intent as their exclusion
+  // from the vibe counts above. totalTickles/totalLikes above still
+  // count them; only "what gets surfaced" is filtered here.
+  const spotlightEntries = entries.filter((e) => e.tickle_nature !== 'day_journal');
+
   const pinnedCutoff = localDateString(PINNED_WINDOW_DAYS - 1);
-  const pinned = entries
+  const pinned = spotlightEntries
     .filter((e) => e.entry_date >= pinnedCutoff)
     .reduce((best, e) => (!best || e.like_count > best.like_count ? e : best), null);
 
@@ -667,15 +673,15 @@ export default function Home() {
           like_count in the last 14 days) and entries[0] (the single most
           recent entry) frequently coincide, especially for newer/lower-
           activity accounts. */}
-      {!loading && entries.length > 0 && entries[0].id !== pinned?.id && (
+      {!loading && spotlightEntries.length > 0 && spotlightEntries[0].id !== pinned?.id && (
         <>
           <Text style={styles.sectionLabel}>Latest tickle</Text>
           <TouchableOpacity
             style={styles.entryCard}
             activeOpacity={0.8}
-            onPress={() => goToEntryInFeed(entries[0].id)}
+            onPress={() => goToEntryInFeed(spotlightEntries[0].id)}
           >
-            {renderEntryBody(entries[0])}
+            {renderEntryBody(spotlightEntries[0])}
           </TouchableOpacity>
         </>
       )}

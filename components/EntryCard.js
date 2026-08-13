@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Modal, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { C, accentFor, darken, lighten, moodColorFor, moodDotSize, AWARD_TYPES, AWARD_BADGE_COLOR } from '../lib/theme';
+import { C, accentFor, darken, lighten, withAlpha, moodColorFor, moodDotSize, AWARD_TYPES, AWARD_BADGE_COLOR } from '../lib/theme';
 import { flagEmoji } from '../lib/country';
 import InitialsAvatar from './InitialsAvatar';
 import FoundingMemberBadge from './FoundingMemberBadge';
@@ -21,6 +21,17 @@ function formatEntryDate(entryDate) {
 // any caller doing its own height math (e.g. feed.js's FlatList
 // getItemLayout) can't silently drift out of sync with the real value.
 export const CARD_SPACING = 12;
+
+// Heuristic for whether a journal entry's clamped-to-4-lines preview
+// needs a "Continue reading" affordance -- see the entryText render
+// site for why this is a char-count guess rather than a measured line
+// count.
+const JOURNAL_TRUNCATE_CHARS = 200;
+
+// Generous upper bound of rule-line offsets for the ruled-paper texture
+// (see journalTextWrap) -- covers the longest possible entry (MAX_LEN
+// 500 in create.js); journalTextWrap's overflow:hidden clips the rest.
+const JOURNAL_RULE_OFFSETS = Array.from({ length: 20 }, (_, i) => (i + 1) * 22);
 
 // Extracted from feed.js's original renderEntry — same markup, same
 // styles, same tab==='mine'-gated actions (now `showMineActions`), same
@@ -53,11 +64,17 @@ export default function EntryCard({
   const accent = accentFor(item.profiles?.accent_theme);
   const isOwnEntry = item.user_id === currentUserId;
   const dotSize = moodDotSize(item.mood);
+  // Day Journal is just tickle_nature === 'day_journal' (see migration
+  // 0010) -- no new prop needed, item already carries it.
+  const isJournal = item.tickle_nature === 'day_journal';
   // Local to this card, not lifted to feed.js/calendar.js -- each menu
   // only ever acts on its own item via props already passed down
   // (onToggleVisibility/onDelete/router push for edit), so there's
   // nothing a parent screen needs to coordinate across cards.
   const [menuOpen, setMenuOpen] = useState(false);
+  // Journal entries render collapsed (4 lines) behind ruled-paper
+  // texture until tapped open -- local to the card, same as menuOpen.
+  const [journalExpanded, setJournalExpanded] = useState(false);
 
   function confirmDelete() {
     Alert.alert(
@@ -79,6 +96,11 @@ export default function EntryCard({
         // a highlighted *and* awarded card should still show the gold
         // stripe, not have it swallowed by the highlight's own border.
         hasAward && styles.publicAwardStripe,
+        // Ordered last so a journal entry's own look always wins over a
+        // legacy award stripe (award-giving is suppressed for journal
+        // entries going forward, but a pre-existing award could still
+        // be on one).
+        isJournal && styles.journalCard,
       ]}
       onLayout={onLayout}
     >
@@ -118,7 +140,15 @@ export default function EntryCard({
               )}
             </View>
             <View style={styles.iconGroup}>
-              {item.tickle_nature && (
+              {isJournal ? (
+                // Deliberately not added to TICKLE_NATURE_ICONS/NatureIcon --
+                // calendar.js's month-grid keys off "no TICKLE_NATURE_ICONS
+                // entry" to keep Day Journal out of the Vibes category dots
+                // (see its own comment at the natureCategories build site).
+                // Doing it there would silently pull journal entries into
+                // Vibes categorization on the calendar grid.
+                <Ionicons name="journal-outline" size={16} color={C.subtext} style={styles.natureIcon} />
+              ) : item.tickle_nature && (
                 <NatureIcon
                   nature={item.tickle_nature}
                   size={16}
@@ -146,7 +176,7 @@ export default function EntryCard({
                   <Ionicons name="ribbon" size={16} color={AWARD_BADGE_COLOR} />
                 </View>
               )}
-              {showMineActions && (
+              {showMineActions && !isJournal && (
                 <TouchableOpacity
                   onPress={() => onPickGoal?.(item.id)}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -169,7 +199,7 @@ export default function EntryCard({
                   </View>
                 </TouchableOpacity>
               )}
-              {showMineActions && (
+              {showMineActions && !isJournal && (
                 <TouchableOpacity
                   onPress={() => onShare?.(item.id)}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -178,22 +208,25 @@ export default function EntryCard({
                   <Text style={styles.shareLink}>Share</Text>
                 </TouchableOpacity>
               )}
-              <TouchableOpacity
-                onPress={() => onToggleFavorite?.(item.id)}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                style={styles.starAction}
-              >
-                <Text style={[styles.starIcon, isFavorited && styles.starIconActive]}>
-                  {isFavorited ? '★' : '☆'}
-                </Text>
-              </TouchableOpacity>
+              {!isJournal && (
+                <TouchableOpacity
+                  onPress={() => onToggleFavorite?.(item.id)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  style={styles.starAction}
+                >
+                  <Text style={[styles.starIcon, isFavorited && styles.starIconActive]}>
+                    {isFavorited ? '★' : '☆'}
+                  </Text>
+                </TouchableOpacity>
+              )}
               {/* Unlike the favorite star above (favoriting your own
                   entry is allowed), awarding your own entry is blocked
                   -- both here client-side and server-side via migration
                   0020's prevent_self_award trigger, same defense-in-
                   depth shape as the Like button's own !isOwnEntry gate
-                  further down this file. */}
-              {isFavorited && !isOwnEntry && (
+                  further down this file. Journal entries suppress
+                  award-giving entirely, same as the favorite star above. */}
+              {!isJournal && isFavorited && !isOwnEntry && (
                 awardType ? (
                   // Permanent once given (see migration 0020) -- a plain
                   // View, not a TouchableOpacity, since there's nothing
@@ -231,14 +264,40 @@ export default function EntryCard({
               )}
             </View>
           </View>
-          <Text style={styles.entryText}>{item.text_content}</Text>
+          <View style={isJournal ? styles.journalTextWrap : undefined}>
+            {isJournal && (
+              // Fixed, generous upper bound (covers the longest possible
+              // entry at MAX_LEN=500) -- the wrap's own overflow:hidden
+              // clips extra lines to the text's real rendered height, so
+              // no onLayout/measurement pass is needed.
+              <View style={styles.journalRuleLines} pointerEvents="none">
+                {JOURNAL_RULE_OFFSETS.map((top) => (
+                  <View key={top} style={[styles.journalRuleLine, { top }]} />
+                ))}
+              </View>
+            )}
+            <Text
+              style={[styles.entryText, isJournal && styles.journalEntryText]}
+              numberOfLines={isJournal && !journalExpanded ? 4 : undefined}
+            >
+              {item.text_content}
+            </Text>
+          </View>
+          {isJournal && !journalExpanded && item.text_content.length > JOURNAL_TRUNCATE_CHARS && (
+            <TouchableOpacity
+              onPress={() => setJournalExpanded(true)}
+              hitSlop={{ top: 6, bottom: 10, left: 10, right: 10 }}
+            >
+              <Text style={styles.continueReadingLink}>Continue reading</Text>
+            </TouchableOpacity>
+          )}
           <View style={styles.entryMetaRow}>
             <Text style={styles.entryDate}>
               {formatEntryDate(item.entry_date)}
               {item.visibility === 'public' && item.is_edited ? ' · (edited)' : ''}
             </Text>
             <View style={styles.entryMetaRight}>
-              {!isOwnEntry && (
+              {!isJournal && !isOwnEntry && (
                 <TouchableOpacity
                   onPress={() => onToggleLike?.(item.id)}
                   style={styles.likeButton}
@@ -271,22 +330,24 @@ export default function EntryCard({
               <Text style={styles.menuRowLabel}>Edit</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.menuRow}
-              onPress={() => {
-                setMenuOpen(false);
-                onToggleVisibility?.(item);
-              }}
-            >
-              <Ionicons
-                name={item.visibility === 'public' ? 'eye-off-outline' : 'eye-outline'}
-                size={18}
-                color={C.text}
-              />
-              <Text style={styles.menuRowLabel}>
-                {item.visibility === 'public' ? 'Make private' : 'Make public'}
-              </Text>
-            </TouchableOpacity>
+            {!isJournal && (
+              <TouchableOpacity
+                style={styles.menuRow}
+                onPress={() => {
+                  setMenuOpen(false);
+                  onToggleVisibility?.(item);
+                }}
+              >
+                <Ionicons
+                  name={item.visibility === 'public' ? 'eye-off-outline' : 'eye-outline'}
+                  size={18}
+                  color={C.text}
+                />
+                <Text style={styles.menuRowLabel}>
+                  {item.visibility === 'public' ? 'Make private' : 'Make public'}
+                </Text>
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity
               style={styles.menuRow}
@@ -309,6 +370,21 @@ const styles = StyleSheet.create({
   entryCard: {
     backgroundColor: C.card, borderRadius: 16, padding: 14, marginBottom: CARD_SPACING,
   },
+  journalCard: {
+    // C.bg is the exact color WallpaperBackground paints as its own
+    // base layer -- an opaque journalCard in that color was literally
+    // invisible against the page. Lightened + alpha'd instead, so the
+    // wallpaper's cream/texture shows through faintly while the card
+    // still reads as a distinct surface.
+    backgroundColor: withAlpha(lighten(C.bg, 0.6), 0.55), borderLeftWidth: 4, borderLeftColor: C.rustDark,
+  },
+  journalTextWrap: { position: 'relative', overflow: 'hidden' },
+  journalRuleLines: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
+  journalRuleLine: { position: 'absolute', left: 0, right: 0, height: 1, backgroundColor: C.border },
+  journalEntryText: {
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif', lineHeight: 22,
+  },
+  continueReadingLink: { fontSize: 12, fontWeight: '600', color: C.rust, marginTop: 4 },
   highlightedCard: {
     borderWidth: 1.5, borderColor: C.amberDark, backgroundColor: C.sparkleBg,
   },
