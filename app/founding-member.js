@@ -118,7 +118,7 @@ export default function FoundingMember() {
         // numbers, with no separate accounting needed for either.
         supabase
           .from('founding_member_slots')
-          .select('id', { count: 'exact', head: true })
+          .select('number', { count: 'exact', head: true })
           .eq('status', 'available'),
       ]);
 
@@ -127,7 +127,7 @@ export default function FoundingMember() {
         granted: configResult.data?.founding_members_awarded_count ?? 0,
         cap: configResult.data?.founding_members_cap ?? 1000,
         nextNumber: nextSlotResult.data?.number ?? null,
-        available: availableCountResult.count ?? 0,
+        available: availableCountResult.error ? 0 : (availableCountResult.count ?? 0),
       });
     } catch (err) {
       setLoadError(err.message || 'Something went wrong loading this page.');
