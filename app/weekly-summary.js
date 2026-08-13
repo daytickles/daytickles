@@ -9,6 +9,7 @@ import { currentWeekStartDate, currentWeekStartISO, currentWeekDates, localDateS
 import { initPinBoardDb, getPinnedPhotoCountSince, getPhotoShareCountSince } from '../lib/pinBoardDb';
 import { flagEmoji } from '../lib/country';
 import WallpaperBackground from '../components/WallpaperBackground';
+import NatureIcon from '../components/NatureIcon';
 
 // "Most liked" below is a distinct concept from the calendar-week stats
 // above it -- a trailing window from today, not tied to week_start_day,
@@ -24,9 +25,21 @@ const NATURE_LABELS = {
   self: 'Mood boost',
 };
 
-// Rhythm chart bars grow up from a fixed-height baseline -- height in
-// px, also used directly by rhythmChartWrap's style below.
-const RHYTHM_CHART_HEIGHT = 100;
+// Bubble grid sizing -- a filled bubble's diameter scales between these
+// two values based on that cell's count relative to the grid's single
+// largest cell (so relative sizing is meaningful across the whole
+// week x vibe grid, not just within one row or one day). A genuine
+// zero gets its own small fixed grey dot (BUBBLE_EMPTY) instead of a
+// tiny/invisible bubble -- deliberately smaller than any filled
+// bubble and never vibe-colored, so "present but empty" reads as
+// visually distinct from an unrendered cell.
+const BUBBLE_MIN = 12;
+const BUBBLE_MAX = 26;
+const BUBBLE_EMPTY = 6;
+
+function bubbleDiameter(count, maxCellCount) {
+  return BUBBLE_MIN + (count / maxCellCount) * (BUBBLE_MAX - BUBBLE_MIN);
+}
 
 function formatWeekRange(weekStartDate) {
   // No 'Z'/timeZone override, unlike entry_date's display formatter --
@@ -201,14 +214,11 @@ export default function WeeklySummary() {
   );
   const hasVibes = natureCounts.received > 0 || natureCounts.given > 0 || natureCounts.self > 0;
 
-  // Scale so the tallest day (or the goal line itself, if it's higher
-  // than any actual day) always fits within the chart -- avoids a
-  // goal line that clips off the top, and avoids a div-by-zero on a
-  // vibe-free week.
-  const dailyGoal = profile?.daily_total_goal || 0;
-  const dayTotalSums = weekDates.map((d) => dayTotals[d].received + dayTotals[d].given + dayTotals[d].self);
-  const maxDayTotal = Math.max(1, dailyGoal, ...dayTotalSums);
-  const goalLineBottom = dailyGoal > 0 ? (dailyGoal / maxDayTotal) * RHYTHM_CHART_HEIGHT : null;
+  // Single largest cell across the whole grid (all 7 days x 3 vibes) --
+  // avoids a div-by-zero on a vibe-free week. daily_total_goal isn't
+  // read here: the bubble grid doesn't visualize the goal line (still
+  // configurable in Settings, just not shown on this view for now).
+  const maxCellCount = Math.max(1, ...weekDates.flatMap((d) => NATURE_ORDER.map((key) => dayTotals[d][key])));
 
   const activeGoals = goals.filter((g) => !g.achieved_at);
   const achievedThisWeek = goals.filter((g) => g.achieved_at && g.achieved_at >= currentWeekStartISO(weekStartDay));
@@ -276,35 +286,44 @@ export default function WeeklySummary() {
             {hasVibes && (
               <>
                 <Text style={styles.sectionLabel}>Weekly Vibes</Text>
-                <View style={styles.rhythmChartWrap}>
-                  {goalLineBottom !== null && (
-                    <View style={[styles.rhythmGoalLine, { bottom: goalLineBottom }]} />
-                  )}
-                  <View style={styles.rhythmBarsRow}>
+                <View style={styles.rhythmTotalsRow}>
+                  {NATURE_ORDER.map((key) => (
+                    <View key={key} style={[styles.rhythmTotalPill, { backgroundColor: VIBE_COLORS[key] }]}>
+                      <NatureIcon nature={key} size={13} color={textOn(VIBE_COLORS[key])} />
+                      <Text style={[styles.rhythmTotalText, { color: textOn(VIBE_COLORS[key]) }]}>
+                        {natureCounts[key]}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+                <View style={styles.rhythmGridWrap}>
+                  <View style={styles.rhythmHeaderRow}>
+                    <View style={styles.rhythmRowLabelSpacer} />
                     {weekDates.map((date) => (
-                      <View key={date} style={styles.rhythmBarColumn}>
-                        <View style={styles.rhythmBarStack}>
-                          {NATURE_ORDER.map((key) => {
-                            const count = dayTotals[date][key];
-                            if (count <= 0) return null;
-                            return (
-                              <View
-                                key={key}
-                                style={[
-                                  styles.rhythmSegment,
-                                  { height: (count / maxDayTotal) * RHYTHM_CHART_HEIGHT, backgroundColor: VIBE_COLORS[key] },
-                                ]}
-                              />
-                            );
-                          })}
-                        </View>
-                      </View>
+                      <Text key={date} style={styles.rhythmDayLabel}>{weekdayLabel(date)}</Text>
                     ))}
                   </View>
-                </View>
-                <View style={styles.rhythmLabelsRow}>
-                  {weekDates.map((date) => (
-                    <Text key={date} style={styles.rhythmDayLabel}>{weekdayLabel(date)}</Text>
+                  {NATURE_ORDER.map((key) => (
+                    <View key={key} style={styles.rhythmGridRow}>
+                      <View style={styles.rhythmRowLabel}>
+                        <NatureIcon nature={key} size={16} color={VIBE_COLORS[key]} />
+                      </View>
+                      {weekDates.map((date) => {
+                        const count = dayTotals[date][key];
+                        const size = bubbleDiameter(count, maxCellCount);
+                        return (
+                          <View key={date} style={styles.rhythmDayCell}>
+                            {count > 0 ? (
+                              <View
+                                style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: VIBE_COLORS[key] }}
+                              />
+                            ) : (
+                              <View style={styles.rhythmEmptyDot} />
+                            )}
+                          </View>
+                        );
+                      })}
+                    </View>
                   ))}
                 </View>
                 <View style={styles.rhythmLegendRow}>
@@ -463,27 +482,32 @@ const styles = StyleSheet.create({
   entryText: { fontSize: 15, color: C.text, lineHeight: 20 },
   entryLikes: { fontSize: 12, color: C.teal, fontWeight: '600', marginTop: 6 },
 
-  // rhythmChartWrap is the positioning context for the goal line
-  // (position: 'absolute', bottom: <px>) -- its height must match
-  // RHYTHM_CHART_HEIGHT exactly, same value the bar/goal-line math
-  // above is computed against.
-  rhythmChartWrap: {
-    height: RHYTHM_CHART_HEIGHT, position: 'relative', marginBottom: 6,
+  // Small color-coded pill per vibe -- same pill shape (borderRadius
+  // 999) as Home's Tickles/Likes/Shares stat pills, but filled with
+  // that vibe's own color (matching VibeCard's solid-per-vibe fill)
+  // rather than a neutral background, per "color-coded pill-box style
+  // already used elsewhere in this redesign."
+  rhythmTotalsRow: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginBottom: 14 },
+  rhythmTotalPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    borderRadius: 999, paddingVertical: 5, paddingHorizontal: 12,
+  },
+  rhythmTotalText: { fontSize: 13, fontWeight: '700' },
+
+  rhythmGridWrap: {
     backgroundColor: C.card, borderRadius: 14, borderWidth: 1, borderColor: C.border,
-    paddingHorizontal: 10,
+    paddingVertical: 12, paddingHorizontal: 10, marginBottom: 6,
   },
-  rhythmGoalLine: {
-    position: 'absolute', left: 10, right: 10,
-    borderTopWidth: 1, borderStyle: 'dashed', borderColor: C.subtext,
-  },
-  rhythmBarsRow: {
-    flex: 1, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between',
-  },
-  rhythmBarColumn: { flex: 1, height: '100%', justifyContent: 'flex-end', alignItems: 'center' },
-  rhythmBarStack: { width: 18, flexDirection: 'column-reverse' },
-  rhythmSegment: { width: '100%' },
-  rhythmLabelsRow: { flexDirection: 'row', marginBottom: 10 },
+  rhythmHeaderRow: { flexDirection: 'row', marginBottom: 10 },
+  // Matches rhythmRowLabel's width below so the day-label header lines
+  // up with the bubble columns, not shifted by the row-icon column.
+  rhythmRowLabelSpacer: { width: 24 },
   rhythmDayLabel: { flex: 1, fontSize: 11, color: C.subtext, textAlign: 'center' },
+  rhythmGridRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  rhythmRowLabel: { width: 24, alignItems: 'center' },
+  rhythmDayCell: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  rhythmEmptyDot: { width: BUBBLE_EMPTY, height: BUBBLE_EMPTY, borderRadius: BUBBLE_EMPTY / 2, backgroundColor: C.border },
+
   rhythmLegendRow: { flexDirection: 'row', justifyContent: 'center', gap: 16, marginBottom: 16 },
   rhythmLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   rhythmLegendDot: { width: 8, height: 8, borderRadius: 4 },
