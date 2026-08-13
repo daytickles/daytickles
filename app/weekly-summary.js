@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { C, accentFor, moodColorFor, moodDotSize, textOn, withAlpha, NATURE_ORDER, VIBE_COLORS, AWARD_TYPES } from '../lib/theme';
+import { C, accentFor, moodColorFor, moodDotSize, textOn, withAlpha, darken, NATURE_ORDER, VIBE_COLORS, AWARD_TYPES } from '../lib/theme';
 import { currentWeekStartDate, currentWeekStartISO, currentWeekDates, localDateString, DEFAULT_WEEK_START_DAY } from '../lib/week';
 import { initPinBoardDb, getPinnedPhotoCountSince, getPhotoShareCountSince } from '../lib/pinBoardDb';
 import { flagEmoji } from '../lib/country';
@@ -288,11 +288,15 @@ export default function WeeklySummary() {
                 <Text style={styles.sectionLabel}>Weekly Vibes</Text>
                 <View style={styles.rhythmTotalsRow}>
                   {NATURE_ORDER.map((key) => (
-                    <View key={key} style={[styles.rhythmTotalPill, { backgroundColor: VIBE_COLORS[key] }]}>
-                      <NatureIcon nature={key} size={13} color={textOn(VIBE_COLORS[key])} />
-                      <Text style={[styles.rhythmTotalText, { color: textOn(VIBE_COLORS[key]) }]}>
-                        {natureCounts[key]}
-                      </Text>
+                    <View
+                      key={key}
+                      style={[
+                        styles.rhythmTotalPill,
+                        { backgroundColor: withAlpha(VIBE_COLORS[key], 0.14), borderColor: VIBE_COLORS[key] },
+                      ]}
+                    >
+                      <NatureIcon nature={key} size={13} color={darken(VIBE_COLORS[key], 0.3)} />
+                      <Text style={styles.rhythmTotalText}>{natureCounts[key]}</Text>
                     </View>
                   ))}
                 </View>
@@ -482,17 +486,22 @@ const styles = StyleSheet.create({
   entryText: { fontSize: 15, color: C.text, lineHeight: 20 },
   entryLikes: { fontSize: 12, color: C.teal, fontWeight: '600', marginTop: 6 },
 
-  // Small color-coded pill per vibe -- same pill shape (borderRadius
-  // 999) as Home's Tickles/Likes/Shares stat pills, but filled with
-  // that vibe's own color (matching VibeCard's solid-per-vibe fill)
-  // rather than a neutral background, per "color-coded pill-box style
-  // already used elsewhere in this redesign."
+  // Small color-coded pill per vibe -- pill shape (borderRadius 999,
+  // same as Home's stat pills) but the light-wash + border treatment
+  // (withAlpha(color, 0.14) bg, border in that same color) already
+  // established on this screen's own goalCard/awardCard/connectionCard,
+  // not a solid fill. Icon is darkened (not the vibe's raw full-
+  // saturation color, unlike awardCard's icon) -- at this small a size,
+  // a lighter vibe color (e.g. the amber vibe) read as barely visible
+  // against its own 14%-alpha wash; darkening keeps the per-vibe color
+  // identity while restoring contrast. Number stays fixed C.text like
+  // goalText/awardText, not derived from the vibe color.
   rhythmTotalsRow: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginBottom: 14 },
   rhythmTotalPill: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    borderRadius: 999, paddingVertical: 5, paddingHorizontal: 12,
+    borderRadius: 999, borderWidth: 1, paddingVertical: 5, paddingHorizontal: 12,
   },
-  rhythmTotalText: { fontSize: 13, fontWeight: '700' },
+  rhythmTotalText: { fontSize: 13, fontWeight: '700', color: C.text },
 
   rhythmGridWrap: {
     backgroundColor: C.card, borderRadius: 14, borderWidth: 1, borderColor: C.border,
