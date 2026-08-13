@@ -33,7 +33,7 @@ export default function FoundingMember() {
   // pool now auto-expands in 100-number blocks server-side (see
   // supabase/migrations/0030), so app_config.founding_members_cap
   // (fetched below) is the only real source of truth for this value.
-  const [poolStats, setPoolStats] = useState({ granted: 0, cap: 1000, nextNumber: null });
+  const [poolStats, setPoolStats] = useState({ granted: 0, cap: 1000, nextNumber: null, available: 0 });
   const [savingTakingPart, setSavingTakingPart] = useState(false);
   const [savingReminders, setSavingReminders] = useState(false);
 
@@ -93,7 +93,7 @@ export default function FoundingMember() {
         setProgress(await fetchMonthProgress(userId, window));
       }
 
-      const [referralsResult, configResult, nextSlotResult] = await Promise.all([
+      const [referralsResult, configResult, nextSlotResult, availableCountResult] = await Promise.all([
         supabase
           .from('founding_member_referrals')
           .select('id', { count: 'exact', head: true })
@@ -110,6 +110,16 @@ export default function FoundingMember() {
           .order('number')
           .limit(1)
           .maybeSingle(),
+        // Direct count of status='available' rows -- for the pool-stats
+        // card's "still available" figure. Deliberately not derived from
+        // founding_members_cap - founding_members_awarded_count: a plain
+        // available-row count already correctly excludes both the
+        // deleted 1-25 range and any referral-reserved (not yet granted)
+        // numbers, with no separate accounting needed for either.
+        supabase
+          .from('founding_member_slots')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', 'available'),
       ]);
 
       setReferralCount(referralsResult.count || 0);
@@ -117,6 +127,7 @@ export default function FoundingMember() {
         granted: configResult.data?.founding_members_awarded_count ?? 0,
         cap: configResult.data?.founding_members_cap ?? 1000,
         nextNumber: nextSlotResult.data?.number ?? null,
+        available: availableCountResult.count ?? 0,
       });
     } catch (err) {
       setLoadError(err.message || 'Something went wrong loading this page.');
@@ -271,12 +282,21 @@ export default function FoundingMember() {
                 luminance called for light text; amberBg's much higher
                 luminance correctly flips textOn() to dark text. */}
             <View style={[styles.card, { backgroundColor: C.amberBg, borderColor: C.amberBg }]}>
+              <View style={styles.nextNumberRow}>
+                <Text style={[styles.cardSubtext, { color: textOn(C.amberBg) }]}>
+                  Next FM number available is:
+                </Text>
+                {poolStats.nextNumber ? (
+                  <View style={styles.nextNumberPill}>
+                    <MaterialCommunityIcons name="crown" size={11} color={C.amberText} />
+                    <Text style={styles.nextNumberPillText}>{formatBadge(poolStats.nextNumber)}</Text>
+                  </View>
+                ) : (
+                  <Text style={[styles.cardSubtext, { color: textOn(C.amberBg) }]}>none left</Text>
+                )}
+              </View>
               <Text style={[styles.cardSubtext, { color: textOn(C.amberBg) }]}>
-                Next FM number available is:{' '}
-                {poolStats.nextNumber ? formatBadge(poolStats.nextNumber) : 'none left'}
-              </Text>
-              <Text style={[styles.cardSubtext, { color: textOn(C.amberBg) }]}>
-                {poolStats.granted} of {poolStats.cap} claimed
+                {poolStats.available} still available
               </Text>
             </View>
 
@@ -407,4 +427,24 @@ const styles = StyleSheet.create({
     paddingVertical: 8, paddingHorizontal: 16, marginTop: 12,
   },
   sharePillText: { fontSize: 14, fontWeight: '600', color: C.tealText },
+
+  // Sentence stays plain text -- only the number itself is a pill,
+  // sitting inline with it. flexWrap lets the pill drop to its own
+  // line on narrow screens rather than overflowing the card.
+  nextNumberRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginBottom: 4 },
+  // Same white-bg + colored-border pill treatment as sharePill (not a
+  // same-hue wash, for the same reason -- sits on the pool-stats card's
+  // own solid C.amberBg fill; amberDark is this app's established
+  // bolder border-on-white variant, e.g. Weekly Summary's pinnedCard;
+  // amberText the matching readable-on-light text/icon color). Sized
+  // much more compact than sharePill though, closer to
+  // FoundingMemberBadge's own proportions -- this now wraps a single
+  // short badge number ("FM1"), not a sentence, so it reads as an
+  // inline badge rather than a button.
+  nextNumberPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: C.card, borderRadius: 999, borderWidth: 1, borderColor: C.amberDark,
+    paddingVertical: 2, paddingHorizontal: 8,
+  },
+  nextNumberPillText: { fontSize: 12, fontWeight: '700', color: C.amberText },
 });
