@@ -4,7 +4,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { C, accentFor, darken, textOn, withAlpha, FOUNDING_MEMBER_HERO_COLOR } from '../lib/theme';
+import { C, accentFor, darken, textOn, withAlpha } from '../lib/theme';
 import WallpaperBackground from '../components/WallpaperBackground';
 import {
   MONTHLY_REQUIREMENTS,
@@ -226,7 +226,7 @@ export default function FoundingMember() {
           <Text style={styles.backLink}>‹ Back</Text>
         </TouchableOpacity>
 
-        <Text style={styles.title}>Founding Member</Text>
+        <Text style={styles.title}>Be a Founding Member</Text>
 
         {loading ? (
           <ActivityIndicator color={C.rust} style={styles.loader} />
@@ -262,35 +262,49 @@ export default function FoundingMember() {
           </>
         ) : (
           <>
-            <View style={[styles.card, { backgroundColor: FOUNDING_MEMBER_HERO_COLOR, borderColor: FOUNDING_MEMBER_HERO_COLOR }]}>
-              <Text style={[styles.cardSubtext, { color: textOn(FOUNDING_MEMBER_HERO_COLOR) }]}>
+            {/* C.amberBg -- the bright yellow already used for Home's
+                vibe cards, deliberately not FOUNDING_MEMBER_HERO_COLOR
+                (a much deeper gold-olive meant for a different context).
+                textOn() picks its text color dynamically from this same
+                value, so switching it here also fixes contrast
+                automatically -- FOUNDING_MEMBER_HERO_COLOR's low
+                luminance called for light text; amberBg's much higher
+                luminance correctly flips textOn() to dark text. */}
+            <View style={[styles.card, { backgroundColor: C.amberBg, borderColor: C.amberBg }]}>
+              <Text style={[styles.cardSubtext, { color: textOn(C.amberBg) }]}>
                 Next FM number available is:{' '}
                 {poolStats.nextNumber ? formatBadge(poolStats.nextNumber) : 'none left'}
               </Text>
-              <Text style={[styles.cardSubtext, { color: textOn(FOUNDING_MEMBER_HERO_COLOR) }]}>
+              <Text style={[styles.cardSubtext, { color: textOn(C.amberBg) }]}>
                 {poolStats.granted} of {poolStats.cap} claimed
               </Text>
+            </View>
 
-              <Text style={[styles.cardHeading, { color: textOn(FOUNDING_MEMBER_HERO_COLOR), marginTop: 12 }]}>
-                Refer a Friend
-              </Text>
-              <Text style={[styles.cardSubtext, { color: textOn(FOUNDING_MEMBER_HERO_COLOR) }]}>
+            <View style={[styles.card, { backgroundColor: C.teal, borderColor: C.teal }]}>
+              <Text style={[styles.cardHeading, { color: textOn(C.teal) }]}>Refer a Friend</Text>
+              <Text style={[styles.cardSubtext, { color: textOn(C.teal) }]}>
                 Refer 2 people and lock in the next available number right away — you'll still need to
                 finish to keep it.
               </Text>
-              <Text style={[styles.referralCode, { color: textOn(FOUNDING_MEMBER_HERO_COLOR) }]}>{profile?.referral_code}</Text>
-              <Text style={[styles.cardSubtext, { color: textOn(FOUNDING_MEMBER_HERO_COLOR) }]}>
+              <Text style={[styles.referralCode, { color: textOn(C.teal) }]}>{profile?.referral_code}</Text>
+              <Text style={[styles.cardSubtext, { color: textOn(C.teal) }]}>
                 {badgeNumber
                   ? `${badgeNumber} reserved — finish your 6 months to keep it`
                   : `${referralCount}/2 referred`}
               </Text>
-              <TouchableOpacity onPress={shareReferralCode} style={styles.shareButton}>
-                <Text style={[styles.shareButtonText, { color: textOn(FOUNDING_MEMBER_HERO_COLOR) }]}>Share my code</Text>
+              <TouchableOpacity onPress={shareReferralCode} style={styles.sharePill} activeOpacity={0.8}>
+                <Ionicons name="share-social-outline" size={14} color={C.tealText} />
+                <Text style={styles.sharePillText}>Share my code</Text>
               </TouchableOpacity>
             </View>
 
             <Text style={styles.sectionLabel}>Your quest.</Text>
-            <View style={[styles.card, { backgroundColor: withAlpha(C.subtext, 0.1), borderColor: C.border }]}>
+            {/* Border only, not width -- already borderWidth: 1 via the
+                shared `card` style, matching Weekly Summary's goalCard
+                exactly, so no width change was needed. accentDark (not
+                the pale default C.border) is what makes this read as a
+                genuinely stronger border, not just a thicker faint one. */}
+            <View style={[styles.card, { backgroundColor: withAlpha(C.subtext, 0.1), borderColor: accentDark }]}>
               <Text style={styles.cardHeading}>Month {monthIndex} of 6</Text>
               {MONTHLY_REQUIREMENTS.map((r) => {
                 const count = progress?.[r.key] || 0;
@@ -380,6 +394,17 @@ const styles = StyleSheet.create({
   toggleLabelDisabled: { color: C.subtext },
 
   referralCode: { fontSize: 20, fontWeight: 'bold', color: C.rustDark, marginTop: 10, letterSpacing: 1 },
-  shareButton: { marginTop: 12 },
-  shareButtonText: { fontSize: 14, fontWeight: '600' },
+  // Pill shape (borderRadius 999) matching Home's stat pills and Weekly
+  // Summary's rhythm-total pills -- white bg + colored border rather
+  // than Weekly Summary's same-hue light-wash, since this pill sits on
+  // top of the Refer-a-Friend card's own solid C.teal fill, where a
+  // teal-on-teal wash would have the same low-contrast problem already
+  // fixed once for the rhythm chart's pill icons.
+  sharePill: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    alignSelf: 'flex-start',
+    backgroundColor: C.card, borderRadius: 999, borderWidth: 1, borderColor: C.teal,
+    paddingVertical: 8, paddingHorizontal: 16, marginTop: 12,
+  },
+  sharePillText: { fontSize: 14, fontWeight: '600', color: C.tealText },
 });
