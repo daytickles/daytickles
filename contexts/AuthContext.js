@@ -29,6 +29,7 @@ const RENDER_RELEVANT_FIELDS = [
   'founding_member_taking_part',
   'founding_member_reminders_enabled',
   'founding_member_failure_message_seen',
+  'founding_member_reminder_dismissed_at',
   'referral_code',
 ];
 

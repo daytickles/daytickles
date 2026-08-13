@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,6 +9,7 @@ import { supabase } from '../../lib/supabase';
 import { C, accentFor, moodColorFor, moodDotSize, withAlpha, NATURE_ORDER, VIBE_COLORS } from '../../lib/theme';
 import { shareEntry, shareStatus, SHARE_CAPTIONS } from '../../lib/sharing';
 import { isThisWeek, isThisMonth, localDateString, DEFAULT_WEEK_START_DAY } from '../../lib/week';
+import { fetchFoundingMemberPaceStatus } from '../../lib/foundingMember';
 import { flagEmoji } from '../../lib/country';
 import Button from '../../components/Button';
 import VibeCard from '../../components/VibeCard';
@@ -45,6 +46,15 @@ function formatEntryDate(entryDate) {
 function likeLabel(count) {
   const n = count || 0;
   return `${n} ${n === 1 ? 'like' : 'likes'}`;
+}
+
+// "A" / "A and B" / "A, B, and C" -- for naming the specific lagging
+// Founding Member requirements in the pace-reminder banner rather than
+// a vague "check in" message.
+function joinLabels(labels) {
+  if (labels.length === 1) return labels[0];
+  if (labels.length === 2) return `${labels[0]} and ${labels[1]}`;
+  return `${labels.slice(0, -1).join(', ')}, and ${labels[labels.length - 1]}`;
 }
 
 // Consecutive days with at least one entry, walking back from today (or
@@ -93,6 +103,7 @@ export default function Home() {
   const statTooltipTimerRef = useRef(null);
   const [activeVibeTooltip, setActiveVibeTooltip] = useState(null);
   const vibeTooltipTimerRef = useRef(null);
+  const [paceReminder, setPaceReminder] = useState(null);
 
   // Auto-show the first-time intro exactly once, gated on the DB flag —
   // not local/session state, so it stays correctly "seen" across
@@ -211,6 +222,31 @@ export default function Home() {
     useCallback(() => {
       loadSharesTotal();
     }, [loadSharesTotal])
+  );
+
+  // Read-only (see fetchFoundingMemberPaceStatus) so it's fine to run
+  // on every Home focus, same as the loaders above -- deliberately
+  // separate from advanceFoundingMemberProgress (founding-member.js's
+  // own loader), which does real evaluation/reservation side effects
+  // that don't belong on Home's most-visited-screen cadence.
+  const loadPaceReminder = useCallback(async () => {
+    if (!session) return;
+    if (!profile || profile.founding_member_taking_part === false || profile.founding_member_reminders_enabled === false) {
+      setPaceReminder(null);
+      return;
+    }
+    try {
+      setPaceReminder(await fetchFoundingMemberPaceStatus(session.user.id));
+    } catch {
+      // Best-effort -- a failed pace-status fetch shouldn't block Home.
+      setPaceReminder(null);
+    }
+  }, [session, profile]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadPaceReminder();
+    }, [loadPaceReminder])
   );
 
   const goalsById = Object.fromEntries(goals.map((g) => [g.id, g]));
@@ -362,6 +398,37 @@ export default function Home() {
       // Native module may be unavailable on some builds — fail
       // silently, same as Settings' handleRateUs.
     }
+  }
+
+  // Window is [midpoint, end) -- doesn't linger into a month that's
+  // technically over but not yet evaluated by a visit to the FM page
+  // (advanceFoundingMemberProgress only runs there, not on Home).
+  // dismissed_at is compared against the window's own start, not just
+  // "any dismissal ever", so a dismissal from a prior month never
+  // suppresses this month's reminder -- see 0036's column comment.
+  let showPaceReminder = false;
+  let paceReminderText = '';
+  if (paceReminder && paceReminder.laggingRequirements.length > 0) {
+    const startMs = new Date(paceReminder.window.startISO).getTime();
+    const endMs = new Date(paceReminder.window.endISOExclusive).getTime();
+    const midMs = (startMs + endMs) / 2;
+    const nowMs = Date.now();
+    const dismissedMs = profile?.founding_member_reminder_dismissed_at
+      ? new Date(profile.founding_member_reminder_dismissed_at).getTime()
+      : 0;
+    showPaceReminder = nowMs >= midMs && nowMs < endMs && dismissedMs < startMs;
+    if (showPaceReminder) {
+      paceReminderText = `You're a bit behind on ${joinLabels(paceReminder.laggingRequirements.map((r) => r.label))} this month.`;
+    }
+  }
+
+  async function handleDismissPaceReminder() {
+    setPaceReminder(null);
+    await supabase
+      .from('profiles')
+      .update({ founding_member_reminder_dismissed_at: new Date().toISOString() })
+      .eq('id', session.user.id);
+    refreshProfile();
   }
 
   const totalLikes = entries.reduce((sum, e) => sum + (e.like_count || 0), 0);
@@ -521,6 +588,21 @@ export default function Home() {
         </View>
       )}
 
+      {showPaceReminder && (
+        <View style={styles.paceReminderBanner}>
+          <MaterialCommunityIcons name="crown-outline" size={18} color={C.sparkleText} style={styles.paceReminderIcon} />
+          <Text style={styles.ratePromptText}>
+            Halfway through the month — a little nudge to check in on your Founding Member progress. {paceReminderText}
+          </Text>
+          <TouchableOpacity
+            onPress={handleDismissPaceReminder}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="close" size={16} color={C.sparkleText} />
+          </TouchableOpacity>
+        </View>
+      )}
+
       <View style={styles.vibeCardsRow}>
         {NATURE_ORDER.map((key) => (
           <VibeCard
@@ -653,6 +735,13 @@ const styles = StyleSheet.create({
   ratePromptText: { flex: 1, fontSize: 14, fontWeight: '600', color: C.sparkleText, marginRight: 12 },
   ratePromptActions: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   ratePromptRateText: { fontSize: 14, fontWeight: '700', color: C.sparkleText },
+
+  paceReminderBanner: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: C.sparkleBg, borderRadius: 14,
+    paddingVertical: 12, paddingHorizontal: 16, marginBottom: 12,
+  },
+  paceReminderIcon: { marginRight: 10 },
 
   vibeCardsRow: { flexDirection: 'row', gap: 12, marginBottom: 6 },
   vibeLabelsRow: { flexDirection: 'row', gap: 12, marginBottom: 14 },
