@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { C, accentFor, moodColorFor, moodDotSize, textOn, withAlpha, darken, NATURE_ORDER, VIBE_COLORS, AWARD_TYPES } from '../lib/theme';
+import { C, accentFor, moodColorFor, moodDotSize, textOn, withAlpha, darken, lighten, NATURE_ORDER, VIBE_COLORS, AWARD_TYPES } from '../lib/theme';
 import { currentWeekStartDate, currentWeekStartISO, currentWeekDates, localDateString, DEFAULT_WEEK_START_DAY } from '../lib/week';
 import { initPinBoardDb, getPinnedPhotoCountSince, getPhotoShareCountSince } from '../lib/pinBoardDb';
 import { flagEmoji } from '../lib/country';
@@ -79,6 +79,7 @@ export default function WeeklySummary() {
   const [thoughtOfYouSends, setThoughtOfYouSends] = useState(0);
   const [madeMeSmileSends, setMadeMeSmileSends] = useState(0);
   const [photoCount, setPhotoCount] = useState(0);
+  const [weeklySharesTotal, setWeeklySharesTotal] = useState(0);
 
   const weekStartDate = currentWeekStartDate(weekStartDay);
 
@@ -104,6 +105,8 @@ export default function WeeklySummary() {
       thoughtOfYouPhotoShares,
       madeMeSmilePhotoShares,
       pinnedPhotoCount,
+      weeklyTickleSharesResult,
+      weeklyPhotoShareEventsResult,
     ] = await Promise.all([
       supabase
         .from('tickle_entries')
@@ -154,6 +157,24 @@ export default function WeeklySummary() {
       getPhotoShareCountSince(session.user.id, weekStartISO, 'thought_of_you'),
       getPhotoShareCountSince(session.user.id, weekStartISO, 'made_me_smile'),
       getPinnedPhotoCountSince(session.user.id, weekStartDate),
+      // All-captions weekly total for the new Shares stat card -- same
+      // combined definition as Home's all-time Shares pill (tickle_shares
+      // + photo_share_events, both cloud), just with a week filter added.
+      // Deliberately NOT lib/pinBoardDb.js's local-only photo_shares
+      // table (already used above for the caption-specific Connection
+      // sentences) -- that's device-local and wouldn't survive a
+      // reinstall or a second device, same correctness reasoning Home's
+      // pill already established.
+      supabase
+        .from('tickle_shares')
+        .select('id', { count: 'exact', head: true })
+        .eq('created_by', session.user.id)
+        .gte('created_at', weekStartISO),
+      supabase
+        .from('photo_share_events')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', session.user.id)
+        .gte('shared_at', weekStartISO),
     ]);
 
     if (!weekEntriesResult.error) setWeekEntries(weekEntriesResult.data || []);
@@ -179,6 +200,11 @@ export default function WeeklySummary() {
     setMadeMeSmileSends(cloudMadeMeSmile + (madeMeSmilePhotoShares || 0));
 
     setPhotoCount(pinnedPhotoCount || 0);
+
+    const weeklyTickleShares = weeklyTickleSharesResult.error ? 0 : (weeklyTickleSharesResult.count || 0);
+    const weeklyPhotoShareEvents = weeklyPhotoShareEventsResult.error ? 0 : (weeklyPhotoShareEventsResult.count || 0);
+    setWeeklySharesTotal(weeklyTickleShares + weeklyPhotoShareEvents);
+
     setLoading(false);
   }, [session, weekStartDay, weekStartDate]);
 
@@ -189,6 +215,11 @@ export default function WeeklySummary() {
   );
 
   const weeklyTickles = weekEntries.length;
+  // Same formula as VibeCard's own corner dot -- also the exact formula
+  // Home's old (pre-redesign) streak-card sunburst used, tinted from
+  // the user's accent color rather than a fixed vibe color. One shared
+  // value since all three cards below share the same accent fill.
+  const weeklyStatDotColor = withAlpha(lighten(accent.card, 0.5), 0.4);
 
   // Per-day-per-vibe breakdown for the rhythm chart -- weekEntries is
   // already scoped to this week (see loadSummary's query), so this is
@@ -243,11 +274,27 @@ export default function WeeklySummary() {
           <ActivityIndicator color={C.rust} style={styles.loader} />
         ) : (
           <>
-            <View style={[styles.heroCard, { backgroundColor: accent.card }]}>
-              <Text style={[styles.heroNumber, { color: textOn(accent.card) }]}>{weeklyTickles}</Text>
-              <Text style={[styles.heroLabel, { color: textOn(accent.card) }]}>
-                {weeklyTickles === 1 ? 'Tickle' : 'Tickles'} this week
-              </Text>
+            <View style={styles.weeklyStatsRow}>
+              <View style={[styles.weeklyStatCard, { backgroundColor: accent.card }]}>
+                <View style={[styles.weeklyStatDot, { backgroundColor: weeklyStatDotColor }]} />
+                <Text style={[styles.weeklyStatNumber, { color: textOn(accent.card) }]}>{weeklyTickles}</Text>
+                <Text style={[styles.weeklyStatLabel, { color: textOn(accent.card) }]}>Tickles</Text>
+              </View>
+              <View style={[styles.weeklyStatCard, { backgroundColor: accent.card }]}>
+                <View style={[styles.weeklyStatDot, { backgroundColor: weeklyStatDotColor }]} />
+                <Text style={[styles.weeklyStatNumber, { color: textOn(accent.card) }]}>{likesGiven}</Text>
+                {/* Deliberately not shortened to "Likes" -- dropping
+                    "given" would lose the given/received distinction
+                    the app is careful about elsewhere (e.g. Home's own
+                    received/given/self vibes). Left to wrap to 2 lines
+                    at this card width instead. */}
+                <Text style={[styles.weeklyStatLabel, { color: textOn(accent.card) }]}>Likes given</Text>
+              </View>
+              <View style={[styles.weeklyStatCard, { backgroundColor: accent.card }]}>
+                <View style={[styles.weeklyStatDot, { backgroundColor: weeklyStatDotColor }]} />
+                <Text style={[styles.weeklyStatNumber, { color: textOn(accent.card) }]}>{weeklySharesTotal}</Text>
+                <Text style={[styles.weeklyStatLabel, { color: textOn(accent.card) }]}>Shares</Text>
+              </View>
             </View>
 
             {mostLiked && (
@@ -469,9 +516,24 @@ const styles = StyleSheet.create({
   weekRange: { fontSize: 13, color: C.subtext, marginTop: 2, marginBottom: 20 },
   loader: { marginTop: 40 },
 
-  heroCard: { borderRadius: 20, paddingVertical: 24, alignItems: 'center', marginBottom: 24 },
-  heroNumber: { fontSize: 40, fontWeight: 'bold' },
-  heroLabel: { fontSize: 14, marginTop: 4 },
+  weeklyStatsRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
+  // Card shape and corner-dot sizing both reused from VibeCard as-is
+  // (borderRadius 18 + overflow hidden; 112px dot at -36/-36) -- Home's
+  // and this screen's content padding are both 20, so the two screens'
+  // 3-column cards land at very similar widths and the proportions
+  // carry over without new math. Number/label live INSIDE the card
+  // here (unlike VibeCard's external label below it) since there's
+  // only one number per card, not three stacked ones needing the room.
+  weeklyStatCard: {
+    flex: 1, borderRadius: 18, overflow: 'hidden',
+    paddingVertical: 14, alignItems: 'center',
+  },
+  weeklyStatDot: {
+    position: 'absolute', top: -36, right: -36,
+    width: 112, height: 112, borderRadius: 56,
+  },
+  weeklyStatNumber: { fontSize: 24, fontWeight: 'bold' },
+  weeklyStatLabel: { fontSize: 12, marginTop: 2, textAlign: 'center' },
 
   sectionLabel: { fontSize: 14, fontWeight: '600', color: C.subtext, marginTop: 8, marginBottom: 8 },
 
