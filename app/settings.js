@@ -241,10 +241,13 @@ export default function Settings() {
   // Stepper, not a free-text field -- clamps at 0 (stored as null, "off")
   // rather than going negative. null/0 both render as "Off"; there's no
   // separate concept of an explicit zero target. Takes the literal
-  // column name rather than deriving it internally, since it now backs
-  // two different kinds of goal: daily_goal_<nature> (Daily Vibe Goals)
-  // and daily_total_goal (Weekly Rhythm Goal) -- same stepper mechanic,
-  // different columns, callers just pass whichever one applies.
+  // column name rather than deriving it internally, since it's written
+  // generically enough to back any of these goal columns -- currently
+  // only daily_goal_<nature> (Daily Vibe Goals, below) renders a
+  // control. daily_total_goal's own "Weekly Rhythm Goal" control is
+  // hidden (not deleted -- see migration 0034) since the rhythm chart
+  // dropped its goal-line visualization when it switched to the bubble
+  // grid, leaving that setting with no visible effect anywhere.
   async function handleAdjustGoal(column, delta) {
     if (!profile) return;
     const current = profile[column] || 0;
@@ -415,45 +418,6 @@ export default function Settings() {
           </View>
         );
       })}
-      <View style={styles.spacer} />
-
-      {/* Deliberately its own section, separate from Daily Vibe Goals
-          above -- different kind of goal (one combined per-day total
-          vs. three independent per-vibe ones) even though both are
-          measured per-day, easy to conflate if presented together. */}
-      <Text style={styles.label}>Weekly Rhythm Goal</Text>
-      <Text style={styles.explainerText}>
-        Optional — set an overall daily target (any vibe combined) to show as a goal line on your
-        Weekly Summary rhythm chart. Off by default.
-      </Text>
-      <View style={{ height: 8 }} />
-      {(() => {
-        const value = profile?.daily_total_goal || null;
-        const saving = savingGoal === 'daily_total_goal';
-        return (
-          <View style={styles.vibeGoalRow}>
-            <Ionicons name="pulse-outline" size={18} color={C.subtext} style={styles.vibeGoalIcon} />
-            <Text style={styles.vibeGoalLabel}>Tickles per day</Text>
-            <View style={styles.stepper}>
-              <TouchableOpacity
-                onPress={() => handleAdjustGoal('daily_total_goal', -1)}
-                disabled={saving || !value}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Ionicons name="remove-circle-outline" size={20} color={value ? C.text : C.faint} />
-              </TouchableOpacity>
-              <Text style={styles.stepperValue}>{value || 'Off'}</Text>
-              <TouchableOpacity
-                onPress={() => handleAdjustGoal('daily_total_goal', 1)}
-                disabled={saving}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Ionicons name="add-circle-outline" size={20} color={C.text} />
-              </TouchableOpacity>
-            </View>
-          </View>
-        );
-      })()}
       <View style={styles.spacer} />
 
       <View style={styles.toggleRow}>

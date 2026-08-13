@@ -91,6 +91,8 @@ export default function Home() {
   const returnedMessageShownRef = useRef(false);
   const [activeStatTooltip, setActiveStatTooltip] = useState(null);
   const statTooltipTimerRef = useRef(null);
+  const [activeVibeTooltip, setActiveVibeTooltip] = useState(null);
+  const vibeTooltipTimerRef = useRef(null);
 
   // Auto-show the first-time intro exactly once, gated on the DB flag —
   // not local/session state, so it stays correctly "seen" across
@@ -294,6 +296,21 @@ export default function Home() {
     }
     setActiveStatTooltip(key);
     statTooltipTimerRef.current = setTimeout(() => setActiveStatTooltip(null), 2000);
+  }
+
+  // Same tap-to-show/tap-again-to-dismiss/auto-hide-after-2s mechanism
+  // as showStatTooltip above (and the pre-redesign self-care badges) --
+  // applied to the Vibe cards instead. One shared tooltip explains the
+  // three stacked numbers' position, so this only needs to track WHICH
+  // card's tooltip is open, not separate per-vibe tooltip text.
+  function showVibeTooltip(key) {
+    if (vibeTooltipTimerRef.current) clearTimeout(vibeTooltipTimerRef.current);
+    if (activeVibeTooltip === key) {
+      setActiveVibeTooltip(null);
+      return;
+    }
+    setActiveVibeTooltip(key);
+    vibeTooltipTimerRef.current = setTimeout(() => setActiveVibeTooltip(null), 2000);
   }
 
   const totalTickles = entries.length;
@@ -515,6 +532,8 @@ export default function Home() {
             weekCount={vibeWeekCounts[key]}
             monthCount={vibeMonthCounts[key]}
             allTimeCount={vibeAllTimeCounts[key]}
+            showTooltip={activeVibeTooltip === key}
+            onPress={() => showVibeTooltip(key)}
           />
         ))}
       </View>

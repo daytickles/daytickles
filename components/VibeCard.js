@@ -1,7 +1,12 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { textOn, withAlpha, lighten } from '../lib/theme';
+import { C, textOn, withAlpha, lighten } from '../lib/theme';
 import NatureIcon from './NatureIcon';
+
+// Same explainer for every card, tap-triggered -- the three stacked
+// numbers' meaning is positional, not per-vibe, so one shared string
+// covers all three.
+const TOOLTIP_TEXT = 'Top: this week · Middle: this month · Bottom: all-time';
 
 // Home Vibes redesign — one card per nature category. Deliberately no
 // text labels inside the card (week/month/all-time read by position,
@@ -16,6 +21,8 @@ export default function VibeCard({
   weekCount,
   monthCount,
   allTimeCount,
+  showTooltip,
+  onPress,
 }) {
   const textColor = textOn(color);
   const dividerColor = withAlpha(textColor, 0.25);
@@ -29,7 +36,7 @@ export default function VibeCard({
   const cornerDotColor = withAlpha(lighten(color, 0.5), 0.4);
 
   return (
-    <View style={styles.wrap}>
+    <TouchableOpacity style={styles.wrap} activeOpacity={0.8} onPress={onPress}>
       <Ionicons
         name={lit ? 'bulb' : 'bulb-outline'}
         size={20}
@@ -45,7 +52,15 @@ export default function VibeCard({
         <View style={[styles.divider, { backgroundColor: dividerColor }]} />
         <Text style={[styles.allTimeNumber, { color: textColor }]}>{allTimeCount}</Text>
       </View>
-    </View>
+      {/* Rendered as a sibling of `card`, not a child -- card has
+          overflow: 'hidden' (needed to clip the corner dot), which
+          would clip this tooltip too if it were nested inside. */}
+      {showTooltip && (
+        <View style={styles.tooltip} pointerEvents="none">
+          <Text style={styles.tooltipText}>{TOOLTIP_TEXT}</Text>
+        </View>
+      )}
+    </TouchableOpacity>
   );
 }
 
@@ -69,4 +84,17 @@ const styles = StyleSheet.create({
   monthNumber: { fontSize: 17, fontWeight: '700', lineHeight: 21 },
   allTimeNumber: { fontSize: 13, fontWeight: '600', lineHeight: 17 },
   divider: { width: 28, height: 1, marginVertical: 4 },
+  // Same visual treatment as home.js's own statTooltip/statTooltipText
+  // (Tickles/Likes/Shares pills) -- kept as a separate copy here since
+  // this is a different file/component, matching this app's existing
+  // per-file style-duplication convention (e.g. NATURE_LABELS).
+  tooltip: {
+    position: 'absolute', top: -34, left: -20, right: -20,
+    alignItems: 'center',
+  },
+  tooltipText: {
+    fontSize: 11, fontWeight: '600', color: C.bg, textAlign: 'center',
+    backgroundColor: C.rustDark, borderRadius: 8, overflow: 'hidden',
+    paddingVertical: 4, paddingHorizontal: 10,
+  },
 });
