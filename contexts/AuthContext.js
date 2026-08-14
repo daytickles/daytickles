@@ -31,6 +31,7 @@ const RENDER_RELEVANT_FIELDS = [
   'founding_member_failure_message_seen',
   'founding_member_reminder_dismissed_at',
   'referral_code',
+  'quick_start_dismissed',
 ];
 
 function profilesEqual(a, b) {
