@@ -18,6 +18,7 @@ import InitialsAvatar from '../../components/InitialsAvatar';
 import AboutModal from '../../components/AboutModal';
 import FoundingMemberBadge from '../../components/FoundingMemberBadge';
 import GoalTagModal from '../../components/GoalTagModal';
+import QuickStartCard from '../../components/QuickStartCard';
 import ShareModal from '../../components/ShareModal';
 import CornerNav from '../../components/CornerNav';
 import WallpaperBackground from '../../components/WallpaperBackground';
@@ -437,6 +438,17 @@ export default function Home() {
     refreshProfile();
   }
 
+  // Permanent, unlike handleDismissPaceReminder above -- no window to
+  // re-arm against, see quick_start_dismissed's column comment
+  // (migration 0038).
+  async function handleDismissQuickStart() {
+    await supabase
+      .from('profiles')
+      .update({ quick_start_dismissed: true })
+      .eq('id', session.user.id);
+    refreshProfile();
+  }
+
   const totalLikes = entries.reduce((sum, e) => sum + (e.like_count || 0), 0);
 
   // Day Journal entries are private/reflective by design -- excluded
@@ -671,6 +683,10 @@ export default function Home() {
 
       {loading && <ActivityIndicator color={C.rust} style={styles.loader} />}
 
+      {!loading && entries.length === 0 && !profile?.quick_start_dismissed && (
+        <QuickStartCard onDismiss={handleDismissQuickStart} style={styles.quickStartTopGap} />
+      )}
+
       {!loading && entries.length === 0 && (
         <Text style={styles.emptyText}>No tickles yet — write about what made you smile today.</Text>
       )}
@@ -690,6 +706,10 @@ export default function Home() {
             {renderEntryBody(spotlightEntries[0])}
           </TouchableOpacity>
         </>
+      )}
+
+      {!loading && entries.length > 0 && !profile?.quick_start_dismissed && (
+        <QuickStartCard onDismiss={handleDismissQuickStart} />
       )}
     </ScrollView>
     </WallpaperBackground>
@@ -799,6 +819,7 @@ const styles = StyleSheet.create({
 
   sectionLabel: { fontSize: 14, fontWeight: '600', color: C.subtext, marginTop: 6, marginBottom: 6 },
   loader: { marginTop: 12 },
+  quickStartTopGap: { marginTop: 12 },
   emptyText: { color: C.subtext, textAlign: 'center', marginTop: 12 },
 
   entryCard: {
