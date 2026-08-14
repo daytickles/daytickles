@@ -273,6 +273,8 @@ export default function FoundingMember() {
           </>
         ) : (
           <>
+            <Text style={styles.subheading}>Finish your Quest and receive Free Lifetime Membership</Text>
+
             {/* C.amberBg -- the bright yellow already used for Home's
                 vibe cards, deliberately not FOUNDING_MEMBER_HERO_COLOR
                 (a much deeper gold-olive meant for a different context).
@@ -296,7 +298,7 @@ export default function FoundingMember() {
                 )}
               </View>
               <Text style={[styles.cardSubtext, { color: textOn(C.amberBg) }]}>
-                {poolStats.available} still available
+                {poolStats.available} of {poolStats.cap} places still available
               </Text>
             </View>
 
@@ -391,6 +393,7 @@ const styles = StyleSheet.create({
   content: { padding: 20, paddingTop: 60, paddingBottom: 40 },
   backLink: { fontSize: 16, color: C.rust, marginBottom: 16 },
   title: { fontSize: 22, fontWeight: 'bold', color: C.rustDark, marginBottom: 20 },
+  subheading: { fontSize: 15, fontWeight: '600', color: C.rustDark, marginBottom: 16 },
   loader: { marginTop: 40 },
   sectionLabel: { fontSize: 14, fontWeight: '700', color: C.subtext, marginBottom: 8 },
 
