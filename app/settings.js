@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { C, ACCENT_THEMES, accentFor, darken, textOn, NATURE_ORDER } from '../lib/theme';
+import { C, ACCENT_THEMES, accentFor, darken, textOn, withAlpha, NATURE_ORDER } from '../lib/theme';
 import { DEFAULT_WEEK_START_DAY } from '../lib/week';
 import { flagEmoji, countryNameFor } from '../lib/country';
 import Button from '../components/Button';
@@ -334,180 +334,184 @@ export default function Settings() {
 
       <Text style={styles.title}>Settings</Text>
 
-      <Text style={styles.label}>Accent color</Text>
-      <View style={styles.swatchRow}>
-        {ACCENT_THEMES.map((theme) => {
-          const selected = profile?.accent_theme === theme.id;
-          return (
-            <TouchableOpacity
-              key={theme.id}
-              onPress={() => handlePickTheme(theme.id)}
-              disabled={savingTheme !== null}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <View
-                style={[
-                  styles.swatch,
-                  { backgroundColor: theme.card },
-                  selected && { borderColor: accentDark },
-                ]}
-              >
-                {selected && <Ionicons name="checkmark" size={18} color={textOn(theme.card)} />}
-              </View>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-      <View style={styles.spacer} />
-
-      <Text style={styles.label}>Week starts on</Text>
-      <View style={styles.weekDayRow}>
-        {WEEK_START_OPTIONS.map((option) => {
-          const selected = (profile?.week_start_day ?? DEFAULT_WEEK_START_DAY) === option.day;
-          return (
-            <TouchableOpacity
-              key={option.day}
-              onPress={() => handlePickWeekStartDay(option.day)}
-              disabled={savingWeekStartDay !== null}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <View style={[styles.daySwatch, selected && { backgroundColor: accentDark, borderColor: accentDark }]}>
-                {selected ? (
-                  <Ionicons name="checkmark" size={16} color={textOn(accentDark)} />
-                ) : (
-                  <Text style={styles.daySwatchLabel}>{option.label}</Text>
-                )}
-              </View>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-      <View style={styles.spacer} />
-
-      <Text style={styles.label}>Daily Vibe Goals</Text>
-      <Text style={styles.explainerText}>
-        Optional — set a target for any vibe and its lightbulb lights up on Home once you hit it
-        that day. Off by default; step back down to "Off" anytime to turn one off again.
-      </Text>
-      <View style={{ height: 8 }} />
-      {NATURE_ORDER.map((key) => {
-        const column = `daily_goal_${key}`;
-        const value = profile?.[column] || null;
-        const saving = savingGoal === column;
-        return (
-          <View key={key} style={styles.vibeGoalRow}>
-            <NatureIcon nature={key} size={18} color={C.subtext} style={styles.vibeGoalIcon} />
-            <Text style={styles.vibeGoalLabel}>{NATURE_LABELS[key]}</Text>
-            <View style={styles.stepper}>
+      <View style={styles.card}>
+        <Text style={styles.label}>Accent color</Text>
+        <View style={styles.swatchRow}>
+          {ACCENT_THEMES.map((theme) => {
+            const selected = profile?.accent_theme === theme.id;
+            return (
               <TouchableOpacity
-                onPress={() => handleAdjustGoal(column, -1)}
-                disabled={saving || !value}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                key={theme.id}
+                onPress={() => handlePickTheme(theme.id)}
+                disabled={savingTheme !== null}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Ionicons name="remove-circle-outline" size={20} color={value ? C.text : C.faint} />
+                <View
+                  style={[
+                    styles.swatch,
+                    { backgroundColor: theme.card },
+                    selected && { borderColor: accentDark },
+                  ]}
+                >
+                  {selected && <Ionicons name="checkmark" size={18} color={textOn(theme.card)} />}
+                </View>
               </TouchableOpacity>
-              <Text style={styles.stepperValue}>{value || 'Off'}</Text>
+            );
+          })}
+        </View>
+        <View style={styles.spacer} />
+
+        <Text style={styles.label}>Week starts on</Text>
+        <View style={styles.weekDayRow}>
+          {WEEK_START_OPTIONS.map((option) => {
+            const selected = (profile?.week_start_day ?? DEFAULT_WEEK_START_DAY) === option.day;
+            return (
               <TouchableOpacity
-                onPress={() => handleAdjustGoal(column, 1)}
-                disabled={saving}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                key={option.day}
+                onPress={() => handlePickWeekStartDay(option.day)}
+                disabled={savingWeekStartDay !== null}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Ionicons name="add-circle-outline" size={20} color={C.text} />
+                <View style={[styles.daySwatch, selected && { backgroundColor: accentDark, borderColor: accentDark }]}>
+                  {selected ? (
+                    <Ionicons name="checkmark" size={16} color={textOn(accentDark)} />
+                  ) : (
+                    <Text style={styles.daySwatchLabel}>{option.label}</Text>
+                  )}
+                </View>
               </TouchableOpacity>
-            </View>
-          </View>
-        );
-      })}
-      <View style={styles.spacer} />
+            );
+          })}
+        </View>
+        <View style={styles.spacer} />
 
-      <View style={styles.toggleRow}>
-        <Text style={styles.toggleLabel}>Day Journal</Text>
-        <Switch
-          value={!!profile?.day_journal_enabled}
-          onValueChange={handleToggleDayJournal}
-          disabled={savingDayJournal}
-          trackColor={{ false: C.border, true: accentDark }}
-          thumbColor={C.card}
-        />
-      </View>
-      <View style={styles.spacer} />
-
-      <View style={styles.toggleRow}>
-        <Text style={styles.toggleLabel}>Daily reminder</Text>
-        <Switch
-          value={!!profile?.daily_reminder}
-          onValueChange={handleToggleDailyReminder}
-          disabled={savingDailyReminder}
-          trackColor={{ false: C.border, true: accentDark }}
-          thumbColor={C.card}
-        />
-      </View>
-      {reminderPermissionDenied && (
+        <Text style={styles.label}>Country</Text>
+        <TouchableOpacity
+          style={styles.countryRow}
+          onPress={() => setShowCountryPicker(true)}
+          disabled={savingCountry}
+        >
+          <Text style={styles.countryValue}>
+            {profile?.country ? `${flagEmoji(profile.country)}  ${countryNameFor(profile.country)}` : 'Not set'}
+          </Text>
+        </TouchableOpacity>
         <Text style={styles.explainerText}>
-          Notifications permission was denied — enable it for DayTickles in your device settings
-          to get the daily reminder.
+          Purely social — shows a flag next to your name so others can see roughly where you're
+          tickling from. Never required, and you can change or clear it anytime.
         </Text>
-      )}
-      {/* On-demand test button: fires sendTestReminderNotification (lib/reminders.js)
-          so reminder display can be tested without waiting for 8am/8pm. */}
-      <Button
-        title="Send test notification"
-        variant="secondary"
-        onPress={() => sendTestReminderNotification()}
-      />
-      <View style={styles.spacer} />
-      <View style={styles.spacer} />
+        <View style={styles.spacer} />
 
-      <View style={styles.toggleRow}>
-        <Text style={styles.toggleLabel}>Notify me of new likes</Text>
-        <Switch
-          value={!!profile?.notify_on_likes}
-          onValueChange={handleToggleNotifyOnLikes}
-          disabled={savingNotifyOnLikes}
-          trackColor={{ false: C.border, true: accentDark }}
-          thumbColor={C.card}
-        />
+        <Button title="Manage Goals" onPress={() => router.push('/goals')} variant="secondary" />
       </View>
-      <Text style={styles.explainerText}>
-        Controls push notifications only — likes always show up in your notification list
-        either way.
-      </Text>
-      <View style={styles.spacer} />
 
-      <View style={styles.toggleRow}>
-        <Text style={styles.toggleLabel}>PIN lock</Text>
-        <Switch
-          value={pinEnabled}
-          onValueChange={handleTogglePinLock}
-          disabled={togglingPinLock}
-          trackColor={{ false: C.border, true: accentDark }}
-          thumbColor={C.card}
-        />
-      </View>
-      <Text style={styles.explainerText}>
-        Locks the app behind a PIN (with biometrics as a shortcut) every time it's opened or
-        resumed from the background. Stored only on this device, never sent anywhere.
-      </Text>
-      <View style={styles.spacer} />
-
-      <Text style={styles.label}>Country</Text>
-      <TouchableOpacity
-        style={styles.countryRow}
-        onPress={() => setShowCountryPicker(true)}
-        disabled={savingCountry}
-      >
-        <Text style={styles.countryValue}>
-          {profile?.country ? `${flagEmoji(profile.country)}  ${countryNameFor(profile.country)}` : 'Not set'}
+      <View style={styles.card}>
+        <Text style={styles.label}>Daily Vibe Goals</Text>
+        <Text style={styles.explainerText}>
+          Optional — set a target for any vibe and its lightbulb lights up on Home once you hit it
+          that day. Off by default; step back down to "Off" anytime to turn one off again.
         </Text>
-      </TouchableOpacity>
-      <Text style={styles.explainerText}>
-        Purely social — shows a flag next to your name so others can see roughly where you're
-        tickling from. Never required, and you can change or clear it anytime.
-      </Text>
-      <View style={styles.spacer} />
+        <View style={{ height: 8 }} />
+        {NATURE_ORDER.map((key) => {
+          const column = `daily_goal_${key}`;
+          const value = profile?.[column] || null;
+          const saving = savingGoal === column;
+          return (
+            <View key={key} style={styles.vibeGoalRow}>
+              <NatureIcon nature={key} size={18} color={C.subtext} style={styles.vibeGoalIcon} />
+              <Text style={styles.vibeGoalLabel}>{NATURE_LABELS[key]}</Text>
+              <View style={styles.stepper}>
+                <TouchableOpacity
+                  onPress={() => handleAdjustGoal(column, -1)}
+                  disabled={saving || !value}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons name="remove-circle-outline" size={20} color={value ? C.text : C.faint} />
+                </TouchableOpacity>
+                <Text style={styles.stepperValue}>{value || 'Off'}</Text>
+                <TouchableOpacity
+                  onPress={() => handleAdjustGoal(column, 1)}
+                  disabled={saving}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons name="add-circle-outline" size={20} color={C.text} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          );
+        })}
+      </View>
 
-      <Button title="Manage Goals" onPress={() => router.push('/goals')} variant="secondary" />
-      <View style={styles.spacer} />
+      <View style={styles.card}>
+        <View style={styles.toggleRow}>
+          <Text style={styles.toggleLabel}>Day Journal</Text>
+          <Switch
+            value={!!profile?.day_journal_enabled}
+            onValueChange={handleToggleDayJournal}
+            disabled={savingDayJournal}
+            trackColor={{ false: C.border, true: accentDark }}
+            thumbColor={C.card}
+          />
+        </View>
+        <View style={styles.spacer} />
+
+        <View style={styles.toggleRow}>
+          <Text style={styles.toggleLabel}>Daily reminder</Text>
+          <Switch
+            value={!!profile?.daily_reminder}
+            onValueChange={handleToggleDailyReminder}
+            disabled={savingDailyReminder}
+            trackColor={{ false: C.border, true: accentDark }}
+            thumbColor={C.card}
+          />
+        </View>
+        {reminderPermissionDenied && (
+          <Text style={styles.explainerText}>
+            Notifications permission was denied — enable it for DayTickles in your device settings
+            to get the daily reminder.
+          </Text>
+        )}
+        {/* On-demand test button: fires sendTestReminderNotification (lib/reminders.js)
+            so reminder display can be tested without waiting for 8am/8pm. */}
+        <Button
+          title="Send test notification"
+          variant="secondary"
+          onPress={() => sendTestReminderNotification()}
+        />
+        <View style={styles.spacer} />
+        <View style={styles.spacer} />
+
+        <View style={styles.toggleRow}>
+          <Text style={styles.toggleLabel}>Notify me of new likes</Text>
+          <Switch
+            value={!!profile?.notify_on_likes}
+            onValueChange={handleToggleNotifyOnLikes}
+            disabled={savingNotifyOnLikes}
+            trackColor={{ false: C.border, true: accentDark }}
+            thumbColor={C.card}
+          />
+        </View>
+        <Text style={styles.explainerText}>
+          Controls push notifications only — likes always show up in your notification list
+          either way.
+        </Text>
+        <View style={styles.spacer} />
+
+        <View style={styles.toggleRow}>
+          <Text style={styles.toggleLabel}>PIN lock</Text>
+          <Switch
+            value={pinEnabled}
+            onValueChange={handleTogglePinLock}
+            disabled={togglingPinLock}
+            trackColor={{ false: C.border, true: accentDark }}
+            thumbColor={C.card}
+          />
+        </View>
+        <Text style={styles.explainerText}>
+          Locks the app behind a PIN (with biometrics as a shortcut) every time it's opened or
+          resumed from the background. Stored only on this device, never sent anywhere.
+        </Text>
+      </View>
+
       <Button title="How DayTickles works" onPress={() => setShowGuide(true)} variant="secondary" />
       <View style={styles.spacer} />
       <Button title="About DayTickles" onPress={() => setShowAbout(true)} variant="secondary" />
@@ -556,6 +560,10 @@ const styles = StyleSheet.create({
   content: { padding: 20, paddingTop: 60, paddingBottom: 40 },
   backLink: { fontSize: 16, color: C.rust, marginBottom: 16 },
   title: { fontSize: 22, fontWeight: 'bold', color: C.rustDark, marginBottom: 24 },
+  card: {
+    borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 16,
+    backgroundColor: withAlpha(C.subtext, 0.1), borderColor: C.border,
+  },
   label: { fontSize: 14, color: C.subtext, marginBottom: 10 },
   swatchRow: { flexDirection: 'row', gap: 14 },
   swatch: {
