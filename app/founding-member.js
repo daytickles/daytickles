@@ -273,7 +273,7 @@ export default function FoundingMember() {
           </>
         ) : (
           <>
-            <Text style={styles.subheading}>Finish your Quest and receive Free Lifetime Membership</Text>
+            <Text style={styles.subheading}>Finish your Quest and receive Free Lifetime Membership and get a unique FM ID.</Text>
 
             {/* C.amberBg -- the bright yellow already used for Home's
                 vibe cards, deliberately not FOUNDING_MEMBER_HERO_COLOR
