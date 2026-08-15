@@ -14,11 +14,11 @@ const STEPS = [
   },
   {
     title: 'New Tickle',
-    body: 'Tap New Tickle to capture something from your day. Choose a mood, which adds a buzz dot to your entry, then pick your Vibe.\n\nYou decide whether your Tickle stays private or is shared to the Feed.\n\nUse the three-dot menu on your own Tickles to Edit, Make public, or Delete.\n\nDay Journal is available in Settings if you want more space for personal, in-depth writing.',
+    body: 'Tap New Tickle to capture something from your day. Choose a mood, which adds a buzz dot to your entry, then pick your Vibe.\n\nYou decide whether your Tickle stays private or is shared to the Feed.\n\nA Day Journal is available in Settings if you want more space for personal, in-depth writing.',
   },
   {
     title: 'Feed',
-    body: "The Feed has four tabs: Everyone, Following, Mine, and Fav's.\n\nLike a Tickle with the thumbs-up, save it with the star, or give someone recognition with one of three Awards.\n\nAwards are optional little recognitions you can give to someone else's Tickle:\n\nWordweaver — beautifully written\nSoulweaver — emotionally moving\nWittweaver — funny and clever",
+    body: "The Feed has four tabs: Everyone, Following, Mine, and Fav's.\n\nLike a Tickle with the thumbs-up, save it to favourites with the star, or give someone recognition with one of three Awards.\n\nAwards are optional little recognitions you can give to someone else's Tickle:\n\nWordweaver — beautifully written\nSoulweaver — emotionally moving\nWittweaver — funny and clever\n\nUse the three-dot menu on your own Tickles to Edit, Make public, or Delete.",
   },
   {
     title: 'Tickle Pics',
