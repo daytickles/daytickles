@@ -7,7 +7,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { C, MOODS, accentFor, moodColorFor, darken, textOn } from '../lib/theme';
+import { C, MOODS, MOOD_DOT_SIZE, accentFor, moodColorFor, moodBorderColor, withAlpha, darken, textOn } from '../lib/theme';
 import Button from '../components/Button';
 import WallpaperBackground from '../components/WallpaperBackground';
 import { linkPhotoToEntry } from '../lib/pinBoardDb';
@@ -76,7 +76,7 @@ export default function Create() {
       return;
     }
     if (!mood) {
-      setStatus('Pick how big was the Buzz.');
+      setStatus('Pick how bright the buzz was.');
       return;
     }
     // Create-only -- an existing entry saved before this became required
@@ -196,11 +196,11 @@ export default function Create() {
       />
       <Text style={styles.counter}>{text.length}/{MAX_LEN}</Text>
 
-      <Text style={styles.label}>How big was the Buzz?</Text>
+      <Text style={styles.label}>How bright was the buzz?</Text>
       <View style={styles.moodRow}>
         {MOODS.map((m) => {
-          const size = m.size + 12;
           const color = moodColorFor(m.id, accent);
+          const base = moodBorderColor(accent);
           const selected = mood === m.id;
           return (
             <TouchableOpacity
@@ -212,22 +212,22 @@ export default function Create() {
               style={styles.moodOption}
             >
               <View
-                style={[
-                  styles.moodDot,
-                  {
-                    width: size,
-                    height: size,
-                    borderRadius: size / 2,
-                    backgroundColor: color,
-                    borderColor: selected ? accentDark : 'transparent',
-                  },
-                ]}
+                style={{
+                  width: MOOD_DOT_SIZE,
+                  height: MOOD_DOT_SIZE,
+                  borderRadius: MOOD_DOT_SIZE / 2,
+                  backgroundColor: color,
+                  // Border color/weight signal selection; the fill
+                  // above is untouched by selection state -- it only
+                  // ever encodes mood intensity.
+                  borderColor: selected ? base : withAlpha(base, 0.5),
+                  borderWidth: selected ? 3 : 1.5,
+                }}
               />
             </TouchableOpacity>
           );
         })}
       </View>
-      {mood && <Text style={styles.moodLabel}>{MOODS.find((m) => m.id === mood).label}</Text>}
 
       {(baseNatureOptions.length > 0 || showDayJournal) && (
         <>
@@ -319,11 +319,9 @@ const styles = StyleSheet.create({
   label: { fontSize: 14, color: C.subtext },
   moodRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 8, marginTop: 12, marginBottom: 8, height: 50,
+    paddingHorizontal: 8, marginTop: 12, marginBottom: 28, height: 50,
   },
   moodOption: { alignItems: 'center', justifyContent: 'center', width: 50, height: 50 },
-  moodDot: { borderWidth: 3 },
-  moodLabel: { textAlign: 'center', color: C.text, marginBottom: 20 },
   natureRow: { flexDirection: 'row', gap: 8, marginTop: 8, marginBottom: 20 },
   natureRowSingle: { flexDirection: 'row', justifyContent: 'center', marginTop: 8, marginBottom: 20 },
   natureOption: {

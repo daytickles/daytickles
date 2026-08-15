@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Modal, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { C, accentFor, darken, lighten, withAlpha, moodColorFor, moodDotSize, AWARD_TYPES, AWARD_BADGE_COLOR } from '../lib/theme';
+import { C, accentFor, darken, lighten, withAlpha, moodColorFor, moodBorderColor, SAVED_ENTRY_DOT_SIZE, AWARD_TYPES, AWARD_BADGE_COLOR } from '../lib/theme';
 import { flagEmoji } from '../lib/country';
 import InitialsAvatar from './InitialsAvatar';
 import FoundingMemberBadge from './FoundingMemberBadge';
@@ -63,7 +63,6 @@ export default function EntryCard({
 }) {
   const accent = accentFor(item.profiles?.accent_theme);
   const isOwnEntry = item.user_id === currentUserId;
-  const dotSize = moodDotSize(item.mood);
   // Day Journal is just tickle_nature === 'day_journal' (see migration
   // 0010) -- no new prop needed, item already carries it.
   const isJournal = item.tickle_nature === 'day_journal';
@@ -119,10 +118,12 @@ export default function EntryCard({
           style={[
             styles.moodDot,
             {
-              width: dotSize,
-              height: dotSize,
-              borderRadius: dotSize / 2,
+              width: SAVED_ENTRY_DOT_SIZE,
+              height: SAVED_ENTRY_DOT_SIZE,
+              borderRadius: SAVED_ENTRY_DOT_SIZE / 2,
               backgroundColor: moodColorFor(item.mood, accent),
+              borderWidth: 1.5,
+              borderColor: moodBorderColor(accent),
             },
           ]}
         />

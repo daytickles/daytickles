@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { C, accentFor, moodColorFor, moodDotSize, textOn, withAlpha, darken, lighten, NATURE_ORDER, VIBE_COLORS, AWARD_TYPES } from '../lib/theme';
+import { C, accentFor, moodColorFor, moodBorderColor, SAVED_ENTRY_DOT_SIZE, textOn, withAlpha, darken, lighten, NATURE_ORDER, VIBE_COLORS, AWARD_TYPES } from '../lib/theme';
 import { currentWeekStartDate, currentWeekStartISO, currentWeekDates, localDateString, DEFAULT_WEEK_START_DAY } from '../lib/week';
 import { initPinBoardDb, getPinnedPhotoCountSince, getPhotoShareCountSince } from '../lib/pinBoardDb';
 import { flagEmoji } from '../lib/country';
@@ -312,10 +312,12 @@ export default function WeeklySummary() {
                       style={[
                         styles.moodDot,
                         {
-                          width: moodDotSize(mostLiked.mood),
-                          height: moodDotSize(mostLiked.mood),
-                          borderRadius: moodDotSize(mostLiked.mood) / 2,
+                          width: SAVED_ENTRY_DOT_SIZE,
+                          height: SAVED_ENTRY_DOT_SIZE,
+                          borderRadius: SAVED_ENTRY_DOT_SIZE / 2,
                           backgroundColor: moodColorFor(mostLiked.mood, accent),
+                          borderWidth: 1.5,
+                          borderColor: moodBorderColor(accent),
                         },
                       ]}
                     />

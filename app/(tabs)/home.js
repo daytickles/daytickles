@@ -6,7 +6,7 @@ import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { C, accentFor, moodColorFor, moodDotSize, withAlpha, NATURE_ORDER, VIBE_COLORS } from '../../lib/theme';
+import { C, accentFor, moodColorFor, moodBorderColor, SAVED_ENTRY_DOT_SIZE, withAlpha, NATURE_ORDER, VIBE_COLORS } from '../../lib/theme';
 import { shareEntry, shareStatus, SHARE_CAPTIONS } from '../../lib/sharing';
 import { isThisWeek, isThisMonth, localDateString, DEFAULT_WEEK_START_DAY } from '../../lib/week';
 import { fetchFoundingMemberPaceStatus } from '../../lib/foundingMember';
@@ -464,7 +464,6 @@ export default function Home() {
 
   function renderEntryBody(entry) {
     const taggedGoal = entry.goal_id ? goalsById[entry.goal_id] : null;
-    const dotSize = moodDotSize(entry.mood);
     return (
       <View>
         <View style={styles.entryRow}>
@@ -472,10 +471,12 @@ export default function Home() {
             style={[
               styles.moodDot,
               {
-                width: dotSize,
-                height: dotSize,
-                borderRadius: dotSize / 2,
+                width: SAVED_ENTRY_DOT_SIZE,
+                height: SAVED_ENTRY_DOT_SIZE,
+                borderRadius: SAVED_ENTRY_DOT_SIZE / 2,
                 backgroundColor: moodColorFor(entry.mood, accent),
+                borderWidth: 1.5,
+                borderColor: moodBorderColor(accent),
               },
             ]}
           />
