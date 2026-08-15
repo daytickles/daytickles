@@ -96,6 +96,16 @@ export default function EntryCard({
         // a highlighted *and* awarded card should still show the gold
         // stripe, not have it swallowed by the highlight's own border.
         hasAward && styles.publicAwardStripe,
+        // Light wash + full border, same family as Goals/FM quest
+        // card/Settings cards (withAlpha(color, 0.14) bg + colored
+        // border). Additive alongside the stripe above -- different
+        // style keys (borderColor/borderWidth vs borderLeft*), so the
+        // stripe's own left-edge values are never touched. Gated on
+        // !isJournal rather than relying on journalCard's later
+        // ordering, since journalCard only overrides backgroundColor +
+        // borderLeft -- an ungated wash would still leak its top/
+        // right/bottom border through on an awarded journal entry.
+        hasAward && !isJournal && styles.awardWash,
         // Ordered last so a journal entry's own look always wins over a
         // legacy award stripe (award-giving is suppressed for journal
         // entries going forward, but a pre-existing award could still
@@ -390,6 +400,9 @@ const styles = StyleSheet.create({
   },
   publicAwardStripe: {
     borderLeftWidth: 4, borderLeftColor: AWARD_BADGE_COLOR,
+  },
+  awardWash: {
+    backgroundColor: withAlpha(AWARD_BADGE_COLOR, 0.14), borderWidth: 1, borderColor: AWARD_BADGE_COLOR,
   },
   entryRow: { flexDirection: 'row', alignItems: 'flex-start' },
   moodDot: { marginRight: 12, marginTop: 4 },
