@@ -6,23 +6,39 @@ import Button from './Button';
 
 // Content lives here (not passed as props) since both callers — the
 // auto-shown first-run guide on Home and the on-demand "How DayTickles
-// works" link in Settings — show the exact same four steps.
+// works" link in Settings — show the exact same eight steps.
 const STEPS = [
   {
-    title: 'Your Smile Streak',
-    body: "The number at the top of Home is your smile streak — consecutive days with at least one tickle logged. Right below it, the two stat cards track your all-time total tickles and total likes received.",
+    title: 'Home & Your Vibes',
+    body: "Every Tickle you write gets a Vibe — Made me smile, I paid forward, or Mood boost. Choose one when you save your entry.\n\nThe three Vibe cards on Home show your activity by week, month, and all-time. You can also set a daily target for any Vibe in Settings. When you reach your target, its lightbulb lights up for the day. It is completely optional — a little extra motivation if you like having something to aim for.",
   },
   {
     title: 'New Tickle',
-    body: 'Tap "New Tickle" to log what made you smile today. Pick a mood from a hint of a smile to a big grin — it drives the color and motion of your entry\'s animation. Tap Tickle to write something about the photo — a link back to it will automatically be added to your Tickle. Or tap Share to send the photo straight from your device.',
+    body: 'Tap New Tickle to capture something from your day. Choose a mood, which adds a buzz dot to your entry, then pick your Vibe.\n\nYou decide whether your Tickle stays private or is shared to the Feed.\n\nUse the three-dot menu on your own Tickles to Edit, Make public, or Delete.\n\nDay Journal is available in Settings if you want more space for personal, in-depth writing.',
   },
   {
-    title: 'The Feed',
-    body: "The Feed screen has four tabs: Everyone, Following, Mine, and Fav's. The smile icon on any entry is how you like it — tap it to like, tap again to unlike. In the Mine tab, tap the calendar icon to browse your past entries by date.",
+    title: 'Feed',
+    body: "The Feed has four tabs: Everyone, Following, Mine, and Fav's.\n\nLike a Tickle with the thumbs-up, save it with the star, or give someone recognition with one of three Awards.\n\nAwards are optional little recognitions you can give to someone else's Tickle:\n\nWordweaver — beautifully written\nSoulweaver — emotionally moving\nWittweaver — funny and clever",
   },
   {
-    title: 'Goals & Notifications',
-    body: "Tap the dot next to an entry to tag it with a goal, so you can notice patterns over time. When a goal's done, mark it Achieved from the Goals screen — tagged entries keep a faded, checkmarked badge as a record, and the color frees up for a new goal. The bell icon on Home lets you know when someone likes your tickles.",
+    title: 'Tickle Pics',
+    body: 'Tickle Pics is where your meaningful photos live. Pin a photo to an entry, or share it instantly as a polaroid tagged as either "This made me smile today" or "I saw this and thought of you."\n\nYour privacy comes first. Photos taken through the app are kept only on your device — they are never uploaded to or stored in our database. To keep a photo outside the app, simply download it to your device.',
+  },
+  {
+    title: 'Goals',
+    body: "Manage your Goals from Settings. Use them for anything you're focusing on, then tag Tickles to a Goal by tapping the empty circle on the entry. This is an easy, private way to record your progress. Goals can be archived or deleted whenever you like.",
+  },
+  {
+    title: 'Calendar',
+    body: "Calendar marks every day you've written a Tickle with its Vibe icon, so you can see your rhythm at a glance. Days with a Goal-tagged entry also show a colored dot for that Goal. Tap any day to see what you wrote.",
+  },
+  {
+    title: 'Founding Member',
+    body: "Become a Founding Member by completing your Quest. Achieve it and you'll receive lifetime membership and your own unique Founding Member ID. Tap the crown to discover more.",
+  },
+  {
+    title: 'Weekly Summary',
+    body: 'Tap the chart icon on Home to open your Weekly Summary — a look back at your week, including your most-liked Tickle, Weekly Vibes, connections you\'ve made, and your Tickle Pics activity.',
   },
 ];
 
