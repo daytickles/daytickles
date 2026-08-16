@@ -42,7 +42,9 @@
           "savePhotosPermission": "Allow DayTickles to save this photo to your device's Photos app.",
           "isAccessMediaLocationEnabled": false
         }
-      ]
+      ],
+      "@react-native-firebase/app",
+      "@react-native-firebase/crashlytics"
     ],
     "extra": {
       "router": {},

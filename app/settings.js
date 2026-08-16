@@ -24,6 +24,10 @@ import {
 import { isReviewAvailable, requestReview } from '../lib/rateUs';
 import { hasPinSet, clearPin } from '../lib/pinLock';
 import { deleteAccount } from '../lib/deleteAccount';
+// TEMPORARY -- Crashlytics smoke test only, remove this import and the
+// button below once a forced crash is confirmed landing in the Firebase
+// console on a real dev-client build.
+import { getCrashlytics, crash, setCrashlyticsCollectionEnabled } from '@react-native-firebase/crashlytics';
 
 // 0=Sunday..6=Saturday, matching lib/week.js/profiles.week_start_day's
 // own convention -- no translation needed between this list and what
@@ -72,6 +76,19 @@ export default function Settings() {
   // coming from AuthContext.
   useEffect(() => {
     hasPinSet().then(setPinEnabled);
+  }, []);
+
+  // TEMPORARY -- Crashlytics smoke test only, remove alongside the
+  // crash-test button/import below once a forced crash is confirmed
+  // landing in the Firebase console. Redundant with firebase.json's
+  // crashlytics_debug_enabled (which is now the real fix, applied at
+  // the next native build) -- kept only as a harmless belt-and-
+  // suspenders call, NOT as a way to avoid rebuilding: a JS-only
+  // reload can't add a native module to an already-compiled binary, so
+  // this line does nothing on a dev-client build from before the
+  // Crashlytics packages were added.
+  useEffect(() => {
+    setCrashlyticsCollectionEnabled(getCrashlytics(), true);
   }, []);
 
   async function signOut() {
@@ -476,6 +493,17 @@ export default function Settings() {
           title="Send test notification"
           variant="secondary"
           onPress={() => sendTestReminderNotification()}
+        />
+        <View style={styles.spacer} />
+
+        {/* TEMPORARY -- Crashlytics smoke test only (see import above).
+            crash() force-kills the app; Crashlytics uploads the report
+            on the NEXT launch, not immediately, so reopen the app after
+            tapping this before checking the Firebase console. */}
+        <Button
+          title="Force test crash (Crashlytics)"
+          variant="secondary"
+          onPress={() => crash(getCrashlytics())}
         />
         <View style={styles.spacer} />
         <View style={styles.spacer} />
