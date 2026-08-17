@@ -29,14 +29,14 @@ const TABS = [
 // Mine-only. 'all' is the default: everything, tagged or not, same as
 // no filter applied.
 const NATURE_FILTERS = [
-  { id: 'received', label: 'My smiles' },
+  { id: 'received', label: 'Smiles' },
   { id: 'given', label: 'Given' },
-  { id: 'self', label: 'For me' },
+  { id: 'self', label: 'Boost' },
 ];
 
 // Independent of tickle_nature_enabled — day_journal_enabled can show
 // this chip on its own, same as create.js's picker.
-const DAY_JOURNAL_FILTER = { id: 'day_journal', label: 'DJ' };
+const DAY_JOURNAL_FILTER = { id: 'day_journal', label: 'Journal' };
 
 const EMPTY_TEXT = {
   everyone: 'No public tickles yet.',
@@ -44,6 +44,17 @@ const EMPTY_TEXT = {
   mine: "You haven't shared any tickles to the feed yet.",
   favorites: 'Tap the star on a tickle to save it here.',
 };
+
+// Mine's Day Journal filter needs its own empty message rather than the
+// generic `mine` one above -- that message talks about sharing to the
+// feed, which is wrong here since Journal entries are private by design
+// and Mine shows entries regardless of sharing status anyway.
+function getEmptyText(tab, natureFilter) {
+  if (tab === 'mine' && natureFilter === 'day_journal') {
+    return 'Write your first Day Journal entry to see it here.';
+  }
+  return EMPTY_TEXT[tab];
+}
 
 const ENTRY_SELECT =
   'id, entry_date, text_content, mood, like_count, tickle_nature, goal_id, visibility, is_edited, created_at, user_id, profiles!tickle_entries_user_id_fkey(username, avatar_emoji, accent_theme, country, founding_member_number)';
@@ -367,8 +378,8 @@ export default function Feed() {
   }, [tab, highlightedEntryId, entries]);
 
   // Scroll back to the top on every tab switch (Everyone/Following/
-  // Mine/Fav's) or Mine's nature-filter chip switch (All/My smiles/
-  // Given/For me/DJ) so a newly-selected tab or filter doesn't inherit
+  // Mine/Fav's) or Mine's nature-filter chip switch (All/Smiles/
+  // Given/Boost/Journal) so a newly-selected tab or filter doesn't inherit
   // whatever scroll position the previous one was left at. Skipped when
   // a highlightEntry deep link just set the tab -- that case scrolls to
   // the specific highlighted entry via the effect above instead, and
@@ -675,7 +686,7 @@ export default function Feed() {
             });
           }, 50);
         }}
-        ListEmptyComponent={!loading && <Text style={styles.emptyText}>{EMPTY_TEXT[tab]}</Text>}
+        ListEmptyComponent={!loading && <Text style={styles.emptyText}>{getEmptyText(tab, natureFilter)}</Text>}
       />
     </View>
     </WallpaperBackground>
