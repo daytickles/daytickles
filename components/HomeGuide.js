@@ -14,7 +14,7 @@ const STEPS = [
   },
   {
     title: 'New Tickle',
-    body: 'Tap New Tickle to capture something from your day. Choose a mood, which adds a buzz dot to your entry, then pick your Vibe.\n\nYou decide whether your Tickle stays private or is shared to the Feed.\n\nA Day Journal is available in Settings if you want more space for personal, in-depth writing.',
+    body: "Tap New Tickle to capture something from your day. Choose a mood, which adds a buzz dot to your entry, then pick your Vibe.\n\nYou decide whether your Tickle stays private or is shared to the Feed.\n\nA Day Journal is available in Settings if you want more space for personal, in-depth writing. You will find your Journal under 'Mine' on the Feed.",
   },
   {
     title: 'Feed',
