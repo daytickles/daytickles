@@ -459,7 +459,7 @@ export default function Home() {
 
   const pinnedCutoff = localDateString(PINNED_WINDOW_DAYS - 1);
   const pinned = spotlightEntries
-    .filter((e) => e.entry_date >= pinnedCutoff)
+    .filter((e) => e.entry_date >= pinnedCutoff && e.like_count > 0)
     .reduce((best, e) => (!best || e.like_count > best.like_count ? e : best), null);
 
   function renderEntryBody(entry) {
