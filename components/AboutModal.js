@@ -54,8 +54,8 @@ export default function AboutModal({ visible, onClose, showGuideLink }) {
               few as you like, or only when something worth remembering happens.
             </Text>
             <Text style={styles.body}>
-              The streak on your Home screen isn't there to judge — it's simply there to help you
-              notice patterns if they emerge. Miss a day? Nothing happens.
+              The Vibes count on your Home screen isn't there to judge — it's simply there to
+              inspire you. Miss a day? Nothing happens.
             </Text>
 
             <Text style={styles.bodyEmphasis}>Your moments. Your pace. Your memories.</Text>
