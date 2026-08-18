@@ -20,10 +20,10 @@ import { initPinBoardDb, getAllLinkedEntryIds, getPhotoForEntry } from '../../li
 import { useShareCard } from '../../lib/useShareCard';
 
 const TABS = [
-  { id: 'everyone', label: 'Everyone' },
-  { id: 'following', label: 'Following' },
   { id: 'mine', label: 'Mine' },
   { id: 'favorites', label: "Fav's" },
+  { id: 'following', label: 'Following' },
+  { id: 'shared', label: 'Shared' },
 ];
 
 // Mine-only. 'all' is the default: everything, tagged or not, same as
@@ -39,10 +39,10 @@ const NATURE_FILTERS = [
 const DAY_JOURNAL_FILTER = { id: 'day_journal', label: 'Journal' };
 
 const EMPTY_TEXT = {
-  everyone: 'No public tickles yet.',
-  following: 'Follow people to see their tickles here.',
   mine: "You haven't shared any tickles to the feed yet.",
   favorites: 'Tap the star on a tickle to save it here.',
+  following: 'Follow people to see their tickles here.',
+  shared: 'No public tickles yet.',
 };
 
 // Mine's Day Journal filter needs its own empty message rather than the
@@ -93,7 +93,7 @@ export default function Feed() {
   const tabBarHeight = useBottomTabBarHeight();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
-  const initialTab = TABS.some((t) => t.id === params.tab) ? params.tab : 'everyone';
+  const initialTab = TABS.some((t) => t.id === params.tab) ? params.tab : 'mine';
   const [tab, setTab] = useState(initialTab);
   const [natureFilter, setNatureFilter] = useState('all');
   const [entries, setEntries] = useState([]);
@@ -377,8 +377,8 @@ export default function Feed() {
     listRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
   }, [tab, highlightedEntryId, entries]);
 
-  // Scroll back to the top on every tab switch (Everyone/Following/
-  // Mine/Fav's) or Mine's nature-filter chip switch (All/Smiles/
+  // Scroll back to the top on every tab switch (Mine/Fav's/Following/
+  // Shared) or Mine's nature-filter chip switch (All/Smiles/
   // Given/Boost/Journal) so a newly-selected tab or filter doesn't inherit
   // whatever scroll position the previous one was left at. Skipped when
   // a highlightEntry deep link just set the tab -- that case scrolls to
@@ -545,7 +545,7 @@ export default function Feed() {
 
   // Reversible, unlike delete, so no confirmation dialog — same
   // no-confirm treatment as follow/favorite/like. Going private just
-  // means Everyone/Following's own visibility-filtered queries stop
+  // means Shared/Following's own visibility-filtered queries stop
   // matching this row next time they reload (loadFeed already reruns on
   // tab change); Home and Mine never filter on visibility, so they keep
   // showing it either way.

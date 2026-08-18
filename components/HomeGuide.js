@@ -18,7 +18,7 @@ const STEPS = [
   },
   {
     title: 'Feed',
-    body: "The Feed has four tabs: Everyone, Following, Mine, and Fav's.\n\nLike a Tickle with the thumbs-up, save it to favourites with the star, or give someone recognition with one of three Awards.\n\nAwards are optional little recognitions you can give to someone else's Tickle:\n\nWordweaver — beautifully written\nSoulweaver — emotionally moving\nWittweaver — funny and clever\n\nUse the three-dot menu on your own Tickles to Edit, Make public, or Delete.",
+    body: "The Feed has four tabs: Mine, Fav's, Following, and Shared.\n\nLike a Tickle with the thumbs-up, save it to favourites with the star, or give someone recognition with one of three Awards.\n\nAwards are optional little recognitions you can give to someone else's Tickle:\n\nWordweaver — beautifully written\nSoulweaver — emotionally moving\nWittweaver — funny and clever\n\nUse the three-dot menu on your own Tickles to Edit, Make public, or Delete.",
   },
   {
     title: 'Tickle Pics',
