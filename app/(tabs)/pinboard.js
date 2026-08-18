@@ -173,7 +173,7 @@ export default function PinBoard() {
         <Text style={styles.subheading}>Share it, Save it, Tickle it</Text>
         <Text style={styles.permanentCaptionBold}>
           Photos are stored only on this device. Tap Tickle to write about one,{' '}
-          <Ionicons name="share-outline" size={13} color={C.subtext} /> to send it, or the{' '}
+          <Ionicons name="share-outline" size={13} color={C.subtext} /> to share it, or the{' '}
           <Ionicons name="download-outline" size={13} color={C.subtext} /> to save a copy to your Photos app.
         </Text>
 
