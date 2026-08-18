@@ -425,7 +425,7 @@ export default function Settings() {
         <Text style={styles.label}>Daily Vibe Goals</Text>
         <Text style={styles.explainerText}>
           Optional — set a target for any vibe and its lightbulb lights up on Home once you hit it
-          that day. Off by default; step back down to "Off" anytime to turn one off again.
+          that day.
         </Text>
         <View style={{ height: 8 }} />
         {NATURE_ORDER.map((key) => {
