@@ -279,7 +279,7 @@ export default function Create() {
       )}
 
       <View style={styles.shareRow}>
-        <Text style={styles.label}>Post on 'Shared'</Text>
+        <Text style={styles.label}>Ripple your vibe – Share it!</Text>
         <Switch
           value={shareToFeed}
           onValueChange={setShareToFeed}

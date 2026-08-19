@@ -8,7 +8,7 @@ import { C, withAlpha } from '../lib/theme';
 // tab) rather than duplicating navigation here, so this component
 // stays a single dismiss action.
 const BULLETS = [
-  "Write about something that made you smile, someone you helped, or Me-time moments — that's a Tickle. It's private by default; you choose if and when to share.",
+  "Write about something that made you smile, paying it forward, or Me-time moments — that's a Tickle. It's private by default; you choose if and when to share.",
   'Curious about daily targets or personalizing your experience? All in Settings, anytime — no rush.',
   "Thinking long-term? Tap the crown to see what Founding Member's about.",
   'Want more on how it all works? See Settings.',
