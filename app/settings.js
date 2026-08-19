@@ -548,6 +548,12 @@ export default function Settings() {
       <View style={styles.spacer} />
       <Button title="Rate Us" onPress={handleRateUs} variant="secondary" />
       <View style={styles.spacer} />
+      <Button
+        title="Feedback"
+        onPress={() => Linking.openURL('mailto:feedback@daytickles.com')}
+        variant="secondary"
+      />
+      <View style={styles.spacer} />
       <Button title="Sign Out" onPress={signOut} variant="secondary" />
       <View style={styles.spacer} />
 
