@@ -46,7 +46,7 @@ export default function Login() {
         <Button title="Sign in with Google" onPress={signInWithGoogle} variant="primary" />
         <Text style={styles.disclosure}>
           By continuing, you agree to our{' '}
-          <Text style={styles.disclosureLink} onPress={() => Linking.openURL('https://daytickles.com/privacy')}>
+          <Text style={styles.disclosureLink} onPress={() => Linking.openURL('https://daytickles.app/privacy')}>
             Privacy Policy
           </Text>
         </Text>

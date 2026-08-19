@@ -544,7 +544,7 @@ export default function Settings() {
       <View style={styles.spacer} />
       <Button title="About DayTickles" onPress={() => setShowAbout(true)} variant="secondary" />
       <View style={styles.spacer} />
-      <Button title="Privacy Policy" onPress={() => Linking.openURL('https://daytickles.com/privacy')} variant="secondary" />
+      <Button title="Privacy Policy" onPress={() => Linking.openURL('https://daytickles.app/privacy')} variant="secondary" />
       <View style={styles.spacer} />
       <Button title="Rate Us" onPress={handleRateUs} variant="secondary" />
       <View style={styles.spacer} />
