@@ -19,7 +19,12 @@
     "plugins": [
       "expo-web-browser",
       "expo-router",
-      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          "sounds": ["./assets/sounds/psst.wav"]
+        }
+      ],
       "expo-secure-store",
       [
         "expo-local-authentication",

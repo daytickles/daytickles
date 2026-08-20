@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Switch, StyleSheet, ScrollView, Alert, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, Switch, StyleSheet, ScrollView, Alert, Linking, Vibration } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
@@ -20,6 +20,7 @@ import {
   scheduleDailyReminder,
   cancelDailyReminder,
   sendTestReminderNotification,
+  sendTestAwarenessCueSound,
 } from '../lib/reminders';
 import { isReviewAvailable, requestReview } from '../lib/rateUs';
 import { hasPinSet, clearPin } from '../lib/pinLock';
@@ -476,6 +477,37 @@ export default function Settings() {
           title="Send test notification"
           variant="secondary"
           onPress={() => sendTestReminderNotification()}
+        />
+        <View style={styles.spacer} />
+
+        {/* TEMPORARY -- Awareness Cue feasibility test only, remove this
+            button and the Vibration import above once the feel-test is
+            done. React Native's built-in Vibration API -- no new native
+            module, no new build, works on this dev-client as-is. Sound
+            deliberately left out: expo-av/expo-audio isn't installed,
+            there's no sound asset in the project yet, and adding either
+            would need a fresh EAS/dev-client build (audited before
+            writing this, per tonight's Crashlytics build-vs-JS-reload
+            lesson) -- out of scope for this quick test. */}
+        <Button
+          title="Test vibration burst (Awareness Cue)"
+          variant="secondary"
+          onPress={() => Vibration.vibrate(400)}
+        />
+        <View style={styles.spacer} />
+
+        {/* TEMPORARY -- Awareness Cue feasibility test only, remove this
+            button (and sendTestAwarenessCueSound + the awareness-cue
+            channel in lib/reminders.js, and the "sounds" plugin config
+            in app.json) once the feel-test is done. Delivered as a
+            local notification carrying a custom sound, reusing the same
+            expo-notifications path as the daily reminder above --
+            requires a fresh EAS/dev-client build to actually play, a
+            Metro reload alone won't pick up the bundled sound asset. */}
+        <Button
+          title="Test sound cue (Awareness Cue)"
+          variant="secondary"
+          onPress={() => sendTestAwarenessCueSound()}
         />
         <View style={styles.spacer} />
         <View style={styles.spacer} />
