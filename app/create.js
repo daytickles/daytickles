@@ -231,7 +231,7 @@ export default function Create() {
 
       {(baseNatureOptions.length > 0 || showDayJournal) && (
         <>
-          <Text style={styles.label}>What kind of tickle vibe is it?</Text>
+          <Text style={styles.label}>Pick your Vibe.</Text>
           {baseNatureOptions.length > 0 && (
             <View style={styles.natureRow}>
               {baseNatureOptions.map((opt) => {
