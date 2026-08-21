@@ -16,6 +16,10 @@
 -- (entries.length / weekEntries.length) are already unfiltered by
 -- tickle_nature, so a null-vibe entry is already correctly counted
 -- there too. No other code change required for either requirement.
+--
+-- CONFIRMED APPLIED: run by hand via the Supabase dashboard SQL Editor,
+-- 2026-08-21 ("Success. No rows returned."). tickle_entries.tickle_nature
+-- is nullable again on the live database, not just in this migration file.
 -- =====================================================================
 
 alter table public.tickle_entries
