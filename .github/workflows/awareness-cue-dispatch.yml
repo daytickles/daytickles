@@ -32,8 +32,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Call awareness-cue-dispatch
+        env:
+          # Passed via env, not spliced directly into the script below
+          # via ${{ }} -- GitHub substitutes ${{ }} expressions into the
+          # run script's raw text before bash parses it, so a secret
+          # value containing a backtick/quote/$() would corrupt the
+          # script itself. Referencing it as a normal shell variable
+          # instead means bash only ever sees $CRON_SECRET, never the
+          # literal secret text spliced into the source.
+          CRON_SECRET: ${{ secrets.AWARENESS_CUE_CRON_SECRET }}
         run: |
           curl --fail-with-body -sS -X POST \
             "https://nzuvxqrnrknyfijowics.supabase.co/functions/v1/awareness-cue-dispatch" \
-            -H "Authorization: Bearer ${{ secrets.AWARENESS_CUE_CRON_SECRET }}" \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
             -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im56dXZ4cXJucmtueWZpam93aWNzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyNTY2OTQsImV4cCI6MjA5OTgzMjY5NH0.dgRLhokAEMAgiOMPZzS0t08hwAsNtIefyC8_KFrxzYg"
