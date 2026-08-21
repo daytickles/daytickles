@@ -38,6 +38,7 @@ const RENDER_RELEVANT_FIELDS = [
   'awareness_cue_count',
   'awareness_cue_window_start_minute',
   'awareness_cue_window_end_minute',
+  'awareness_cue_sound_confirmed',
   'awareness_cue_schedule_generated_on',
 ];
 

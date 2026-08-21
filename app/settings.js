@@ -20,6 +20,7 @@ import {
   scheduleDailyReminder,
   cancelDailyReminder,
   sendTestReminderNotification,
+  sendAwarenessCueTestCue,
 } from '../lib/reminders';
 import { isReviewAvailable, requestReview } from '../lib/rateUs';
 import { hasPinSet, clearPin } from '../lib/pinLock';
@@ -95,6 +96,12 @@ export default function Settings() {
   // keyed per-column since multiple goal steppers can be mid-save at
   // once).
   const [savingAwarenessCueOption, setSavingAwarenessCueOption] = useState(false);
+  // Separate from savingAwarenessCueOption: covers the "fire test cue,
+  // wait, ask Did you hear it?" flow specifically, which is a multi-
+  // second round trip rather than a fast write -- kept distinct so the
+  // pill row's disabled state can (later) read differently if needed,
+  // and so this flow's own timing isn't tangled with the shared flag's.
+  const [testingAwarenessCueSound, setTestingAwarenessCueSound] = useState(false);
   const [pinEnabled, setPinEnabled] = useState(false);
   const [togglingPinLock, setTogglingPinLock] = useState(false);
   const [showPinSetup, setShowPinSetup] = useState(false);
@@ -305,14 +312,55 @@ export default function Settings() {
     }
   }
 
+  // "Sound" re-tests every time it's picked, even if it was already the
+  // selected type -- deliberately no early-return for that case, unlike
+  // every other option here, since a device's real ability to play the
+  // custom sound is what's being re-checked, not just the preference
+  // value. See supabase/migrations/0044 for why this exists.
   async function handlePickAwarenessCueType(type) {
-    if (!profile || type === profile.awareness_cue_type) return;
-    const previous = profile;
+    if (!profile) return;
 
-    setProfile({ ...profile, awareness_cue_type: type });
+    if (type === 'sound') {
+      setTestingAwarenessCueSound(true);
+      try {
+        await sendAwarenessCueTestCue();
+      } catch {
+        // Best-effort -- if scheduling itself throws, still ask; "did
+        // you hear it" is a fair question (answer: no) either way.
+      }
+      // Roughly matches the test cue's own 2s TIME_INTERVAL trigger,
+      // plus a little headroom for it to actually display.
+      await new Promise((resolve) => setTimeout(resolve, 2500));
+      setTestingAwarenessCueSound(false);
+
+      Alert.alert(
+        'Did you hear it?',
+        'DayTickles just tried to play your Awareness Cue sound.',
+        [
+          { text: 'No', onPress: () => saveAwarenessCueType(type, false) },
+          { text: 'Yes', onPress: () => saveAwarenessCueType(type, true) },
+        ],
+        // No dismiss-without-answering path -- an unanswered prompt
+        // would leave awareness_cue_sound_confirmed at its previous
+        // value, which could be a stale `true` from an earlier test.
+        { cancelable: false }
+      );
+      return;
+    }
+
+    if (type === profile.awareness_cue_type) return;
+    saveAwarenessCueType(type, null);
+  }
+
+  async function saveAwarenessCueType(type, soundConfirmed) {
+    const previous = profile;
+    const updates =
+      type === 'sound' ? { awareness_cue_type: type, awareness_cue_sound_confirmed: soundConfirmed } : { awareness_cue_type: type };
+
+    setProfile({ ...profile, ...updates });
     setSavingAwarenessCueOption(true);
 
-    const { error } = await supabase.from('profiles').update({ awareness_cue_type: type }).eq('id', profile.id);
+    const { error } = await supabase.from('profiles').update(updates).eq('id', profile.id);
     setSavingAwarenessCueOption(false);
 
     if (error) setProfile(previous);
@@ -686,7 +734,7 @@ export default function Settings() {
                   <TouchableOpacity
                     key={option.value}
                     onPress={() => handlePickAwarenessCueType(option.value)}
-                    disabled={savingAwarenessCueOption}
+                    disabled={savingAwarenessCueOption || testingAwarenessCueSound}
                   >
                     <View style={[styles.optionPill, selected && { backgroundColor: accentDark, borderColor: accentDark }]}>
                       <Text style={[styles.optionPillText, selected && { color: textOn(accentDark) }]}>
@@ -697,6 +745,9 @@ export default function Settings() {
                 );
               })}
             </View>
+            {testingAwarenessCueSound && (
+              <Text style={styles.explainerText}>Testing sound — one moment…</Text>
+            )}
             <View style={styles.spacer} />
 
             <Text style={styles.label}>Frequency</Text>

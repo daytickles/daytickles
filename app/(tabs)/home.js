@@ -211,6 +211,7 @@ export default function Home() {
           count: profile.awareness_cue_count,
           windowStartMinute: profile.awareness_cue_window_start_minute,
           windowEndMinute: profile.awareness_cue_window_end_minute,
+          soundConfirmed: profile.awareness_cue_sound_confirmed,
         });
         await supabase
           .from('profiles')
@@ -228,6 +229,7 @@ export default function Home() {
     profile?.awareness_cue_count,
     profile?.awareness_cue_window_start_minute,
     profile?.awareness_cue_window_end_minute,
+    profile?.awareness_cue_sound_confirmed,
     profile?.awareness_cue_schedule_generated_on,
   ]);
 

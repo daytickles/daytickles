@@ -34,6 +34,7 @@ const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 // Keep these two files in sync by hand if either changes.
 const AWARENESS_CUE_SOUND_CHANNEL_ID = 'awareness-cue-sound';
 const AWARENESS_CUE_VIBRATE_CHANNEL_ID = 'awareness-cue-vibrate-v2';
+const AWARENESS_CUE_SOUND_DEFAULT_CHANNEL_ID = 'awareness-cue-sound-default';
 const AWARENESS_CUE_SOUND = 'psst.wav';
 const LOOSE_MODE_MIN_COUNT = 2;
 const LOOSE_MODE_MAX_COUNT = 5;
@@ -123,7 +124,7 @@ async function generateDueSchedules(supabase) {
 async function sendDuePushes(supabase) {
   const { data: due, error } = await supabase
     .from('awareness_cue_scheduled_pushes')
-    .select('id, user_id, cue_type, scheduled_at, profiles(expo_push_token)')
+    .select('id, user_id, cue_type, scheduled_at, profiles(expo_push_token, awareness_cue_sound_confirmed)')
     .is('delivered_at', null)
     .lte('scheduled_at', new Date().toISOString());
 
@@ -143,15 +144,27 @@ async function sendDuePushes(supabase) {
 
     if (!isStale && token) {
       try {
+        // Resolved live, at send time, not snapshotted at generation
+        // time -- a same-day change to the sound confirmation (Settings,
+        // app/settings.js) should apply to any not-yet-sent row
+        // immediately, not wait for tomorrow's regeneration. Mirrors
+        // lib/reminders.js's own useCustomSound logic exactly: only the
+        // custom psst.wav sound when explicitly confirmed true; null or
+        // false both fall back to the default-sound channel.
+        const useCustomSound = row.cue_type === 'sound' && row.profiles?.awareness_cue_sound_confirmed === true;
         const channelId =
-          row.cue_type === 'sound' ? AWARENESS_CUE_SOUND_CHANNEL_ID : AWARENESS_CUE_VIBRATE_CHANNEL_ID;
+          row.cue_type === 'sound'
+            ? useCustomSound
+              ? AWARENESS_CUE_SOUND_CHANNEL_ID
+              : AWARENESS_CUE_SOUND_DEFAULT_CHANNEL_ID
+            : AWARENESS_CUE_VIBRATE_CHANNEL_ID;
         const expoResponse = await fetch(EXPO_PUSH_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
           body: JSON.stringify({
             to: token,
             title: 'DayTickles',
-            ...(row.cue_type === 'sound' ? { sound: AWARENESS_CUE_SOUND } : {}),
+            ...(useCustomSound ? { sound: AWARENESS_CUE_SOUND } : {}),
             channelId,
           }),
         });
