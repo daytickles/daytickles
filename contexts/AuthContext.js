@@ -32,6 +32,13 @@ const RENDER_RELEVANT_FIELDS = [
   'founding_member_reminder_dismissed_at',
   'referral_code',
   'quick_start_dismissed',
+  'awareness_cue_enabled',
+  'awareness_cue_type',
+  'awareness_cue_frequency_mode',
+  'awareness_cue_count',
+  'awareness_cue_window_start_minute',
+  'awareness_cue_window_end_minute',
+  'awareness_cue_schedule_generated_on',
 ];
 
 function profilesEqual(a, b) {

@@ -22,7 +22,13 @@ import QuickStartCard from '../../components/QuickStartCard';
 import ShareModal from '../../components/ShareModal';
 import CornerNav from '../../components/CornerNav';
 import WallpaperBackground from '../../components/WallpaperBackground';
-import { requestReminderPermission, scheduleDailyReminder, cancelDailyReminder } from '../../lib/reminders';
+import {
+  requestReminderPermission,
+  scheduleDailyReminder,
+  cancelDailyReminder,
+  regenerateAwarenessCueSchedule,
+  cancelAwarenessCueSchedule,
+} from '../../lib/reminders';
 import { isReviewAvailable, requestReview } from '../../lib/rateUs';
 
 const PINNED_WINDOW_DAYS = 14;
@@ -158,6 +164,72 @@ export default function Home() {
       }
     })();
   }, [profile?.daily_reminder]);
+
+  // Regenerates today's random Awareness Cue schedule at most once per
+  // local calendar day, gated by awareness_cue_schedule_generated_on --
+  // unlike the daily reminder's fixed DAILY trigger above (safely
+  // idempotent to re-schedule), Awareness Cue's times are freshly
+  // randomized each day, so "already generated today" has to be
+  // tracked explicitly. Deliberately the only place that ever calls
+  // regenerateAwarenessCueSchedule/cancelAwarenessCueSchedule -- unlike
+  // the daily reminder, Settings' own Awareness Cue handlers only write
+  // preference columns, never call the scheduler directly, to avoid the
+  // known duplicate-native-call race documented on the daily-reminder
+  // effect above (banked backlog #29). Accepted limitation (per spec):
+  // a day the user never opens the app gets no cues that day.
+  useEffect(() => {
+    if (!profile) return;
+    const today = localDateString(0);
+
+    if (!profile.awareness_cue_enabled) {
+      if (profile.awareness_cue_schedule_generated_on) {
+        (async () => {
+          try {
+            await cancelAwarenessCueSchedule();
+            await supabase
+              .from('profiles')
+              .update({ awareness_cue_schedule_generated_on: null })
+              .eq('id', profile.id);
+            refreshProfile();
+          } catch {
+            // best-effort reconciliation only
+          }
+        })();
+      }
+      return;
+    }
+
+    if (profile.awareness_cue_schedule_generated_on === today) return;
+
+    (async () => {
+      try {
+        const granted = await requestReminderPermission();
+        if (!granted) return;
+        await regenerateAwarenessCueSchedule({
+          type: profile.awareness_cue_type,
+          frequencyMode: profile.awareness_cue_frequency_mode,
+          count: profile.awareness_cue_count,
+          windowStartMinute: profile.awareness_cue_window_start_minute,
+          windowEndMinute: profile.awareness_cue_window_end_minute,
+        });
+        await supabase
+          .from('profiles')
+          .update({ awareness_cue_schedule_generated_on: today })
+          .eq('id', profile.id);
+        refreshProfile();
+      } catch {
+        // best-effort reconciliation only
+      }
+    })();
+  }, [
+    profile?.awareness_cue_enabled,
+    profile?.awareness_cue_type,
+    profile?.awareness_cue_frequency_mode,
+    profile?.awareness_cue_count,
+    profile?.awareness_cue_window_start_minute,
+    profile?.awareness_cue_window_end_minute,
+    profile?.awareness_cue_schedule_generated_on,
+  ]);
 
   async function handleCloseAboutIntro() {
     setShowGuide(false);

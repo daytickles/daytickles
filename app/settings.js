@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Switch, StyleSheet, ScrollView, Alert, Linking, Vibration } from 'react-native';
+import { View, Text, TouchableOpacity, Switch, StyleSheet, ScrollView, Alert, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
@@ -20,7 +20,6 @@ import {
   scheduleDailyReminder,
   cancelDailyReminder,
   sendTestReminderNotification,
-  sendTestAwarenessCueSound,
 } from '../lib/reminders';
 import { isReviewAvailable, requestReview } from '../lib/rateUs';
 import { hasPinSet, clearPin } from '../lib/pinLock';
@@ -47,6 +46,34 @@ const NATURE_LABELS = {
   self: 'Mood boost',
 };
 
+const AWARENESS_CUE_TYPE_OPTIONS = [
+  { value: 'vibrate', label: 'Vibrate' },
+  { value: 'sound', label: 'Sound' },
+];
+
+const AWARENESS_CUE_FREQUENCY_OPTIONS = [
+  { value: 'loose', label: 'Surprise me' },
+  { value: 'exact', label: 'Exact count' },
+];
+
+const AWARENESS_CUE_MIN_COUNT = 1;
+const AWARENESS_CUE_MAX_COUNT = 10;
+const AWARENESS_CUE_DEFAULT_COUNT = 3;
+
+// Curated presets rather than a free-form time picker -- there's no
+// time-picker UI anywhere in this codebase yet, and adding one (a new
+// native dependency) wasn't worth it for a first version. Minutes
+// since local midnight, matching profiles.awareness_cue_window_*'s own
+// convention. The defaults (540/1260) exactly match 'daytime' below, so
+// a never-touched profile always renders a real selection, never a
+// blank/custom state.
+const AWARENESS_CUE_WINDOW_PRESETS = [
+  { key: 'morning', label: 'Morning', startMinute: 6 * 60, endMinute: 12 * 60 },
+  { key: 'daytime', label: 'Daytime', startMinute: 9 * 60, endMinute: 21 * 60 },
+  { key: 'afternoon_evening', label: 'Afternoon–evening', startMinute: 12 * 60, endMinute: 22 * 60 },
+  { key: 'all_day', label: 'All day', startMinute: 7 * 60, endMinute: 23 * 60 },
+];
+
 export default function Settings() {
   const { profile, setProfile, refreshProfile } = useAuth();
   const accentDark = darken(accentFor(profile?.accent_theme).card, 0.35);
@@ -61,6 +88,13 @@ export default function Settings() {
   const [savingDailyReminder, setSavingDailyReminder] = useState(false);
   const [savingGoal, setSavingGoal] = useState(null);
   const [reminderPermissionDenied, setReminderPermissionDenied] = useState(false);
+  const [savingAwarenessCue, setSavingAwarenessCue] = useState(false);
+  // Shared across type/frequency/count/window -- these are independent,
+  // fast writes rarely pressed in rapid succession, so one flag is
+  // enough rather than four (unlike savingGoal, which is genuinely
+  // keyed per-column since multiple goal steppers can be mid-save at
+  // once).
+  const [savingAwarenessCueOption, setSavingAwarenessCueOption] = useState(false);
   const [pinEnabled, setPinEnabled] = useState(false);
   const [togglingPinLock, setTogglingPinLock] = useState(false);
   const [showPinSetup, setShowPinSetup] = useState(false);
@@ -237,6 +271,113 @@ export default function Settings() {
       // Preference is saved regardless — Home's mount reconciliation
       // will retry scheduling next time the app opens.
     }
+  }
+
+  // Reuses the exact same OS permission as the daily reminder (both are
+  // just local expo-notifications scheduling) -- denial state is shared
+  // with reminderPermissionDenied above rather than duplicated. Unlike
+  // handleToggleDailyReminder, this never calls the scheduler itself --
+  // Home's own awareness_cue_*-gated effect is the only place that
+  // does, to avoid the known duplicate-native-call race documented
+  // there (backlog #29).
+  async function handleToggleAwarenessCue(value) {
+    if (!profile) return;
+    if (value) {
+      const granted = await requestReminderPermission();
+      if (!granted) {
+        setReminderPermissionDenied(true);
+        return;
+      }
+    }
+    setReminderPermissionDenied(false);
+
+    const previous = profile;
+    setProfile({ ...profile, awareness_cue_enabled: value });
+    setSavingAwarenessCue(true);
+
+    const { error } = await supabase.from('profiles').update({ awareness_cue_enabled: value }).eq('id', profile.id);
+    setSavingAwarenessCue(false);
+
+    if (error) {
+      setProfile(previous);
+    } else {
+      refreshProfile();
+    }
+  }
+
+  async function handlePickAwarenessCueType(type) {
+    if (!profile || type === profile.awareness_cue_type) return;
+    const previous = profile;
+
+    setProfile({ ...profile, awareness_cue_type: type });
+    setSavingAwarenessCueOption(true);
+
+    const { error } = await supabase.from('profiles').update({ awareness_cue_type: type }).eq('id', profile.id);
+    setSavingAwarenessCueOption(false);
+
+    if (error) setProfile(previous);
+    else refreshProfile();
+  }
+
+  // Switching into 'exact' mode backfills a real count immediately if
+  // one was never set, so the stepper below never renders against a
+  // null baseline.
+  async function handlePickAwarenessCueFrequencyMode(mode) {
+    if (!profile || mode === profile.awareness_cue_frequency_mode) return;
+    const previous = profile;
+    const update = { awareness_cue_frequency_mode: mode };
+    if (mode === 'exact' && !profile.awareness_cue_count) {
+      update.awareness_cue_count = AWARENESS_CUE_DEFAULT_COUNT;
+    }
+
+    setProfile({ ...profile, ...update });
+    setSavingAwarenessCueOption(true);
+
+    const { error } = await supabase.from('profiles').update(update).eq('id', profile.id);
+    setSavingAwarenessCueOption(false);
+
+    if (error) setProfile(previous);
+    else refreshProfile();
+  }
+
+  async function handleAdjustAwarenessCueCount(delta) {
+    if (!profile) return;
+    const current = profile.awareness_cue_count || AWARENESS_CUE_DEFAULT_COUNT;
+    const next = Math.min(AWARENESS_CUE_MAX_COUNT, Math.max(AWARENESS_CUE_MIN_COUNT, current + delta));
+    if (next === current) return;
+    const previous = profile;
+
+    setProfile({ ...profile, awareness_cue_count: next });
+    setSavingAwarenessCueOption(true);
+
+    const { error } = await supabase.from('profiles').update({ awareness_cue_count: next }).eq('id', profile.id);
+    setSavingAwarenessCueOption(false);
+
+    if (error) setProfile(previous);
+    else refreshProfile();
+  }
+
+  async function handlePickAwarenessCueWindow(preset) {
+    if (!profile) return;
+    const alreadySelected =
+      profile.awareness_cue_window_start_minute === preset.startMinute &&
+      profile.awareness_cue_window_end_minute === preset.endMinute;
+    if (alreadySelected) return;
+
+    const previous = profile;
+    const update = {
+      awareness_cue_window_start_minute: preset.startMinute,
+      awareness_cue_window_end_minute: preset.endMinute,
+    };
+
+    setProfile({ ...profile, ...update });
+    setSavingAwarenessCueOption(true);
+
+    const { error } = await supabase.from('profiles').update(update).eq('id', profile.id);
+    setSavingAwarenessCueOption(false);
+
+    if (error) setProfile(previous);
+    else refreshProfile();
   }
 
   // Stepper, not a free-text field -- clamps at 0 (stored as null, "off")
@@ -480,38 +621,6 @@ export default function Settings() {
         />
         <View style={styles.spacer} />
 
-        {/* TEMPORARY -- Awareness Cue feasibility test only, remove this
-            button and the Vibration import above once the feel-test is
-            done. React Native's built-in Vibration API -- no new native
-            module, no new build, works on this dev-client as-is. Sound
-            deliberately left out: expo-av/expo-audio isn't installed,
-            there's no sound asset in the project yet, and adding either
-            would need a fresh EAS/dev-client build (audited before
-            writing this, per tonight's Crashlytics build-vs-JS-reload
-            lesson) -- out of scope for this quick test. */}
-        <Button
-          title="Test vibration burst (Awareness Cue)"
-          variant="secondary"
-          onPress={() => Vibration.vibrate(400)}
-        />
-        <View style={styles.spacer} />
-
-        {/* TEMPORARY -- Awareness Cue feasibility test only, remove this
-            button (and sendTestAwarenessCueSound + the awareness-cue
-            channel in lib/reminders.js, and the "sounds" plugin config
-            in app.json) once the feel-test is done. Delivered as a
-            local notification carrying a custom sound, reusing the same
-            expo-notifications path as the daily reminder above --
-            requires a fresh EAS/dev-client build to actually play, a
-            Metro reload alone won't pick up the bundled sound asset. */}
-        <Button
-          title="Test sound cue (Awareness Cue)"
-          variant="secondary"
-          onPress={() => sendTestAwarenessCueSound()}
-        />
-        <View style={styles.spacer} />
-        <View style={styles.spacer} />
-
         <View style={styles.toggleRow}>
           <Text style={styles.toggleLabel}>Notify me of new likes</Text>
           <Switch
@@ -542,6 +651,122 @@ export default function Settings() {
           Locks the app behind a PIN (with biometrics as a shortcut) every time it's opened or
           resumed from the background. Stored only on this device, never sent anywhere.
         </Text>
+      </View>
+
+      <View style={styles.card}>
+        <View style={styles.toggleRow}>
+          <Text style={styles.toggleLabel}>Awareness Cue</Text>
+          <Switch
+            value={!!profile?.awareness_cue_enabled}
+            onValueChange={handleToggleAwarenessCue}
+            disabled={savingAwarenessCue}
+            trackColor={{ false: C.border, true: accentDark }}
+            thumbColor={C.card}
+          />
+        </View>
+        <Text style={styles.explainerText}>
+          A private, contentless vibration or sound burst a few times a day, at random moments —
+          a personal nudge to notice what's happening right now. No message, no response expected.
+        </Text>
+        {reminderPermissionDenied && (
+          <Text style={styles.explainerText}>
+            Notifications permission was denied — enable it for DayTickles in your device settings
+            to get Awareness Cue.
+          </Text>
+        )}
+        <View style={{ height: 8 }} />
+
+        {!!profile?.awareness_cue_enabled && (
+          <>
+            <Text style={styles.label}>Cue type</Text>
+            <View style={styles.optionPillRow}>
+              {AWARENESS_CUE_TYPE_OPTIONS.map((option) => {
+                const selected = (profile?.awareness_cue_type || 'vibrate') === option.value;
+                return (
+                  <TouchableOpacity
+                    key={option.value}
+                    onPress={() => handlePickAwarenessCueType(option.value)}
+                    disabled={savingAwarenessCueOption}
+                  >
+                    <View style={[styles.optionPill, selected && { backgroundColor: accentDark, borderColor: accentDark }]}>
+                      <Text style={[styles.optionPillText, selected && { color: textOn(accentDark) }]}>
+                        {option.label}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <View style={styles.spacer} />
+
+            <Text style={styles.label}>Frequency</Text>
+            <View style={styles.optionPillRow}>
+              {AWARENESS_CUE_FREQUENCY_OPTIONS.map((option) => {
+                const selected = (profile?.awareness_cue_frequency_mode || 'loose') === option.value;
+                return (
+                  <TouchableOpacity
+                    key={option.value}
+                    onPress={() => handlePickAwarenessCueFrequencyMode(option.value)}
+                    disabled={savingAwarenessCueOption}
+                  >
+                    <View style={[styles.optionPill, selected && { backgroundColor: accentDark, borderColor: accentDark }]}>
+                      <Text style={[styles.optionPillText, selected && { color: textOn(accentDark) }]}>
+                        {option.label}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <View style={styles.spacer} />
+
+            {profile?.awareness_cue_frequency_mode === 'exact' && (
+              <>
+                <Text style={styles.label}>How many times a day</Text>
+                <View style={styles.stepper}>
+                  <TouchableOpacity
+                    onPress={() => handleAdjustAwarenessCueCount(-1)}
+                    disabled={savingAwarenessCueOption || (profile?.awareness_cue_count || AWARENESS_CUE_DEFAULT_COUNT) <= AWARENESS_CUE_MIN_COUNT}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Ionicons name="remove-circle-outline" size={20} color={C.text} />
+                  </TouchableOpacity>
+                  <Text style={styles.stepperValue}>{profile?.awareness_cue_count || AWARENESS_CUE_DEFAULT_COUNT}</Text>
+                  <TouchableOpacity
+                    onPress={() => handleAdjustAwarenessCueCount(1)}
+                    disabled={savingAwarenessCueOption || (profile?.awareness_cue_count || AWARENESS_CUE_DEFAULT_COUNT) >= AWARENESS_CUE_MAX_COUNT}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Ionicons name="add-circle-outline" size={20} color={C.text} />
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.spacer} />
+              </>
+            )}
+
+            <Text style={styles.label}>Active window</Text>
+            <View style={styles.optionPillRow}>
+              {AWARENESS_CUE_WINDOW_PRESETS.map((preset) => {
+                const selected =
+                  (profile?.awareness_cue_window_start_minute ?? 540) === preset.startMinute &&
+                  (profile?.awareness_cue_window_end_minute ?? 1260) === preset.endMinute;
+                return (
+                  <TouchableOpacity
+                    key={preset.key}
+                    onPress={() => handlePickAwarenessCueWindow(preset)}
+                    disabled={savingAwarenessCueOption}
+                  >
+                    <View style={[styles.optionPill, selected && { backgroundColor: accentDark, borderColor: accentDark }]}>
+                      <Text style={[styles.optionPillText, selected && { color: textOn(accentDark) }]}>
+                        {preset.label}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </>
+        )}
       </View>
 
       <Button title="How DayTickles works" onPress={() => setShowGuide(true)} variant="secondary" />
@@ -630,6 +855,12 @@ const styles = StyleSheet.create({
   vibeGoalLabel: { flex: 1, fontSize: 15, color: C.text },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   stepperValue: { fontSize: 15, fontWeight: '600', color: C.text, minWidth: 28, textAlign: 'center' },
+  optionPillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  optionPill: {
+    paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20,
+    borderWidth: 1, borderColor: C.border, backgroundColor: C.card,
+  },
+  optionPillText: { fontSize: 13, fontWeight: '600', color: C.text },
   countryRow: {
     paddingVertical: 12, paddingHorizontal: 14, marginBottom: 6,
     backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border,
