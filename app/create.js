@@ -32,12 +32,6 @@ export default function Create() {
   const accentDarkText = textOn(accentDark);
 
   const [text, setText] = useState('');
-  // Mood-intensity picker removed 2026-08-21 -- tickle_entries.mood is
-  // still NOT NULL in the DB pending its own migration decision, so
-  // this fixed default keeps inserts/updates valid until that lands.
-  // Edit mode below still round-trips an existing entry's real value
-  // rather than clobbering it with this default.
-  const [mood, setMood] = useState('good');
   const [tickleNature, setTickleNature] = useState(null);
   const [shareToFeed, setShareToFeed] = useState(false);
   const [status, setStatus] = useState('');
@@ -59,13 +53,12 @@ export default function Create() {
     (async () => {
       const { data, error } = await supabase
         .from('tickle_entries')
-        .select('text_content, mood, tickle_nature, visibility')
+        .select('text_content, tickle_nature, visibility')
         .eq('id', entryId)
         .single();
 
       if (!error && data) {
         setText(data.text_content);
-        setMood(data.mood);
         setTickleNature(data.tickle_nature);
         setShareToFeed(data.visibility === 'public');
       }
@@ -105,7 +98,6 @@ export default function Create() {
         .from('tickle_entries')
         .update({
           text_content: trimmed,
-          mood,
           tickle_nature: tickleNature,
           visibility: shareToFeed ? 'public' : 'private',
           is_edited: true,
@@ -118,7 +110,6 @@ export default function Create() {
           user_id: session.user.id,
           entry_date: localDateString(),
           text_content: trimmed,
-          mood,
           tickle_nature: tickleNature,
           visibility: shareToFeed ? 'public' : 'private',
         })
