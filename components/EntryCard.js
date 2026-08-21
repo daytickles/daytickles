@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Modal, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { C, accentFor, darken, lighten, withAlpha, moodColorFor, moodBorderColor, SAVED_ENTRY_DOT_SIZE, AWARD_TYPES, AWARD_BADGE_COLOR } from '../lib/theme';
+import { C, accentFor, darken, lighten, withAlpha, SAVED_ENTRY_DOT_SIZE, VIBE_COLORS, AWARD_TYPES, AWARD_BADGE_COLOR } from '../lib/theme';
 import { flagEmoji } from '../lib/country';
 import InitialsAvatar from './InitialsAvatar';
 import FoundingMemberBadge from './FoundingMemberBadge';
@@ -116,17 +116,23 @@ export default function EntryCard({
       <View style={styles.entryRow}>
         <View
           style={[
-            styles.moodDot,
+            styles.vibeIconSlot,
             {
               width: SAVED_ENTRY_DOT_SIZE,
               height: SAVED_ENTRY_DOT_SIZE,
-              borderRadius: SAVED_ENTRY_DOT_SIZE / 2,
-              backgroundColor: moodColorFor(item.mood, accent),
-              borderWidth: 1.5,
-              borderColor: moodBorderColor(accent),
+              alignItems: 'center',
+              justifyContent: 'center',
             },
           ]}
-        />
+        >
+          {!!VIBE_COLORS[item.tickle_nature] && (
+            <NatureIcon
+              nature={item.tickle_nature}
+              size={SAVED_ENTRY_DOT_SIZE}
+              color={VIBE_COLORS[item.tickle_nature]}
+            />
+          )}
+        </View>
         <View style={styles.entryBody}>
           <View style={styles.headerRow}>
             <View style={styles.authorRow}>
@@ -151,21 +157,18 @@ export default function EntryCard({
               )}
             </View>
             <View style={styles.iconGroup}>
-              {isJournal ? (
+              {isJournal && (
                 // Deliberately not added to TICKLE_NATURE_ICONS/NatureIcon --
                 // calendar.js's month-grid keys off "no TICKLE_NATURE_ICONS
                 // entry" to keep Day Journal out of the Vibes category dots
                 // (see its own comment at the natureCategories build site).
                 // Doing it there would silently pull journal entries into
                 // Vibes categorization on the calendar grid.
+                //
+                // The non-journal branch that used to render a second,
+                // plain-grey NatureIcon here was removed -- it duplicated
+                // the colored vibe icon in the entry row's icon slot.
                 <Ionicons name="journal-outline" size={16} color={C.subtext} style={styles.natureIcon} />
-              ) : item.tickle_nature && (
-                <NatureIcon
-                  nature={item.tickle_nature}
-                  size={16}
-                  color={C.subtext}
-                  style={styles.natureIcon}
-                />
               )}
               {hasLinkedPhoto && (
                 <TouchableOpacity
@@ -406,7 +409,7 @@ const styles = StyleSheet.create({
     backgroundColor: withAlpha(AWARD_BADGE_COLOR, 0.14), borderWidth: 1, borderColor: AWARD_BADGE_COLOR,
   },
   entryRow: { flexDirection: 'row', alignItems: 'flex-start' },
-  moodDot: { marginRight: 12, marginTop: 4 },
+  vibeIconSlot: { marginRight: 12, marginTop: 4 },
   entryBody: { flex: 1 },
   headerRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4,

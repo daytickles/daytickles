@@ -6,7 +6,7 @@ import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { C, accentFor, moodColorFor, moodBorderColor, SAVED_ENTRY_DOT_SIZE, withAlpha, NATURE_ORDER, VIBE_COLORS } from '../../lib/theme';
+import { C, accentFor, SAVED_ENTRY_DOT_SIZE, withAlpha, NATURE_ORDER, VIBE_COLORS } from '../../lib/theme';
 import { shareEntry, shareStatus, SHARE_CAPTIONS } from '../../lib/sharing';
 import { isThisWeek, isThisMonth, localDateString, DEFAULT_WEEK_START_DAY } from '../../lib/week';
 import { fetchFoundingMemberPaceStatus } from '../../lib/foundingMember';
@@ -171,7 +171,7 @@ export default function Home() {
     if (!session) return;
     const { data, error } = await supabase
       .from('tickle_entries')
-      .select('id, entry_date, text_content, mood, like_count, goal_id, tickle_nature, visibility, is_edited, created_at')
+      .select('id, entry_date, text_content, like_count, goal_id, tickle_nature, visibility, is_edited, created_at')
       .eq('user_id', session.user.id)
       .order('entry_date', { ascending: false })
       .order('created_at', { ascending: false });
@@ -467,19 +467,31 @@ export default function Home() {
     return (
       <View>
         <View style={styles.entryRow}>
+          {/* The plain-grey NatureIcon that used to render in iconRow
+              below was removed -- it duplicated this colored vibe icon.
+              Day Journal entries never reach renderEntryBody
+              (spotlightEntries already excludes tickle_nature ===
+              'day_journal'), so there's no journal-icon case to
+              preserve here, unlike EntryCard.js's iconGroup. */}
           <View
             style={[
-              styles.moodDot,
+              styles.vibeIconSlot,
               {
                 width: SAVED_ENTRY_DOT_SIZE,
                 height: SAVED_ENTRY_DOT_SIZE,
-                borderRadius: SAVED_ENTRY_DOT_SIZE / 2,
-                backgroundColor: moodColorFor(entry.mood, accent),
-                borderWidth: 1.5,
-                borderColor: moodBorderColor(accent),
+                alignItems: 'center',
+                justifyContent: 'center',
               },
             ]}
-          />
+          >
+            {!!VIBE_COLORS[entry.tickle_nature] && (
+              <NatureIcon
+                nature={entry.tickle_nature}
+                size={SAVED_ENTRY_DOT_SIZE}
+                color={VIBE_COLORS[entry.tickle_nature]}
+              />
+            )}
+          </View>
           <View style={styles.entryBody}>
             <Text style={styles.entryText} numberOfLines={1}>{entry.text_content}</Text>
             <View style={styles.entryMetaRow}>
@@ -492,14 +504,6 @@ export default function Home() {
           </View>
         </View>
         <View style={styles.iconRow}>
-          {entry.tickle_nature && (
-            <NatureIcon
-              nature={entry.tickle_nature}
-              size={16}
-              color={C.subtext}
-              style={styles.natureIcon}
-            />
-          )}
           <TouchableOpacity
             onPress={() => setPickerEntryId(entry.id)}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -827,7 +831,7 @@ const styles = StyleSheet.create({
     backgroundColor: C.card, borderRadius: 16, padding: 10, marginBottom: 12,
   },
   entryRow: { flexDirection: 'row', alignItems: 'flex-start' },
-  moodDot: { marginRight: 12, marginTop: 4 },
+  vibeIconSlot: { marginRight: 12, marginTop: 4 },
   entryBody: { flex: 1 },
   entryText: { fontSize: 15, color: C.text, lineHeight: 20 },
   entryMetaRow: {

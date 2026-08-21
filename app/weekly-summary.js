@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { C, accentFor, moodColorFor, moodBorderColor, SAVED_ENTRY_DOT_SIZE, textOn, withAlpha, darken, lighten, NATURE_ORDER, VIBE_COLORS, AWARD_TYPES } from '../lib/theme';
+import { C, accentFor, SAVED_ENTRY_DOT_SIZE, textOn, withAlpha, darken, lighten, NATURE_ORDER, VIBE_COLORS, AWARD_TYPES } from '../lib/theme';
 import { currentWeekStartDate, currentWeekStartISO, currentWeekDates, localDateString, DEFAULT_WEEK_START_DAY } from '../lib/week';
 import { initPinBoardDb, getPinnedPhotoCountSince, getPhotoShareCountSince } from '../lib/pinBoardDb';
 import { flagEmoji } from '../lib/country';
@@ -115,7 +115,7 @@ export default function WeeklySummary() {
         .gte('entry_date', weekStartDate),
       supabase
         .from('tickle_entries')
-        .select('id, text_content, like_count, mood')
+        .select('id, text_content, like_count, tickle_nature')
         .eq('user_id', session.user.id)
         .gte('entry_date', trailingCutoff),
       supabase.from('goals').select('*').order('created_at', { ascending: true }),
@@ -310,17 +310,23 @@ export default function WeeklySummary() {
                   <View style={styles.entryRow}>
                     <View
                       style={[
-                        styles.moodDot,
+                        styles.vibeIconSlot,
                         {
                           width: SAVED_ENTRY_DOT_SIZE,
                           height: SAVED_ENTRY_DOT_SIZE,
-                          borderRadius: SAVED_ENTRY_DOT_SIZE / 2,
-                          backgroundColor: moodColorFor(mostLiked.mood, accent),
-                          borderWidth: 1.5,
-                          borderColor: moodBorderColor(accent),
+                          alignItems: 'center',
+                          justifyContent: 'center',
                         },
                       ]}
-                    />
+                    >
+                      {!!VIBE_COLORS[mostLiked.tickle_nature] && (
+                        <NatureIcon
+                          nature={mostLiked.tickle_nature}
+                          size={SAVED_ENTRY_DOT_SIZE}
+                          color={VIBE_COLORS[mostLiked.tickle_nature]}
+                        />
+                      )}
+                    </View>
                     <View style={styles.entryBody}>
                       <Text style={styles.entryText} numberOfLines={2}>{mostLiked.text_content}</Text>
                       <Text style={styles.entryLikes}>
@@ -545,7 +551,7 @@ const styles = StyleSheet.create({
   },
   pinnedSectionLabel: { color: C.sparkleText },
   entryRow: { flexDirection: 'row', alignItems: 'flex-start' },
-  moodDot: { marginRight: 12, marginTop: 4 },
+  vibeIconSlot: { marginRight: 12, marginTop: 4 },
   entryBody: { flex: 1 },
   entryText: { fontSize: 15, color: C.text, lineHeight: 20 },
   entryLikes: { fontSize: 12, color: C.teal, fontWeight: '600', marginTop: 6 },

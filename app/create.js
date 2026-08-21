@@ -7,7 +7,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { C, MOODS, MOOD_DOT_SIZE, accentFor, moodColorFor, moodBorderColor, withAlpha, darken, textOn } from '../lib/theme';
+import { C, accentFor, darken, textOn } from '../lib/theme';
 import Button from '../components/Button';
 import WallpaperBackground from '../components/WallpaperBackground';
 import { linkPhotoToEntry } from '../lib/pinBoardDb';
@@ -15,8 +15,7 @@ import { localDateString } from '../lib/week';
 
 const MAX_LEN = 500;
 
-// Presentation only — not shared elsewhere, so kept local rather than
-// added to lib/theme.js alongside MOODS.
+// Presentation only — not shared elsewhere.
 const TICKLE_NATURE_OPTIONS = [
   { id: 'received', label: 'Made me Smile' },
   { id: 'given', label: 'I paid forward' },
@@ -33,7 +32,12 @@ export default function Create() {
   const accentDarkText = textOn(accentDark);
 
   const [text, setText] = useState('');
-  const [mood, setMood] = useState(null);
+  // Mood-intensity picker removed 2026-08-21 -- tickle_entries.mood is
+  // still NOT NULL in the DB pending its own migration decision, so
+  // this fixed default keeps inserts/updates valid until that lands.
+  // Edit mode below still round-trips an existing entry's real value
+  // rather than clobbering it with this default.
+  const [mood, setMood] = useState('good');
   const [tickleNature, setTickleNature] = useState(null);
   const [shareToFeed, setShareToFeed] = useState(false);
   const [status, setStatus] = useState('');
@@ -73,10 +77,6 @@ export default function Create() {
     const trimmed = text.trim();
     if (!trimmed) {
       setStatus('Write a little about what made you smile.');
-      return;
-    }
-    if (!mood) {
-      setStatus('Pick how bright the buzz was.');
       return;
     }
     // Create-only -- an existing entry saved before this became required
@@ -195,39 +195,6 @@ export default function Create() {
         textAlignVertical="top"
       />
       <Text style={styles.counter}>{text.length}/{MAX_LEN}</Text>
-
-      <Text style={styles.label}>How bright was the buzz?</Text>
-      <View style={styles.moodRow}>
-        {MOODS.map((m) => {
-          const color = moodColorFor(m.id, accent);
-          const base = moodBorderColor(accent);
-          const selected = mood === m.id;
-          return (
-            <TouchableOpacity
-              key={m.id}
-              onPress={() => {
-                Keyboard.dismiss();
-                setMood(m.id);
-              }}
-              style={styles.moodOption}
-            >
-              <View
-                style={{
-                  width: MOOD_DOT_SIZE,
-                  height: MOOD_DOT_SIZE,
-                  borderRadius: MOOD_DOT_SIZE / 2,
-                  backgroundColor: color,
-                  // Border color/weight signal selection; the fill
-                  // above is untouched by selection state -- it only
-                  // ever encodes mood intensity.
-                  borderColor: selected ? base : withAlpha(base, 0.5),
-                  borderWidth: selected ? 3 : 1.5,
-                }}
-              />
-            </TouchableOpacity>
-          );
-        })}
-      </View>
 
       {(baseNatureOptions.length > 0 || showDayJournal) && (
         <>
