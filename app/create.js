@@ -72,15 +72,6 @@ export default function Create() {
       setStatus('Write a little about what made you smile.');
       return;
     }
-    // Create-only -- an existing entry saved before this became required
-    // (or edited just to fix a typo) shouldn't retroactively block on a
-    // missing vibe. entryId is the same signal handleSave already uses
-    // below to branch insert vs. update.
-    if (!entryId && !tickleNature) {
-      setStatus('Pick a tickle vibe.');
-      return;
-    }
-
     setSaving(true);
     setStatus('');
 
