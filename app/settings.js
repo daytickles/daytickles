@@ -136,18 +136,30 @@ export default function Settings() {
   // live only in expo-notifications' own scheduler (nothing persists
   // them, see lib/reminders.js), and the server times live in a table
   // the client has no standing policy to read (see migration 0048).
-  // Re-fetched whenever the toggle flips, same "read on mount" pattern
-  // as pinEnabled above -- not re-fetched on every settings tweak,
-  // since the times themselves only actually change once home.js's
-  // regeneration effect (client) or the dispatch function (server)
-  // next runs, not synchronously with a Settings change.
+  // Re-fetched on every dependency that can actually change the
+  // schedule -- mirrors home.js's own regeneration effect's dependency
+  // list exactly (including awareness_cue_batch_valid_until, so a
+  // regeneration completing while Settings is still open updates this
+  // too), not just the enabled toggle. Still doesn't catch every
+  // instant home.js's async regeneration is mid-flight -- a change can
+  // briefly show pre-regeneration state until that effect finishes --
+  // but no longer freezes on whatever was true at mount.
   useEffect(() => {
     getScheduledAwarenessCueTimes().then(setScheduledClientCueTimes).catch(() => {});
     supabase
       .rpc('get_my_scheduled_awareness_cue_pushes')
       .then(({ data }) => setScheduledServerCueTimes((data || []).map((r) => new Date(r.scheduled_at))))
       .catch(() => {});
-  }, [profile?.awareness_cue_enabled]);
+  }, [
+    profile?.awareness_cue_enabled,
+    profile?.awareness_cue_type,
+    profile?.awareness_cue_frequency_mode,
+    profile?.awareness_cue_count,
+    profile?.awareness_cue_window_start_minute,
+    profile?.awareness_cue_window_end_minute,
+    profile?.awareness_cue_sound_confirmed,
+    profile?.awareness_cue_batch_valid_until,
+  ]);
 
   async function signOut() {
     await supabase.auth.signOut();
