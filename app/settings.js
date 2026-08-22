@@ -312,6 +312,25 @@ export default function Settings() {
     }
   }
 
+  // Mid-day settings-change invalidation, shared by every Awareness Cue
+  // preference handler below (type/frequency/count/window). Nulls the
+  // shared awareness_cue_schedule_generated_on marker -- both the
+  // client (home.js) and server (claim_due_awareness_cue_users)
+  // regeneration paths already treat null exactly like "not generated
+  // yet today", so neither needs its own change -- and clears any of
+  // the caller's own already-queued, undelivered server-side rows for
+  // today, so a stale pre-change batch can't coexist with a fresh
+  // regeneration and double up. Best-effort: a failure here just means
+  // this one change reverts to the pre-fix once-daily behavior rather
+  // than blocking the setting itself from saving. See migration 0045.
+  async function invalidateAwarenessCueScheduleForToday() {
+    try {
+      await supabase.rpc('invalidate_awareness_cue_schedule_for_today');
+    } catch {
+      // best-effort -- see comment above
+    }
+  }
+
   // "Sound" re-tests every time it's picked, even if it was already the
   // selected type -- deliberately no early-return for that case, unlike
   // every other option here, since a device's real ability to play the
@@ -354,8 +373,17 @@ export default function Settings() {
 
   async function saveAwarenessCueType(type, soundConfirmed) {
     const previous = profile;
+    // Only a genuine vibrate<->sound change needs invalidating -- a
+    // sound re-confirmation (type unchanged, only soundConfirmed
+    // differs) doesn't, since the server path already resolves that
+    // live at send time (no stale row possible) and an already-
+    // scheduled local notification can't be retroactively re-pointed
+    // to a different channel regardless.
+    const typeChanged = type !== profile.awareness_cue_type;
     const updates =
       type === 'sound' ? { awareness_cue_type: type, awareness_cue_sound_confirmed: soundConfirmed } : { awareness_cue_type: type };
+
+    if (typeChanged) await invalidateAwarenessCueScheduleForToday();
 
     setProfile({ ...profile, ...updates });
     setSavingAwarenessCueOption(true);
@@ -378,6 +406,8 @@ export default function Settings() {
       update.awareness_cue_count = AWARENESS_CUE_DEFAULT_COUNT;
     }
 
+    await invalidateAwarenessCueScheduleForToday();
+
     setProfile({ ...profile, ...update });
     setSavingAwarenessCueOption(true);
 
@@ -394,6 +424,8 @@ export default function Settings() {
     const next = Math.min(AWARENESS_CUE_MAX_COUNT, Math.max(AWARENESS_CUE_MIN_COUNT, current + delta));
     if (next === current) return;
     const previous = profile;
+
+    await invalidateAwarenessCueScheduleForToday();
 
     setProfile({ ...profile, awareness_cue_count: next });
     setSavingAwarenessCueOption(true);
@@ -417,6 +449,8 @@ export default function Settings() {
       awareness_cue_window_start_minute: preset.startMinute,
       awareness_cue_window_end_minute: preset.endMinute,
     };
+
+    await invalidateAwarenessCueScheduleForToday();
 
     setProfile({ ...profile, ...update });
     setSavingAwarenessCueOption(true);
