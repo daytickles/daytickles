@@ -19,12 +19,15 @@ name: Awareness Cue Dispatch
 
 on:
   schedule:
-    # Every 10 minutes -- middle of the 5-15 min range weighed in the
-    # feasibility audit. GitHub Actions doesn't guarantee exact timing
-    # under load; the dispatch function's own stale-row cutoff (2h) is
-    # what actually absorbs any real-world drift or missed runs, not
-    # this cadence.
-    - cron: '*/10 * * * *'
+    # Every 30 minutes -- relaxed from the original 10 min under the
+    # multi-day batch redesign (2026-08-22): this job now only ever
+    # matters as a backstop for someone who goes longer than the
+    # client's own batch length without opening the app at all, not a
+    # daily gap-filler, so it doesn't need the same tight cadence.
+    # Worst-case lag (claim delay + send delay, each up to 30 min) stays
+    # comfortably inside the dispatch function's own 2h stale-row
+    # cutoff, with real margin left over -- 60 min would leave none.
+    - cron: '*/30 * * * *'
   workflow_dispatch: {}
 
 jobs:

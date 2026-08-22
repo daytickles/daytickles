@@ -165,30 +165,37 @@ export default function Home() {
     })();
   }, [profile?.daily_reminder]);
 
-  // Regenerates today's random Awareness Cue schedule at most once per
-  // local calendar day, gated by awareness_cue_schedule_generated_on --
-  // unlike the daily reminder's fixed DAILY trigger above (safely
-  // idempotent to re-schedule), Awareness Cue's times are freshly
-  // randomized each day, so "already generated today" has to be
-  // tracked explicitly. Deliberately the only place that ever calls
-  // regenerateAwarenessCueSchedule/cancelAwarenessCueSchedule -- unlike
-  // the daily reminder, Settings' own Awareness Cue handlers only write
-  // preference columns, never call the scheduler directly, to avoid the
-  // known duplicate-native-call race documented on the daily-reminder
-  // effect above (banked backlog #29). Accepted limitation (per spec):
-  // a day the user never opens the app gets no cues that day.
+  // Regenerates the Awareness Cue batch only once the current one has
+  // genuinely expired, gated by awareness_cue_batch_valid_until -- the
+  // multi-day batch redesign, 2026-08-22 (see supabase/migrations/0046).
+  // Opening the app while the batch is still valid (its last covered
+  // day hasn't passed) does nothing at all; this is the key behavior
+  // change from the old daily-regeneration model, where every open
+  // re-checked against a single day's marker. A mid-batch settings
+  // change still forces an immediate regeneration regardless, via
+  // migration 0045's invalidation (app/settings.js) nulling this same
+  // column -- unaffected by this redesign, reused as-is. Deliberately
+  // the only place that ever calls regenerateAwarenessCueSchedule/
+  // cancelAwarenessCueSchedule -- unlike the daily reminder, Settings'
+  // own Awareness Cue handlers only write preference columns, never
+  // call the scheduler directly, to avoid the known duplicate-native-
+  // call race documented on the daily-reminder effect above (banked
+  // backlog #29). Accepted limitation (per spec): a day the user never
+  // opens the app gets no cues that day -- unaffected by batching,
+  // since today specifically is still clamped to "now" inside
+  // regenerateAwarenessCueSchedule.
   useEffect(() => {
     if (!profile) return;
     const today = localDateString(0);
 
     if (!profile.awareness_cue_enabled) {
-      if (profile.awareness_cue_schedule_generated_on) {
+      if (profile.awareness_cue_batch_valid_until) {
         (async () => {
           try {
             await cancelAwarenessCueSchedule();
             await supabase
               .from('profiles')
-              .update({ awareness_cue_schedule_generated_on: null })
+              .update({ awareness_cue_batch_valid_until: null })
               .eq('id', profile.id);
             refreshProfile();
           } catch {
@@ -199,13 +206,13 @@ export default function Home() {
       return;
     }
 
-    if (profile.awareness_cue_schedule_generated_on === today) return;
+    if (profile.awareness_cue_batch_valid_until && profile.awareness_cue_batch_valid_until >= today) return;
 
     (async () => {
       try {
         const granted = await requestReminderPermission();
         if (!granted) return;
-        await regenerateAwarenessCueSchedule({
+        const batchValidUntil = await regenerateAwarenessCueSchedule({
           type: profile.awareness_cue_type,
           frequencyMode: profile.awareness_cue_frequency_mode,
           count: profile.awareness_cue_count,
@@ -213,11 +220,13 @@ export default function Home() {
           windowEndMinute: profile.awareness_cue_window_end_minute,
           soundConfirmed: profile.awareness_cue_sound_confirmed,
         });
-        await supabase
-          .from('profiles')
-          .update({ awareness_cue_schedule_generated_on: today })
-          .eq('id', profile.id);
-        refreshProfile();
+        if (batchValidUntil) {
+          await supabase
+            .from('profiles')
+            .update({ awareness_cue_batch_valid_until: batchValidUntil })
+            .eq('id', profile.id);
+          refreshProfile();
+        }
       } catch {
         // best-effort reconciliation only
       }
@@ -230,7 +239,7 @@ export default function Home() {
     profile?.awareness_cue_window_start_minute,
     profile?.awareness_cue_window_end_minute,
     profile?.awareness_cue_sound_confirmed,
-    profile?.awareness_cue_schedule_generated_on,
+    profile?.awareness_cue_batch_valid_until,
   ]);
 
   async function handleCloseAboutIntro() {
