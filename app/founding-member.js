@@ -5,6 +5,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { C, accentFor, darken, textOn, withAlpha } from '../lib/theme';
+import Button from '../components/Button';
 import WallpaperBackground from '../components/WallpaperBackground';
 import {
   MONTHLY_REQUIREMENTS,
@@ -13,10 +14,27 @@ import {
   fetchEvaluatedMonthIndexes,
   advanceFoundingMemberProgress,
   optOutOfFoundingMember,
+  optInToFoundingMember,
+  OPT_IN_COOLDOWN_DAYS,
 } from '../lib/foundingMember';
 
 function formatBadge(number) {
   return number ? `FM${number}` : null;
+}
+
+// Display only -- the real deadline is enforced server-side (opt_in_to_
+// founding_member / ensure_founding_member_enrollment, migration 0049),
+// this just tells the person how long they have left. Ceil rather than
+// floor/round so "less than a day left" still reads as "1 day left",
+// not "0 days left". Clamped at 0 as a defensive floor only -- by the
+// time this would go negative, load()'s own advanceFoundingMemberProgress
+// call (via ensure_founding_member_enrollment's lazy expiry check) has
+// already flipped the enrollment to 'failed', so this branch wouldn't
+// still be rendering.
+function daysRemainingToOptIn(createdAt) {
+  const deadlineMs = new Date(createdAt).getTime() + OPT_IN_COOLDOWN_DAYS * 24 * 60 * 60 * 1000;
+  const days = Math.max(0, Math.ceil((deadlineMs - Date.now()) / (24 * 60 * 60 * 1000)));
+  return `${days} ${days === 1 ? 'day' : 'days'}`;
 }
 
 export default function FoundingMember() {
@@ -36,6 +54,7 @@ export default function FoundingMember() {
   const [poolStats, setPoolStats] = useState({ granted: 0, cap: 1000, nextNumber: null, available: 0 });
   const [savingTakingPart, setSavingTakingPart] = useState(false);
   const [savingReminders, setSavingReminders] = useState(false);
+  const [savingOptIn, setSavingOptIn] = useState(false);
 
   // Guards against re-entrant calls -- refreshProfile is now stable
   // (see AuthContext.js), so this shouldn't fire in practice anymore,
@@ -93,11 +112,12 @@ export default function FoundingMember() {
         setProgress(await fetchMonthProgress(userId, window));
       }
 
-      const [referralsResult, configResult, nextSlotResult, availableCountResult] = await Promise.all([
-        supabase
-          .from('founding_member_referrals')
-          .select('id', { count: 'exact', head: true })
-          .eq('referrer_id', userId),
+      const [referralCountResult, configResult, nextSlotResult, availableCountResult] = await Promise.all([
+        // Only counts friends who've actually opted in -- see
+        // count_opted_in_founding_member_referrals (migration 0049).
+        // An un-opted-in friend doesn't show in this count at all, no
+        // provisional/pending display.
+        supabase.rpc('count_opted_in_founding_member_referrals', { p_user_id: userId }),
         supabase
           .from('app_config')
           .select('founding_members_awarded_count, founding_members_cap')
@@ -122,7 +142,7 @@ export default function FoundingMember() {
           .eq('status', 'available'),
       ]);
 
-      setReferralCount(referralsResult.count || 0);
+      setReferralCount(referralCountResult.data || 0);
       setPoolStats({
         granted: configResult.data?.founding_members_awarded_count ?? 0,
         cap: configResult.data?.founding_members_cap ?? 1000,
@@ -212,6 +232,24 @@ export default function FoundingMember() {
     }
   }
 
+  // The one distinct, explicit opt-in action -- merely having loaded
+  // this page (via advanceFoundingMemberProgress/load() above) never
+  // starts the clock on its own. Errors surface the same way load()'s
+  // own errors do (setLoadError), since a thrown/rejected RPC here
+  // would otherwise leave the button spinner stuck with no feedback.
+  async function handleOptIn() {
+    setSavingOptIn(true);
+    try {
+      await optInToFoundingMember(session.user.id);
+      await refreshProfile();
+      await load();
+    } catch (err) {
+      setLoadError(err.message || 'Something went wrong. Please try again.');
+    } finally {
+      setSavingOptIn(false);
+    }
+  }
+
   async function handleToggleReminders(value) {
     setSavingReminders(true);
     await supabase.from('profiles').update({ founding_member_reminders_enabled: value }).eq('id', session.user.id);
@@ -270,6 +308,26 @@ export default function FoundingMember() {
             <Text style={styles.cardSubtext}>
               Lifetime top-tier access, on us — thank you for being here from the start.
             </Text>
+          </>
+        ) : enrollment?.status === 'pending_opt_in' ? (
+          <>
+            <Text style={styles.subheading}>
+              Finish your Quest and receive Free Lifetime Membership and a unique FM ID number.
+            </Text>
+            <View style={[styles.card, { backgroundColor: C.amberBg, borderColor: C.amberBg }]}>
+              <Text style={[styles.cardHeading, { color: textOn(C.amberBg) }]}>
+                {daysRemainingToOptIn(enrollment.created_at)} left to join
+              </Text>
+              <Text style={[styles.cardSubtext, { color: textOn(C.amberBg) }]}>
+                Opt in now to start your 6-month quest — the clock doesn't start until you do. If you don't
+                opt in within the window, this opportunity closes for good.
+              </Text>
+            </View>
+            <Button
+              title={savingOptIn ? 'Joining…' : 'Join Founding Member'}
+              onPress={handleOptIn}
+              disabled={savingOptIn}
+            />
           </>
         ) : (
           <>

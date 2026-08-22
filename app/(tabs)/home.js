@@ -9,7 +9,7 @@ import { supabase } from '../../lib/supabase';
 import { C, accentFor, SAVED_ENTRY_DOT_SIZE, withAlpha, NATURE_ORDER, VIBE_COLORS } from '../../lib/theme';
 import { shareEntry, shareStatus, SHARE_CAPTIONS } from '../../lib/sharing';
 import { isThisWeek, isThisMonth, localDateString, DEFAULT_WEEK_START_DAY } from '../../lib/week';
-import { fetchFoundingMemberPaceStatus } from '../../lib/foundingMember';
+import { fetchFoundingMemberPaceStatus, fetchFoundingMemberOptInReminderStatus } from '../../lib/foundingMember';
 import { flagEmoji } from '../../lib/country';
 import Button from '../../components/Button';
 import VibeCard from '../../components/VibeCard';
@@ -111,6 +111,7 @@ export default function Home() {
   const [activeVibeTooltip, setActiveVibeTooltip] = useState(null);
   const vibeTooltipTimerRef = useRef(null);
   const [paceReminder, setPaceReminder] = useState(null);
+  const [optInReminder, setOptInReminder] = useState(null);
 
   // Auto-show the first-time intro exactly once, gated on the DB flag —
   // not local/session state, so it stays correctly "seen" across
@@ -333,6 +334,28 @@ export default function Home() {
     }, [loadPaceReminder])
   );
 
+  // Sibling to loadPaceReminder above, same read-only reasoning --
+  // deliberately NOT gated on founding_member_taking_part/founding_
+  // member_reminders_enabled, unlike loadPaceReminder: those are
+  // quest-in-progress toggles that don't exist/apply yet during the
+  // pending_opt_in cooldown (see app/founding-member.js's own
+  // pending_opt_in branch, which renders before either toggle).
+  const loadOptInReminder = useCallback(async () => {
+    if (!session) return;
+    try {
+      setOptInReminder(await fetchFoundingMemberOptInReminderStatus(session.user.id));
+    } catch {
+      // Best-effort -- a failed fetch shouldn't block Home.
+      setOptInReminder(null);
+    }
+  }, [session]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadOptInReminder();
+    }, [loadOptInReminder])
+  );
+
   const goalsById = Object.fromEntries(goals.map((g) => [g.id, g]));
   // Achieved goals are never offered as a new tag target in the picker
   // — they only ever appear read-only, on entries already tagged before
@@ -514,6 +537,34 @@ export default function Home() {
 
   async function handleDismissPaceReminder() {
     setPaceReminder(null);
+    await supabase
+      .from('profiles')
+      .update({ founding_member_reminder_dismissed_at: new Date().toISOString() })
+      .eq('id', session.user.id);
+    refreshProfile();
+  }
+
+  // Same [midpoint, end) + dismissed_at-vs-window-start pattern as the
+  // pace reminder above, and deliberately the SAME dismissed_at column
+  // (not a second one) -- the cooldown window's start (signup/first-
+  // contact time) is always earlier than month 1's eventual window
+  // start (opt-in time), so a cooldown dismissal naturally stops
+  // applying the moment real quest tracking begins, with no extra
+  // bookkeeping needed. See migration 0049 / fetchFoundingMemberOptInReminderStatus.
+  let showOptInReminder = false;
+  if (optInReminder) {
+    const startMs = new Date(optInReminder.window.startISO).getTime();
+    const endMs = new Date(optInReminder.window.endISOExclusive).getTime();
+    const midMs = (startMs + endMs) / 2;
+    const nowMs = Date.now();
+    const dismissedMs = profile?.founding_member_reminder_dismissed_at
+      ? new Date(profile.founding_member_reminder_dismissed_at).getTime()
+      : 0;
+    showOptInReminder = nowMs >= midMs && nowMs < endMs && dismissedMs < startMs;
+  }
+
+  async function handleDismissOptInReminder() {
+    setOptInReminder(null);
     await supabase
       .from('profiles')
       .update({ founding_member_reminder_dismissed_at: new Date().toISOString() })
@@ -708,6 +759,27 @@ export default function Home() {
           </Text>
           <TouchableOpacity
             onPress={handleDismissPaceReminder}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="close" size={16} color={C.sparkleText} />
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Tapping the text navigates to the FM page to actually opt in --
+          this banner itself never opts anyone in on a stray tap, per
+          the "visiting the page doesn't count as opting in" rule; the
+          real action lives behind founding-member.js's own button. */}
+      {showOptInReminder && (
+        <View style={styles.paceReminderBanner}>
+          <MaterialCommunityIcons name="crown-outline" size={18} color={C.sparkleText} style={styles.paceReminderIcon} />
+          <TouchableOpacity style={{ flex: 1 }} onPress={() => router.push('/founding-member')}>
+            <Text style={styles.ratePromptText}>
+              Founding Member invite — opt in before it closes to start your 6-month quest.
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleDismissOptInReminder}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             <Ionicons name="close" size={16} color={C.sparkleText} />
