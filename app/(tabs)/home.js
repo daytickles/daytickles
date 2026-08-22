@@ -195,7 +195,7 @@ export default function Home() {
             await cancelAwarenessCueSchedule();
             await supabase
               .from('profiles')
-              .update({ awareness_cue_batch_valid_until: null })
+              .update({ awareness_cue_batch_valid_until: null, awareness_cue_batch_source: null })
               .eq('id', profile.id);
             refreshProfile();
           } catch {
@@ -223,7 +223,7 @@ export default function Home() {
         if (batchValidUntil) {
           await supabase
             .from('profiles')
-            .update({ awareness_cue_batch_valid_until: batchValidUntil })
+            .update({ awareness_cue_batch_valid_until: batchValidUntil, awareness_cue_batch_source: 'client' })
             .eq('id', profile.id);
           refreshProfile();
         }

@@ -20,7 +20,6 @@ import {
   scheduleDailyReminder,
   cancelDailyReminder,
   sendTestReminderNotification,
-  sendAwarenessCueTestCue,
 } from '../lib/reminders';
 import { isReviewAvailable, requestReview } from '../lib/rateUs';
 import { hasPinSet, clearPin } from '../lib/pinLock';
@@ -760,6 +759,16 @@ export default function Settings() {
 
         {!!profile?.awareness_cue_enabled && (
           <>
+            {/* Diagnostic only, not a real feature -- surfaces which
+                path (client app open vs. server backstop) generated
+                the current batch, for verifying the multi-day batch
+                redesign on real devices. See migration 0047. */}
+            <Text style={styles.explainerText}>
+              Diagnostic (testing only) — batch source: {profile?.awareness_cue_batch_source || 'none'}, valid
+              until: {profile?.awareness_cue_batch_valid_until || 'none'}
+            </Text>
+            <View style={{ height: 8 }} />
+
             <Text style={styles.label}>Cue type</Text>
             <View style={styles.optionPillRow}>
               {AWARENESS_CUE_TYPE_OPTIONS.map((option) => {
