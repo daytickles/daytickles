@@ -20,6 +20,7 @@ import {
   scheduleDailyReminder,
   cancelDailyReminder,
   sendTestReminderNotification,
+  getScheduledAwarenessCueTimes,
 } from '../lib/reminders';
 import { isReviewAvailable, requestReview } from '../lib/rateUs';
 import { hasPinSet, clearPin } from '../lib/pinLock';
@@ -74,6 +75,17 @@ const AWARENESS_CUE_WINDOW_PRESETS = [
   { key: 'all_day', label: 'All day', startMinute: 7 * 60, endMinute: 23 * 60 },
 ];
 
+// Diagnostic-only formatting (see the batch-source diagnostic below) --
+// month/day included, not just time, since a batch can span more than
+// one calendar day (AWARENESS_CUE_BATCH_DAYS). Mirrors app/notifications.js's
+// own formatTimestamp convention.
+function formatCueTimes(dates) {
+  if (!dates.length) return 'none';
+  return dates
+    .map((d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))
+    .join(', ');
+}
+
 export default function Settings() {
   const { profile, setProfile, refreshProfile } = useAuth();
   const accentDark = darken(accentFor(profile?.accent_theme).card, 0.35);
@@ -101,6 +113,10 @@ export default function Settings() {
   // pill row's disabled state can (later) read differently if needed,
   // and so this flow's own timing isn't tangled with the shared flag's.
   const [testingAwarenessCueSound, setTestingAwarenessCueSound] = useState(false);
+  // Diagnostic only (testing only) -- see the batch-source diagnostic
+  // below and the mount-effect that populates these.
+  const [scheduledClientCueTimes, setScheduledClientCueTimes] = useState([]);
+  const [scheduledServerCueTimes, setScheduledServerCueTimes] = useState([]);
   const [pinEnabled, setPinEnabled] = useState(false);
   const [togglingPinLock, setTogglingPinLock] = useState(false);
   const [showPinSetup, setShowPinSetup] = useState(false);
@@ -114,6 +130,24 @@ export default function Settings() {
   useEffect(() => {
     hasPinSet().then(setPinEnabled);
   }, []);
+
+  // Diagnostic only (testing only, see the batch-source diagnostic
+  // below) -- neither of these is part of `profile`: the client times
+  // live only in expo-notifications' own scheduler (nothing persists
+  // them, see lib/reminders.js), and the server times live in a table
+  // the client has no standing policy to read (see migration 0048).
+  // Re-fetched whenever the toggle flips, same "read on mount" pattern
+  // as pinEnabled above -- not re-fetched on every settings tweak,
+  // since the times themselves only actually change once home.js's
+  // regeneration effect (client) or the dispatch function (server)
+  // next runs, not synchronously with a Settings change.
+  useEffect(() => {
+    getScheduledAwarenessCueTimes().then(setScheduledClientCueTimes).catch(() => {});
+    supabase
+      .rpc('get_my_scheduled_awareness_cue_pushes')
+      .then(({ data }) => setScheduledServerCueTimes((data || []).map((r) => new Date(r.scheduled_at))))
+      .catch(() => {});
+  }, [profile?.awareness_cue_enabled]);
 
   async function signOut() {
     await supabase.auth.signOut();
@@ -766,6 +800,12 @@ export default function Settings() {
             <Text style={styles.explainerText}>
               Diagnostic (testing only) — batch source: {profile?.awareness_cue_batch_source || 'none'}, valid
               until: {profile?.awareness_cue_batch_valid_until || 'none'}
+            </Text>
+            <Text style={styles.explainerText}>
+              Diagnostic (testing only) — on-device scheduled times: {formatCueTimes(scheduledClientCueTimes)}
+            </Text>
+            <Text style={styles.explainerText}>
+              Diagnostic (testing only) — server-queued times: {formatCueTimes(scheduledServerCueTimes)}
             </Text>
             <View style={{ height: 8 }} />
 
