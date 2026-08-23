@@ -72,10 +72,10 @@ const AWARENESS_CUE_DEFAULT_COUNT = 3;
 // tied to it specifically (see migration 0051 for the matching DB
 // column defaults).
 const AWARENESS_CUE_WINDOW_PRESETS = [
-  { key: 'morning', label: 'Morning', startMinute: 6 * 60, endMinute: 12 * 60 },
-  { key: 'daytime', label: 'Daytime', startMinute: 7 * 60, endMinute: 19 * 60 },
-  { key: 'afternoon_evening', label: 'Afternoon–evening', startMinute: 12 * 60, endMinute: 22 * 60 },
-  { key: 'all_day', label: 'All day', startMinute: 6 * 60, endMinute: 23 * 60 },
+  { key: 'morning', label: '6am - 12pm', startMinute: 6 * 60, endMinute: 12 * 60 },
+  { key: 'daytime', label: '7am - 7pm', startMinute: 7 * 60, endMinute: 19 * 60 },
+  { key: 'afternoon_evening', label: '12pm - 10pm', startMinute: 12 * 60, endMinute: 22 * 60 },
+  { key: 'all_day', label: '6am - 11pm', startMinute: 6 * 60, endMinute: 23 * 60 },
 ];
 
 // Diagnostic-only formatting (see the batch-source diagnostic below) --
