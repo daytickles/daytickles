@@ -65,14 +65,17 @@ const AWARENESS_CUE_DEFAULT_COUNT = 3;
 // time-picker UI anywhere in this codebase yet, and adding one (a new
 // native dependency) wasn't worth it for a first version. Minutes
 // since local midnight, matching profiles.awareness_cue_window_*'s own
-// convention. The defaults (540/1260) exactly match 'daytime' below, so
+// convention. The defaults (420/1140) exactly match 'daytime' below, so
 // a never-touched profile always renders a real selection, never a
-// blank/custom state.
+// blank/custom state -- 'daytime' is the intended default preset
+// regardless of what any other preset's own values are, so this stays
+// tied to it specifically (see migration 0051 for the matching DB
+// column defaults).
 const AWARENESS_CUE_WINDOW_PRESETS = [
   { key: 'morning', label: 'Morning', startMinute: 6 * 60, endMinute: 12 * 60 },
-  { key: 'daytime', label: 'Daytime', startMinute: 9 * 60, endMinute: 21 * 60 },
+  { key: 'daytime', label: 'Daytime', startMinute: 7 * 60, endMinute: 19 * 60 },
   { key: 'afternoon_evening', label: 'Afternoon–evening', startMinute: 12 * 60, endMinute: 22 * 60 },
-  { key: 'all_day', label: 'All day', startMinute: 7 * 60, endMinute: 23 * 60 },
+  { key: 'all_day', label: 'All day', startMinute: 6 * 60, endMinute: 23 * 60 },
 ];
 
 // Diagnostic-only formatting (see the batch-source diagnostic below) --
@@ -894,8 +897,8 @@ export default function Settings() {
             <View style={styles.optionPillRow}>
               {AWARENESS_CUE_WINDOW_PRESETS.map((preset) => {
                 const selected =
-                  (profile?.awareness_cue_window_start_minute ?? 540) === preset.startMinute &&
-                  (profile?.awareness_cue_window_end_minute ?? 1260) === preset.endMinute;
+                  (profile?.awareness_cue_window_start_minute ?? 420) === preset.startMinute &&
+                  (profile?.awareness_cue_window_end_minute ?? 1140) === preset.endMinute;
                 return (
                   <TouchableOpacity
                     key={preset.key}
