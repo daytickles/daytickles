@@ -33,6 +33,11 @@ import { isReviewAvailable, requestReview } from '../../lib/rateUs';
 
 const PINNED_WINDOW_DAYS = 14;
 
+// Caps Home's content on tablet/wide screens so it doesn't stretch
+// edge-to-edge -- wallpaper (painted by WallpaperBackground, behind
+// this content) still fills the full screen width either way.
+const HOME_CONTENT_MAX_WIDTH = 600;
+
 // Labels rendered below each Vibe card — mirrors create.js's
 // TICKLE_NATURE_OPTIONS order (received, given, self).
 const NATURE_LABELS = {
@@ -707,170 +712,172 @@ export default function Home() {
         { paddingTop: insets.top + 12, paddingBottom: styles.content.paddingBottom + tabBarHeight },
       ]}
     >
-      <View style={styles.titleRow}>
-        <Text style={styles.title} numberOfLines={1}>DayTickles</Text>
-        <CornerNav style={styles.cornerNavInline} />
-      </View>
-
-      {profile && (
-        <View style={styles.profileRow}>
-          <InitialsAvatar username={profile.username} accentTheme={profile.accent_theme} size={20} />
-          <Text style={styles.profileText}>
-            {profile.username}{profile.country ? `  ${flagEmoji(profile.country)}` : ''}
-          </Text>
-          {!!profile.founding_member_number && (
-            <FoundingMemberBadge number={profile.founding_member_number} />
-          )}
+      <View style={styles.contentInner}>
+        <View style={styles.titleRow}>
+          <Text style={styles.title} numberOfLines={1}>DayTickles</Text>
+          <CornerNav style={styles.cornerNavInline} />
         </View>
-      )}
 
-      {showReturnedMessage && (
-        <TouchableOpacity
-          style={styles.returnedBanner}
-          activeOpacity={0.8}
-          onPress={() => setShowReturnedMessage(false)}
-        >
-          <Text style={styles.returnedBannerText}>Welcome back — no pressure, just glad you're here</Text>
-        </TouchableOpacity>
-      )}
+        {profile && (
+          <View style={styles.profileRow}>
+            <InitialsAvatar username={profile.username} accentTheme={profile.accent_theme} size={20} />
+            <Text style={styles.profileText}>
+              {profile.username}{profile.country ? `  ${flagEmoji(profile.country)}` : ''}
+            </Text>
+            {!!profile.founding_member_number && (
+              <FoundingMemberBadge number={profile.founding_member_number} />
+            )}
+          </View>
+        )}
 
-      {showRatePrompt && (
-        <View style={styles.ratePromptBanner}>
-          <Text style={styles.ratePromptText}>Enjoying DayTickles? A quick rating will help others.</Text>
-          <View style={styles.ratePromptActions}>
-            <TouchableOpacity onPress={handleRatePromptTap}>
-              <Text style={styles.ratePromptRateText}>Rate</Text>
-            </TouchableOpacity>
+        {showReturnedMessage && (
+          <TouchableOpacity
+            style={styles.returnedBanner}
+            activeOpacity={0.8}
+            onPress={() => setShowReturnedMessage(false)}
+          >
+            <Text style={styles.returnedBannerText}>Welcome back — no pressure, just glad you're here</Text>
+          </TouchableOpacity>
+        )}
+
+        {showRatePrompt && (
+          <View style={styles.ratePromptBanner}>
+            <Text style={styles.ratePromptText}>Enjoying DayTickles? A quick rating will help others.</Text>
+            <View style={styles.ratePromptActions}>
+              <TouchableOpacity onPress={handleRatePromptTap}>
+                <Text style={styles.ratePromptRateText}>Rate</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setShowRatePrompt(false)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="close" size={16} color={C.sparkleText} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {showPaceReminder && (
+          <View style={styles.paceReminderBanner}>
+            <MaterialCommunityIcons name="crown-outline" size={18} color={C.sparkleText} style={styles.paceReminderIcon} />
+            <Text style={styles.ratePromptText}>
+              Halfway through the month — a little nudge to check in on your Founding Member progress. {paceReminderText}
+            </Text>
             <TouchableOpacity
-              onPress={() => setShowRatePrompt(false)}
+              onPress={handleDismissPaceReminder}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <Ionicons name="close" size={16} color={C.sparkleText} />
             </TouchableOpacity>
           </View>
+        )}
+
+        {/* Tapping the text navigates to the FM page to actually opt in --
+            this banner itself never opts anyone in on a stray tap, per
+            the "visiting the page doesn't count as opting in" rule; the
+            real action lives behind founding-member.js's own button. */}
+        {showOptInReminder && (
+          <View style={styles.paceReminderBanner}>
+            <MaterialCommunityIcons name="crown-outline" size={18} color={C.sparkleText} style={styles.paceReminderIcon} />
+            <TouchableOpacity style={{ flex: 1 }} onPress={() => router.push('/founding-member')}>
+              <Text style={styles.ratePromptText}>
+                Founding Member invite — opt in before it closes to start your 6-month quest.
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleDismissOptInReminder}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="close" size={16} color={C.sparkleText} />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        <View style={styles.vibeCardsRow}>
+          {NATURE_ORDER.map((key) => (
+            <VibeCard
+              key={key}
+              nature={key}
+              color={VIBE_COLORS[key]}
+              lit={isVibeLit(key)}
+              accentColor={accent.card}
+              weekCount={vibeWeekCounts[key]}
+              monthCount={vibeMonthCounts[key]}
+              allTimeCount={vibeAllTimeCounts[key]}
+              showTooltip={activeVibeTooltip === key}
+              onPress={() => showVibeTooltip(key)}
+            />
+          ))}
         </View>
-      )}
-
-      {showPaceReminder && (
-        <View style={styles.paceReminderBanner}>
-          <MaterialCommunityIcons name="crown-outline" size={18} color={C.sparkleText} style={styles.paceReminderIcon} />
-          <Text style={styles.ratePromptText}>
-            Halfway through the month — a little nudge to check in on your Founding Member progress. {paceReminderText}
-          </Text>
-          <TouchableOpacity
-            onPress={handleDismissPaceReminder}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons name="close" size={16} color={C.sparkleText} />
-          </TouchableOpacity>
+        <View style={styles.vibeLabelsRow}>
+          {NATURE_ORDER.map((key) => (
+            <Text key={key} style={styles.vibeLabel} numberOfLines={1}>{NATURE_LABELS[key]}</Text>
+          ))}
         </View>
-      )}
 
-      {/* Tapping the text navigates to the FM page to actually opt in --
-          this banner itself never opts anyone in on a stray tap, per
-          the "visiting the page doesn't count as opting in" rule; the
-          real action lives behind founding-member.js's own button. */}
-      {showOptInReminder && (
-        <View style={styles.paceReminderBanner}>
-          <MaterialCommunityIcons name="crown-outline" size={18} color={C.sparkleText} style={styles.paceReminderIcon} />
-          <TouchableOpacity style={{ flex: 1 }} onPress={() => router.push('/founding-member')}>
-            <Text style={styles.ratePromptText}>
-              Founding Member invite — opt in before it closes to start your 6-month quest.
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={handleDismissOptInReminder}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons name="close" size={16} color={C.sparkleText} />
-          </TouchableOpacity>
+        <View style={styles.statPillsRow}>
+          {STAT_PILLS.map((pill) => (
+            <TouchableOpacity
+              key={pill.key}
+              style={[styles.statPill, { borderColor: accent.card }]}
+              activeOpacity={0.7}
+              onPress={() => showStatTooltip(pill.key)}
+            >
+              <Ionicons name={pill.icon} size={13} color={C.subtext} />
+              <Text style={styles.statPillNumber}>{pill.value}</Text>
+              {activeStatTooltip === pill.key && (
+                <View style={styles.statTooltip} pointerEvents="none">
+                  <Text style={styles.statTooltipText}>{pill.tooltip}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          ))}
         </View>
-      )}
 
-      <View style={styles.vibeCardsRow}>
-        {NATURE_ORDER.map((key) => (
-          <VibeCard
-            key={key}
-            nature={key}
-            color={VIBE_COLORS[key]}
-            lit={isVibeLit(key)}
-            accentColor={accent.card}
-            weekCount={vibeWeekCounts[key]}
-            monthCount={vibeMonthCounts[key]}
-            allTimeCount={vibeAllTimeCounts[key]}
-            showTooltip={activeVibeTooltip === key}
-            onPress={() => showVibeTooltip(key)}
-          />
-        ))}
-      </View>
-      <View style={styles.vibeLabelsRow}>
-        {NATURE_ORDER.map((key) => (
-          <Text key={key} style={styles.vibeLabel} numberOfLines={1}>{NATURE_LABELS[key]}</Text>
-        ))}
-      </View>
+        <Button title="New Tickle" onPress={() => router.push('/create')} variant="secondary" style={styles.newTickleShadow} />
 
-      <View style={styles.statPillsRow}>
-        {STAT_PILLS.map((pill) => (
+        {pinned && (
           <TouchableOpacity
-            key={pill.key}
-            style={[styles.statPill, { borderColor: accent.card }]}
-            activeOpacity={0.7}
-            onPress={() => showStatTooltip(pill.key)}
-          >
-            <Ionicons name={pill.icon} size={13} color={C.subtext} />
-            <Text style={styles.statPillNumber}>{pill.value}</Text>
-            {activeStatTooltip === pill.key && (
-              <View style={styles.statTooltip} pointerEvents="none">
-                <Text style={styles.statTooltipText}>{pill.tooltip}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <Button title="New Tickle" onPress={() => router.push('/create')} variant="secondary" style={styles.newTickleShadow} />
-
-      {pinned && (
-        <TouchableOpacity
-          style={[styles.entryCard, styles.pinnedCard]}
-          activeOpacity={0.8}
-          onPress={() => goToEntryInFeed(pinned.id)}
-        >
-          <Text style={styles.pinnedLabel}>Most smiled with you the past 14 days</Text>
-          {renderEntryBody(pinned)}
-        </TouchableOpacity>
-      )}
-
-      {loading && <ActivityIndicator color={C.rust} style={styles.loader} />}
-
-      {!loading && entries.length === 0 && !profile?.quick_start_dismissed && (
-        <QuickStartCard onDismiss={handleDismissQuickStart} style={styles.quickStartTopGap} />
-      )}
-
-      {!loading && entries.length === 0 && (
-        <Text style={styles.emptyText}>No tickles yet — write about what made you smile today.</Text>
-      )}
-
-      {/* Skip re-rendering the same entry twice -- pinned (highest
-          like_count in the last 14 days) and entries[0] (the single most
-          recent entry) frequently coincide, especially for newer/lower-
-          activity accounts. */}
-      {!loading && spotlightEntries.length > 0 && spotlightEntries[0].id !== pinned?.id && (
-        <>
-          <Text style={styles.sectionLabel}>Latest tickle</Text>
-          <TouchableOpacity
-            style={styles.entryCard}
+            style={[styles.entryCard, styles.pinnedCard]}
             activeOpacity={0.8}
-            onPress={() => goToEntryInFeed(spotlightEntries[0].id)}
+            onPress={() => goToEntryInFeed(pinned.id)}
           >
-            {renderEntryBody(spotlightEntries[0])}
+            <Text style={styles.pinnedLabel}>Most smiled with you the past 14 days</Text>
+            {renderEntryBody(pinned)}
           </TouchableOpacity>
-        </>
-      )}
+        )}
 
-      {!loading && entries.length > 0 && !profile?.quick_start_dismissed && (
-        <QuickStartCard onDismiss={handleDismissQuickStart} />
-      )}
+        {loading && <ActivityIndicator color={C.rust} style={styles.loader} />}
+
+        {!loading && entries.length === 0 && !profile?.quick_start_dismissed && (
+          <QuickStartCard onDismiss={handleDismissQuickStart} style={styles.quickStartTopGap} />
+        )}
+
+        {!loading && entries.length === 0 && (
+          <Text style={styles.emptyText}>No tickles yet — write about what made you smile today.</Text>
+        )}
+
+        {/* Skip re-rendering the same entry twice -- pinned (highest
+            like_count in the last 14 days) and entries[0] (the single most
+            recent entry) frequently coincide, especially for newer/lower-
+            activity accounts. */}
+        {!loading && spotlightEntries.length > 0 && spotlightEntries[0].id !== pinned?.id && (
+          <>
+            <Text style={styles.sectionLabel}>Latest tickle</Text>
+            <TouchableOpacity
+              style={styles.entryCard}
+              activeOpacity={0.8}
+              onPress={() => goToEntryInFeed(spotlightEntries[0].id)}
+            >
+              {renderEntryBody(spotlightEntries[0])}
+            </TouchableOpacity>
+          </>
+        )}
+
+        {!loading && entries.length > 0 && !profile?.quick_start_dismissed && (
+          <QuickStartCard onDismiss={handleDismissQuickStart} />
+        )}
+      </View>
     </ScrollView>
     </WallpaperBackground>
 
@@ -902,7 +909,8 @@ export default function Home() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: 20, paddingBottom: 40 },
+  content: { padding: 20, paddingBottom: 40, alignItems: 'center' },
+  contentInner: { width: '100%', maxWidth: HOME_CONTENT_MAX_WIDTH },
   titleRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6,
   },
