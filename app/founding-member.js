@@ -323,6 +323,39 @@ export default function FoundingMember() {
                 opt in within the window, this opportunity closes for good.
               </Text>
             </View>
+
+            <View style={[styles.card, { backgroundColor: C.amberBg, borderColor: C.amberBg }]}>
+              <View style={styles.nextNumberRow}>
+                <Text style={[styles.cardSubtext, { color: textOn(C.amberBg) }]}>
+                  Next FM number available is:
+                </Text>
+                {poolStats.nextNumber ? (
+                  <View style={styles.nextNumberPill}>
+                    <MaterialCommunityIcons name="crown" size={11} color={C.amberText} />
+                    <Text style={styles.nextNumberPillText}>{formatBadge(poolStats.nextNumber)}</Text>
+                  </View>
+                ) : (
+                  <Text style={[styles.cardSubtext, { color: textOn(C.amberBg) }]}>none left</Text>
+                )}
+              </View>
+              <Text style={[styles.cardSubtext, { color: textOn(C.amberBg) }]}>
+                {poolStats.available} of {poolStats.cap} places still available
+              </Text>
+            </View>
+
+            <Text style={styles.sectionLabel}>Your quest.</Text>
+            <View style={[styles.card, { backgroundColor: withAlpha(C.subtext, 0.1), borderColor: accentDark }]}>
+              <Text style={styles.cardHeading}>Each month, aim for:</Text>
+              {MONTHLY_REQUIREMENTS.map((r) => (
+                <View key={r.key} style={styles.reqRow}>
+                  <Ionicons name="ellipse-outline" size={16} color={C.subtext} />
+                  <Text style={styles.reqText}>
+                    {r.label}: {r.target}/month
+                  </Text>
+                </View>
+              ))}
+            </View>
+
             <Button
               title={savingOptIn ? 'Joining…' : 'Join Founding Member'}
               onPress={handleOptIn}
