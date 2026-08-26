@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useCallback, useEffect, useState, useRef } from 'react';
+import React, { createContext, useContext, useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import * as Linking from 'expo-linking';
 import { supabase } from '../lib/supabase';
 import { registerPushToken } from '../lib/pushToken';
@@ -60,12 +60,12 @@ export function AuthProvider({ children }) {
   // Cycles through the session's shuffled prompt list with a persistent
   // cursor, so repeated calls across separate New Tickle visits never
   // repeat back-to-back -- see lib/writingPrompts.js.
-  function getNextPrompt() {
+  const getNextPrompt = useCallback(() => {
     if (writingPrompts.length === 0) return null;
     const prompt = writingPrompts[promptIndexRef.current % writingPrompts.length];
     promptIndexRef.current += 1;
     return prompt;
-  }
+  }, [writingPrompts]);
 
   // Wrapped in useCallback (stable deps -- only ever touches setProfile,
   // a stable setState setter) so refreshProfile below can depend on it
@@ -160,8 +160,13 @@ export function AuthProvider({ children }) {
     if (session) await loadProfile(session.user.id);
   }, [session, loadProfile]);
 
+  const value = useMemo(
+    () => ({ session, profile, setProfile, loading, refreshProfile, getNextPrompt }),
+    [session, profile, setProfile, loading, refreshProfile, getNextPrompt]
+  );
+
   return (
-    <AuthContext.Provider value={{ session, profile, setProfile, loading, refreshProfile, getNextPrompt }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

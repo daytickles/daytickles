@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useState } from 'react';
+import { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../lib/supabase';
 
@@ -19,8 +19,10 @@ export function NotificationsProvider({ children }) {
     if (!error) setUnreadCount(count || 0);
   }, [session]);
 
+  const value = useMemo(() => ({ unreadCount, refreshUnreadCount }), [unreadCount, refreshUnreadCount]);
+
   return (
-    <NotificationsContext.Provider value={{ unreadCount, refreshUnreadCount }}>
+    <NotificationsContext.Provider value={value}>
       {children}
     </NotificationsContext.Provider>
   );
