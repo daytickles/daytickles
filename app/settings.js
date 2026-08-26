@@ -44,7 +44,7 @@ const WEEK_START_OPTIONS = [
 const NATURE_LABELS = {
   received: 'Made me smile',
   given: 'I paid forward',
-  self: 'Mood boost',
+  self: 'For me',
 };
 
 const AWARENESS_CUE_TYPE_OPTIONS = [

@@ -43,7 +43,7 @@ const HOME_CONTENT_MAX_WIDTH = 600;
 const NATURE_LABELS = {
   received: 'Made me smile',
   given: 'I paid forward',
-  self: 'Mood boost',
+  self: 'For me',
 };
 
 function formatEntryDate(entryDate) {

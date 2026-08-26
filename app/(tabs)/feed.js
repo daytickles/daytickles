@@ -31,7 +31,7 @@ const TABS = [
 const NATURE_FILTERS = [
   { id: 'received', label: 'Smiles' },
   { id: 'given', label: 'Given' },
-  { id: 'self', label: 'Boost' },
+  { id: 'self', label: 'For me' },
 ];
 
 // Independent of tickle_nature_enabled — day_journal_enabled can show

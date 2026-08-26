@@ -22,7 +22,7 @@ const TRAILING_WINDOW_DAYS = 7;
 const NATURE_LABELS = {
   received: 'Made me smile',
   given: 'I paid forward',
-  self: 'Mood boost',
+  self: 'For me',
 };
 
 // Bubble grid sizing -- a filled bubble's diameter scales between these

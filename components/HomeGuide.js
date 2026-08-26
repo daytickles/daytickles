@@ -10,7 +10,7 @@ import Button from './Button';
 const STEPS = [
   {
     title: 'Home & Your Vibes',
-    body: "Every Tickle you write gets a Vibe — Made me smile, I paid forward, or Mood boost. Choose one when you save your entry.\n\nThe three Vibe cards on Home show your activity by week, month, and all-time. You can also set a daily target for any Vibe in Settings. When you reach your target, its lightbulb lights up for the day. It is completely optional — a little extra motivation if you like having something to aim for.",
+    body: "Every Tickle you write gets a Vibe — Made me smile, I paid forward, or For me. Choose one when you save your entry.\n\nThe three Vibe cards on Home show your activity by week, month, and all-time. You can also set a daily target for any Vibe in Settings. When you reach your target, its lightbulb lights up for the day. It is completely optional — a little extra motivation if you like having something to aim for.",
   },
   {
     title: 'New Tickle',
