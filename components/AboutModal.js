@@ -59,7 +59,7 @@ export default function AboutModal({ visible, onClose, showGuideLink }) {
             </Text>
 
             <Text style={styles.bodyEmphasis}>Your moments. Your pace. Your memories.</Text>
-            <Text style={styles.quote}>"Notice the nice, save it, share it."</Text>
+            <Text style={styles.quote}>"Be Nice | Feel Nice"</Text>
 
             {showGuideLink && (
               <Text style={styles.guideHint}>
