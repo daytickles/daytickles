@@ -103,6 +103,7 @@ export default function Settings() {
   const [savingDailyReminder, setSavingDailyReminder] = useState(false);
   const [notifyOnLikes, setNotifyOnLikes] = useState(!!profile?.notify_on_likes);
   const [dailyReminderEnabled, setDailyReminderEnabled] = useState(!!profile?.daily_reminder);
+  const [dayJournalEnabled, setDayJournalEnabled] = useState(!!profile?.day_journal_enabled);
   const [savingGoal, setSavingGoal] = useState(null);
   const [reminderPermissionDenied, setReminderPermissionDenied] = useState(false);
   const [savingAwarenessCue, setSavingAwarenessCue] = useState(false);
@@ -147,6 +148,10 @@ export default function Settings() {
   useEffect(() => {
     setDailyReminderEnabled(!!profile?.daily_reminder);
   }, [profile?.daily_reminder]);
+
+  useEffect(() => {
+    setDayJournalEnabled(!!profile?.day_journal_enabled);
+  }, [profile?.day_journal_enabled]);
 
   // Diagnostic only (testing only, see the batch-source diagnostic
   // below) -- neither of these is part of `profile`: the client times
@@ -258,11 +263,16 @@ export default function Settings() {
     }
   }
 
+  // Local-state-only (no setProfile()/refreshProfile()) -- see project
+  // memory: tickle-nature-toggle-bug. day_journal_enabled has real
+  // cross-screen dependents (create.js, feed.js); Home's own
+  // focus-triggered reconciliation effect keeps the shared profile
+  // eventually consistent whenever the user passes back through Home.
   async function handleToggleDayJournal(value) {
     if (!profile) return;
-    const previous = profile;
+    const previous = dayJournalEnabled;
 
-    setProfile({ ...profile, day_journal_enabled: value });
+    setDayJournalEnabled(value);
     setSavingDayJournal(true);
 
     const { error } = await supabase
@@ -272,9 +282,7 @@ export default function Settings() {
     setSavingDayJournal(false);
 
     if (error) {
-      setProfile(previous);
-    } else {
-      refreshProfile();
+      setDayJournalEnabled(previous);
     }
   }
 
@@ -738,7 +746,7 @@ export default function Settings() {
         <View style={styles.toggleRow}>
           <Text style={styles.toggleLabel}>Day Journal</Text>
           <Switch
-            value={!!profile?.day_journal_enabled}
+            value={dayJournalEnabled}
             onValueChange={handleToggleDayJournal}
             disabled={savingDayJournal}
             trackColor={{ false: C.border, true: accentDark }}
