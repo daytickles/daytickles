@@ -462,7 +462,7 @@ export default function WeeklySummary() {
 
             {(awardsReceived.length > 0 || awardsGiven.length > 0) && (
               <>
-                <Text style={styles.sectionLabel}>Awards</Text>
+                <Text style={styles.sectionLabel}>High Fives</Text>
                 {awardsReceived.map((n) => {
                   const award = AWARD_TYPES[n.award_type];
                   const flag = n.profiles?.country ? ` ${flagEmoji(n.profiles.country)}` : '';
@@ -474,7 +474,7 @@ export default function WeeklySummary() {
                     >
                       <Ionicons name={award.iconActive} size={16} color={award.color} />
                       <Text style={styles.awardText} numberOfLines={2}>
-                        {actorName} gave you a {award.label} award
+                        {actorName} gave you a {award.label} high five
                         {n.tickle_entries?.text_content ? `: ${n.tickle_entries.text_content}` : ''}
                       </Text>
                     </View>
@@ -489,7 +489,7 @@ export default function WeeklySummary() {
                     >
                       <Ionicons name={award.iconActive} size={16} color={award.color} />
                       <Text style={styles.awardText} numberOfLines={2}>
-                        You gave a {award.label} award
+                        You gave a {award.label} high five
                         {a.tickle_entries?.text_content ? `: ${a.tickle_entries.text_content}` : ''}
                       </Text>
                     </View>

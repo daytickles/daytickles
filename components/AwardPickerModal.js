@@ -13,7 +13,7 @@ export default function AwardPickerModal({ entryId, onGive, onDismiss }) {
     <Modal visible={!!entryId} transparent animationType="fade" onRequestClose={onDismiss}>
       <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={onDismiss}>
         <TouchableOpacity activeOpacity={1} style={styles.pickerSheet} onPress={() => {}}>
-          <Text style={styles.pickerTitle}>Give an award</Text>
+          <Text style={styles.pickerTitle}>Give a high five</Text>
           <Text style={styles.pickerSubtitle}>This can't be changed once given.</Text>
 
           {AWARD_ORDER.map((key) => {

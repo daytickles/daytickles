@@ -34,7 +34,7 @@ function notificationText(n) {
       return entryText ? `${actorName} fav'ed your tickle: ${entryText}` : `${actorName} fav'ed your tickle`;
     case 'award': {
       const award = AWARD_TYPES[n.award_type];
-      const awardPhrase = award ? `a ${award.label} award` : 'an award';
+      const awardPhrase = award ? `a ${award.label} high five` : 'a high five';
       return entryText
         ? `${actorName} gave your tickle ${awardPhrase}: ${entryText}`
         : `${actorName} gave your tickle ${awardPhrase}`;

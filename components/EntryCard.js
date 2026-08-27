@@ -187,7 +187,7 @@ export default function EntryCard({
                   AWARD_BADGE_COLOR regardless of which award it was. */}
               {hasAward && (
                 <View style={styles.publicAwardBadge}>
-                  <Ionicons name="ribbon" size={16} color={AWARD_BADGE_COLOR} />
+                  <Ionicons name="hand-right" size={16} color={AWARD_BADGE_COLOR} />
                 </View>
               )}
               {showMineActions && !isJournal && (
@@ -255,7 +255,7 @@ export default function EntryCard({
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     style={styles.awardAction}
                   >
-                    <Ionicons name="ribbon-outline" size={16} color={C.faint} />
+                    <Ionicons name="hand-right-outline" size={16} color={C.faint} />
                   </TouchableOpacity>
                 )
               )}
