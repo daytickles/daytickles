@@ -90,7 +90,7 @@ function formatCueTimes(dates) {
     .join(', ');
 }
 
-// Shared by both Daily and Weekly Vibe Goals -- handleAdjustGoal below
+// Shared by both Daily and Weekly Vibe Targets -- handleAdjustGoal below
 // is already generic over the column name, so both goal concepts read
 // and write through this same local state object rather than needing
 // separate handlers.
@@ -756,7 +756,7 @@ export default function Settings() {
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.label}>Daily Vibe Goals</Text>
+        <Text style={styles.label}>Daily Vibe Targets</Text>
         <Text style={styles.explainerText}>
           Optional — set a daily target for any vibe and its daily lightbulb lights up on Home once you hit it
           that day.
@@ -793,7 +793,7 @@ export default function Settings() {
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.label}>Weekly Vibe Goals</Text>
+        <Text style={styles.label}>Weekly Vibe Targets</Text>
         <Text style={styles.explainerText}>
           Optional — set a weekly target for any vibe and its weekly lightbulb lights up on Home once
           you hit it that week.
