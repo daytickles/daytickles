@@ -101,6 +101,8 @@ export default function Settings() {
   const [savingNotifyOnLikes, setSavingNotifyOnLikes] = useState(false);
   const [savingCountry, setSavingCountry] = useState(false);
   const [savingDailyReminder, setSavingDailyReminder] = useState(false);
+  const [notifyOnLikes, setNotifyOnLikes] = useState(!!profile?.notify_on_likes);
+  const [dailyReminderEnabled, setDailyReminderEnabled] = useState(!!profile?.daily_reminder);
   const [savingGoal, setSavingGoal] = useState(null);
   const [reminderPermissionDenied, setReminderPermissionDenied] = useState(false);
   const [savingAwarenessCue, setSavingAwarenessCue] = useState(false);
@@ -133,6 +135,18 @@ export default function Settings() {
   useEffect(() => {
     hasPinSet().then(setPinEnabled);
   }, []);
+
+  // notify_on_likes and daily_reminder are intentionally local-state-only
+  // (see project memory: tickle-nature-toggle-bug) -- these effects keep
+  // that local state in sync if the shared profile updates for any other
+  // reason (e.g. Home's own focus-triggered reconciliation, another device).
+  useEffect(() => {
+    setNotifyOnLikes(!!profile?.notify_on_likes);
+  }, [profile?.notify_on_likes]);
+
+  useEffect(() => {
+    setDailyReminderEnabled(!!profile?.daily_reminder);
+  }, [profile?.daily_reminder]);
 
   // Diagnostic only (testing only, see the batch-source diagnostic
   // below) -- neither of these is part of `profile`: the client times
@@ -264,11 +278,15 @@ export default function Settings() {
     }
   }
 
+  // Local-state-only (no setProfile()/refreshProfile()) -- see project
+  // memory: tickle-nature-toggle-bug. notify_on_likes has no other
+  // consumer anywhere in the app; Home's own focus-triggered
+  // reconciliation keeps the shared profile eventually consistent.
   async function handleToggleNotifyOnLikes(value) {
     if (!profile) return;
-    const previous = profile;
+    const previous = notifyOnLikes;
 
-    setProfile({ ...profile, notify_on_likes: value });
+    setNotifyOnLikes(value);
     setSavingNotifyOnLikes(true);
 
     const { error } = await supabase
@@ -278,16 +296,20 @@ export default function Settings() {
     setSavingNotifyOnLikes(false);
 
     if (error) {
-      setProfile(previous);
-    } else {
-      refreshProfile();
+      setNotifyOnLikes(previous);
     }
   }
 
   // Requests permission before persisting the flag on — a denied
   // permission means the reminder can never actually fire, so the
   // toggle stays off and an inline note explains why rather than
-  // silently saving a preference the OS won't honor.
+  // silently saving a preference the OS won't honor. Local-state-only
+  // (no setProfile()/refreshProfile()) -- see project memory:
+  // tickle-nature-toggle-bug. Home's own reconciliation effect (gated on
+  // profile?.daily_reminder) is already a best-effort safety net, not the
+  // primary scheduling path -- the scheduleDailyReminder()/
+  // cancelDailyReminder() calls below do the real work directly, so it
+  // doesn't need the shared profile to update immediately.
   async function handleToggleDailyReminder(value) {
     if (!profile) return;
     setReminderPermissionDenied(false);
@@ -300,8 +322,8 @@ export default function Settings() {
       }
     }
 
-    const previous = profile;
-    setProfile({ ...profile, daily_reminder: value });
+    const previous = dailyReminderEnabled;
+    setDailyReminderEnabled(value);
     setSavingDailyReminder(true);
 
     const { error } = await supabase
@@ -311,11 +333,10 @@ export default function Settings() {
     setSavingDailyReminder(false);
 
     if (error) {
-      setProfile(previous);
+      setDailyReminderEnabled(previous);
       return;
     }
 
-    refreshProfile();
     try {
       if (value) {
         await scheduleDailyReminder();
@@ -729,7 +750,7 @@ export default function Settings() {
         <View style={styles.toggleRow}>
           <Text style={styles.toggleLabel}>Daily reminder</Text>
           <Switch
-            value={!!profile?.daily_reminder}
+            value={dailyReminderEnabled}
             onValueChange={handleToggleDailyReminder}
             disabled={savingDailyReminder}
             trackColor={{ false: C.border, true: accentDark }}
@@ -754,7 +775,7 @@ export default function Settings() {
         <View style={styles.toggleRow}>
           <Text style={styles.toggleLabel}>Notify me of new likes</Text>
           <Switch
-            value={!!profile?.notify_on_likes}
+            value={notifyOnLikes}
             onValueChange={handleToggleNotifyOnLikes}
             disabled={savingNotifyOnLikes}
             trackColor={{ false: C.border, true: accentDark }}

@@ -101,6 +101,16 @@ export default function Home() {
   const tabBarHeight = useBottomTabBarHeight();
   const insets = useSafeAreaInsets();
 
+  // Reconciliation point for Settings toggles that intentionally no longer
+  // call setProfile()/refreshProfile() themselves (notify_on_likes,
+  // daily_reminder — see project memory: tickle-nature-toggle-bug), so the
+  // shared profile object still catches up whenever Home is focused.
+  useFocusEffect(
+    useCallback(() => {
+      refreshProfile();
+    }, [refreshProfile])
+  );
+
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [goals, setGoals] = useState([]);
