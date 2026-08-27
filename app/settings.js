@@ -20,6 +20,7 @@ import {
   scheduleDailyReminder,
   cancelDailyReminder,
   sendTestReminderNotification,
+  sendAwarenessCueTestCue,
   getScheduledAwarenessCueTimes,
 } from '../lib/reminders';
 import { isReviewAvailable, requestReview } from '../lib/rateUs';
@@ -104,9 +105,21 @@ export default function Settings() {
   const [notifyOnLikes, setNotifyOnLikes] = useState(!!profile?.notify_on_likes);
   const [dailyReminderEnabled, setDailyReminderEnabled] = useState(!!profile?.daily_reminder);
   const [dayJournalEnabled, setDayJournalEnabled] = useState(!!profile?.day_journal_enabled);
+  const [goalValues, setGoalValues] = useState(() =>
+    Object.fromEntries(NATURE_ORDER.map((key) => [`daily_goal_${key}`, profile?.[`daily_goal_${key}`] ?? null]))
+  );
   const [savingGoal, setSavingGoal] = useState(null);
   const [reminderPermissionDenied, setReminderPermissionDenied] = useState(false);
   const [savingAwarenessCue, setSavingAwarenessCue] = useState(false);
+  const [awarenessCue, setAwarenessCue] = useState(() => ({
+    enabled: !!profile?.awareness_cue_enabled,
+    type: profile?.awareness_cue_type,
+    soundConfirmed: profile?.awareness_cue_sound_confirmed,
+    frequencyMode: profile?.awareness_cue_frequency_mode,
+    count: profile?.awareness_cue_count,
+    windowStartMinute: profile?.awareness_cue_window_start_minute,
+    windowEndMinute: profile?.awareness_cue_window_end_minute,
+  }));
   // Shared across type/frequency/count/window -- these are independent,
   // fast writes rarely pressed in rapid succession, so one flag is
   // enough rather than four (unlike savingGoal, which is genuinely
@@ -152,6 +165,32 @@ export default function Settings() {
   useEffect(() => {
     setDayJournalEnabled(!!profile?.day_journal_enabled);
   }, [profile?.day_journal_enabled]);
+
+  useEffect(() => {
+    setGoalValues(
+      Object.fromEntries(NATURE_ORDER.map((key) => [`daily_goal_${key}`, profile?.[`daily_goal_${key}`] ?? null]))
+    );
+  }, NATURE_ORDER.map((key) => profile?.[`daily_goal_${key}`]));
+
+  useEffect(() => {
+    setAwarenessCue({
+      enabled: !!profile?.awareness_cue_enabled,
+      type: profile?.awareness_cue_type,
+      soundConfirmed: profile?.awareness_cue_sound_confirmed,
+      frequencyMode: profile?.awareness_cue_frequency_mode,
+      count: profile?.awareness_cue_count,
+      windowStartMinute: profile?.awareness_cue_window_start_minute,
+      windowEndMinute: profile?.awareness_cue_window_end_minute,
+    });
+  }, [
+    profile?.awareness_cue_enabled,
+    profile?.awareness_cue_type,
+    profile?.awareness_cue_sound_confirmed,
+    profile?.awareness_cue_frequency_mode,
+    profile?.awareness_cue_count,
+    profile?.awareness_cue_window_start_minute,
+    profile?.awareness_cue_window_end_minute,
+  ]);
 
   // Diagnostic only (testing only, see the batch-source diagnostic
   // below) -- neither of these is part of `profile`: the client times
@@ -375,17 +414,15 @@ export default function Settings() {
     }
     setReminderPermissionDenied(false);
 
-    const previous = profile;
-    setProfile({ ...profile, awareness_cue_enabled: value });
+    const previous = awarenessCue.enabled;
+    setAwarenessCue((prev) => ({ ...prev, enabled: value }));
     setSavingAwarenessCue(true);
 
     const { error } = await supabase.from('profiles').update({ awareness_cue_enabled: value }).eq('id', profile.id);
     setSavingAwarenessCue(false);
 
     if (error) {
-      setProfile(previous);
-    } else {
-      refreshProfile();
+      setAwarenessCue((prev) => ({ ...prev, enabled: previous }));
     }
   }
 
@@ -444,84 +481,85 @@ export default function Settings() {
       return;
     }
 
-    if (type === profile.awareness_cue_type) return;
+    if (type === awarenessCue.type) return;
     saveAwarenessCueType(type, null);
   }
 
   async function saveAwarenessCueType(type, soundConfirmed) {
-    const previous = profile;
+    const previous = { type: awarenessCue.type, soundConfirmed: awarenessCue.soundConfirmed };
     // Only a genuine vibrate<->sound change needs invalidating -- a
     // sound re-confirmation (type unchanged, only soundConfirmed
     // differs) doesn't, since the server path already resolves that
     // live at send time (no stale row possible) and an already-
     // scheduled local notification can't be retroactively re-pointed
     // to a different channel regardless.
-    const typeChanged = type !== profile.awareness_cue_type;
+    const typeChanged = type !== awarenessCue.type;
     const updates =
       type === 'sound' ? { awareness_cue_type: type, awareness_cue_sound_confirmed: soundConfirmed } : { awareness_cue_type: type };
 
     if (typeChanged) await invalidateAwarenessCueScheduleForToday();
 
-    setProfile({ ...profile, ...updates });
+    setAwarenessCue((prev) => ({ ...prev, type, ...(type === 'sound' ? { soundConfirmed } : {}) }));
     setSavingAwarenessCueOption(true);
 
     const { error } = await supabase.from('profiles').update(updates).eq('id', profile.id);
     setSavingAwarenessCueOption(false);
 
-    if (error) setProfile(previous);
-    else refreshProfile();
+    if (error) setAwarenessCue((prev) => ({ ...prev, ...previous }));
   }
 
   // Switching into 'exact' mode backfills a real count immediately if
   // one was never set, so the stepper below never renders against a
   // null baseline.
   async function handlePickAwarenessCueFrequencyMode(mode) {
-    if (!profile || mode === profile.awareness_cue_frequency_mode) return;
-    const previous = profile;
+    if (!profile || mode === awarenessCue.frequencyMode) return;
+    const previous = { frequencyMode: awarenessCue.frequencyMode, count: awarenessCue.count };
     const update = { awareness_cue_frequency_mode: mode };
-    if (mode === 'exact' && !profile.awareness_cue_count) {
+    if (mode === 'exact' && !awarenessCue.count) {
       update.awareness_cue_count = AWARENESS_CUE_DEFAULT_COUNT;
     }
 
     await invalidateAwarenessCueScheduleForToday();
 
-    setProfile({ ...profile, ...update });
+    setAwarenessCue((prev) => ({
+      ...prev,
+      frequencyMode: mode,
+      ...(update.awareness_cue_count ? { count: update.awareness_cue_count } : {}),
+    }));
     setSavingAwarenessCueOption(true);
 
     const { error } = await supabase.from('profiles').update(update).eq('id', profile.id);
     setSavingAwarenessCueOption(false);
 
-    if (error) setProfile(previous);
-    else refreshProfile();
+    if (error) setAwarenessCue((prev) => ({ ...prev, ...previous }));
   }
 
   async function handleAdjustAwarenessCueCount(delta) {
     if (!profile) return;
-    const current = profile.awareness_cue_count || AWARENESS_CUE_DEFAULT_COUNT;
+    const current = awarenessCue.count || AWARENESS_CUE_DEFAULT_COUNT;
     const next = Math.min(AWARENESS_CUE_MAX_COUNT, Math.max(AWARENESS_CUE_MIN_COUNT, current + delta));
     if (next === current) return;
-    const previous = profile;
+    const previous = awarenessCue.count;
 
     await invalidateAwarenessCueScheduleForToday();
 
-    setProfile({ ...profile, awareness_cue_count: next });
+    setAwarenessCue((prev) => ({ ...prev, count: next }));
     setSavingAwarenessCueOption(true);
 
     const { error } = await supabase.from('profiles').update({ awareness_cue_count: next }).eq('id', profile.id);
     setSavingAwarenessCueOption(false);
 
-    if (error) setProfile(previous);
-    else refreshProfile();
+    if (error) setAwarenessCue((prev) => ({ ...prev, count: previous }));
   }
 
   async function handlePickAwarenessCueWindow(preset) {
     if (!profile) return;
     const alreadySelected =
-      profile.awareness_cue_window_start_minute === preset.startMinute &&
-      profile.awareness_cue_window_end_minute === preset.endMinute;
+      awarenessCue.windowStartMinute === preset.startMinute &&
+      awarenessCue.windowEndMinute === preset.endMinute;
     if (alreadySelected) return;
 
-    const previous = profile;
+    const previous = { windowStartMinute: awarenessCue.windowStartMinute, windowEndMinute: awarenessCue.windowEndMinute };
     const update = {
       awareness_cue_window_start_minute: preset.startMinute,
       awareness_cue_window_end_minute: preset.endMinute,
@@ -529,14 +567,13 @@ export default function Settings() {
 
     await invalidateAwarenessCueScheduleForToday();
 
-    setProfile({ ...profile, ...update });
+    setAwarenessCue((prev) => ({ ...prev, windowStartMinute: preset.startMinute, windowEndMinute: preset.endMinute }));
     setSavingAwarenessCueOption(true);
 
     const { error } = await supabase.from('profiles').update(update).eq('id', profile.id);
     setSavingAwarenessCueOption(false);
 
-    if (error) setProfile(previous);
-    else refreshProfile();
+    if (error) setAwarenessCue((prev) => ({ ...prev, ...previous }));
   }
 
   // Stepper, not a free-text field -- clamps at 0 (stored as null, "off")
@@ -549,23 +586,25 @@ export default function Settings() {
   // hidden (not deleted -- see migration 0034) since the rhythm chart
   // dropped its goal-line visualization when it switched to the bubble
   // grid, leaving that setting with no visible effect anywhere.
+  // Local-state-only (no setProfile()/refreshProfile()) -- see project
+  // memory: tickle-nature-toggle-bug. Home's own focus-triggered
+  // reconciliation effect keeps the shared profile (and isVibeLit's read
+  // of it) eventually consistent.
   async function handleAdjustGoal(column, delta) {
     if (!profile) return;
-    const current = profile[column] || 0;
+    const current = goalValues[column] || 0;
     const next = Math.max(0, current + delta);
     const value = next === 0 ? null : next;
-    const previous = profile;
+    const previous = goalValues[column] ?? null;
 
-    setProfile({ ...profile, [column]: value });
+    setGoalValues((prev) => ({ ...prev, [column]: value }));
     setSavingGoal(column);
 
     const { error } = await supabase.from('profiles').update({ [column]: value }).eq('id', profile.id);
     setSavingGoal(null);
 
     if (error) {
-      setProfile(previous);
-    } else {
-      refreshProfile();
+      setGoalValues((prev) => ({ ...prev, [column]: previous }));
     }
   }
 
@@ -714,7 +753,7 @@ export default function Settings() {
         <View style={{ height: 8 }} />
         {NATURE_ORDER.map((key) => {
           const column = `daily_goal_${key}`;
-          const value = profile?.[column] || null;
+          const value = goalValues[column] || null;
           const saving = savingGoal === column;
           return (
             <View key={key} style={styles.vibeGoalRow}>
@@ -816,7 +855,7 @@ export default function Settings() {
         <View style={styles.toggleRow}>
           <Text style={styles.toggleLabel}>Awareness Cue</Text>
           <Switch
-            value={!!profile?.awareness_cue_enabled}
+            value={awarenessCue.enabled}
             onValueChange={handleToggleAwarenessCue}
             disabled={savingAwarenessCue}
             trackColor={{ false: C.border, true: accentDark }}
@@ -835,7 +874,7 @@ export default function Settings() {
         )}
         <View style={{ height: 8 }} />
 
-        {!!profile?.awareness_cue_enabled && (
+        {awarenessCue.enabled && (
           <>
             {/* Diagnostic only, not a real feature -- surfaces which
                 path (client app open vs. server backstop) generated
@@ -856,7 +895,7 @@ export default function Settings() {
             <Text style={styles.label}>Cue type</Text>
             <View style={styles.optionPillRow}>
               {AWARENESS_CUE_TYPE_OPTIONS.map((option) => {
-                const selected = (profile?.awareness_cue_type || 'vibrate') === option.value;
+                const selected = (awarenessCue.type || 'vibrate') === option.value;
                 return (
                   <TouchableOpacity
                     key={option.value}
@@ -880,7 +919,7 @@ export default function Settings() {
             <Text style={styles.label}>Frequency</Text>
             <View style={styles.optionPillRow}>
               {AWARENESS_CUE_FREQUENCY_OPTIONS.map((option) => {
-                const selected = (profile?.awareness_cue_frequency_mode || 'loose') === option.value;
+                const selected = (awarenessCue.frequencyMode || 'loose') === option.value;
                 return (
                   <TouchableOpacity
                     key={option.value}
@@ -898,21 +937,21 @@ export default function Settings() {
             </View>
             <View style={styles.spacer} />
 
-            {profile?.awareness_cue_frequency_mode === 'exact' && (
+            {awarenessCue.frequencyMode === 'exact' && (
               <>
                 <Text style={styles.label}>How many times a day</Text>
                 <View style={styles.stepper}>
                   <TouchableOpacity
                     onPress={() => handleAdjustAwarenessCueCount(-1)}
-                    disabled={savingAwarenessCueOption || (profile?.awareness_cue_count || AWARENESS_CUE_DEFAULT_COUNT) <= AWARENESS_CUE_MIN_COUNT}
+                    disabled={savingAwarenessCueOption || (awarenessCue.count || AWARENESS_CUE_DEFAULT_COUNT) <= AWARENESS_CUE_MIN_COUNT}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   >
                     <Ionicons name="remove-circle-outline" size={20} color={C.text} />
                   </TouchableOpacity>
-                  <Text style={styles.stepperValue}>{profile?.awareness_cue_count || AWARENESS_CUE_DEFAULT_COUNT}</Text>
+                  <Text style={styles.stepperValue}>{awarenessCue.count || AWARENESS_CUE_DEFAULT_COUNT}</Text>
                   <TouchableOpacity
                     onPress={() => handleAdjustAwarenessCueCount(1)}
-                    disabled={savingAwarenessCueOption || (profile?.awareness_cue_count || AWARENESS_CUE_DEFAULT_COUNT) >= AWARENESS_CUE_MAX_COUNT}
+                    disabled={savingAwarenessCueOption || (awarenessCue.count || AWARENESS_CUE_DEFAULT_COUNT) >= AWARENESS_CUE_MAX_COUNT}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   >
                     <Ionicons name="add-circle-outline" size={20} color={C.text} />
@@ -926,8 +965,8 @@ export default function Settings() {
             <View style={styles.optionPillRow}>
               {AWARENESS_CUE_WINDOW_PRESETS.map((preset) => {
                 const selected =
-                  (profile?.awareness_cue_window_start_minute ?? 420) === preset.startMinute &&
-                  (profile?.awareness_cue_window_end_minute ?? 1140) === preset.endMinute;
+                  (awarenessCue.windowStartMinute ?? 420) === preset.startMinute &&
+                  (awarenessCue.windowEndMinute ?? 1140) === preset.endMinute;
                 return (
                   <TouchableOpacity
                     key={preset.key}

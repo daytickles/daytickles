@@ -200,63 +200,76 @@ export default function Home() {
   // opens the app gets no cues that day -- unaffected by batching,
   // since today specifically is still clamped to "now" inside
   // regenerateAwarenessCueSchedule.
-  useEffect(() => {
-    if (!profile) return;
-    const today = localDateString(0);
+  // Switched from a plain useEffect to useFocusEffect (2026-08-27) as part
+  // of converting Settings' Awareness Cue handlers to local-state-only --
+  // see project memory: tickle-nature-toggle-bug. Real behavioral change:
+  // regeneration now only runs when Home is genuinely focused, not on any
+  // background re-render. type/frequency/count/window changes have a real
+  // server-side backstop (claim_due_awareness_cue_users reads live DB
+  // state independent of client staleness); turning awareness_cue_enabled
+  // off does not -- already-scheduled local notifications from the prior
+  // enabled state won't be cancelled client-side until the user's next
+  // Home visit, bounded by the batch's own finite window. Accepted,
+  // consistent with this feature's existing risk tolerance elsewhere.
+  useFocusEffect(
+    useCallback(() => {
+      if (!profile) return;
+      const today = localDateString(0);
 
-    if (!profile.awareness_cue_enabled) {
-      if (profile.awareness_cue_batch_valid_until) {
-        (async () => {
-          try {
-            await cancelAwarenessCueSchedule();
+      if (!profile.awareness_cue_enabled) {
+        if (profile.awareness_cue_batch_valid_until) {
+          (async () => {
+            try {
+              await cancelAwarenessCueSchedule();
+              await supabase
+                .from('profiles')
+                .update({ awareness_cue_batch_valid_until: null, awareness_cue_batch_source: null })
+                .eq('id', profile.id);
+              refreshProfile();
+            } catch {
+              // best-effort reconciliation only
+            }
+          })();
+        }
+        return;
+      }
+
+      if (profile.awareness_cue_batch_valid_until && profile.awareness_cue_batch_valid_until >= today) return;
+
+      (async () => {
+        try {
+          const granted = await requestReminderPermission();
+          if (!granted) return;
+          const batchValidUntil = await regenerateAwarenessCueSchedule({
+            type: profile.awareness_cue_type,
+            frequencyMode: profile.awareness_cue_frequency_mode,
+            count: profile.awareness_cue_count,
+            windowStartMinute: profile.awareness_cue_window_start_minute,
+            windowEndMinute: profile.awareness_cue_window_end_minute,
+            soundConfirmed: profile.awareness_cue_sound_confirmed,
+          });
+          if (batchValidUntil) {
             await supabase
               .from('profiles')
-              .update({ awareness_cue_batch_valid_until: null, awareness_cue_batch_source: null })
+              .update({ awareness_cue_batch_valid_until: batchValidUntil, awareness_cue_batch_source: 'client' })
               .eq('id', profile.id);
             refreshProfile();
-          } catch {
-            // best-effort reconciliation only
           }
-        })();
-      }
-      return;
-    }
-
-    if (profile.awareness_cue_batch_valid_until && profile.awareness_cue_batch_valid_until >= today) return;
-
-    (async () => {
-      try {
-        const granted = await requestReminderPermission();
-        if (!granted) return;
-        const batchValidUntil = await regenerateAwarenessCueSchedule({
-          type: profile.awareness_cue_type,
-          frequencyMode: profile.awareness_cue_frequency_mode,
-          count: profile.awareness_cue_count,
-          windowStartMinute: profile.awareness_cue_window_start_minute,
-          windowEndMinute: profile.awareness_cue_window_end_minute,
-          soundConfirmed: profile.awareness_cue_sound_confirmed,
-        });
-        if (batchValidUntil) {
-          await supabase
-            .from('profiles')
-            .update({ awareness_cue_batch_valid_until: batchValidUntil, awareness_cue_batch_source: 'client' })
-            .eq('id', profile.id);
-          refreshProfile();
+        } catch {
+          // best-effort reconciliation only
         }
-      } catch {
-        // best-effort reconciliation only
-      }
-    })();
-  }, [
-    profile?.awareness_cue_enabled,
-    profile?.awareness_cue_type,
-    profile?.awareness_cue_frequency_mode,
-    profile?.awareness_cue_count,
-    profile?.awareness_cue_window_start_minute,
-    profile?.awareness_cue_window_end_minute,
-    profile?.awareness_cue_sound_confirmed,
-    profile?.awareness_cue_batch_valid_until,
-  ]);
+      })();
+    }, [
+      profile?.awareness_cue_enabled,
+      profile?.awareness_cue_type,
+      profile?.awareness_cue_frequency_mode,
+      profile?.awareness_cue_count,
+      profile?.awareness_cue_window_start_minute,
+      profile?.awareness_cue_window_end_minute,
+      profile?.awareness_cue_sound_confirmed,
+      profile?.awareness_cue_batch_valid_until,
+    ])
+  );
 
   async function handleCloseAboutIntro() {
     setShowGuide(false);
