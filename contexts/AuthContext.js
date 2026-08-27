@@ -3,6 +3,7 @@ import * as Linking from 'expo-linking';
 import { supabase } from '../lib/supabase';
 import { registerPushToken } from '../lib/pushToken';
 import { fetchWritingPrompts } from '../lib/writingPrompts';
+import { NATURE_ORDER } from '../lib/theme';
 
 const AuthContext = createContext(null);
 
@@ -41,6 +42,15 @@ const RENDER_RELEVANT_FIELDS = [
   'awareness_cue_sound_confirmed',
   'awareness_cue_batch_valid_until',
   'awareness_cue_batch_source',
+  // Generated, not hand-enumerated -- dynamic per-nature columns
+  // (daily_goal_<nature>, weekly_goal_<nature>) were previously missing
+  // from this list entirely, a real bug: loadProfile's profilesEqual
+  // check would silently discard a fresh fetch whenever one of these
+  // was the only field that changed, defeating Home's own
+  // focus-triggered reconciliation effect for exactly the fields that
+  // most need it. See project memory: tickle-nature-toggle-bug.
+  ...NATURE_ORDER.map((key) => `daily_goal_${key}`),
+  ...NATURE_ORDER.map((key) => `weekly_goal_${key}`),
 ];
 
 function profilesEqual(a, b) {

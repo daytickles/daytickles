@@ -90,6 +90,20 @@ function formatCueTimes(dates) {
     .join(', ');
 }
 
+// Shared by both Daily and Weekly Vibe Goals -- handleAdjustGoal below
+// is already generic over the column name, so both goal concepts read
+// and write through this same local state object rather than needing
+// separate handlers.
+const GOAL_PREFIXES = ['daily_goal_', 'weekly_goal_'];
+
+function buildGoalValues(profile) {
+  return Object.fromEntries(
+    GOAL_PREFIXES.flatMap((prefix) =>
+      NATURE_ORDER.map((key) => [`${prefix}${key}`, profile?.[`${prefix}${key}`] ?? null])
+    )
+  );
+}
+
 export default function Settings() {
   const { profile, setProfile, refreshProfile } = useAuth();
   const accentDark = darken(accentFor(profile?.accent_theme).card, 0.35);
@@ -105,9 +119,7 @@ export default function Settings() {
   const [notifyOnLikes, setNotifyOnLikes] = useState(!!profile?.notify_on_likes);
   const [dailyReminderEnabled, setDailyReminderEnabled] = useState(!!profile?.daily_reminder);
   const [dayJournalEnabled, setDayJournalEnabled] = useState(!!profile?.day_journal_enabled);
-  const [goalValues, setGoalValues] = useState(() =>
-    Object.fromEntries(NATURE_ORDER.map((key) => [`daily_goal_${key}`, profile?.[`daily_goal_${key}`] ?? null]))
-  );
+  const [goalValues, setGoalValues] = useState(() => buildGoalValues(profile));
   const [savingGoal, setSavingGoal] = useState(null);
   const [reminderPermissionDenied, setReminderPermissionDenied] = useState(false);
   const [savingAwarenessCue, setSavingAwarenessCue] = useState(false);
@@ -167,10 +179,8 @@ export default function Settings() {
   }, [profile?.day_journal_enabled]);
 
   useEffect(() => {
-    setGoalValues(
-      Object.fromEntries(NATURE_ORDER.map((key) => [`daily_goal_${key}`, profile?.[`daily_goal_${key}`] ?? null]))
-    );
-  }, NATURE_ORDER.map((key) => profile?.[`daily_goal_${key}`]));
+    setGoalValues(buildGoalValues(profile));
+  }, GOAL_PREFIXES.flatMap((prefix) => NATURE_ORDER.map((key) => profile?.[`${prefix}${key}`])));
 
   useEffect(() => {
     setAwarenessCue({
@@ -580,12 +590,13 @@ export default function Settings() {
   // rather than going negative. null/0 both render as "Off"; there's no
   // separate concept of an explicit zero target. Takes the literal
   // column name rather than deriving it internally, since it's written
-  // generically enough to back any of these goal columns -- currently
-  // only daily_goal_<nature> (Daily Vibe Goals, below) renders a
-  // control. daily_total_goal's own "Weekly Rhythm Goal" control is
-  // hidden (not deleted -- see migration 0034) since the rhythm chart
-  // dropped its goal-line visualization when it switched to the bubble
-  // grid, leaving that setting with no visible effect anywhere.
+  // generically enough to back any of these goal columns --
+  // daily_goal_<nature> and weekly_goal_<nature> (Daily/Weekly Vibe
+  // Goals, below) both render controls. daily_total_goal's own "Weekly
+  // Rhythm Goal" control is hidden (not deleted -- see migration 0034)
+  // since the rhythm chart dropped its goal-line visualization when it
+  // switched to the bubble grid, leaving that setting with no visible
+  // effect anywhere.
   // Local-state-only (no setProfile()/refreshProfile()) -- see project
   // memory: tickle-nature-toggle-bug. Home's own focus-triggered
   // reconciliation effect keeps the shared profile (and isVibeLit's read
@@ -747,12 +758,49 @@ export default function Settings() {
       <View style={styles.card}>
         <Text style={styles.label}>Daily Vibe Goals</Text>
         <Text style={styles.explainerText}>
-          Optional — set a target for any vibe and its lightbulb lights up on Home once you hit it
+          Optional — set a daily target for any vibe and its daily lightbulb lights up on Home once you hit it
           that day.
         </Text>
         <View style={{ height: 8 }} />
         {NATURE_ORDER.map((key) => {
           const column = `daily_goal_${key}`;
+          const value = goalValues[column] || null;
+          const saving = savingGoal === column;
+          return (
+            <View key={key} style={styles.vibeGoalRow}>
+              <NatureIcon nature={key} size={18} color={C.subtext} style={styles.vibeGoalIcon} />
+              <Text style={styles.vibeGoalLabel}>{NATURE_LABELS[key]}</Text>
+              <View style={styles.stepper}>
+                <TouchableOpacity
+                  onPress={() => handleAdjustGoal(column, -1)}
+                  disabled={saving || !value}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons name="remove-circle-outline" size={20} color={value ? C.text : C.faint} />
+                </TouchableOpacity>
+                <Text style={styles.stepperValue}>{value || 'Off'}</Text>
+                <TouchableOpacity
+                  onPress={() => handleAdjustGoal(column, 1)}
+                  disabled={saving}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons name="add-circle-outline" size={20} color={C.text} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          );
+        })}
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.label}>Weekly Vibe Goals</Text>
+        <Text style={styles.explainerText}>
+          Optional — set a weekly target for any vibe and its weekly lightbulb lights up on Home once
+          you hit it that week.
+        </Text>
+        <View style={{ height: 8 }} />
+        {NATURE_ORDER.map((key) => {
+          const column = `weekly_goal_${key}`;
           const value = goalValues[column] || null;
           const saving = savingGoal === column;
           return (

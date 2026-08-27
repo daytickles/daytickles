@@ -519,6 +519,18 @@ export default function Home() {
     return vibeTodayCounts[key] >= target;
   }
 
+  // Weekly counterpart -- same shape as isVibeLit, compares the
+  // already-computed WEEK count (vibeWeekCounts, already
+  // week-start-day-aware) against weekly_goal_<nature> instead of
+  // today's count against daily_goal_<nature>. A distinct, new mechanic
+  // from the still-unbuilt "weekly goal-line" chart concept in
+  // DayTickles_Home_Vibes_Redesign_Spec_v1.md -- see migration 0053.
+  function isVibeLitWeekly(key) {
+    const target = profile?.[`weekly_goal_${key}`];
+    if (!target) return false;
+    return vibeWeekCounts[key] >= target;
+  }
+
   // Milestone Rate-Us prompt (backlog #8) — flips true the moment it's
   // shown, not only on dismiss, so ignoring it never brings it back.
   // Same check-on-mount/flip-immediately shape as home_guide_seen above.
@@ -823,6 +835,7 @@ export default function Home() {
               nature={key}
               color={VIBE_COLORS[key]}
               lit={isVibeLit(key)}
+              litWeekly={isVibeLitWeekly(key)}
               accentColor={accent.card}
               weekCount={vibeWeekCounts[key]}
               monthCount={vibeMonthCounts[key]}

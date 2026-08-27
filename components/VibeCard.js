@@ -17,6 +17,7 @@ export default function VibeCard({
   nature,
   color,
   lit,
+  litWeekly,
   accentColor,
   weekCount,
   monthCount,
@@ -37,12 +38,18 @@ export default function VibeCard({
 
   return (
     <TouchableOpacity style={styles.wrap} activeOpacity={0.8} onPress={onPress}>
-      <Ionicons
-        name={lit ? 'bulb' : 'bulb-outline'}
-        size={20}
-        color={lit ? accentColor : '#B4B2A9'}
-        style={styles.bulb}
-      />
+      <View style={styles.bulbRow}>
+        <Ionicons
+          name={lit ? 'bulb' : 'bulb-outline'}
+          size={20}
+          color={lit ? accentColor : '#B4B2A9'}
+        />
+        <Ionicons
+          name={litWeekly ? 'bulb' : 'bulb-outline'}
+          size={20}
+          color={litWeekly ? accentColor : '#B4B2A9'}
+        />
+      </View>
       <View style={[styles.card, { backgroundColor: color }]}>
         <View style={[styles.cornerDot, { backgroundColor: cornerDotColor }]} />
         <NatureIcon nature={nature} size={14} color={withAlpha(textColor, 0.55)} style={styles.natureIcon} />
@@ -66,7 +73,7 @@ export default function VibeCard({
 
 const styles = StyleSheet.create({
   wrap: { flex: 1, alignItems: 'center' },
-  bulb: { marginBottom: 6 },
+  bulbRow: { flexDirection: 'row', gap: 8, marginBottom: 6 },
   card: {
     width: '100%', borderRadius: 18, overflow: 'hidden',
     paddingTop: 10, paddingBottom: 12, alignItems: 'center',
