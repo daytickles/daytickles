@@ -413,7 +413,7 @@ export default function Home() {
   // Real DELETE, not a soft-hide — RLS already scopes it to entries you
   // own, and every table referencing tickle_entries (likes, favorites,
   // notifications, shares, etc.) cascades on delete (confirmed against
-  // the schema before building this). Home and Feed each reload their
+  // the schema before building this). Home and Tickle Stash each reload their
   // own entries on focus already, so a deletion made on one screen is
   // picked up by the other the next time it's revisited — no separate
   // cross-screen refresh mechanism needed.
@@ -455,7 +455,7 @@ export default function Home() {
   }
 
   // Same scroll-to-and-highlight mechanism notifications.js already
-  // uses to jump into Feed's Mine tab at a specific entry.
+  // uses to jump into Tickle Stash's Mine tab at a specific entry.
   function goToEntryInFeed(entryId) {
     router.push({ pathname: '/feed', params: { tab: 'mine', highlightEntry: entryId } });
   }
@@ -951,7 +951,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6,
   },
   // Cancels CornerNav's own marginBottom (meant for when it stands alone
-  // at the top of Feed/Calendar/Tickle Pics) now that it's nested inside
+  // at the top of Tickle Stash/Calendar/Tickle Pics) now that it's nested inside
   // titleRow -- titleRow's own marginBottom above already provides the
   // gap to profileRow below; without this the row would carry a double
   // margin and an uneven height between the title text and the icons.

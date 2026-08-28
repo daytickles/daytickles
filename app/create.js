@@ -228,7 +228,7 @@ export default function Create() {
       )}
 
       <View style={styles.shareRow}>
-        <Text style={styles.label}>Ripple your vibe – Share it!</Text>
+        <Text style={styles.label}>Good Vibe? – Let it Ripple.</Text>
         <Switch
           value={shareToFeed}
           onValueChange={setShareToFeed}

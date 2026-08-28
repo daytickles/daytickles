@@ -39,8 +39,8 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="feed"
         options={{
-          title: 'Feed',
-          tabBarAccessibilityLabel: 'Feed',
+          title: 'Tickle Stash',
+          tabBarAccessibilityLabel: 'Tickle Stash',
           tabBarIcon: ({ color, size }) => <Ionicons name="list-outline" color={color} size={size} />,
         }}
       />

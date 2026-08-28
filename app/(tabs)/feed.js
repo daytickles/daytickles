@@ -23,7 +23,7 @@ const TABS = [
   { id: 'mine', label: 'Mine' },
   { id: 'favorites', label: "Fav's" },
   { id: 'following', label: 'Following' },
-  { id: 'shared', label: 'Shared' },
+  { id: 'rippled', label: 'Rippled' },
 ];
 
 // Mine-only. 'all' is the default: everything, tagged or not, same as
@@ -42,7 +42,7 @@ const EMPTY_TEXT = {
   mine: "You haven't shared any tickles to the feed yet.",
   favorites: 'Tap the star on a tickle to save it here.',
   following: 'Follow people to see their tickles here.',
-  shared: 'No public tickles yet.',
+  rippled: 'No public tickles yet.',
 };
 
 // Mine's Day Journal filter needs its own empty message rather than the
@@ -130,15 +130,15 @@ export default function Feed() {
   // it shouldn't itself trigger a re-render.
   const cardHeights = useRef({});
 
-  // Feed used to be a plain stack screen that unmounted/remounted on
+  // Tickle Stash used to be a plain stack screen that unmounted/remounted on
   // every visit, so the useState initializers above were enough to pick
-  // up a fresh tab/highlightEntry each time. Now that Feed lives in the
+  // up a fresh tab/highlightEntry each time. Now that Tickle Stash lives in the
   // bottom Tabs navigator it stays mounted across tab switches, so a
   // repeat router.push('/feed', { tab, highlightEntry }) from Home,
   // Weekly Summary, or notifications.js just refocuses this same
   // instance instead of remounting it -- without this resync, those
   // pushes silently stop switching tabs/highlighting after the first
-  // time Feed is opened in a session.
+  // time Tickle Stash is opened in a session.
   useEffect(() => {
     if (!TABS.some((t) => t.id === params.tab)) return;
     setTab(params.tab);
@@ -152,7 +152,7 @@ export default function Feed() {
   // -- no other screen writes to follows/likes -- so they only need to
   // load once per session rather than refetch on every tab focus.
   // favoritedIds and goals, by contrast, can genuinely change from other
-  // screens while Feed is backgrounded (Calendar's favorite toggle, the
+  // screens while Tickle Stash is backgrounded (Calendar's favorite toggle, the
   // Goals screen), so those two keep reloading on every focus below.
   const loadFollowed = useCallback(async () => {
     if (!session) return;
@@ -217,7 +217,7 @@ export default function Feed() {
   // way as followedIds/favoritedIds/likedIds above: independent of tab,
   // since a link only ever exists for this device's own entries no
   // matter which tab surfaces them. initPinBoardDb() first, same as
-  // Calendar's loadPinBoardData and Pinboard's loadBoard -- Feed can be
+  // Calendar's loadPinBoardData and Pinboard's loadBoard -- Tickle Stash can be
   // the very first screen a fresh install ever visits (it's a bottom
   // tab now), so it can't assume Calendar/Tickle Pics already created
   // the local SQLite tables.
@@ -378,7 +378,7 @@ export default function Feed() {
   }, [tab, highlightedEntryId, entries]);
 
   // Scroll back to the top on every tab switch (Mine/Fav's/Following/
-  // Shared) or Mine's nature-filter chip switch (All/Smiles/
+  // Rippled) or Mine's nature-filter chip switch (All/Smiles/
   // Given/Boost/Journal) so a newly-selected tab or filter doesn't inherit
   // whatever scroll position the previous one was left at. Skipped when
   // a highlightEntry deep link just set the tab -- that case scrolls to
@@ -530,7 +530,7 @@ export default function Feed() {
   // Real DELETE, not a soft-hide — RLS already scopes it to entries you
   // own, and every table referencing tickle_entries (likes, favorites,
   // notifications, shares, etc.) cascades on delete (confirmed against
-  // the schema before building this). Home and Feed each reload their
+  // the schema before building this). Home and Tickle Stash each reload their
   // own entries on focus already, so a deletion made on one screen is
   // picked up by the other the next time it's revisited — no separate
   // cross-screen refresh mechanism needed. Confirmation dialog lives in
@@ -545,7 +545,7 @@ export default function Feed() {
 
   // Reversible, unlike delete, so no confirmation dialog — same
   // no-confirm treatment as follow/favorite/like. Going private just
-  // means Shared/Following's own visibility-filtered queries stop
+  // means Rippled/Following's own visibility-filtered queries stop
   // matching this row next time they reload (loadFeed already reruns on
   // tab change); Home and Mine never filter on visibility, so they keep
   // showing it either way.
@@ -602,7 +602,7 @@ export default function Feed() {
     <WallpaperBackground>
     <View style={[styles.container, { paddingTop: insets.top + 12 }]}>
       <View style={styles.titleRow}>
-        <Text style={styles.title} numberOfLines={1}>Feed</Text>
+        <Text style={styles.title} numberOfLines={1}>Tickle Stash</Text>
         <CornerNav style={styles.cornerNavInline} />
       </View>
       {highlightedEntryId && (

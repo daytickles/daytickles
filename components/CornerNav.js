@@ -7,9 +7,9 @@ import { useNotifications } from '../contexts/NotificationsContext';
 import { useAuth } from '../contexts/AuthContext';
 
 // Shared Weekly Summary / Notifications / Settings row, rendered
-// identically at the top of each of the four tab screens (Home, Feed,
+// identically at the top of each of the four tab screens (Home, Tickle Stash,
 // Calendar, Tickle Pics). These three used to live only in Home's own
-// header row; now that Feed/Calendar/Tickle Pics are peer tabs rather
+// header row; now that Tickle Stash/Calendar/Tickle Pics are peer tabs rather
 // than screens only reached via Home, they need to be reachable from
 // all four.
 export default function CornerNav({ style }) {

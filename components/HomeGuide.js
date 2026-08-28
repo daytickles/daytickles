@@ -14,11 +14,11 @@ const STEPS = [
   },
   {
     title: 'New Tickle',
-    body: "Tap New Tickle to capture something from your day. Choose the Buzz intensity, which adds a buzz dot to your entry, then pick your Vibe.\n\nYou decide whether your Tickle stays private or is a post on Shared.\n\nA Day Journal is available in Settings if you want more space for personal, in-depth writing. You will find your Journal under 'Mine' on the Feed.",
+    body: "Tap New Tickle to capture something from your day. Choose the Buzz intensity, which adds a buzz dot to your entry, then pick your Vibe.\n\nYou decide whether your Tickle stays private or is a post on Rippled.\n\nA Day Journal is available in Settings if you want more space for personal, in-depth writing. You will find your Journal under 'Mine' on the Tickle Stash.",
   },
   {
-    title: 'Feed',
-    body: "The Feed has four tabs: Mine, Fav's, Following, and Shared.\n\nLike a Tickle with the thumbs-up, or save it to your favourites with the star.\n\nOnce you've favourited a Tickle, you can give it recognition with one of three High Fives:\n\nWordweaver — beautifully written\nSoulweaver — emotionally moving\nWittweaver — funny and clever\n\nUse the three-dot menu on your own Tickles to Edit, Make public, or Delete.",
+    title: 'Tickle Stash',
+    body: "The Tickle Stash has four tabs: Mine, Fav's, Following, and Rippled.\n\nLike a Tickle with the thumbs-up, or save it to your favourites with the star.\n\nOnce you've favourited a Tickle, you can give it recognition with one of three High Fives:\n\nWordweaver — beautifully written\nSoulweaver — emotionally moving\nWittweaver — funny and clever\n\nUse the three-dot menu on your own Tickles to Edit, Make public, or Delete.",
   },
   {
     title: 'Tickle Pics',
