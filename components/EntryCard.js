@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Modal, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { C, accentFor, darken, lighten, withAlpha, SAVED_ENTRY_DOT_SIZE, VIBE_COLORS, AWARD_TYPES, AWARD_BADGE_COLOR } from '../lib/theme';
+import { C, accentFor, darken, lighten, withAlpha, SAVED_ENTRY_DOT_SIZE, VIBE_COLORS, AWARD_TYPES, AWARD_BADGE_COLOR, AWARD_HAND_ICON } from '../lib/theme';
 import { flagEmoji } from '../lib/country';
 import InitialsAvatar from './InitialsAvatar';
 import FoundingMemberBadge from './FoundingMemberBadge';
@@ -49,7 +49,7 @@ export default function EntryCard({
   taggedGoal,
   hasLinkedPhoto,
   awardType,
-  hasAward,
+  publicAwardTypes,
   onLayout,
   onToggleFollow,
   onPickGoal,
@@ -62,6 +62,10 @@ export default function EntryCard({
   onGiveAward,
 }) {
   const accent = accentFor(item.profiles?.accent_theme);
+  // Distinct award types this entry has actually received, from any
+  // giver -- see migration 0054's awarded_entries view (public, but
+  // never reveals who gave it, only which type(s)).
+  const hasPublicAward = !!publicAwardTypes?.length;
   const isOwnEntry = item.user_id === currentUserId;
   // Day Journal is just tickle_nature === 'day_journal' (see migration
   // 0010) -- no new prop needed, item already carries it.
@@ -94,7 +98,7 @@ export default function EntryCard({
         // Ordered after highlightedCard so its left edge always wins --
         // a highlighted *and* awarded card should still show the gold
         // stripe, not have it swallowed by the highlight's own border.
-        hasAward && styles.publicAwardStripe,
+        hasPublicAward && styles.publicAwardStripe,
         // Light wash + full border, same family as Goals/FM quest
         // card/Settings cards (withAlpha(color, 0.14) bg + colored
         // border). Additive alongside the stripe above -- different
@@ -104,7 +108,7 @@ export default function EntryCard({
         // ordering, since journalCard only overrides backgroundColor +
         // borderLeft -- an ungated wash would still leak its top/
         // right/bottom border through on an awarded journal entry.
-        hasAward && !isJournal && styles.awardWash,
+        hasPublicAward && !isJournal && styles.awardWash,
         // Ordered last so a journal entry's own look always wins over a
         // legacy award stripe (award-giving is suppressed for journal
         // entries going forward, but a pre-existing award could still
@@ -179,15 +183,20 @@ export default function EntryCard({
                   <Ionicons name="image-outline" size={16} color={C.subtext} />
                 </TouchableOpacity>
               )}
-              {/* Public "this post received some recognition" badge --
-                  unlike the private awardType icon further down (gated
-                  on isFavorited/!isOwnEntry, and colored per the actual
-                  award), this shows to everyone, on any awarded post,
-                  including the owner's own, always in the one shared
-                  AWARD_BADGE_COLOR regardless of which award it was. */}
-              {hasAward && (
+              {/* Public "this post received recognition" badge -- one
+                  hand icon per distinct award type the entry has
+                  actually received, from any giver, each colored per
+                  that type. Shown to everyone, on any awarded post,
+                  including the owner's own. Deliberately reveals which
+                  type(s) were given (2026-08-29 product decision) --
+                  see AWARD_BADGE_COLOR in lib/theme.js for why the
+                  card's stripe/wash stays generic while this icon
+                  doesn't. */}
+              {hasPublicAward && (
                 <View style={styles.publicAwardBadge}>
-                  <Ionicons name="hand-right" size={16} color={AWARD_BADGE_COLOR} />
+                  {publicAwardTypes.map((type) => (
+                    <Ionicons key={type} name={AWARD_HAND_ICON} size={16} color={AWARD_TYPES[type].color} />
+                  ))}
                 </View>
               )}
               {showMineActions && !isJournal && (
@@ -247,7 +256,7 @@ export default function EntryCard({
                   // left to tap: no edit/change affordance exists for an
                   // already-given award.
                   <View style={styles.awardAction}>
-                    <Ionicons name={AWARD_TYPES[awardType].iconActive} size={16} color={AWARD_TYPES[awardType].color} />
+                    <Ionicons name={AWARD_HAND_ICON} size={16} color={AWARD_TYPES[awardType].color} />
                   </View>
                 ) : (
                   <TouchableOpacity
@@ -420,7 +429,7 @@ const styles = StyleSheet.create({
   iconGroup: { flexDirection: 'row', alignItems: 'center' },
   natureIcon: { marginLeft: 12 },
   photoAction: { marginLeft: 12 },
-  publicAwardBadge: { marginLeft: 12 },
+  publicAwardBadge: { flexDirection: 'row', alignItems: 'center', marginLeft: 12, gap: 4 },
   goalDot: {
     width: 16, height: 16, borderRadius: 8, marginLeft: 12,
     alignItems: 'center', justifyContent: 'center',

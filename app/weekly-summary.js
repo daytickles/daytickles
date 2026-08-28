@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { C, accentFor, SAVED_ENTRY_DOT_SIZE, textOn, withAlpha, darken, lighten, NATURE_ORDER, VIBE_COLORS, AWARD_TYPES } from '../lib/theme';
+import { C, accentFor, SAVED_ENTRY_DOT_SIZE, textOn, withAlpha, darken, lighten, NATURE_ORDER, VIBE_COLORS, AWARD_TYPES, AWARD_HAND_ICON } from '../lib/theme';
 import { currentWeekStartDate, currentWeekStartISO, currentWeekDates, localDateString, DEFAULT_WEEK_START_DAY } from '../lib/week';
 import { initPinBoardDb, getPinnedPhotoCountSince, getPhotoShareCountSince } from '../lib/pinBoardDb';
 import { flagEmoji } from '../lib/country';
@@ -472,7 +472,7 @@ export default function WeeklySummary() {
                       key={n.id}
                       style={[styles.awardCard, { backgroundColor: withAlpha(award.color, 0.14), borderColor: award.color }]}
                     >
-                      <Ionicons name={award.iconActive} size={16} color={award.color} />
+                      <Ionicons name={AWARD_HAND_ICON} size={16} color={award.color} />
                       <Text style={styles.awardText} numberOfLines={2}>
                         {actorName} gave you a {award.label} high five
                         {n.tickle_entries?.text_content ? `: ${n.tickle_entries.text_content}` : ''}
@@ -487,7 +487,7 @@ export default function WeeklySummary() {
                       key={a.id}
                       style={[styles.awardCard, { backgroundColor: withAlpha(award.color, 0.14), borderColor: award.color }]}
                     >
-                      <Ionicons name={award.iconActive} size={16} color={award.color} />
+                      <Ionicons name={AWARD_HAND_ICON} size={16} color={award.color} />
                       <Text style={styles.awardText} numberOfLines={2}>
                         You gave a {award.label} high five
                         {a.tickle_entries?.text_content ? `: ${a.tickle_entries.text_content}` : ''}

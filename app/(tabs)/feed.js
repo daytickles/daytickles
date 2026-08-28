@@ -75,15 +75,25 @@ const DEFAULT_ITEM_HEIGHT = 114;
 // setEntries, rather than as a separate effect reacting to `entries` --
 // that shape used to fire a second render right after every content
 // refresh (setEntries, then the effect noticing entries changed,
-// querying, then setAwardedEntryIds); calling it here lets both land in
-// the same batch instead.
-async function fetchAwardedEntryIds(entryIds) {
-  if (entryIds.length === 0) return new Set();
+// querying, then setAwardedPublicTypes); calling it here lets both land
+// in the same batch instead.
+//
+// Map<entryId, string[]> -- distinct award types (from ANY giver) each
+// entry has actually received (see migration 0054's awarded_entries
+// view: public, but never reveals who gave it, only which type(s)).
+async function fetchAwardedEntryTypes(entryIds) {
+  if (entryIds.length === 0) return new Map();
   const { data, error } = await supabase
     .from('awarded_entries')
-    .select('entry_id')
+    .select('entry_id, award_type')
     .in('entry_id', entryIds);
-  return error ? new Set() : new Set((data || []).map((a) => a.entry_id));
+  if (error) return new Map();
+  const map = new Map();
+  for (const row of data || []) {
+    if (!map.has(row.entry_id)) map.set(row.entry_id, []);
+    map.get(row.entry_id).push(row.award_type);
+  }
+  return map;
 }
 
 export default function Feed() {
@@ -111,13 +121,14 @@ export default function Feed() {
   // rather than a Set since the icon needs to know *which* award, not
   // just whether one exists.
   const [awardedTypes, setAwardedTypes] = useState(new Map());
-  // Set<entryId> -- the PUBLIC "has any award, from anyone" flag (via
-  // awarded_entries, entry_id only), unlike awardedTypes above which is
-  // private/viewer-scoped. Loaded inside loadFeed itself, alongside
-  // setEntries (see fetchAwardedEntryIds above), not per-session like
-  // the other Sets, since it needs to cover every entry on screen, not
-  // just ones this viewer has personally interacted with.
-  const [awardedEntryIds, setAwardedEntryIds] = useState(new Set());
+  // Map<entryId, string[]> -- the PUBLIC award types, from anyone (via
+  // awarded_entries, now entry_id + award_type -- see migration 0054),
+  // unlike awardedTypes above which is private/viewer-scoped. Loaded
+  // inside loadFeed itself, alongside setEntries (see
+  // fetchAwardedEntryTypes above), not per-session like the other Sets,
+  // since it needs to cover every entry on screen, not just ones this
+  // viewer has personally interacted with.
+  const [awardedPublicTypes, setAwardedPublicTypes] = useState(new Map());
   const [enlargeUri, setEnlargeUri] = useState(null);
   const { hiddenCard, captureCard } = useShareCard();
   const [highlightedEntryId, setHighlightedEntryId] = useState(
@@ -290,7 +301,7 @@ export default function Feed() {
       const followeeIds = Array.from(followedIds);
       if (followeeIds.length === 0) {
         setEntries([]);
-        setAwardedEntryIds(new Set());
+        setAwardedPublicTypes(new Map());
         setLoading(false);
         return;
       }
@@ -302,9 +313,9 @@ export default function Feed() {
         .order('created_at', { ascending: false });
       if (!error) {
         const entriesData = data || [];
-        const awardedIds = await fetchAwardedEntryIds(entriesData.map((e) => e.id));
+        const awardedTypesById = await fetchAwardedEntryTypes(entriesData.map((e) => e.id));
         setEntries(entriesData);
-        setAwardedEntryIds(awardedIds);
+        setAwardedPublicTypes(awardedTypesById);
       }
       setLoading(false);
       return;
@@ -318,7 +329,7 @@ export default function Feed() {
       const favIds = Array.from(favoritedIds);
       if (favIds.length === 0) {
         setEntries([]);
-        setAwardedEntryIds(new Set());
+        setAwardedPublicTypes(new Map());
         setLoading(false);
         return;
       }
@@ -329,9 +340,9 @@ export default function Feed() {
         .order('created_at', { ascending: false });
       if (!error) {
         const entriesData = data || [];
-        const awardedIds = await fetchAwardedEntryIds(entriesData.map((e) => e.id));
+        const awardedTypesById = await fetchAwardedEntryTypes(entriesData.map((e) => e.id));
         setEntries(entriesData);
-        setAwardedEntryIds(awardedIds);
+        setAwardedPublicTypes(awardedTypesById);
       }
       setLoading(false);
       return;
@@ -353,9 +364,9 @@ export default function Feed() {
     const { data, error } = await query;
     if (!error) {
       const entriesData = data || [];
-      const awardedIds = await fetchAwardedEntryIds(entriesData.map((e) => e.id));
+      const awardedTypesById = await fetchAwardedEntryTypes(entriesData.map((e) => e.id));
       setEntries(entriesData);
-      setAwardedEntryIds(awardedIds);
+      setAwardedPublicTypes(awardedTypesById);
     }
     setLoading(false);
     // likedIds isn't used to filter any query above — it's a dependency
@@ -575,7 +586,7 @@ export default function Feed() {
         taggedGoal={item.goal_id ? goalsById[item.goal_id] : null}
         hasLinkedPhoto={photoLinkedIds.has(item.id)}
         awardType={awardedTypes.get(item.id) || null}
-        hasAward={awardedEntryIds.has(item.id)}
+        publicAwardTypes={awardedPublicTypes.get(item.id) || []}
         onOpenPhoto={handleOpenPhoto}
         onLayout={(e) => {
           cardHeights.current[item.id] = e.nativeEvent.layout.height + CARD_SPACING;

@@ -69,10 +69,11 @@ export default function Calendar() {
   // Map<entryId, awardType> -- same shape/reasoning as feed.js's own
   // awardedTypes (private-to-giver RLS, loaded once per session below).
   const [awardedTypes, setAwardedTypes] = useState(new Map());
-  // Set<entryId> -- same PUBLIC "has any award" flag as feed.js's own
-  // awardedEntryIds, but reacts to dayEntries here (the currently-shown
-  // day's entries) rather than a screen-wide entries list.
-  const [awardedEntryIds, setAwardedEntryIds] = useState(new Set());
+  // Map<entryId, string[]> -- same PUBLIC award-types map as feed.js's
+  // own awardedPublicTypes (see migration 0054's awarded_entries view),
+  // but reacts to dayEntries here (the currently-shown day's entries)
+  // rather than a screen-wide entries list.
+  const [awardedPublicTypes, setAwardedPublicTypes] = useState(new Map());
   const [photoLinkedIds, setPhotoLinkedIds] = useState(new Set());
   const [photoDatesInMonth, setPhotoDatesInMonth] = useState(new Set());
   const [enlargeUri, setEnlargeUri] = useState(null);
@@ -202,15 +203,21 @@ export default function Calendar() {
   // awarded_entries view.
   useEffect(() => {
     if (dayEntries.length === 0) {
-      setAwardedEntryIds(new Set());
+      setAwardedPublicTypes(new Map());
       return;
     }
     supabase
       .from('awarded_entries')
-      .select('entry_id')
+      .select('entry_id, award_type')
       .in('entry_id', dayEntries.map((e) => e.id))
       .then(({ data, error }) => {
-        if (!error) setAwardedEntryIds(new Set((data || []).map((a) => a.entry_id)));
+        if (error) return;
+        const map = new Map();
+        for (const row of data || []) {
+          if (!map.has(row.entry_id)) map.set(row.entry_id, []);
+          map.get(row.entry_id).push(row.award_type);
+        }
+        setAwardedPublicTypes(map);
       });
   }, [dayEntries]);
 
@@ -540,7 +547,7 @@ export default function Calendar() {
                   taggedGoal={item.goal_id ? goalsById[item.goal_id] : null}
                   hasLinkedPhoto={photoLinkedIds.has(item.id)}
                   awardType={awardedTypes.get(item.id) || null}
-                  hasAward={awardedEntryIds.has(item.id)}
+                  publicAwardTypes={awardedPublicTypes.get(item.id) || []}
                   onOpenPhoto={handleOpenPhoto}
                   onPickGoal={setPickerEntryId}
                   onShare={setShareEntryId}
