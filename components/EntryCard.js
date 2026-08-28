@@ -242,31 +242,28 @@ export default function EntryCard({
                   </Text>
                 </TouchableOpacity>
               )}
-              {/* Unlike the favorite star above (favoriting your own
-                  entry is allowed), awarding your own entry is blocked
+              {/* Give-High-Five CTA -- shown only while the viewer
+                  hasn't given their own award yet. Once they have
+                  (awardType truthy), this element is dropped entirely
+                  rather than swapped for a duplicate colored icon here:
+                  the public badge above (hasPublicAward) already
+                  renders a colored hand icon for that exact type, now
+                  that award_type is public (migration 0054) -- a
+                  second, visually identical icon here was pure
+                  redundant clutter. Awarding your own entry is blocked
                   -- both here client-side and server-side via migration
                   0020's prevent_self_award trigger, same defense-in-
                   depth shape as the Like button's own !isOwnEntry gate
                   further down this file. Journal entries suppress
                   award-giving entirely, same as the favorite star above. */}
-              {!isJournal && isFavorited && !isOwnEntry && (
-                awardType ? (
-                  // Permanent once given (see migration 0020) -- a plain
-                  // View, not a TouchableOpacity, since there's nothing
-                  // left to tap: no edit/change affordance exists for an
-                  // already-given award.
-                  <View style={styles.awardAction}>
-                    <Ionicons name={AWARD_HAND_ICON} size={16} color={AWARD_TYPES[awardType].color} />
-                  </View>
-                ) : (
-                  <TouchableOpacity
-                    onPress={() => onGiveAward?.(item.id)}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    style={styles.awardAction}
-                  >
-                    <Ionicons name="hand-right-outline" size={16} color={C.faint} />
-                  </TouchableOpacity>
-                )
+              {!isJournal && isFavorited && !isOwnEntry && !awardType && (
+                <TouchableOpacity
+                  onPress={() => onGiveAward?.(item.id)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  style={styles.awardAction}
+                >
+                  <Ionicons name="hand-right-outline" size={16} color={C.faint} />
+                </TouchableOpacity>
               )}
               {/* Edit/visibility/delete used to each be their own inline
                   icon -- collapsed into this single menu (see the Modal

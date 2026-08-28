@@ -480,6 +480,12 @@ export default function Feed() {
   async function handleGiveAward(entryId, awardType) {
     setAwardEntryId(null);
     setAwardedTypes((prev) => new Map(prev).set(entryId, awardType));
+    setAwardedPublicTypes((prev) => {
+      const next = new Map(prev);
+      const existing = next.get(entryId) || [];
+      if (!existing.includes(awardType)) next.set(entryId, [...existing, awardType]);
+      return next;
+    });
 
     const { error } = await supabase
       .from('awards')
@@ -489,6 +495,13 @@ export default function Feed() {
       setAwardedTypes((prev) => {
         const next = new Map(prev);
         next.delete(entryId);
+        return next;
+      });
+      setAwardedPublicTypes((prev) => {
+        const next = new Map(prev);
+        const remaining = (next.get(entryId) || []).filter((t) => t !== awardType);
+        if (remaining.length) next.set(entryId, remaining);
+        else next.delete(entryId);
         return next;
       });
       console.error('handleGiveAward failed', error);
