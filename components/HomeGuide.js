@@ -10,15 +10,19 @@ import Button from './Button';
 const STEPS = [
   {
     title: 'Home & Your Vibes',
-    body: "Every Tickle you write gets a Vibe — Made me smile, I paid forward, or For me. Choose one when you save your entry.\n\nThe three Vibe cards on Home show your activity by week, month, and all-time. You can also set a daily target for any Vibe in Settings. When you reach your target, its lightbulb lights up for the day. It is completely optional — a little extra motivation if you like having something to aim for.",
+    body: "Every Tickle you write gets a Vibe — Made me smile, I paid forward, or For me. Choose one when you save your entry.\n\nThe three Vibe cards on Home show your activity by week, month, and all-time. You can also set daily and weekly targets for any Vibe in Settings — each has its own lightbulb on the Vibe card, lighting up once you hit that target for the day or the week. It is completely optional — a little extra motivation if you like having something to aim for.",
   },
   {
     title: 'New Tickle',
-    body: "Tap New Tickle to capture something from your day. Choose the Buzz intensity, which adds a buzz dot to your entry, then pick your Vibe.\n\nYou decide whether your Tickle stays private or is a post on Rippled.\n\nA Day Journal is available in Settings if you want more space for personal, in-depth writing. You will find your Journal under 'Mine' on the Tickle Stash.",
+    body: "Tap New Tickle to capture something from your day. Write what's on your mind, then pick your Vibe — Made me smile, I paid forward, or For me. Its icon becomes that entry's identifier everywhere it shows up: Tickle Stash, Calendar, and Home.\n\nYou decide whether your Tickle stays private or is a post on Rippled.\n\nA Day Journal is available in Settings if you want more space for personal, in-depth writing. You will find your Journal under 'Mine' on the Tickle Stash.",
   },
   {
     title: 'Tickle Stash',
     body: "The Tickle Stash has four tabs: Mine, Fav's, Following, and Rippled.\n\nLike a Tickle with the thumbs-up, or save it to your favourites with the star.\n\nOnce you've favourited a Tickle, you can give it recognition with one of three High Fives:\n\nWordweaver — beautifully written\nSoulweaver — emotionally moving\nWittweaver — funny and clever\n\nUse the three-dot menu on your own Tickles to Edit, Make public, or Delete.",
+  },
+  {
+    title: 'Calendar',
+    body: "Calendar marks every day you've written a Tickle with its Vibe icon, so you can see your rhythm at a glance. Days with a Goal-tagged entry also show a colored dot for that Goal. Tap any day to see what you wrote.",
   },
   {
     title: 'Tickle Pics',
@@ -29,16 +33,12 @@ const STEPS = [
     body: "Manage your Goals from Settings. Use them for anything you're focusing on, then tag Tickles to a Goal by tapping the empty circle on the entry. This is an easy, private way to record your progress. Goals can be archived or deleted whenever you like.",
   },
   {
-    title: 'Calendar',
-    body: "Calendar marks every day you've written a Tickle with its Vibe icon, so you can see your rhythm at a glance. Days with a Goal-tagged entry also show a colored dot for that Goal. Tap any day to see what you wrote.",
-  },
-  {
     title: 'Founding Member',
-    body: "Become a Founding Member by completing your Quest. Achieve it and you'll receive lifetime membership and your own unique Founding Member ID. Tap the crown to discover more.",
+    body: "Tap the crown to see your Founding Member invite. Opting in starts your 6-month Quest — the clock doesn't start until you do, and missing the opt-in window closes the opportunity for good. Complete the Quest and you'll receive lifetime membership and your own unique Founding Member ID.",
   },
   {
     title: 'Weekly Summary',
-    body: 'Tap the chart icon on Home to open your Weekly Summary — a look back at your week, including your most-liked Tickle, Weekly Vibes, connections you\'ve made, and your Tickle Pics activity.',
+    body: "Tap the chart icon on Home to open your Weekly Summary — a look back at your week, including your most-liked Tickle, Weekly Vibes, Goals you've achieved, connections you've made, High Fives given and received, and your Tickle Pics activity.",
   },
 ];
 
