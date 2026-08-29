@@ -6,7 +6,7 @@ import Button from './Button';
 
 // Content lives here (not passed as props) since both callers — the
 // auto-shown first-run guide on Home and the on-demand "How DayTickles
-// works" link in Settings — show the exact same eight steps.
+// works" link in Settings — show the exact same nine steps.
 const STEPS = [
   {
     title: 'Home & Your Vibes',
@@ -31,6 +31,10 @@ const STEPS = [
   {
     title: 'Goals',
     body: "Manage your Goals from Settings. Use them for anything you're focusing on, then tag Tickles to a Goal by tapping the empty circle on the entry. This is an easy, private way to record your progress. Goals can be archived or deleted whenever you like.",
+  },
+  {
+    title: 'Awareness Cue',
+    body: "Awareness Cue is a private, contentless vibration or sound burst that fires a few times a day, at random moments — a personal nudge to notice what's happening right now. No message, no response expected.\n\nTurn it on in Settings, then choose Vibrate or Sound, how often (Surprise me, or an exact count from 1 to 10 a day), and the hours it's allowed to fire in.",
   },
   {
     title: 'Founding Member',
