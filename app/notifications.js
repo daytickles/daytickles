@@ -32,13 +32,16 @@ function notificationText(n) {
       return entryText ? `${actorName} liked your tickle: ${entryText}` : `${actorName} liked your tickle`;
     case 'favorite':
       return entryText ? `${actorName} fav'ed your tickle: ${entryText}` : `${actorName} fav'ed your tickle`;
-    case 'award': {
-      const award = AWARD_TYPES[n.award_type];
-      const awardPhrase = award ? `a ${award.label} high five` : 'a high five';
+    // Deliberately doesn't name the specific type -- the descriptive
+    // phrases (see lib/theme.js's AWARD_TYPES) read awkwardly baked into
+    // this sentence, unlike the old "-weaver" proper nouns. The type is
+    // still visible via notificationAccent()'s per-type border color and,
+    // once given, via the recipient's public badge (EntryCard) -- this
+    // line just no longer repeats it in words.
+    case 'award':
       return entryText
-        ? `${actorName} gave your tickle ${awardPhrase}: ${entryText}`
-        : `${actorName} gave your tickle ${awardPhrase}`;
-    }
+        ? `${actorName} gave you a high five: ${entryText}`
+        : `${actorName} gave you a high five`;
     case 'comment':
       return entryText ? `${actorName} commented on your tickle: ${entryText}` : `${actorName} commented on your tickle`;
     case 'streak_milestone':

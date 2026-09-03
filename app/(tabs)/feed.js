@@ -847,6 +847,10 @@ export default function Feed() {
 
   const pickerEntry = entries.find((e) => e.id === pickerEntryId) || null;
   const shareTargetEntry = entries.find((e) => e.id === shareEntryId) || null;
+  // AwardPickerModal needs the actual entry (not just its id) so its
+  // wordweaver row can pick the right photo-only-aware phrase -- same
+  // lookup pattern as shareTargetEntry above.
+  const awardTargetEntry = entries.find((e) => e.id === awardEntryId) || null;
   const shareStat = profile ? shareStatus(profile) : null;
   const shareBlocked = !!shareStat && !shareStat.unlimited && shareStat.remaining <= 0;
 
@@ -955,6 +959,7 @@ export default function Feed() {
 
     <AwardPickerModal
       entryId={awardEntryId}
+      entryKind={awardTargetEntry?.entry_kind}
       onGive={(awardType) => handleGiveAward(awardEntryId, awardType)}
       onDismiss={() => setAwardEntryId(null)}
     />

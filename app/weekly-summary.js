@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { C, accentFor, SAVED_ENTRY_DOT_SIZE, textOn, withAlpha, darken, lighten, NATURE_ORDER, VIBE_COLORS, AWARD_TYPES, AWARD_HAND_ICON } from '../lib/theme';
+import { C, accentFor, SAVED_ENTRY_DOT_SIZE, textOn, withAlpha, darken, lighten, NATURE_ORDER, VIBE_COLORS, AWARD_TYPES, AWARD_HAND_ICON, awardLabelFor } from '../lib/theme';
 import { currentWeekStartDate, currentWeekStartISO, currentWeekDates, localDateString, DEFAULT_WEEK_START_DAY } from '../lib/week';
 import { initPinBoardDb, getPinnedPhotoCountSince, getPhotoShareCountSince } from '../lib/pinBoardDb';
 import { flagEmoji } from '../lib/country';
@@ -24,6 +24,15 @@ const NATURE_LABELS = {
   given: 'Paying forward',
   self: 'For me',
 };
+
+// For embedding an awardLabelFor() phrase mid-sentence ("a {phrase} high
+// five") -- the phrases are written capitalized for standalone display
+// (the picker, the badge tooltip), but read wrong capitalized here.
+// Plain first-character lowercasing is safe for all of them -- none
+// contain a proper noun/acronym that needs to stay capitalized.
+function decapitalize(s) {
+  return s.charAt(0).toLowerCase() + s.slice(1);
+}
 
 // Bubble grid sizing -- a filled bubble's diameter scales between these
 // two values based on that cell's count relative to the grid's single
@@ -121,13 +130,16 @@ export default function WeeklySummary() {
       supabase.from('goals').select('*').order('created_at', { ascending: true }),
       supabase
         .from('awards')
-        .select('id, award_type, created_at, tickle_entries(text_content)')
+        // entry_kind alongside text_content -- awardLabelFor needs it
+        // below to show the same photo-only-aware phrase the giver
+        // actually picked, not always the default text-entry wording.
+        .select('id, award_type, created_at, tickle_entries(text_content, entry_kind)')
         .eq('user_id', session.user.id)
         .gte('created_at', weekStartISO),
       supabase
         .from('notifications')
         .select(
-          'id, award_type, created_at, tickle_entries(text_content), profiles!notifications_actor_id_fkey(username, avatar_emoji, country)'
+          'id, award_type, created_at, tickle_entries(text_content, entry_kind), profiles!notifications_actor_id_fkey(username, avatar_emoji, country)'
         )
         .eq('recipient_id', session.user.id)
         .eq('type', 'award')
@@ -465,6 +477,7 @@ export default function WeeklySummary() {
                 <Text style={styles.sectionLabel}>High Fives</Text>
                 {awardsReceived.map((n) => {
                   const award = AWARD_TYPES[n.award_type];
+                  const label = awardLabelFor(n.award_type, n.tickle_entries?.entry_kind === 'photo_only');
                   const flag = n.profiles?.country ? ` ${flagEmoji(n.profiles.country)}` : '';
                   const actorName = n.profiles?.username ? `${n.profiles.username}${flag}` : 'Someone';
                   return (
@@ -474,7 +487,7 @@ export default function WeeklySummary() {
                     >
                       <Ionicons name={AWARD_HAND_ICON} size={16} color={award.color} />
                       <Text style={styles.awardText} numberOfLines={2}>
-                        {actorName} gave you a {award.label} high five
+                        {actorName} gave you a {decapitalize(label)} high five
                         {n.tickle_entries?.text_content ? `: ${n.tickle_entries.text_content}` : ''}
                       </Text>
                     </View>
@@ -482,6 +495,7 @@ export default function WeeklySummary() {
                 })}
                 {awardsGiven.map((a) => {
                   const award = AWARD_TYPES[a.award_type];
+                  const label = awardLabelFor(a.award_type, a.tickle_entries?.entry_kind === 'photo_only');
                   return (
                     <View
                       key={a.id}
@@ -489,7 +503,7 @@ export default function WeeklySummary() {
                     >
                       <Ionicons name={AWARD_HAND_ICON} size={16} color={award.color} />
                       <Text style={styles.awardText} numberOfLines={2}>
-                        You gave a {award.label} high five
+                        You gave a {decapitalize(label)} high five
                         {a.tickle_entries?.text_content ? `: ${a.tickle_entries.text_content}` : ''}
                       </Text>
                     </View>

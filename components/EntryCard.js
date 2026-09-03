@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity, Alert, Modal, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { C, accentFor, darken, lighten, withAlpha, SAVED_ENTRY_DOT_SIZE, VIBE_COLORS, NATURE_LABELS, AWARD_TYPES, AWARD_BADGE_COLOR, AWARD_HAND_ICON } from '../lib/theme';
+import { C, accentFor, darken, lighten, withAlpha, SAVED_ENTRY_DOT_SIZE, VIBE_COLORS, NATURE_LABELS, AWARD_TYPES, AWARD_BADGE_COLOR, AWARD_HAND_ICON, awardLabelFor } from '../lib/theme';
 import { flagEmoji } from '../lib/country';
 import InitialsAvatar from './InitialsAvatar';
 import FoundingMemberBadge from './FoundingMemberBadge';
@@ -100,6 +100,23 @@ export default function EntryCard({
   // Journal entries render collapsed (4 lines) behind ruled-paper
   // texture until tapped open -- local to the card, same as menuOpen.
   const [journalExpanded, setJournalExpanded] = useState(false);
+  // Tap-to-reveal on the public award badge below -- which distinct
+  // award TYPE's popup is open (or null), not an index, since
+  // publicAwardTypes is already deduped to distinct types. Same tap-to-
+  // show/tap-again-to-dismiss/auto-hide-after-2s shape as Home's own
+  // stat-pill tooltips (showStatTooltip).
+  const [openAwardType, setOpenAwardType] = useState(null);
+  const awardTooltipTimerRef = useRef(null);
+
+  function showAwardTooltip(type) {
+    if (awardTooltipTimerRef.current) clearTimeout(awardTooltipTimerRef.current);
+    if (openAwardType === type) {
+      setOpenAwardType(null);
+      return;
+    }
+    setOpenAwardType(type);
+    awardTooltipTimerRef.current = setTimeout(() => setOpenAwardType(null), 2000);
+  }
 
   function confirmDelete() {
     Alert.alert(
@@ -235,11 +252,27 @@ export default function EntryCard({
                   type(s) were given (2026-08-29 product decision) --
                   see AWARD_BADGE_COLOR in lib/theme.js for why the
                   card's stripe/wash stays generic while this icon
-                  doesn't. */}
+                  doesn't. Each icon is independently tappable -- for a
+                  multi-type badge, tapping one icon reveals only THAT
+                  type's phrase, never a combined list, and never who
+                  gave it (awarded_entries -- migration 0054 -- never
+                  exposes giver identity, same privacy boundary here). */}
               {hasPublicAward && (
                 <View style={styles.publicAwardBadge}>
                   {publicAwardTypes.map((type) => (
-                    <Ionicons key={type} name={AWARD_HAND_ICON} size={16} color={AWARD_TYPES[type].color} />
+                    <View key={type} style={styles.awardBadgeIconWrap}>
+                      <TouchableOpacity
+                        onPress={() => showAwardTooltip(type)}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      >
+                        <Ionicons name={AWARD_HAND_ICON} size={16} color={AWARD_TYPES[type].color} />
+                      </TouchableOpacity>
+                      {openAwardType === type && (
+                        <View style={styles.awardTooltip} pointerEvents="none">
+                          <Text style={styles.awardTooltipText}>{awardLabelFor(type, isPhotoOnly)}</Text>
+                        </View>
+                      )}
+                    </View>
                   ))}
                 </View>
               )}
@@ -567,6 +600,23 @@ const styles = StyleSheet.create({
   natureIcon: { marginLeft: 12 },
   photoAction: { marginLeft: 12 },
   publicAwardBadge: { flexDirection: 'row', alignItems: 'center', marginLeft: 12, gap: 4 },
+  awardBadgeIconWrap: { position: 'relative' },
+  // Pops upward from the icon (same direction as Home's own stat-pill
+  // tooltip) and is nudged left via the negative `right` offset so it
+  // has a better chance of staying on-card for the rightmost icon in a
+  // multi-type badge, which sits closest to the card's own right edge --
+  // a first-pass placement with no real viewport-edge measurement behind
+  // it, same tradeoff EntryCard's own Polaroid width comment already
+  // accepted; retune if it clips on a real device.
+  awardTooltip: {
+    position: 'absolute', bottom: '100%', marginBottom: 6, right: -20,
+    width: 170, alignItems: 'center',
+  },
+  awardTooltipText: {
+    fontSize: 11, fontWeight: '600', color: C.bg, textAlign: 'center',
+    backgroundColor: C.rustDark, borderRadius: 8, overflow: 'hidden',
+    paddingVertical: 4, paddingHorizontal: 10,
+  },
   goalDot: {
     width: 16, height: 16, borderRadius: 8, marginLeft: 12,
     alignItems: 'center', justifyContent: 'center',
