@@ -630,8 +630,14 @@ const styles = StyleSheet.create({
   connectionDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: C.teal },
   connectionCardText: { flex: 1, fontSize: 14, color: C.tealText, lineHeight: 20 },
 
+  // Matches the light-wash + solid-border treatment already established
+  // on this screen's other section cards (entryCard/goalCard/awardCard/
+  // connectionCard, see rhythmTotalPill's own comment above) -- was a
+  // hardcoded solid C.sparkleBg fill, the one card on this screen not
+  // built from withAlpha(borderColor, ...). Same 0.16 alpha as entryCard
+  // specifically, since both share C.amberDark as their accent.
   pinBoardCard: {
-    backgroundColor: C.sparkleBg, borderWidth: 1, borderColor: C.amberDark,
+    backgroundColor: withAlpha(C.amberDark, 0.16), borderWidth: 1, borderColor: C.amberDark,
     borderRadius: 16, padding: 14, marginBottom: 16,
   },
   pinBoardCardText: { fontSize: 14, color: C.sparkleText, lineHeight: 20 },
