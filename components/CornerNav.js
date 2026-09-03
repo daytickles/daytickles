@@ -5,6 +5,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { C } from '../lib/theme';
 import { useNotifications } from '../contexts/NotificationsContext';
 import { useAuth } from '../contexts/AuthContext';
+import CountBadge from './CountBadge';
 
 // Shared Weekly Summary / Notifications / Settings row, rendered
 // identically at the top of each of the four tab screens (Home, Tickle Stash,
@@ -50,11 +51,7 @@ export default function CornerNav({ style }) {
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
       >
         <Ionicons name="notifications-outline" size={20} color={C.subtext} />
-        {unreadCount > 0 && (
-          <View style={styles.unreadBadge}>
-            <Text style={styles.unreadBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
-          </View>
-        )}
+        <CountBadge count={unreadCount} />
       </TouchableOpacity>
       {showFoundingMember && (
         <TouchableOpacity
@@ -79,10 +76,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 16, marginBottom: 12,
   },
   bellButton: { position: 'relative' },
-  unreadBadge: {
-    position: 'absolute', top: -6, right: -8, minWidth: 16, height: 16, borderRadius: 8,
-    backgroundColor: C.teal, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3,
-  },
-  unreadBadgeText: { fontSize: 10, fontWeight: '700', color: C.bg },
   settingsLink: { fontSize: 22, color: C.subtext },
 });

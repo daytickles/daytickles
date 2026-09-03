@@ -15,9 +15,11 @@ import ShareModal from '../../components/ShareModal';
 import PhotoEnlargeModal from '../../components/PhotoEnlargeModal';
 import EntryCard, { CARD_SPACING } from '../../components/EntryCard';
 import CornerNav from '../../components/CornerNav';
+import CountBadge from '../../components/CountBadge';
 import WallpaperBackground from '../../components/WallpaperBackground';
 import { initPinBoardDb, getAllLinkedEntryIds, getPhotoForEntry } from '../../lib/pinBoardDb';
 import { useShareCard } from '../../lib/useShareCard';
+import { getLastOpened, setLastOpened } from '../../lib/feedLastOpened';
 
 const TABS = [
   { id: 'mine', label: 'Mine' },
@@ -96,6 +98,35 @@ async function fetchAwardedEntryTypes(entryIds) {
   return map;
 }
 
+// The two tabs "new since you were here" tracks -- see
+// lib/feedLastOpened.js. A plain array rather than deriving from TABS
+// since 'mine'/'favorites' are deliberately excluded.
+const NEW_SINCE_TABS = ['following', 'rippled'];
+
+// Cheap head-count query (no rows fetched), mirroring loadFeed's own
+// following/rippled predicates exactly so the count matches what the tab
+// would actually show. `since === null` (tab never opened on this device)
+// is handled by callers, not here -- they simply don't call this in that
+// case, per the "no badge on first visit" design decision.
+async function countNewSince(tabId, since, followeeIds) {
+  let query = supabase
+    .from('tickle_entries')
+    .select('id', { count: 'exact', head: true })
+    .eq('visibility', 'public')
+    .gt('created_at', new Date(since).toISOString());
+  if (tabId === 'following') {
+    if (followeeIds.length === 0) return 0;
+    query = query.in('user_id', followeeIds);
+  }
+  const { count, error } = await query;
+  return error ? 0 : (count || 0);
+}
+
+function dividerLabel(tabId, count) {
+  const noun = tabId === 'rippled' ? 'ripple' : 'post';
+  return `${count} new ${noun}${count === 1 ? '' : 's'}`;
+}
+
 export default function Feed() {
   const { session, profile, refreshProfile } = useAuth();
   const accentDark = darken(accentFor(profile?.accent_theme).card, 0.35);
@@ -129,6 +160,16 @@ export default function Feed() {
   // since it needs to cover every entry on screen, not just ones this
   // viewer has personally interacted with.
   const [awardedPublicTypes, setAwardedPublicTypes] = useState(new Map());
+  // "New since you were here" -- see lib/feedLastOpened.js. badgeCounts
+  // holds what each tab's pill should show right now (null = no badge,
+  // covering both "never opened on this device" and "opened moments ago,
+  // nothing new yet"). dividerThresholds holds the timestamp *as of the
+  // moment the tab was last opened*, captured once per open and held
+  // steady across refetches while the tab stays open -- it's what the
+  // in-feed "N new posts" divider is computed against, deliberately
+  // separate from badgeCounts (which is allowed to change while viewing).
+  const [badgeCounts, setBadgeCounts] = useState({ following: null, rippled: null });
+  const [dividerThresholds, setDividerThresholds] = useState({ following: null, rippled: null });
   const [enlargeUri, setEnlargeUri] = useState(null);
   const { hiddenCard, captureCard } = useShareCard();
   const [highlightedEntryId, setHighlightedEntryId] = useState(
@@ -380,6 +421,49 @@ export default function Feed() {
     }, [loadFeed])
   );
 
+  // "New since you were here" for Following/Rippled -- see
+  // lib/feedLastOpened.js for why this is AsyncStorage, not a profiles
+  // column. Runs as one sequential async pass rather than two independent
+  // effects: if `tab` is following/rippled, it *first* fully finishes
+  // resetting that tab's own lastOpened (read the old value for the
+  // divider threshold, write now(), zero its own badge) before it ever
+  // looks at the other tab's badge -- so a slower in-flight query for the
+  // other tab can never race with, and stomp, the tab just opened.
+  // Wired to useFocusEffect (like loadFeed above, same file) rather than a
+  // plain useEffect specifically so it re-runs both on a genuine return to
+  // this screen (catches content that arrived while away) and on every
+  // in-page tab switch (its callback depends on `tab`) -- matching the
+  // design's "resets the moment the tab is opened", not just on screen
+  // focus.
+  const refreshNewSinceIndicators = useCallback(async () => {
+    if (!session) return;
+    const userId = session.user.id;
+
+    if (tab === 'following' || tab === 'rippled') {
+      const previous = await getLastOpened(tab, userId);
+      await setLastOpened(tab, userId, Date.now());
+      setDividerThresholds((prev) => ({ ...prev, [tab]: previous }));
+      setBadgeCounts((prev) => ({ ...prev, [tab]: null }));
+    }
+
+    const otherTabs = NEW_SINCE_TABS.filter((t) => t !== tab);
+    for (const t of otherTabs) {
+      const since = await getLastOpened(t, userId);
+      // null == never opened on this device -- no badge, per the
+      // deliberate "no badge on first visit" decision (a from-account-
+      // creation count would be an intimidating, meaningless first
+      // impression rather than a useful one).
+      const count = since == null ? null : await countNewSince(t, since, Array.from(followedIds));
+      setBadgeCounts((prev) => ({ ...prev, [t]: count }));
+    }
+  }, [session, tab, followedIds]);
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshNewSinceIndicators();
+    }, [refreshNewSinceIndicators])
+  );
+
   useEffect(() => {
     if (tab !== 'mine' || !highlightedEntryId) return;
     const index = entries.findIndex((e) => e.id === highlightedEntryId);
@@ -616,6 +700,44 @@ export default function Feed() {
     );
   }
 
+  // Divider position/count derived fresh each render from `entries` +
+  // this tab's captured threshold -- not stored state -- so it always
+  // matches whatever is actually on screen. Skipped entirely (no divider)
+  // when nothing is new (newCount === 0) or when every currently-loaded
+  // entry is new (newCount === entries.length -- nothing "already seen"
+  // is loaded to separate from).
+  const dividerThresholdMs =
+    tab === 'following' || tab === 'rippled' ? dividerThresholds[tab] : null;
+  let listData = entries;
+  if (dividerThresholdMs != null) {
+    const newCount = entries.filter((e) => new Date(e.created_at).getTime() > dividerThresholdMs).length;
+    if (newCount > 0 && newCount < entries.length) {
+      listData = [
+        ...entries.slice(0, newCount),
+        { __divider: true, id: `${tab}-divider`, label: dividerLabel(tab, newCount) },
+        ...entries.slice(newCount),
+      ];
+    }
+  }
+
+  function renderListItem({ item }) {
+    if (item.__divider) {
+      return (
+        <View
+          style={styles.divider}
+          onLayout={(e) => {
+            cardHeights.current[item.id] = e.nativeEvent.layout.height + CARD_SPACING;
+          }}
+        >
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>{item.label}</Text>
+          <View style={styles.dividerLine} />
+        </View>
+      );
+    }
+    return renderEntry({ item });
+  }
+
   const pickerEntry = entries.find((e) => e.id === pickerEntryId) || null;
   const shareTargetEntry = entries.find((e) => e.id === shareEntryId) || null;
   const shareStat = profile ? shareStatus(profile) : null;
@@ -649,6 +771,7 @@ export default function Feed() {
             ]}
           >
             <Text style={[styles.tabLabel, tab === t.id && { color: accentDarkText }]}>{t.label}</Text>
+            {NEW_SINCE_TABS.includes(t.id) && <CountBadge count={badgeCounts[t.id]} />}
           </TouchableOpacity>
         ))}
       </View>
@@ -686,9 +809,9 @@ export default function Feed() {
       <FlatList
         ref={listRef}
         style={styles.list}
-        data={entries}
-        keyExtractor={(item) => String(item.id)}
-        renderItem={renderEntry}
+        data={listData}
+        keyExtractor={(item) => (item.__divider ? item.id : String(item.id))}
+        renderItem={renderListItem}
         contentContainerStyle={[styles.listContent, { paddingBottom: styles.listContent.paddingBottom + tabBarHeight }]}
         getItemLayout={(data, index) => {
           let offset = 0;
@@ -758,7 +881,7 @@ const styles = StyleSheet.create({
 
   tabRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16 },
   tabButton: {
-    flex: 1, paddingVertical: 10, borderRadius: 20,
+    flex: 1, paddingVertical: 10, borderRadius: 20, position: 'relative',
     alignItems: 'center', backgroundColor: C.card, borderWidth: 1, borderColor: C.border,
   },
   tabLabel: { fontSize: 12, fontWeight: '600', color: C.subtext },
@@ -773,6 +896,13 @@ const styles = StyleSheet.create({
     backgroundColor: C.bg, borderWidth: 1, borderColor: C.border,
   },
   natureFilterLabel: { fontSize: 11, fontWeight: '600', color: C.subtext },
+
+  // "New since you were here" divider -- plain text label, deliberately
+  // no icon (would overlap with the High Five hand icon's existing
+  // meaning elsewhere on the card).
+  divider: { flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 10 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: C.border },
+  dividerText: { fontSize: 11, fontWeight: '600', color: C.subtext },
 
   loader: { marginTop: 12 },
   list: { flex: 1 },
