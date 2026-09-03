@@ -85,7 +85,7 @@ export default function PolaroidCard({ photo, tickled, onPress, onTickle, onVibe
             avoid overlapping it -- see downloadButton's move above. */}
         {tickled && (
           <View style={styles.tickledBadge}>
-            <Ionicons name="checkmark" size={10} color={darken(C.teal, 0.4)} />
+            <Ionicons name="checkmark" size={9} color={darken(C.teal, 0.4)} />
           </View>
         )}
       </View>
@@ -184,7 +184,10 @@ const styles = StyleSheet.create({
     bottom: 10,
     left: 8,
     flexDirection: 'row',
-    gap: 3,
+    // Widened from 3 -- still 30px clear of tickledBadge's left edge at
+    // this width (checked against photoWrap's actual 134px content
+    // width), so no crowding tradeoff against it was needed.
+    gap: 9,
     zIndex: 1,
   },
   vibeButton: {
@@ -197,14 +200,21 @@ const styles = StyleSheet.create({
   },
   // Moved to bottom-right (was top-right) now that downloadButton sits
   // top-right -- the two would otherwise overlap when a photo is both
-  // downloaded and tickled.
+  // downloaded and tickled. Shrunk from 18px to match vibeButton's own
+  // 16px -- pure visual balance against the now-more-spread-out vibe
+  // row, not a crowding fix (there was already 30px of clearance at the
+  // wider gap:9 spacing). bottom matches vibeRow's own bottom:10 --
+  // previously 12 vs. vibeRow's 10, a 2px offset masked while this badge
+  // was still taller (18px) than vibeButton; now that both are 16px, that
+  // same offset read as a visible vertical misalignment, so it's fixed
+  // here rather than carried forward.
   tickledBadge: {
     position: 'absolute',
-    bottom: 12,
+    bottom: 10,
     right: 12,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     backgroundColor: lighten(C.teal, 0.6),
     alignItems: 'center',
     justifyContent: 'center',
