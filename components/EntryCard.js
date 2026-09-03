@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity, Alert, Modal, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { C, accentFor, darken, lighten, withAlpha, SAVED_ENTRY_DOT_SIZE, VIBE_COLORS, NATURE_LABELS, AWARD_TYPES, AWARD_BADGE_COLOR, AWARD_HAND_ICON, awardLabelFor } from '../lib/theme';
+import { C, accentFor, darken, lighten, withAlpha, SAVED_ENTRY_DOT_SIZE, VIBE_COLORS, vibeIconColor, NATURE_LABELS, AWARD_TYPES, AWARD_BADGE_COLOR, AWARD_HAND_ICON, awardLabelFor } from '../lib/theme';
 import { flagEmoji } from '../lib/country';
 import InitialsAvatar from './InitialsAvatar';
 import FoundingMemberBadge from './FoundingMemberBadge';
@@ -189,7 +189,7 @@ export default function EntryCard({
             <NatureIcon
               nature={item.tickle_nature}
               size={SAVED_ENTRY_DOT_SIZE}
-              color={VIBE_COLORS[item.tickle_nature]}
+              color={vibeIconColor(item.tickle_nature)}
             />
           )}
         </View>

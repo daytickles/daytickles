@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { C, darken, lighten, NATURE_ORDER, VIBE_COLORS } from '../lib/theme';
+import { C, darken, lighten, NATURE_ORDER, vibeIconColor } from '../lib/theme';
 import NatureIcon from './NatureIcon';
 
 function formatPinnedDate(pinnedAt) {
@@ -76,7 +76,11 @@ export default function PolaroidCard({ photo, tickled, onPress, onTickle, onVibe
               hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
               style={styles.vibeButton}
             >
-              <NatureIcon nature={nature} size={11} color={VIBE_COLORS[nature]} />
+              {/* vibeIconColor, not the raw VIBE_COLORS value -- at this
+                  small a size on this near-white circle, the raw amber/
+                  teal vibes measured well under WCAG's 3:1 minimum for
+                  graphical objects (see lib/theme.js's own comment). */}
+              <NatureIcon nature={nature} size={11} color={vibeIconColor(nature)} />
             </TouchableOpacity>
           ))}
         </View>

@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { C, accentFor, SAVED_ENTRY_DOT_SIZE, textOn, withAlpha, darken, lighten, NATURE_ORDER, VIBE_COLORS, AWARD_TYPES, AWARD_HAND_ICON, awardLabelFor } from '../lib/theme';
+import { C, accentFor, SAVED_ENTRY_DOT_SIZE, textOn, withAlpha, darken, lighten, NATURE_ORDER, VIBE_COLORS, vibeIconColor, AWARD_TYPES, AWARD_HAND_ICON, awardLabelFor } from '../lib/theme';
 import { currentWeekStartDate, currentWeekStartISO, currentWeekDates, localDateString, DEFAULT_WEEK_START_DAY } from '../lib/week';
 import { initPinBoardDb, getPinnedPhotoCountSince, getPhotoShareCountSince } from '../lib/pinBoardDb';
 import { flagEmoji } from '../lib/country';
@@ -335,7 +335,7 @@ export default function WeeklySummary() {
                         <NatureIcon
                           nature={mostLiked.tickle_nature}
                           size={SAVED_ENTRY_DOT_SIZE}
-                          color={VIBE_COLORS[mostLiked.tickle_nature]}
+                          color={vibeIconColor(mostLiked.tickle_nature)}
                         />
                       )}
                     </View>
@@ -377,7 +377,7 @@ export default function WeeklySummary() {
                   {NATURE_ORDER.map((key) => (
                     <View key={key} style={styles.rhythmGridRow}>
                       <View style={styles.rhythmRowLabel}>
-                        <NatureIcon nature={key} size={16} color={VIBE_COLORS[key]} />
+                        <NatureIcon nature={key} size={16} color={vibeIconColor(key)} />
                       </View>
                       {weekDates.map((date) => {
                         const count = dayTotals[date][key];
