@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Share, Switch, Alert } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
@@ -55,6 +55,18 @@ export default function FoundingMember() {
   const [savingTakingPart, setSavingTakingPart] = useState(false);
   const [savingReminders, setSavingReminders] = useState(false);
   const [savingOptIn, setSavingOptIn] = useState(false);
+  // Local-only mirror of profile.founding_member_reminders_enabled --
+  // see project memory tickle-nature-toggle-bug: a bare setProfile()
+  // call (which refreshProfile() ultimately triggers) is proven
+  // sufficient to cause a delayed bounce-to-Home when this screen is
+  // later backgrounded behind Settings-shaped navigation. Home's own
+  // focus-triggered refreshProfile() (see its "Reconciliation point"
+  // comment) already catches this field up whenever Home is next
+  // focused, same as day_journal_enabled/daily_reminder/notify_on_likes.
+  const [remindersEnabled, setRemindersEnabled] = useState(!!profile?.founding_member_reminders_enabled);
+  useEffect(() => {
+    setRemindersEnabled(!!profile?.founding_member_reminders_enabled);
+  }, [profile?.founding_member_reminders_enabled]);
 
   // Guards against re-entrant calls -- refreshProfile is now stable
   // (see AuthContext.js), so this shouldn't fire in practice anymore,
@@ -237,11 +249,20 @@ export default function FoundingMember() {
   // starts the clock on its own. Errors surface the same way load()'s
   // own errors do (setLoadError), since a thrown/rejected RPC here
   // would otherwise leave the button spinner stuck with no feedback.
+  // No refreshProfile() call here -- opt_in_to_founding_member (see
+  // supabase/migrations/0049) only ever writes founding_member_
+  // enrollment, never public.profiles, so there's nothing on this
+  // action's own results for a profile refresh to pick up. load()
+  // (called next) already does its own refreshProfile() as part of its
+  // normal operation (see its own comment, for advanceFoundingMember
+  // Progress's real profiles writes -- referral_code backfill, is_
+  // founding_member/founding_member_number on completion), so a second,
+  // separate refreshProfile() here was pure redundant setProfile()
+  // exposure -- see project memory tickle-nature-toggle-bug.
   async function handleOptIn() {
     setSavingOptIn(true);
     try {
       await optInToFoundingMember(session.user.id);
-      await refreshProfile();
       await load();
     } catch (err) {
       setLoadError(err.message || 'Something went wrong. Please try again.');
@@ -250,11 +271,17 @@ export default function FoundingMember() {
     }
   }
 
+  // Local-state-only, same pattern/reasoning as remindersEnabled's own
+  // comment above -- no refreshProfile() call in the handler itself.
   async function handleToggleReminders(value) {
+    setRemindersEnabled(value);
     setSavingReminders(true);
-    await supabase.from('profiles').update({ founding_member_reminders_enabled: value }).eq('id', session.user.id);
+    const { error } = await supabase
+      .from('profiles')
+      .update({ founding_member_reminders_enabled: value })
+      .eq('id', session.user.id);
     setSavingReminders(false);
-    await refreshProfile();
+    if (error) setRemindersEnabled(!value);
   }
 
   function shareReferralCode() {
@@ -442,7 +469,7 @@ export default function FoundingMember() {
                 Home-screen reminders
               </Text>
               <Switch
-                value={!!profile?.founding_member_reminders_enabled}
+                value={remindersEnabled}
                 onValueChange={handleToggleReminders}
                 disabled={savingReminders || !takingPart}
                 trackColor={{ false: C.border, true: accentDark }}
