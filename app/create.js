@@ -18,7 +18,7 @@ const MAX_LEN = 500;
 // Presentation only — not shared elsewhere.
 const TICKLE_NATURE_OPTIONS = [
   { id: 'received', label: 'Made me Smile' },
-  { id: 'given', label: 'I paid forward' },
+  { id: 'given', label: 'Paying forward' },
   { id: 'self', label: 'For me' },
 ];
 
@@ -137,7 +137,7 @@ export default function Create() {
     );
   }
 
-  // The nature picker (Made me Smile / I paid forward / For me)
+  // The nature picker (Made me Smile / Paying forward / For me)
   // always shows now -- tickle_nature_enabled's gating was removed. Day
   // Journal keeps its own independent opt-in toggle, contributing a 4th
   // option into the same single-select tickle_nature field.

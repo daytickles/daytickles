@@ -40,11 +40,11 @@ const WEEK_START_OPTIONS = [
   { day: 6, label: 'Sa' },
 ];
 
-// Mirrors home.js's own NATURE_LABELS (and create.js's
+// Mirrors lib/theme.js's NATURE_LABELS (and create.js's
 // TICKLE_NATURE_OPTIONS order) -- received/given/self, in that order.
 const NATURE_LABELS = {
   received: 'Made me smile',
-  given: 'I paid forward',
+  given: 'Paying forward',
   self: 'For me',
 };
 

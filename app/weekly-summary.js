@@ -17,11 +17,11 @@ import NatureIcon from '../components/NatureIcon';
 // just scoped to 7 instead.
 const TRAILING_WINDOW_DAYS = 7;
 
-// Mirrors home.js's/settings.js's own NATURE_LABELS -- received/given/
-// self, in that order.
+// Mirrors lib/theme.js's/settings.js's own NATURE_LABELS -- received/
+// given/self, in that order.
 const NATURE_LABELS = {
   received: 'Made me smile',
-  given: 'I paid forward',
+  given: 'Paying forward',
   self: 'For me',
 };
 
