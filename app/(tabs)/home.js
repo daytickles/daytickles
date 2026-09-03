@@ -1,16 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, Image, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { File } from 'expo-file-system';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { C, accentFor, SAVED_ENTRY_DOT_SIZE, withAlpha, NATURE_ORDER, VIBE_COLORS } from '../../lib/theme';
+import { C, accentFor, SAVED_ENTRY_DOT_SIZE, withAlpha, NATURE_ORDER, NATURE_LABELS, VIBE_COLORS } from '../../lib/theme';
 import { shareEntry, shareStatus, SHARE_CAPTIONS } from '../../lib/sharing';
 import { isThisWeek, isThisMonth, localDateString, DEFAULT_WEEK_START_DAY } from '../../lib/week';
 import { fetchFoundingMemberPaceStatus, fetchFoundingMemberOptInReminderStatus } from '../../lib/foundingMember';
 import { flagEmoji } from '../../lib/country';
+import { initPinBoardDb, getPhotosForEntries } from '../../lib/pinBoardDb';
+import { useShareCard } from '../../lib/useShareCard';
 import Button from '../../components/Button';
 import VibeCard from '../../components/VibeCard';
 import NatureIcon from '../../components/NatureIcon';
@@ -38,13 +41,46 @@ const PINNED_WINDOW_DAYS = 14;
 // this content) still fills the full screen width either way.
 const HOME_CONTENT_MAX_WIDTH = 600;
 
-// Labels rendered below each Vibe card — mirrors create.js's
-// TICKLE_NATURE_OPTIONS order (received, given, self).
-const NATURE_LABELS = {
-  received: 'Made me smile',
-  given: 'I paid forward',
-  self: 'For me',
-};
+// tickle_shares.caption has a DB check constraint limited to the two
+// SHARE_CAPTIONS ids (see migration 0001) -- a photo-only share still
+// needs one of them for that insert + ShareModal-less shareEntry's
+// dialogTitle lookup, even though the caption actually baked into the
+// shared image is the entry's own Vibe label instead (see
+// handlePhotoOnlyShare below), fully decoupled from this id.
+const PHOTO_ONLY_SHARE_CAPTION_ID = 'made_me_smile';
+
+// Deterministic per-entry tilt for the photo-only Polaroid render below --
+// same idea as EntryCard.js's own rotationForId.
+function rotationForId(id) {
+  const str = String(id);
+  let sum = 0;
+  for (let i = 0; i < str.length; i++) sum += str.charCodeAt(i);
+  return `${((sum % 5) - 2) * 1.5}deg`;
+}
+
+// Same idea as feed.js's/calendar.js's own resolvePhotoOnlyUris --
+// local file if this device has (and still has) the pin-board link,
+// falling back to the entry's own media_url otherwise (a no-op today
+// since upload-on-public isn't built yet, see project memory). Neither
+// existing covers "the file's genuinely missing" -- callers just get
+// back no map entry for that id, which the photo-only render below
+// treats as "not available".
+async function resolvePhotoOnlyUris(userId, entries) {
+  const photoOnlyEntries = entries.filter((e) => e.entry_kind === 'photo_only');
+  if (!photoOnlyEntries.length) return new Map();
+
+  const localPhotos = await getPhotosForEntries(userId, photoOnlyEntries.map((e) => e.id));
+  const map = new Map();
+  for (const entry of photoOnlyEntries) {
+    const local = localPhotos.get(entry.id);
+    if (local && new File(local.file_path).exists) {
+      map.set(entry.id, local.file_path);
+    } else if (entry.media_url) {
+      map.set(entry.id, entry.media_url);
+    }
+  }
+  return map;
+}
 
 function formatEntryDate(entryDate) {
   return new Date(`${entryDate}T00:00:00Z`).toLocaleDateString('en-US', {
@@ -116,6 +152,12 @@ export default function Home() {
   const [goals, setGoals] = useState([]);
   const [pickerEntryId, setPickerEntryId] = useState(null);
   const [shareEntryId, setShareEntryId] = useState(null);
+  // Map<entryId, uri> -- resolved display image for every currently-
+  // loaded photo-only entry, see resolvePhotoOnlyUris above. Also reused
+  // as the share source in handlePhotoOnlyShare below, rather than
+  // re-resolving per share.
+  const [photoOnlyUris, setPhotoOnlyUris] = useState(new Map());
+  const { hiddenCard, captureCard } = useShareCard();
   const [sharesTotal, setSharesTotal] = useState(0);
   const [showGuide, setShowGuide] = useState(false);
   const [showRatePrompt, setShowRatePrompt] = useState(false);
@@ -283,12 +325,20 @@ export default function Home() {
     if (!session) return;
     const { data, error } = await supabase
       .from('tickle_entries')
-      .select('id, entry_date, text_content, like_count, goal_id, tickle_nature, visibility, is_edited, created_at')
+      .select('id, entry_date, text_content, like_count, goal_id, tickle_nature, visibility, is_edited, created_at, entry_kind, local_photo_filename, media_url')
       .eq('user_id', session.user.id)
       .order('entry_date', { ascending: false })
       .order('created_at', { ascending: false });
 
-    if (!error) setEntries(data || []);
+    if (!error) {
+      setEntries(data || []);
+      // initPinBoardDb first -- Home can be the very first screen a
+      // fresh install ever visits, same reasoning as feed.js's
+      // loadPhotoLinks, so it can't assume another tab already created
+      // the local SQLite tables.
+      await initPinBoardDb(session.user.id);
+      setPhotoOnlyUris(await resolvePhotoOnlyUris(session.user.id, data || []));
+    }
     setLoading(false);
   }, [session]);
 
@@ -408,6 +458,56 @@ export default function Home() {
   async function handleShare(entry, captionId) {
     setShareEntryId(null);
     await shareEntry({ profile, entry, captionId, onProfileUpdated: refreshProfile });
+  }
+
+  // Photo-only entries skip ShareModal's two-caption picker entirely --
+  // the polaroid is already a complete, captioned object (its own Vibe
+  // label), so offering the same "made me smile / thought of you"
+  // wording choice built for text entries would just be a second,
+  // redundant caption. Bakes the entry's own NATURE_LABELS text into the
+  // generated ShareCard image instead (matching what the in-app Polaroid
+  // already shows, see EntryCard.js's polaroidCaptionStrip), rather than
+  // reusing either generic SHARE_CAPTIONS wording -- see
+  // PHOTO_ONLY_SHARE_CAPTION_ID's own comment for why shareEntry still
+  // needs *a* captionId regardless.
+  async function handlePhotoOnlyShare(entry) {
+    if (shareBlocked) {
+      Alert.alert(
+        'Share limit reached',
+        `You've used all ${shareStat?.cap} shares for this 30-day period. It renews automatically, or go unlimited with a paid plan.`
+      );
+      return;
+    }
+
+    const uri = photoOnlyUris.get(entry.id);
+    if (!uri) {
+      Alert.alert(
+        "Can't share yet",
+        "This photo isn't available on this device right now — open it in Tickle Stash to relink it, then try sharing again."
+      );
+      return;
+    }
+
+    let cardImageUri;
+    try {
+      cardImageUri = await captureCard({
+        photo: { file_path: uri },
+        captionLabel: NATURE_LABELS[entry.tickle_nature],
+        accentColor: accent.card,
+      });
+    } catch (err) {
+      console.error('handlePhotoOnlyShare: card capture failed', err);
+      Alert.alert("Couldn't share", 'Something went wrong preparing this photo to share — try again.');
+      return;
+    }
+
+    await shareEntry({
+      profile,
+      entry,
+      captionId: PHOTO_ONLY_SHARE_CAPTION_ID,
+      onProfileUpdated: refreshProfile,
+      cardImageUri,
+    });
   }
 
   // Real DELETE, not a soft-hide — RLS already scopes it to entries you
@@ -638,6 +738,8 @@ export default function Home() {
 
   function renderEntryBody(entry) {
     const taggedGoal = entry.goal_id ? goalsById[entry.goal_id] : null;
+    const isPhotoOnly = entry.entry_kind === 'photo_only';
+    const photoUri = photoOnlyUris.get(entry.id) || null;
     return (
       <View>
         <View style={styles.entryRow}>
@@ -667,7 +769,37 @@ export default function Home() {
             )}
           </View>
           <View style={styles.entryBody}>
-            <Text style={styles.entryText} numberOfLines={1}>{entry.text_content}</Text>
+            {isPhotoOnly ? (
+              // The Polaroid itself, same tilt+frame language as
+              // EntryCard.js's own photo-only render -- sized larger
+              // here since this is a single spotlight card, not one of
+              // many in a scrolling list. Deliberately still sits inside
+              // Home's normal bordered entryCard/pinnedCard treatment
+              // (unlike EntryCard.js, which drops that surface for
+              // photo-only entries) -- keeping it means the "Most smiled
+              // with you" amber highlight stays visible even when that
+              // pick happens to be a photo-only entry; revisit if this
+              // reads wrong in practice.
+              <View
+                style={[styles.polaroidPhotoCard, { transform: [{ rotate: rotationForId(entry.id) }] }]}
+              >
+                {photoUri ? (
+                  <Image source={{ uri: photoUri }} style={styles.polaroidPhoto} />
+                ) : (
+                  <View style={styles.polaroidMissingWrap}>
+                    <Ionicons name="image-outline" size={26} color={C.faint} />
+                    <Text style={styles.polaroidMissingText}>
+                      Photo not available here — open in Tickle Stash to relink
+                    </Text>
+                  </View>
+                )}
+                <View style={styles.polaroidCaptionStrip}>
+                  <Text style={styles.polaroidCaptionLabel}>{NATURE_LABELS[entry.tickle_nature]}</Text>
+                </View>
+              </View>
+            ) : (
+              <Text style={styles.entryText} numberOfLines={1}>{entry.text_content}</Text>
+            )}
             <View style={styles.entryMetaRow}>
               <Text style={styles.entryDate}>
                 {formatEntryDate(entry.entry_date)}
@@ -690,19 +822,24 @@ export default function Home() {
             />
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => setShareEntryId(entry.id)}
+            onPress={() => (isPhotoOnly ? handlePhotoOnlyShare(entry) : setShareEntryId(entry.id))}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             style={styles.shareAction}
           >
             <Text style={styles.shareLink}>Share</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => router.push({ pathname: '/create', params: { entryId: entry.id } })}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            style={styles.editAction}
-          >
-            <Ionicons name="pencil-outline" size={16} color={C.subtext} />
-          </TouchableOpacity>
+          {/* No text to edit on a photo-only entry -- same omission as
+              EntryCard.js's own menu (re-picking the Vibe as a kind of
+              "edit" was raised there but never resolved either way). */}
+          {!isPhotoOnly && (
+            <TouchableOpacity
+              onPress={() => router.push({ pathname: '/create', params: { entryId: entry.id } })}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={styles.editAction}
+            >
+              <Ionicons name="pencil-outline" size={16} color={C.subtext} />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             onPress={() => handleToggleVisibility(entry)}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -939,6 +1076,7 @@ export default function Home() {
       onClose={handleCloseAboutIntro}
       showGuideLink
     />
+    {hiddenCard}
     </>
   );
 }
@@ -1029,6 +1167,32 @@ const styles = StyleSheet.create({
   entryCard: {
     backgroundColor: C.card, borderRadius: 16, padding: 10, marginBottom: 12,
   },
+  // Sized larger than EntryCard.js's own 75% -- this is a single
+  // spotlight card, not one of many stacked in a scrolling feed, so
+  // there's no crowding reason to keep it that small.
+  polaroidPhotoCard: {
+    width: '92%',
+    alignSelf: 'center',
+    backgroundColor: C.card,
+    borderRadius: 8,
+    padding: 8,
+    paddingBottom: 6,
+    marginTop: 4,
+    marginBottom: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  polaroidPhoto: { width: '100%', aspectRatio: 1, borderRadius: 4, backgroundColor: C.border },
+  polaroidMissingWrap: {
+    width: '100%', aspectRatio: 1, borderRadius: 4, backgroundColor: C.bg,
+    alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16,
+  },
+  polaroidMissingText: { fontSize: 12, color: C.subtext, textAlign: 'center' },
+  polaroidCaptionStrip: { paddingTop: 8, paddingHorizontal: 2 },
+  polaroidCaptionLabel: { fontSize: 13, fontWeight: '600', color: C.rustDark, textAlign: 'center' },
   entryRow: { flexDirection: 'row', alignItems: 'flex-start' },
   vibeIconSlot: { marginRight: 12, marginTop: 4 },
   entryBody: { flex: 1 },
