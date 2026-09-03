@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { C, accentFor, darken, textOn } from '../../lib/theme';
-import { shareEntry, shareStatus, SHARE_CAPTIONS } from '../../lib/sharing';
+import { shareEntry, shareStatus, sharePhotoOnlyEntry, SHARE_CAPTIONS } from '../../lib/sharing';
 import { notifyLikeReceived } from '../../lib/likeNotify';
 import GoalTagModal from '../../components/GoalTagModal';
 import AwardPickerModal from '../../components/AwardPickerModal';
@@ -709,6 +709,37 @@ export default function Feed() {
     await shareEntry({ profile, entry, captionId, onProfileUpdated: refreshProfile, cardImageUri });
   }
 
+  // Thin wrapper around lib/sharing.js's sharePhotoOnlyEntry (shared
+  // with home.js/calendar.js's own Share buttons) -- this file's job is
+  // just resolving this screen's own already-loaded photoOnlyUris into a
+  // uri and turning the returned status into the right Alert; the
+  // actual skip-ShareModal / bake-in-the-Vibe-label decision logic lives
+  // there once, not duplicated per screen.
+  async function handlePhotoOnlyShare(entry) {
+    const result = await sharePhotoOnlyEntry({
+      profile,
+      entry,
+      photoUri: photoOnlyUris.get(entry.id) || null,
+      captureCard,
+      accentColor: accentFor(profile?.accent_theme).card,
+      onProfileUpdated: refreshProfile,
+    });
+
+    if (result.missingPhoto) {
+      Alert.alert(
+        "Can't share yet",
+        "This photo isn't available on this device right now — relink it, then try sharing again."
+      );
+    } else if (result.blocked) {
+      Alert.alert(
+        'Share limit reached',
+        `You've used all ${result.cap} shares for this 30-day period. It renews automatically, or go unlimited with a paid plan.`
+      );
+    } else if (result.captureFailed) {
+      Alert.alert("Couldn't share", 'Something went wrong preparing this photo to share — try again.');
+    }
+  }
+
   // Real DELETE, not a soft-hide — RLS already scopes it to entries you
   // own, and every table referencing tickle_entries (likes, favorites,
   // notifications, shares, etc.) cascades on delete (confirmed against
@@ -766,7 +797,7 @@ export default function Feed() {
         }}
         onToggleFollow={handleToggleFollow}
         onPickGoal={setPickerEntryId}
-        onShare={setShareEntryId}
+        onShare={() => (item.entry_kind === 'photo_only' ? handlePhotoOnlyShare(item) : setShareEntryId(item.id))}
         onToggleFavorite={handleToggleFavorite}
         onToggleVisibility={handleToggleVisibility}
         onDelete={(entry) => handleDeleteEntry(entry.id)}

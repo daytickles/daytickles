@@ -8,7 +8,7 @@ import { File } from 'expo-file-system';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { C, accentFor, SAVED_ENTRY_DOT_SIZE, withAlpha, NATURE_ORDER, NATURE_LABELS, VIBE_COLORS } from '../../lib/theme';
-import { shareEntry, shareStatus, SHARE_CAPTIONS } from '../../lib/sharing';
+import { shareEntry, shareStatus, sharePhotoOnlyEntry, SHARE_CAPTIONS } from '../../lib/sharing';
 import { isThisWeek, isThisMonth, localDateString, DEFAULT_WEEK_START_DAY } from '../../lib/week';
 import { fetchFoundingMemberPaceStatus, fetchFoundingMemberOptInReminderStatus } from '../../lib/foundingMember';
 import { flagEmoji } from '../../lib/country';
@@ -40,14 +40,6 @@ const PINNED_WINDOW_DAYS = 14;
 // edge-to-edge -- wallpaper (painted by WallpaperBackground, behind
 // this content) still fills the full screen width either way.
 const HOME_CONTENT_MAX_WIDTH = 600;
-
-// tickle_shares.caption has a DB check constraint limited to the two
-// SHARE_CAPTIONS ids (see migration 0001) -- a photo-only share still
-// needs one of them for that insert + ShareModal-less shareEntry's
-// dialogTitle lookup, even though the caption actually baked into the
-// shared image is the entry's own Vibe label instead (see
-// handlePhotoOnlyShare below), fully decoupled from this id.
-const PHOTO_ONLY_SHARE_CAPTION_ID = 'made_me_smile';
 
 // Deterministic per-entry tilt for the photo-only Polaroid render below --
 // same idea as EntryCard.js's own rotationForId.
@@ -460,54 +452,35 @@ export default function Home() {
     await shareEntry({ profile, entry, captionId, onProfileUpdated: refreshProfile });
   }
 
-  // Photo-only entries skip ShareModal's two-caption picker entirely --
-  // the polaroid is already a complete, captioned object (its own Vibe
-  // label), so offering the same "made me smile / thought of you"
-  // wording choice built for text entries would just be a second,
-  // redundant caption. Bakes the entry's own NATURE_LABELS text into the
-  // generated ShareCard image instead (matching what the in-app Polaroid
-  // already shows, see EntryCard.js's polaroidCaptionStrip), rather than
-  // reusing either generic SHARE_CAPTIONS wording -- see
-  // PHOTO_ONLY_SHARE_CAPTION_ID's own comment for why shareEntry still
-  // needs *a* captionId regardless.
+  // Thin wrapper around lib/sharing.js's sharePhotoOnlyEntry (shared with
+  // feed.js/calendar.js's own Share buttons) -- this file's job is just
+  // resolving this screen's own already-loaded photoOnlyUris into a uri
+  // and turning the returned status into the right Alert; the actual
+  // skip-ShareModal / bake-in-the-Vibe-label decision logic lives there
+  // once, not duplicated per screen.
   async function handlePhotoOnlyShare(entry) {
-    if (shareBlocked) {
-      Alert.alert(
-        'Share limit reached',
-        `You've used all ${shareStat?.cap} shares for this 30-day period. It renews automatically, or go unlimited with a paid plan.`
-      );
-      return;
-    }
+    const result = await sharePhotoOnlyEntry({
+      profile,
+      entry,
+      photoUri: photoOnlyUris.get(entry.id) || null,
+      captureCard,
+      accentColor: accent.card,
+      onProfileUpdated: refreshProfile,
+    });
 
-    const uri = photoOnlyUris.get(entry.id);
-    if (!uri) {
+    if (result.missingPhoto) {
       Alert.alert(
         "Can't share yet",
         "This photo isn't available on this device right now — open it in Tickle Stash to relink it, then try sharing again."
       );
-      return;
-    }
-
-    let cardImageUri;
-    try {
-      cardImageUri = await captureCard({
-        photo: { file_path: uri },
-        captionLabel: NATURE_LABELS[entry.tickle_nature],
-        accentColor: accent.card,
-      });
-    } catch (err) {
-      console.error('handlePhotoOnlyShare: card capture failed', err);
+    } else if (result.blocked) {
+      Alert.alert(
+        'Share limit reached',
+        `You've used all ${result.cap} shares for this 30-day period. It renews automatically, or go unlimited with a paid plan.`
+      );
+    } else if (result.captureFailed) {
       Alert.alert("Couldn't share", 'Something went wrong preparing this photo to share — try again.');
-      return;
     }
-
-    await shareEntry({
-      profile,
-      entry,
-      captionId: PHOTO_ONLY_SHARE_CAPTION_ID,
-      onProfileUpdated: refreshProfile,
-      cardImageUri,
-    });
   }
 
   // Real DELETE, not a soft-hide — RLS already scopes it to entries you
