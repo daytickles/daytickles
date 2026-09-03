@@ -14,6 +14,7 @@ import { fetchFoundingMemberPaceStatus, fetchFoundingMemberOptInReminderStatus }
 import { flagEmoji } from '../../lib/country';
 import { initPinBoardDb, getPhotosForEntries } from '../../lib/pinBoardDb';
 import { useShareCard } from '../../lib/useShareCard';
+import { makePhotoTicklePublic } from '../../lib/photoTickleStorage';
 import Button from '../../components/Button';
 import VibeCard from '../../components/VibeCard';
 import NatureIcon from '../../components/NatureIcon';
@@ -317,7 +318,7 @@ export default function Home() {
     if (!session) return;
     const { data, error } = await supabase
       .from('tickle_entries')
-      .select('id, entry_date, text_content, like_count, goal_id, tickle_nature, visibility, is_edited, created_at, entry_kind, local_photo_filename, media_url')
+      .select('id, entry_date, text_content, like_count, goal_id, tickle_nature, visibility, is_edited, created_at, user_id, entry_kind, local_photo_filename, media_url')
       .eq('user_id', session.user.id)
       .order('entry_date', { ascending: false })
       .order('created_at', { ascending: false });
@@ -516,6 +517,35 @@ export default function Home() {
   // on visibility, so they keep showing it either way.
   async function handleToggleVisibility(entry) {
     const newVisibility = entry.visibility === 'public' ? 'private' : 'public';
+
+    // Photo-only entries going private -> public need the actual image
+    // uploaded first (see lib/photoTickleStorage.js) -- not the plain
+    // single-field flip below. Not optimistic like the plain path: this
+    // is a real multi-step async operation (upload, then a combined DB
+    // write) with real failure modes, so nothing changes on screen until
+    // it's actually succeeded, rather than flashing "public" and then
+    // reverting it a moment later.
+    if (entry.entry_kind === 'photo_only' && newVisibility === 'public') {
+      const photoUri = photoOnlyUris.get(entry.id) || null;
+      if (!photoUri) {
+        Alert.alert(
+          "Can't make this public yet",
+          "This photo isn't available on this device right now — open it in Tickle Stash to relink it, then try again."
+        );
+        return;
+      }
+      try {
+        const mediaUrl = await makePhotoTicklePublic(entry, photoUri);
+        setEntries((prev) =>
+          prev.map((e) => (e.id === entry.id ? { ...e, visibility: 'public', media_url: mediaUrl } : e))
+        );
+      } catch (err) {
+        console.error('handleToggleVisibility: photo upload failed', err);
+        Alert.alert("Couldn't make this public", 'Something went wrong uploading this photo — try again.');
+      }
+      return;
+    }
+
     const previous = entries;
     setEntries((prev) => prev.map((e) => (e.id === entry.id ? { ...e, visibility: newVisibility } : e)));
 

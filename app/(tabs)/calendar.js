@@ -23,6 +23,7 @@ import {
 } from '../../lib/pinBoardDb';
 import { pickFromLibrary } from '../../lib/pinBoardPhotos';
 import { useShareCard } from '../../lib/useShareCard';
+import { makePhotoTicklePublic } from '../../lib/photoTickleStorage';
 
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
@@ -362,6 +363,35 @@ export default function Calendar() {
 
   async function handleToggleVisibility(entry) {
     const newVisibility = entry.visibility === 'public' ? 'private' : 'public';
+
+    // Photo-only entries going private -> public need the actual image
+    // uploaded first (see lib/photoTickleStorage.js) -- not the plain
+    // single-field flip below. Not optimistic like the plain path: this
+    // is a real multi-step async operation (upload, then a combined DB
+    // write) with real failure modes, so nothing changes on screen until
+    // it's actually succeeded, rather than flashing "public" and then
+    // reverting it a moment later.
+    if (entry.entry_kind === 'photo_only' && newVisibility === 'public') {
+      const photoUri = photoOnlyUris.get(entry.id) || null;
+      if (!photoUri) {
+        Alert.alert(
+          "Can't make this public yet",
+          "This photo isn't available on this device right now — relink it, then try again."
+        );
+        return;
+      }
+      try {
+        const mediaUrl = await makePhotoTicklePublic(entry, photoUri);
+        setDayEntries((prev) =>
+          prev.map((e) => (e.id === entry.id ? { ...e, visibility: 'public', media_url: mediaUrl } : e))
+        );
+      } catch (err) {
+        console.error('handleToggleVisibility: photo upload failed', err);
+        Alert.alert("Couldn't make this public", 'Something went wrong uploading this photo — try again.');
+      }
+      return;
+    }
+
     const previous = dayEntries;
     setDayEntries((prev) => prev.map((e) => (e.id === entry.id ? { ...e, visibility: newVisibility } : e)));
 
