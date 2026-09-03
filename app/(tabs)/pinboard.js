@@ -5,21 +5,27 @@ import { router, useFocusEffect } from 'expo-router';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
 import { C, accentFor } from '../../lib/theme';
 import { sharePhoto, shareStatus, SHARE_CAPTIONS } from '../../lib/sharing';
+import { localDateString } from '../../lib/week';
 import Button from '../../components/Button';
 import PolaroidCard from '../../components/PolaroidCard';
 import PhotoEnlargeModal from '../../components/PhotoEnlargeModal';
 import AddPhotoActionSheet from '../../components/AddPhotoActionSheet';
 import ShareModal from '../../components/ShareModal';
+import DeletePhotoModal from '../../components/DeletePhotoModal';
+import PhotoTickleDisclosureModal from '../../components/PhotoTickleDisclosureModal';
 import CornerNav from '../../components/CornerNav';
 import {
   initPinBoardDb, listPinnedPhotos, addPinnedPhoto, deletePinnedPhoto, getLinkedPhotoIds,
+  linkPhotoToEntry, getEntryIdsForPhoto,
 } from '../../lib/pinBoardDb';
 import {
   pickFromCamera, pickFromLibrary, deletePinBoardPhotoFile, saveToDeviceLibrary,
 } from '../../lib/pinBoardPhotos';
 import { hasSeenPinBoardNote, markPinBoardNoteSeen } from '../../lib/pinBoardNote';
+import { hasSeenPhotoTickleDisclosure, markPhotoTickleDisclosureSeen } from '../../lib/photoTickleDisclosure';
 import { useShareCard } from '../../lib/useShareCard';
 import WallpaperBackground from '../../components/WallpaperBackground';
 
@@ -36,6 +42,9 @@ export default function PinBoard() {
   const [status, setStatus] = useState('');
   const [showAddPhoto, setShowAddPhoto] = useState(false);
   const [sharePhotoTarget, setSharePhotoTarget] = useState(null);
+  const [deleteInfo, setDeleteInfo] = useState(null); // { photo, scenario, photoOnlyEntryIds }
+  const [pendingVibeTap, setPendingVibeTap] = useState(null); // { photo, vibeId } while the first-use disclosure is up
+  const [showDisclosure, setShowDisclosure] = useState(false);
   const { hiddenCard, captureCard } = useShareCard();
 
   const loadBoard = useCallback(async () => {
@@ -102,11 +111,59 @@ export default function PinBoard() {
     setAdding(false);
   }
 
-  // DB row first — if this fails, nothing's happened yet and the photo
-  // is still intact. File delete second (a safe no-op if already gone),
-  // resolving the orphaned-file gap flagged in lib/pinBoardDb.js.
-  // pinned_photos' ON DELETE CASCADE handles any photo_entry_links rows.
-  async function handleDeletePhoto(photo) {
+  // Looks up what deleting this photo would actually do before showing
+  // any confirmation -- a photo can be linked to a photo-only Tickle it
+  // created (its own entry_kind='photo_only' entry), a separate
+  // written Tickle it's pinned to via the Tickle button, both at once,
+  // or (the pre-existing case) neither. deleteInfo.photoOnlyEntryIds
+  // drives what handleConfirmDelete deletes alongside the photo itself.
+  async function handleRequestDelete(photo) {
+    const entryIds = await getEntryIdsForPhoto(session.user.id, photo.id);
+    let scenario = 'plain';
+    let photoOnlyEntryIds = [];
+
+    if (entryIds.length) {
+      const { data, error } = await supabase
+        .from('tickle_entries')
+        .select('id, entry_kind')
+        .in('id', entryIds);
+
+      if (!error && data) {
+        photoOnlyEntryIds = data.filter((e) => e.entry_kind === 'photo_only').map((e) => e.id);
+        const hasTextLink = data.some((e) => e.entry_kind === 'text');
+        if (photoOnlyEntryIds.length && hasTextLink) scenario = 'both';
+        else if (photoOnlyEntryIds.length) scenario = 'sole';
+        else if (hasTextLink) scenario = 'pinned';
+      }
+    }
+
+    setDeleteInfo({ photo, scenario, photoOnlyEntryIds });
+  }
+
+  function handleCancelDelete() {
+    setDeleteInfo(null);
+  }
+
+  // Cloud entry delete first (only present for 'sole'/'both' scenarios)
+  // -- if this fails, nothing else has happened yet and the photo/entry
+  // are both still intact. DB row second, file delete last (a safe
+  // no-op if already gone), same ordering the pre-existing delete flow
+  // always used, resolving the orphaned-file gap flagged in
+  // lib/pinBoardDb.js. pinned_photos' ON DELETE CASCADE handles any
+  // photo_entry_links rows, cloud or otherwise.
+  async function handleConfirmDelete() {
+    if (!deleteInfo) return;
+    const { photo, photoOnlyEntryIds } = deleteInfo;
+    setDeleteInfo(null);
+
+    if (photoOnlyEntryIds.length) {
+      const { error } = await supabase.from('tickle_entries').delete().in('id', photoOnlyEntryIds);
+      if (error) {
+        setStatus('Could not delete that Tickle — please try again.');
+        return;
+      }
+    }
+
     await deletePinnedPhoto(session.user.id, photo.id);
     deletePinBoardPhotoFile(session.user.id, photo.file_path);
     await loadBoard();
@@ -127,6 +184,65 @@ export default function PinBoard() {
 
   function handleTickle(photo) {
     router.push({ pathname: '/create', params: { pinnedPhotoId: String(photo.id) } });
+  }
+
+  // Gate: the very first time anyone taps a Vibe icon, the disclosure
+  // modal interrupts the otherwise-instant creation flow once; every
+  // tap after that goes straight through. See createPhotoOnlyTickle for
+  // what "goes straight through" actually does.
+  async function handlePhotoVibeTap(photo, vibeId) {
+    if (!(await hasSeenPhotoTickleDisclosure(session.user.id))) {
+      setPendingVibeTap({ photo, vibeId });
+      setShowDisclosure(true);
+      return;
+    }
+    await createPhotoOnlyTickle(photo, vibeId);
+  }
+
+  async function handleDisclosureDismiss() {
+    setShowDisclosure(false);
+    await markPhotoTickleDisclosureSeen(session.user.id);
+    if (pendingVibeTap) {
+      const { photo, vibeId } = pendingVibeTap;
+      setPendingVibeTap(null);
+      await createPhotoOnlyTickle(photo, vibeId);
+    }
+  }
+
+  // Creates the cloud entry, links it to the already-pinned photo via
+  // the same photo_entry_links mechanism the Tickle button already uses
+  // (linkPhotoToEntry), then auto-saves a copy to the device gallery --
+  // every photo-only Tickle gets the same backup the manual Download
+  // icon has always offered, without requiring a separate tap.
+  // saveToDeviceLibrary's own permission request is what the first-use
+  // disclosure modal is really unblocking; a permission grant here is a
+  // no-op on every call after the first.
+  async function createPhotoOnlyTickle(photo, vibeId) {
+    const filename = photo.file_path.split('/').pop();
+    const { data, error } = await supabase
+      .from('tickle_entries')
+      .insert({
+        user_id: session.user.id,
+        entry_date: localDateString(),
+        text_content: null,
+        tickle_nature: vibeId,
+        entry_kind: 'photo_only',
+        local_photo_filename: filename,
+        visibility: 'private',
+      })
+      .select('id')
+      .single();
+
+    if (error || !data) {
+      setStatus('Could not create that Tickle — please try again.');
+      return;
+    }
+
+    await linkPhotoToEntry(session.user.id, photo.id, data.id);
+    setTickledIds((prev) => new Set(prev).add(photo.id));
+
+    const saveResult = await saveToDeviceLibrary(photo.file_path);
+    if (saveResult.error) setStatus(saveResult.error);
   }
 
   async function handleSharePhoto(photo, captionId) {
@@ -220,8 +336,9 @@ export default function PinBoard() {
               tickled={tickledIds.has(photo.id)}
               onPress={() => setEnlargeUri(photo.file_path)}
               onTickle={() => handleTickle(photo)}
+              onVibeTap={handlePhotoVibeTap}
               onShare={() => setSharePhotoTarget(photo)}
-              onDelete={handleDeletePhoto}
+              onRequestDelete={handleRequestDelete}
               onSaveToLibrary={handleSaveToLibrary}
             />
           ))}
@@ -245,6 +362,15 @@ export default function PinBoard() {
         onConfirm={(captionId) => handleSharePhoto(sharePhotoTarget, captionId)}
         onDismiss={() => setSharePhotoTarget(null)}
       />
+
+      <DeletePhotoModal
+        visible={!!deleteInfo}
+        scenario={deleteInfo?.scenario}
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+      />
+
+      <PhotoTickleDisclosureModal visible={showDisclosure} onDismiss={handleDisclosureDismiss} />
 
       {hiddenCard}
     </View>

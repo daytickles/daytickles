@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { File } from 'expo-file-system';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { C, accentFor, darken, textOn, TICKLE_NATURE_ICONS, NATURE_ORDER } from '../../lib/theme';
@@ -18,13 +19,38 @@ import CornerNav from '../../components/CornerNav';
 import WallpaperBackground from '../../components/WallpaperBackground';
 import {
   initPinBoardDb, getAllLinkedEntryIds, getPhotoForEntry, getPinnedPhotoDatesInRange,
+  getPhotosForEntries, relinkPhotoToEntry,
 } from '../../lib/pinBoardDb';
+import { pickFromLibrary } from '../../lib/pinBoardPhotos';
 import { useShareCard } from '../../lib/useShareCard';
 
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 const ENTRY_SELECT =
-  'id, entry_date, text_content, like_count, tickle_nature, goal_id, visibility, is_edited, created_at, user_id, profiles!tickle_entries_user_id_fkey(username, avatar_emoji, accent_theme, country, founding_member_number)';
+  'id, entry_date, text_content, like_count, tickle_nature, goal_id, visibility, is_edited, created_at, user_id, entry_kind, local_photo_filename, media_url, profiles!tickle_entries_user_id_fkey(username, avatar_emoji, accent_theme, country, founding_member_number)';
+
+// Same idea as feed.js's own resolvePhotoOnlyUris -- Calendar's day
+// entries are always this account's own (loadDayEntries always filters
+// user_id=session.user.id), so the media_url fallback there never
+// actually matters here in practice, but keeping the same resolution
+// logic in both places means neither screen has to know which case it
+// is.
+async function resolvePhotoOnlyUris(userId, entries) {
+  const photoOnlyEntries = entries.filter((e) => e.entry_kind === 'photo_only');
+  if (!photoOnlyEntries.length) return new Map();
+
+  const localPhotos = await getPhotosForEntries(userId, photoOnlyEntries.map((e) => e.id));
+  const map = new Map();
+  for (const entry of photoOnlyEntries) {
+    const local = localPhotos.get(entry.id);
+    if (local && new File(local.file_path).exists) {
+      map.set(entry.id, local.file_path);
+    } else if (entry.media_url) {
+      map.set(entry.id, entry.media_url);
+    }
+  }
+  return map;
+}
 
 function pad(n) {
   return String(n).padStart(2, '0');
@@ -76,6 +102,10 @@ export default function Calendar() {
   const [awardedPublicTypes, setAwardedPublicTypes] = useState(new Map());
   const [photoLinkedIds, setPhotoLinkedIds] = useState(new Set());
   const [photoDatesInMonth, setPhotoDatesInMonth] = useState(new Set());
+  // Map<entryId, uri> -- same shape/reasoning as feed.js's own
+  // photoOnlyUris, resolved for whichever day's entries are currently
+  // loaded (see loadDayEntries below).
+  const [photoOnlyUris, setPhotoOnlyUris] = useState(new Map());
   const [enlargeUri, setEnlargeUri] = useState(null);
   const { hiddenCard, captureCard } = useShareCard();
 
@@ -177,9 +207,17 @@ export default function Calendar() {
   useFocusEffect(useCallback(() => { loadPinBoardData(); }, [loadPinBoardData]));
   useEffect(() => { loadAwards(); }, [loadAwards]);
 
-  async function handleOpenPhoto(entryId) {
+  // fallbackUri: see feed.js's own handleOpenPhoto for why this exists
+  // (a photo-only Polaroid's tap passes its already-resolved uri, in
+  // case the local-only lookup below can't find one). Calendar's day
+  // entries are always this account's own, so in practice the local
+  // lookup always succeeds here -- kept for the same reason
+  // resolvePhotoOnlyUris' media_url branch is kept, not because this
+  // path is expected to matter yet.
+  async function handleOpenPhoto(entryId, fallbackUri) {
     const photo = await getPhotoForEntry(session.user.id, entryId);
     if (photo) setEnlargeUri(photo.file_path);
+    else if (fallbackUri) setEnlargeUri(fallbackUri);
   }
 
   const loadDayEntries = useCallback(
@@ -192,11 +230,32 @@ export default function Calendar() {
         .eq('user_id', session.user.id)
         .eq('entry_date', dateStr)
         .order('created_at', { ascending: false });
-      if (!error) setDayEntries(data || []);
+      if (!error) {
+        const entriesData = data || [];
+        setDayEntries(entriesData);
+        setPhotoOnlyUris(await resolvePhotoOnlyUris(session.user.id, entriesData));
+      }
       setDayLoading(false);
     },
     [session]
   );
+
+  // Same reasoning as feed.js's own handleRelinkPhoto -- only reachable
+  // from EntryCard's own owner-only placeholder, and every day entry
+  // here already belongs to this account.
+  async function handleRelinkPhoto(entry) {
+    const picked = await pickFromLibrary(session.user.id);
+    if (picked.canceled) return;
+    if (picked.error) {
+      Alert.alert('Could not relink that photo', picked.error);
+      return;
+    }
+
+    const existing = await getPhotosForEntries(session.user.id, [entry.id]);
+    const oldPhotoId = existing.get(entry.id)?.id ?? null;
+    await relinkPhotoToEntry(session.user.id, oldPhotoId, entry.id, picked.uri);
+    setPhotoOnlyUris((prev) => new Map(prev).set(entry.id, picked.uri));
+  }
 
   // Same reasoning as feed.js's own entries-reactive effect -- scoped
   // via .in() to just the currently-shown day's entries, not the whole
@@ -559,9 +618,11 @@ export default function Calendar() {
                   isLiked={false}
                   taggedGoal={item.goal_id ? goalsById[item.goal_id] : null}
                   hasLinkedPhoto={photoLinkedIds.has(item.id)}
+                  photoUri={photoOnlyUris.get(item.id) || null}
                   awardType={awardedTypes.get(item.id) || null}
                   publicAwardTypes={awardedPublicTypes.get(item.id) || []}
                   onOpenPhoto={handleOpenPhoto}
+                  onRelinkPhoto={handleRelinkPhoto}
                   onPickGoal={setPickerEntryId}
                   onShare={setShareEntryId}
                   onToggleFavorite={handleToggleFavorite}

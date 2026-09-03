@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
@@ -17,7 +17,11 @@ import EntryCard, { CARD_SPACING } from '../../components/EntryCard';
 import CornerNav from '../../components/CornerNav';
 import CountBadge from '../../components/CountBadge';
 import WallpaperBackground from '../../components/WallpaperBackground';
-import { initPinBoardDb, getAllLinkedEntryIds, getPhotoForEntry } from '../../lib/pinBoardDb';
+import { File } from 'expo-file-system';
+import {
+  initPinBoardDb, getAllLinkedEntryIds, getPhotoForEntry, getPhotosForEntries, relinkPhotoToEntry,
+} from '../../lib/pinBoardDb';
+import { pickFromLibrary } from '../../lib/pinBoardPhotos';
 import { useShareCard } from '../../lib/useShareCard';
 import { getLastOpened, setLastOpened } from '../../lib/feedLastOpened';
 
@@ -59,7 +63,7 @@ function getEmptyText(tab, natureFilter) {
 }
 
 const ENTRY_SELECT =
-  'id, entry_date, text_content, like_count, tickle_nature, goal_id, visibility, is_edited, created_at, user_id, profiles!tickle_entries_user_id_fkey(username, avatar_emoji, accent_theme, country, founding_member_number)';
+  'id, entry_date, text_content, like_count, tickle_nature, goal_id, visibility, is_edited, created_at, user_id, entry_kind, local_photo_filename, media_url, profiles!tickle_entries_user_id_fkey(username, avatar_emoji, accent_theme, country, founding_member_number)';
 
 // Mine shows entries fully untruncated (deliberate — people should be
 // able to read the complete text), so real cards range from one line to
@@ -94,6 +98,37 @@ async function fetchAwardedEntryTypes(entryIds) {
   for (const row of data || []) {
     if (!map.has(row.entry_id)) map.set(row.entry_id, []);
     map.get(row.entry_id).push(row.award_type);
+  }
+  return map;
+}
+
+// Resolves the actual displayable image for every currently-loaded
+// photo-only entry -- local file if this device has (and still has) the
+// link (lib/pinBoardDb.js's getPhotosForEntries), falling back to the
+// entry's own media_url for a device/viewer with no local link (a
+// non-owner viewing a public photo-only entry, or the owner's own
+// second device) -- media_url is only ever populated once the still-
+// open "upload on make-public" mechanic exists, so this fallback is a
+// no-op today, not dead code. Neither existing covers "the file's
+// genuinely missing" -- callers just get back a falsy uri for that
+// entry, which EntryCard already renders as its Relink/"not available"
+// placeholder.
+async function resolvePhotoOnlyUris(userId, entries) {
+  const photoOnlyEntries = entries.filter((e) => e.entry_kind === 'photo_only');
+  if (!photoOnlyEntries.length) return new Map();
+
+  const localPhotos = await getPhotosForEntries(userId, photoOnlyEntries.map((e) => e.id));
+  const map = new Map();
+  for (const entry of photoOnlyEntries) {
+    const local = localPhotos.get(entry.id);
+    // A cheap stat, not a full read -- fine to run once per feed load
+    // rather than per render (the spec flags per-render existence
+    // checking as a real perf concern; this isn't that).
+    if (local && new File(local.file_path).exists) {
+      map.set(entry.id, local.file_path);
+    } else if (entry.media_url) {
+      map.set(entry.id, entry.media_url);
+    }
   }
   return map;
 }
@@ -147,6 +182,13 @@ export default function Feed() {
   const [favoritedIds, setFavoritedIds] = useState(new Set());
   const [likedIds, setLikedIds] = useState(new Set());
   const [photoLinkedIds, setPhotoLinkedIds] = useState(new Set());
+  // Map<entryId, uri> -- resolved display image for every currently-
+  // loaded photo-only entry, see resolvePhotoOnlyUris below. Loaded
+  // alongside setEntries in loadFeed (same shape as awardedPublicTypes),
+  // not folded into loadPhotoLinks above -- that Set only ever needs
+  // membership (badge on/off) for a *pinned-to* photo, this needs the
+  // actual resolved uri for an entry's *own* photo, a different job.
+  const [photoOnlyUris, setPhotoOnlyUris] = useState(new Map());
   // Map<entryId, awardType> -- only this viewer's own awards (awards
   // RLS is private to the giver, same shape as favoritedIds), and a Map
   // rather than a Set since the icon needs to know *which* award, not
@@ -303,9 +345,38 @@ export default function Feed() {
     loadAwards();
   }, [loadAwards]);
 
-  async function handleOpenPhoto(entryId) {
+  // fallbackUri is only ever passed by a photo-only Polaroid's own tap
+  // (its already-resolved photoOnlyUris value) -- the local-only lookup
+  // above can never find a link for a non-owner's entry on this device,
+  // so without it, tapping to enlarge a stranger's photo-only Tickle
+  // would silently do nothing once media_url-sourced photos exist.
+  // Every other caller (the hasLinkedPhoto icon on a normal entry) omits
+  // this param and keeps the original local-only behavior exactly.
+  async function handleOpenPhoto(entryId, fallbackUri) {
     const photo = await getPhotoForEntry(session.user.id, entryId);
     if (photo) setEnlargeUri(photo.file_path);
+    else if (fallbackUri) setEnlargeUri(fallbackUri);
+  }
+
+  // Relink -- only ever reachable from EntryCard's own placeholder,
+  // which only renders it for the entry's owner (see EntryCard.js), so
+  // this never runs against someone else's entry. Opens the device
+  // photo picker directly (no camera option, unlike Pin Board's Add
+  // Photo sheet) -- matches the spec's "opening the device's photo
+  // picker" wording exactly. lib/pinBoardDb's relinkPhotoToEntry handles
+  // dropping the old (missing-file) link and creating the new one.
+  async function handleRelinkPhoto(entry) {
+    const picked = await pickFromLibrary(session.user.id);
+    if (picked.canceled) return;
+    if (picked.error) {
+      Alert.alert('Could not relink that photo', picked.error);
+      return;
+    }
+
+    const existing = await getPhotosForEntries(session.user.id, [entry.id]);
+    const oldPhotoId = existing.get(entry.id)?.id ?? null;
+    await relinkPhotoToEntry(session.user.id, oldPhotoId, entry.id, picked.uri);
+    setPhotoOnlyUris((prev) => new Map(prev).set(entry.id, picked.uri));
   }
 
   // Mirrors `entries.length > 0` for loadFeed without making `entries`
@@ -357,6 +428,7 @@ export default function Feed() {
         const awardedTypesById = await fetchAwardedEntryTypes(entriesData.map((e) => e.id));
         setEntries(entriesData);
         setAwardedPublicTypes(awardedTypesById);
+        setPhotoOnlyUris(await resolvePhotoOnlyUris(session.user.id, entriesData));
       }
       setLoading(false);
       return;
@@ -384,6 +456,7 @@ export default function Feed() {
         const awardedTypesById = await fetchAwardedEntryTypes(entriesData.map((e) => e.id));
         setEntries(entriesData);
         setAwardedPublicTypes(awardedTypesById);
+        setPhotoOnlyUris(await resolvePhotoOnlyUris(session.user.id, entriesData));
       }
       setLoading(false);
       return;
@@ -408,6 +481,7 @@ export default function Feed() {
       const awardedTypesById = await fetchAwardedEntryTypes(entriesData.map((e) => e.id));
       setEntries(entriesData);
       setAwardedPublicTypes(awardedTypesById);
+      setPhotoOnlyUris(await resolvePhotoOnlyUris(session.user.id, entriesData));
     }
     setLoading(false);
     // likedIds isn't used to filter any query above — it's a dependency
@@ -682,9 +756,11 @@ export default function Feed() {
         isLiked={likedIds.has(item.id)}
         taggedGoal={item.goal_id ? goalsById[item.goal_id] : null}
         hasLinkedPhoto={photoLinkedIds.has(item.id)}
+        photoUri={photoOnlyUris.get(item.id) || null}
         awardType={awardedTypes.get(item.id) || null}
         publicAwardTypes={awardedPublicTypes.get(item.id) || []}
         onOpenPhoto={handleOpenPhoto}
+        onRelinkPhoto={handleRelinkPhoto}
         onLayout={(e) => {
           cardHeights.current[item.id] = e.nativeEvent.layout.height + CARD_SPACING;
         }}

@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Modal, Platform } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity, Alert, Modal, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { C, accentFor, darken, lighten, withAlpha, SAVED_ENTRY_DOT_SIZE, VIBE_COLORS, AWARD_TYPES, AWARD_BADGE_COLOR, AWARD_HAND_ICON } from '../lib/theme';
+import { C, accentFor, darken, lighten, withAlpha, SAVED_ENTRY_DOT_SIZE, VIBE_COLORS, NATURE_LABELS, AWARD_TYPES, AWARD_BADGE_COLOR, AWARD_HAND_ICON } from '../lib/theme';
 import { flagEmoji } from '../lib/country';
 import InitialsAvatar from './InitialsAvatar';
 import FoundingMemberBadge from './FoundingMemberBadge';
@@ -15,6 +15,17 @@ function formatEntryDate(entryDate) {
     year: 'numeric',
     timeZone: 'UTC',
   });
+}
+
+// Deterministic per-entry tilt for the photo-only Polaroid render below --
+// same idea as PolaroidCard's own rotationFor, but string-safe since
+// item.id here is a cloud tickle_entries uuid, not pinned_photos' numeric
+// autoincrement id.
+function rotationForId(id) {
+  const str = String(id);
+  let sum = 0;
+  for (let i = 0; i < str.length; i++) sum += str.charCodeAt(i);
+  return `${((sum % 5) - 2) * 1.5}deg`;
 }
 
 // Must match this file's own entryCard.marginBottom below — exported so
@@ -48,6 +59,7 @@ export default function EntryCard({
   isLiked,
   taggedGoal,
   hasLinkedPhoto,
+  photoUri,
   awardType,
   publicAwardTypes,
   onLayout,
@@ -59,6 +71,7 @@ export default function EntryCard({
   onDelete,
   onToggleLike,
   onOpenPhoto,
+  onRelinkPhoto,
   onGiveAward,
 }) {
   const accent = accentFor(item.profiles?.accent_theme);
@@ -70,6 +83,15 @@ export default function EntryCard({
   // Day Journal is just tickle_nature === 'day_journal' (see migration
   // 0010) -- no new prop needed, item already carries it.
   const isJournal = item.tickle_nature === 'day_journal';
+  // A photo-only Tickle (migration 0055's entry_kind) has no text at
+  // all -- its own photo IS the entry. photoUri is the caller's
+  // already-resolved local file uri (or the entry's public media_url
+  // for a non-owner viewer), falsy meaning "nothing to show right now"
+  // -- covers both "never had a local link on this device" and "link
+  // exists but the file's gone missing" identically, since the UI
+  // response (owner: Relink; non-owner: unavailable) is the same either
+  // way. See feed.js/calendar.js for how photoUri gets resolved.
+  const isPhotoOnly = item.entry_kind === 'photo_only';
   // Local to this card, not lifted to feed.js/calendar.js -- each menu
   // only ever acts on its own item via props already passed down
   // (onToggleVisibility/onDelete/router push for edit), so there's
@@ -82,7 +104,9 @@ export default function EntryCard({
   function confirmDelete() {
     Alert.alert(
       'Delete this tickle?',
-      "This can't be undone — it removes the entry everywhere, including any likes or shares.",
+      isPhotoOnly
+        ? "This can't be undone — it removes the entry everywhere, including any likes or shares. The photo itself isn't deleted by this — it stays in your device gallery, and in Tickle Pics if it's still pinned there."
+        : "This can't be undone — it removes the entry everywhere, including any likes or shares.",
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Delete', style: 'destructive', onPress: () => onDelete?.(item) },
@@ -98,7 +122,12 @@ export default function EntryCard({
         // Ordered after highlightedCard so its left edge always wins --
         // a highlighted *and* awarded card should still show the gold
         // stripe, not have it swallowed by the highlight's own border.
-        hasPublicAward && styles.publicAwardStripe,
+        // Gated off entirely for isPhotoOnly, same reasoning as
+        // photoOnlyCard below -- a colored stripe/wash implies a card
+        // surface to color, and a photo-only entry deliberately has
+        // none (the public award badge icon in the header row still
+        // shows either way, unaffected by this).
+        hasPublicAward && !isPhotoOnly && styles.publicAwardStripe,
         // Light wash + full border, same family as Goals/FM quest
         // card/Settings cards (withAlpha(color, 0.14) bg + colored
         // border). Additive alongside the stripe above -- different
@@ -108,12 +137,22 @@ export default function EntryCard({
         // ordering, since journalCard only overrides backgroundColor +
         // borderLeft -- an ungated wash would still leak its top/
         // right/bottom border through on an awarded journal entry.
-        hasPublicAward && !isJournal && styles.awardWash,
+        hasPublicAward && !isJournal && !isPhotoOnly && styles.awardWash,
         // Ordered last so a journal entry's own look always wins over a
         // legacy award stripe (award-giving is suppressed for journal
         // entries going forward, but a pre-existing award could still
         // be on one).
         isJournal && styles.journalCard,
+        // Photo-only Tickles deliberately have no card surface at all
+        // (spec: "sits as a standalone Polaroid object directly in the
+        // feed, not inside the standard bordered card treatment every
+        // other entry uses") -- drops entryCard's fill, the Polaroid
+        // itself supplies its own white frame + shadow below. Ordered
+        // last so it always wins over journalCard (mutually exclusive
+        // in practice -- day_journal and photo_only are different
+        // tickle_nature/entry_kind values -- but this keeps the
+        // override explicit rather than relying on that never changing).
+        isPhotoOnly && styles.photoOnlyCard,
       ]}
       onLayout={onLayout}
     >
@@ -174,7 +213,12 @@ export default function EntryCard({
                 // the colored vibe icon in the entry row's icon slot.
                 <Ionicons name="journal-outline" size={16} color={C.subtext} style={styles.natureIcon} />
               )}
-              {hasLinkedPhoto && (
+              {/* Suppressed for a photo-only entry -- this icon means
+                  "a photo is attached", which is redundant and
+                  confusing on a card whose entire content already is
+                  one; hasLinkedPhoto is also always true for its own
+                  entry_id in this case anyway. */}
+              {hasLinkedPhoto && !isPhotoOnly && (
                 <TouchableOpacity
                   onPress={() => onOpenPhoto?.(item.id)}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -284,32 +328,84 @@ export default function EntryCard({
               )}
             </View>
           </View>
-          <View style={isJournal ? styles.journalTextWrap : undefined}>
-            {isJournal && (
-              // Fixed, generous upper bound (covers the longest possible
-              // entry at MAX_LEN=500) -- the wrap's own overflow:hidden
-              // clips extra lines to the text's real rendered height, so
-              // no onLayout/measurement pass is needed.
-              <View style={styles.journalRuleLines} pointerEvents="none">
-                {JOURNAL_RULE_OFFSETS.map((top) => (
-                  <View key={top} style={[styles.journalRuleLine, { top }]} />
-                ))}
-              </View>
-            )}
-            <Text
-              style={[styles.entryText, isJournal && styles.journalEntryText]}
-              numberOfLines={isJournal && !journalExpanded ? 4 : undefined}
-            >
-              {item.text_content}
-            </Text>
-          </View>
-          {isJournal && !journalExpanded && item.text_content.length > JOURNAL_TRUNCATE_CHARS && (
+          {isPhotoOnly ? (
+            // The Polaroid itself -- tilted, drop-shadowed, its own
+            // white frame (see polaroidPhotoCard below), deliberately
+            // NOT nested inside the standard bordered card (that's
+            // dropped entirely for isPhotoOnly, see photoOnlyCard
+            // above). Favorite/goal-tag/delete stay up in headerRow
+            // above rather than in the Polaroid's own top strip the
+            // spec describes -- an explicit, documented deviation on
+            // the one point the spec itself calls not-yet-decided
+            // ("may need reconsidering once actually built and seen for
+            // real... decide after seeing it built"), traded for
+            // reusing headerRow's already-working icons wholesale
+            // instead of duplicating them. Revisit if it reads wrong in
+            // practice.
             <TouchableOpacity
-              onPress={() => setJournalExpanded(true)}
-              hitSlop={{ top: 6, bottom: 10, left: 10, right: 10 }}
+              activeOpacity={photoUri ? 0.85 : 1}
+              onPress={() => photoUri && onOpenPhoto?.(item.id, photoUri)}
+              style={[styles.polaroidPhotoCard, { transform: [{ rotate: rotationForId(item.id) }] }]}
             >
-              <Text style={styles.continueReadingLink}>Continue reading</Text>
+              {photoUri ? (
+                <Image source={{ uri: photoUri }} style={styles.polaroidPhoto} />
+              ) : (
+                <View style={styles.polaroidMissingWrap}>
+                  <Ionicons name="image-outline" size={26} color={C.faint} />
+                  {isOwnEntry ? (
+                    <>
+                      <Text style={styles.polaroidMissingText} numberOfLines={1}>
+                        {item.local_photo_filename || 'Photo missing'}
+                      </Text>
+                      <TouchableOpacity
+                        onPress={() => onRelinkPhoto?.(item)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        style={styles.relinkButton}
+                      >
+                        <Text style={styles.relinkButtonText}>Relink photo</Text>
+                      </TouchableOpacity>
+                    </>
+                  ) : (
+                    <Text style={styles.polaroidMissingText}>Photo not available</Text>
+                  )}
+                </View>
+              )}
+              {/* Caption shows the chosen Vibe's label instead of a
+                  share caption, per spec. */}
+              <View style={styles.polaroidCaptionStrip}>
+                <Text style={styles.polaroidCaptionLabel}>{NATURE_LABELS[item.tickle_nature]}</Text>
+              </View>
             </TouchableOpacity>
+          ) : (
+            <>
+              <View style={isJournal ? styles.journalTextWrap : undefined}>
+                {isJournal && (
+                  // Fixed, generous upper bound (covers the longest possible
+                  // entry at MAX_LEN=500) -- the wrap's own overflow:hidden
+                  // clips extra lines to the text's real rendered height, so
+                  // no onLayout/measurement pass is needed.
+                  <View style={styles.journalRuleLines} pointerEvents="none">
+                    {JOURNAL_RULE_OFFSETS.map((top) => (
+                      <View key={top} style={[styles.journalRuleLine, { top }]} />
+                    ))}
+                  </View>
+                )}
+                <Text
+                  style={[styles.entryText, isJournal && styles.journalEntryText]}
+                  numberOfLines={isJournal && !journalExpanded ? 4 : undefined}
+                >
+                  {item.text_content}
+                </Text>
+              </View>
+              {isJournal && !journalExpanded && item.text_content.length > JOURNAL_TRUNCATE_CHARS && (
+                <TouchableOpacity
+                  onPress={() => setJournalExpanded(true)}
+                  hitSlop={{ top: 6, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Text style={styles.continueReadingLink}>Continue reading</Text>
+                </TouchableOpacity>
+              )}
+            </>
           )}
           <View style={styles.entryMetaRow}>
             <Text style={styles.entryDate}>
@@ -339,16 +435,23 @@ export default function EntryCard({
       <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
         <TouchableOpacity style={styles.menuBackdrop} activeOpacity={1} onPress={() => setMenuOpen(false)}>
           <TouchableOpacity activeOpacity={1} style={styles.menuSheet} onPress={() => {}}>
-            <TouchableOpacity
-              style={styles.menuRow}
-              onPress={() => {
-                setMenuOpen(false);
-                router.push({ pathname: '/create', params: { entryId: item.id } });
-              }}
-            >
-              <Ionicons name="pencil-outline" size={18} color={C.text} />
-              <Text style={styles.menuRowLabel}>Edit</Text>
-            </TouchableOpacity>
+            {/* Deliberately absent for a photo-only entry -- there's no
+                text to edit, and re-picking the Vibe as a kind of "edit"
+                was raised but never resolved either way (see the spec's
+                own open item on this), so this stays simply omitted
+                rather than guessing at that behavior. */}
+            {!isPhotoOnly && (
+              <TouchableOpacity
+                style={styles.menuRow}
+                onPress={() => {
+                  setMenuOpen(false);
+                  router.push({ pathname: '/create', params: { entryId: item.id } });
+                }}
+              >
+                <Ionicons name="pencil-outline" size={18} color={C.text} />
+                <Text style={styles.menuRowLabel}>Edit</Text>
+              </TouchableOpacity>
+            )}
 
             {!isJournal && (
               <TouchableOpacity
@@ -390,6 +493,43 @@ const styles = StyleSheet.create({
   entryCard: {
     backgroundColor: C.card, borderRadius: 16, padding: 14, marginBottom: CARD_SPACING,
   },
+  photoOnlyCard: { backgroundColor: 'transparent', padding: 0 },
+  // Same tilt+shadow language as PolaroidCard.js/ShareCard.js's own
+  // Polaroid treatments (shadowOffset/Opacity/Radius/elevation values
+  // copied from there for visual consistency) -- square photo, small
+  // white frame, no card behind it (photoOnlyCard above already dropped
+  // that). 75% of the row's width rather than PolaroidCard's fixed 150px
+  // grid-card size (this sits alone in a single-column list, not a 2-up
+  // grid) or a full-bleed 100% (read as too dominant against the rest of
+  // the feed on-device) -- a first pass, easy to retune once seen live,
+  // same as the icon-placement deviation noted above.
+  polaroidPhotoCard: {
+    width: '75%',
+    alignSelf: 'center',
+    backgroundColor: C.card,
+    borderRadius: 8,
+    padding: 8,
+    paddingBottom: 6,
+    marginTop: 4,
+    marginBottom: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  polaroidPhoto: { width: '100%', aspectRatio: 1, borderRadius: 4, backgroundColor: C.border },
+  polaroidMissingWrap: {
+    width: '100%', aspectRatio: 1, borderRadius: 4, backgroundColor: C.bg,
+    alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16,
+  },
+  polaroidMissingText: { fontSize: 12, color: C.subtext, textAlign: 'center' },
+  relinkButton: {
+    paddingVertical: 6, paddingHorizontal: 14, borderRadius: 14, backgroundColor: C.sparkleBg,
+  },
+  relinkButtonText: { fontSize: 12, fontWeight: '600', color: C.sparkleText },
+  polaroidCaptionStrip: { paddingTop: 8, paddingHorizontal: 2 },
+  polaroidCaptionLabel: { fontSize: 13, fontWeight: '600', color: C.rustDark, textAlign: 'center' },
   journalCard: {
     // C.bg is the exact color WallpaperBackground paints as its own
     // base layer -- an opaque journalCard in that color was literally

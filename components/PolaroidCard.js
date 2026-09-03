@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { C, darken, lighten } from '../lib/theme';
-import DeletePhotoModal from './DeletePhotoModal';
+import { C, darken, lighten, NATURE_ORDER, VIBE_COLORS } from '../lib/theme';
+import NatureIcon from './NatureIcon';
 
 function formatPinnedDate(pinnedAt) {
   return new Date(pinnedAt).toLocaleDateString('en-US', {
@@ -22,14 +22,14 @@ function rotationFor(id) {
 // tickled and onTickle are fully independent of each other, per design:
 // the button always works regardless of the badge's state, since one
 // photo can link to many entries over time.
-export default function PolaroidCard({ photo, tickled, onPress, onTickle, onShare, onDelete, onSaveToLibrary }) {
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+//
+// onVibeTap(photo, vibeId) creates a new photo-only Tickle straight from
+// this card, skipping the New Tickle screen entirely -- see
+// pinboard.js's handlePhotoVibeTap. Independent of onTickle, which still
+// pins this same photo to a separately-written entry; a photo can go
+// through both paths.
+export default function PolaroidCard({ photo, tickled, onPress, onTickle, onVibeTap, onShare, onRequestDelete, onSaveToLibrary }) {
   const [saved, setSaved] = useState(false);
-
-  function handleConfirmDelete() {
-    setShowDeleteConfirm(false);
-    onDelete?.(photo);
-  }
 
   async function handleSavePress() {
     const success = await onSaveToLibrary?.(photo);
@@ -51,7 +51,7 @@ export default function PolaroidCard({ photo, tickled, onPress, onTickle, onShar
 
       <View style={styles.photoWrap}>
         <TouchableOpacity
-          onPress={() => setShowDeleteConfirm(true)}
+          onPress={() => onRequestDelete?.(photo)}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           style={styles.deleteButton}
         >
@@ -61,13 +61,28 @@ export default function PolaroidCard({ photo, tickled, onPress, onTickle, onShar
         <TouchableOpacity
           onPress={handleSavePress}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          style={styles.saveButton}
+          style={styles.downloadButton}
         >
           <Ionicons name={saved ? 'checkmark' : 'download-outline'} size={12} color={C.rust} />
         </TouchableOpacity>
 
         <Image source={{ uri: photo.file_path }} style={styles.photo} />
 
+        <View style={styles.vibeRow}>
+          {NATURE_ORDER.map((nature) => (
+            <TouchableOpacity
+              key={nature}
+              onPress={() => onVibeTap?.(photo, nature)}
+              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+              style={styles.vibeButton}
+            >
+              <NatureIcon nature={nature} size={11} color={VIBE_COLORS[nature]} />
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Relocated from top-right (where downloadButton now sits) to
+            avoid overlapping it -- see downloadButton's move above. */}
         {tickled && (
           <View style={styles.tickledBadge}>
             <Ionicons name="checkmark" size={10} color={darken(C.teal, 0.4)} />
@@ -94,12 +109,6 @@ export default function PolaroidCard({ photo, tickled, onPress, onTickle, onShar
           </TouchableOpacity>
         </View>
       </View>
-
-      <DeletePhotoModal
-        visible={showDeleteConfirm}
-        onConfirm={handleConfirmDelete}
-        onCancel={() => setShowDeleteConfirm(false)}
-      />
     </TouchableOpacity>
   );
 }
@@ -153,10 +162,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 1,
   },
-  saveButton: {
+  // Mirrors deleteButton's top-left position -- Download moved here from
+  // bottom-left to free that corner for vibeRow below.
+  downloadButton: {
     position: 'absolute',
-    bottom: 12,
-    left: 12,
+    top: 12,
+    right: 12,
     width: 18,
     height: 18,
     borderRadius: 9,
@@ -165,9 +176,31 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 1,
   },
+  // Three vibe icons packed into the same bottom-left footprint the
+  // single Download button used to occupy -- tapping one instantly
+  // creates a photo-only Tickle (see onVibeTap).
+  vibeRow: {
+    position: 'absolute',
+    bottom: 10,
+    left: 8,
+    flexDirection: 'row',
+    gap: 3,
+    zIndex: 1,
+  },
+  vibeButton: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // Moved to bottom-right (was top-right) now that downloadButton sits
+  // top-right -- the two would otherwise overlap when a photo is both
+  // downloaded and tickled.
   tickledBadge: {
     position: 'absolute',
-    top: 12,
+    bottom: 12,
     right: 12,
     width: 18,
     height: 18,
