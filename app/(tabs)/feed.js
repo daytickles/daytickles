@@ -789,7 +789,15 @@ export default function Feed() {
         );
       } catch (err) {
         console.error('handleToggleVisibility: photo upload failed', err);
-        Alert.alert("Couldn't make this public", 'Something went wrong uploading this photo — try again.');
+        // Real underlying message included, not just a generic line --
+        // this is a genuinely new, unproven code path (Storage bucket +
+        // RLS, no established pattern elsewhere in this app to lean on),
+        // so a failure here should be self-diagnosing on-device rather
+        // than requiring a Metro console dig every time.
+        Alert.alert(
+          "Couldn't make this public",
+          `Something went wrong uploading this photo — try again.\n\n${err.message || String(err)}`
+        );
       }
       return;
     }
