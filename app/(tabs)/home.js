@@ -14,7 +14,7 @@ import { fetchFoundingMemberPaceStatus, fetchFoundingMemberOptInReminderStatus }
 import { flagEmoji } from '../../lib/country';
 import { initPinBoardDb, getPhotosForEntries } from '../../lib/pinBoardDb';
 import { useShareCard } from '../../lib/useShareCard';
-import { makePhotoTicklePublic } from '../../lib/photoTickleStorage';
+import { makePhotoTicklePublic, makePhotoTicklePrivate, deletePhotoTickleMedia } from '../../lib/photoTickleStorage';
 import Button from '../../components/Button';
 import VibeCard from '../../components/VibeCard';
 import NatureIcon from '../../components/NatureIcon';
@@ -497,16 +497,20 @@ export default function Home() {
       "This can't be undone — it removes the entry everywhere, including any likes or shares.",
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => handleDeleteEntry(entry.id) },
+        { text: 'Delete', style: 'destructive', onPress: () => handleDeleteEntry(entry) },
       ]
     );
   }
 
-  async function handleDeleteEntry(entryId) {
+  async function handleDeleteEntry(entry) {
     const previous = entries;
-    setEntries((prev) => prev.filter((e) => e.id !== entryId));
+    setEntries((prev) => prev.filter((e) => e.id !== entry.id));
 
-    const { error } = await supabase.from('tickle_entries').delete().eq('id', entryId);
+    // Best-effort, never blocks the actual delete below -- see
+    // deletePhotoTickleMedia's own comment.
+    await deletePhotoTickleMedia(entry);
+
+    const { error } = await supabase.from('tickle_entries').delete().eq('id', entry.id);
     if (error) setEntries(previous);
   }
 
@@ -549,6 +553,29 @@ export default function Home() {
         Alert.alert(
           "Couldn't make this public",
           `Something went wrong uploading this photo — try again.\n\n${err.message || String(err)}`
+        );
+      }
+      return;
+    }
+
+    // Photo-only entries going public -> private genuinely remove the
+    // Storage object too (see lib/photoTickleStorage.js's own comment)
+    // -- the bucket is fully public-read, so leaving the object in
+    // place would mean "private" only hides it from this app's own UI,
+    // not a real access revocation. Same non-optimistic shape as the
+    // going-public branch above, for the same reason: a real async
+    // Storage operation with real failure modes, not an instant flip.
+    if (entry.entry_kind === 'photo_only' && newVisibility === 'private') {
+      try {
+        await makePhotoTicklePrivate(entry);
+        setEntries((prev) =>
+          prev.map((e) => (e.id === entry.id ? { ...e, visibility: 'private', media_url: null } : e))
+        );
+      } catch (err) {
+        console.error('handleToggleVisibility: photo removal failed', err);
+        Alert.alert(
+          "Couldn't make this private",
+          `Something went wrong removing this photo — try again.\n\n${err.message || String(err)}`
         );
       }
       return;

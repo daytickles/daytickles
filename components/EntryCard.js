@@ -119,10 +119,17 @@ export default function EntryCard({
   }
 
   function confirmDelete() {
+    // The public-copy sentence only applies once there's actually a
+    // public copy to remove -- a private photo-only entry never had
+    // anything uploaded (see lib/photoTickleStorage.js's own media_url
+    // gate), so nothing would be true to say there.
+    const photoOnlyMessage =
+      "This can't be undone — it removes the entry everywhere, including any likes or shares. The photo itself isn't deleted by this — it stays in your device gallery, and in Tickle Pics if it's still pinned there." +
+      (item.visibility === 'public' ? ' The shared copy is removed too.' : '');
     Alert.alert(
       'Delete this tickle?',
       isPhotoOnly
-        ? "This can't be undone — it removes the entry everywhere, including any likes or shares. The photo itself isn't deleted by this — it stays in your device gallery, and in Tickle Pics if it's still pinned there."
+        ? photoOnlyMessage
         : "This can't be undone — it removes the entry everywhere, including any likes or shares.",
       [
         { text: 'Cancel', style: 'cancel' },

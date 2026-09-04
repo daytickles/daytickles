@@ -23,7 +23,7 @@ import {
 } from '../../lib/pinBoardDb';
 import { pickFromLibrary } from '../../lib/pinBoardPhotos';
 import { useShareCard } from '../../lib/useShareCard';
-import { makePhotoTicklePublic } from '../../lib/photoTickleStorage';
+import { makePhotoTicklePublic, makePhotoTicklePrivate, deletePhotoTickleMedia } from '../../lib/photoTickleStorage';
 
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
@@ -400,6 +400,29 @@ export default function Calendar() {
       return;
     }
 
+    // Photo-only entries going public -> private genuinely remove the
+    // Storage object too (see lib/photoTickleStorage.js's own comment)
+    // -- the bucket is fully public-read, so leaving the object in
+    // place would mean "private" only hides it from this app's own UI,
+    // not a real access revocation. Same non-optimistic shape as the
+    // going-public branch above, for the same reason: a real async
+    // Storage operation with real failure modes, not an instant flip.
+    if (entry.entry_kind === 'photo_only' && newVisibility === 'private') {
+      try {
+        await makePhotoTicklePrivate(entry);
+        setDayEntries((prev) =>
+          prev.map((e) => (e.id === entry.id ? { ...e, visibility: 'private', media_url: null } : e))
+        );
+      } catch (err) {
+        console.error('handleToggleVisibility: photo removal failed', err);
+        Alert.alert(
+          "Couldn't make this private",
+          `Something went wrong removing this photo — try again.\n\n${err.message || String(err)}`
+        );
+      }
+      return;
+    }
+
     const previous = dayEntries;
     setDayEntries((prev) => prev.map((e) => (e.id === entry.id ? { ...e, visibility: newVisibility } : e)));
 
@@ -411,11 +434,15 @@ export default function Calendar() {
     if (error) setDayEntries(previous);
   }
 
-  async function handleDeleteEntry(entryId) {
+  async function handleDeleteEntry(entry) {
     const previous = dayEntries;
-    setDayEntries((prev) => prev.filter((e) => e.id !== entryId));
+    setDayEntries((prev) => prev.filter((e) => e.id !== entry.id));
 
-    const { error } = await supabase.from('tickle_entries').delete().eq('id', entryId);
+    // Best-effort, never blocks the actual delete below -- see
+    // deletePhotoTickleMedia's own comment.
+    await deletePhotoTickleMedia(entry);
+
+    const { error } = await supabase.from('tickle_entries').delete().eq('id', entry.id);
     if (error) {
       setDayEntries(previous);
       return;
@@ -700,7 +727,7 @@ export default function Calendar() {
                   onShare={() => (item.entry_kind === 'photo_only' ? handlePhotoOnlyShare(item) : setShareEntryId(item.id))}
                   onToggleFavorite={handleToggleFavorite}
                   onToggleVisibility={handleToggleVisibility}
-                  onDelete={(entry) => handleDeleteEntry(entry.id)}
+                  onDelete={handleDeleteEntry}
                   onGiveAward={setAwardEntryId}
                 />
               ))
