@@ -23,6 +23,7 @@ import AboutModal from '../../components/AboutModal';
 import FoundingMemberBadge from '../../components/FoundingMemberBadge';
 import GoalTagModal from '../../components/GoalTagModal';
 import QuickStartCard from '../../components/QuickStartCard';
+import DayDotsCard from '../../components/DayDotsCard';
 import ShareModal from '../../components/ShareModal';
 import CornerNav from '../../components/CornerNav';
 import WallpaperBackground from '../../components/WallpaperBackground';
@@ -32,6 +33,7 @@ import {
   cancelDailyReminder,
   regenerateAwarenessCueSchedule,
   cancelAwarenessCueSchedule,
+  currentDayDotsPromptDate,
 } from '../../lib/reminders';
 import { isReviewAvailable, requestReview } from '../../lib/rateUs';
 
@@ -140,6 +142,51 @@ export default function Home() {
     }, [refreshProfile])
   );
 
+  // Day Dots eligibility check -- bundled into daily_reminder, no
+  // separate toggle (see lib/reminders.js's currentDayDotsPromptDate
+  // header comment for why this is a single-date check, not a scan
+  // over every previously-missed date). Re-runs on every focus, not
+  // just mount, since the eligible date can change between focuses
+  // (e.g. backgrounding across the 8pm cutoff or across midnight).
+  useFocusEffect(
+    useCallback(() => {
+      if (!session || !profile?.daily_reminder) {
+        setDayDotsPromptDate(null);
+        return;
+      }
+      const promptDate = currentDayDotsPromptDate();
+      let cancelled = false;
+      supabase
+        .from('day_dots')
+        .select('id')
+        .eq('user_id', session.user.id)
+        .eq('prompt_date', promptDate)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (!cancelled) setDayDotsPromptDate(data ? null : promptDate);
+        });
+      return () => {
+        cancelled = true;
+      };
+    }, [session, profile?.daily_reminder])
+  );
+
+  async function handleDayDotsSelect(dotIndex) {
+    const promptDate = dayDotsPromptDate;
+    setDayDotsPromptDate(null);
+    await supabase
+      .from('day_dots')
+      .insert({ user_id: session.user.id, prompt_date: promptDate, status: 'answered', dot_index: dotIndex });
+  }
+
+  async function handleDayDotsSkip() {
+    const promptDate = dayDotsPromptDate;
+    setDayDotsPromptDate(null);
+    await supabase
+      .from('day_dots')
+      .insert({ user_id: session.user.id, prompt_date: promptDate, status: 'skipped' });
+  }
+
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [goals, setGoals] = useState([]);
@@ -162,6 +209,11 @@ export default function Home() {
   const vibeTooltipTimerRef = useRef(null);
   const [paceReminder, setPaceReminder] = useState(null);
   const [optInReminder, setOptInReminder] = useState(null);
+  // Local 'YYYY-MM-DD' of the single currently-unanswered Day Dots
+  // prompt, or null if there isn't one right now (reminder off, or
+  // today/yesterday's date already has a row) -- see the focus effect
+  // below and lib/reminders.js's currentDayDotsPromptDate.
+  const [dayDotsPromptDate, setDayDotsPromptDate] = useState(null);
 
   // Auto-show the first-time intro exactly once, gated on the DB flag —
   // not local/session state, so it stays correctly "seen" across
@@ -1046,6 +1098,14 @@ export default function Home() {
         </View>
 
         <Button title="New Tickle" onPress={() => router.push('/create')} variant="secondary" style={styles.newTickleShadow} />
+
+        {dayDotsPromptDate && (
+          <DayDotsCard
+            accentColor={accent.card}
+            onSelectDot={handleDayDotsSelect}
+            onSkip={handleDayDotsSkip}
+          />
+        )}
 
         {pinned && (
           <TouchableOpacity

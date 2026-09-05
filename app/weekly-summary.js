@@ -89,6 +89,11 @@ export default function WeeklySummary() {
   const [madeMeSmileSends, setMadeMeSmileSends] = useState(0);
   const [photoCount, setPhotoCount] = useState(0);
   const [weeklySharesTotal, setWeeklySharesTotal] = useState(0);
+  // 'YYYY-MM-DD' -> true, one entry per day THIS week with an answered
+  // (never skipped -- see the query below) Day Dots row. Skipped rows
+  // are excluded at the query level, not just hidden in the render, so
+  // a skip really does carry no visible trace anywhere in the app.
+  const [dayDotsAnswered, setDayDotsAnswered] = useState({});
 
   const weekStartDate = currentWeekStartDate(weekStartDay);
 
@@ -116,6 +121,7 @@ export default function WeeklySummary() {
       pinnedPhotoCount,
       weeklyTickleSharesResult,
       weeklyPhotoShareEventsResult,
+      dayDotsResult,
     ] = await Promise.all([
       supabase
         .from('tickle_entries')
@@ -187,6 +193,12 @@ export default function WeeklySummary() {
         .select('id', { count: 'exact', head: true })
         .eq('user_id', session.user.id)
         .gte('shared_at', weekStartISO),
+      supabase
+        .from('day_dots')
+        .select('prompt_date')
+        .eq('user_id', session.user.id)
+        .eq('status', 'answered')
+        .gte('prompt_date', weekStartDate),
     ]);
 
     if (!weekEntriesResult.error) setWeekEntries(weekEntriesResult.data || []);
@@ -216,6 +228,10 @@ export default function WeeklySummary() {
     const weeklyTickleShares = weeklyTickleSharesResult.error ? 0 : (weeklyTickleSharesResult.count || 0);
     const weeklyPhotoShareEvents = weeklyPhotoShareEventsResult.error ? 0 : (weeklyPhotoShareEventsResult.count || 0);
     setWeeklySharesTotal(weeklyTickleShares + weeklyPhotoShareEvents);
+
+    if (!dayDotsResult.error) {
+      setDayDotsAnswered(Object.fromEntries((dayDotsResult.data || []).map((row) => [row.prompt_date, true])));
+    }
 
     setLoading(false);
   }, [session, weekStartDay, weekStartDate]);
@@ -270,6 +286,7 @@ export default function WeeklySummary() {
     .filter(({ count }) => count > 0);
 
   const hasConnection = likesGiven > 0 || newFollowers > 0 || thoughtOfYouSends > 0 || madeMeSmileSends > 0;
+  const hasDayDots = weekDates.some((d) => dayDotsAnswered[d]);
 
   return (
     <WallpaperBackground>
@@ -404,6 +421,33 @@ export default function WeeklySummary() {
                       <Text style={styles.rhythmLegendText}>{NATURE_LABELS[key]}</Text>
                     </View>
                   ))}
+                </View>
+              </>
+            )}
+
+            {hasDayDots && (
+              <>
+                <Text style={styles.sectionLabel}>Day Dots</Text>
+                <View style={styles.dayDotsGridWrap}>
+                  <View style={styles.dayDotsRow}>
+                    {weekDates.map((date) => (
+                      <View key={date} style={styles.dayDotsCell}>
+                        {dayDotsAnswered[date] ? (
+                          <View
+                            style={[
+                              styles.dayDotsDot,
+                              { backgroundColor: withAlpha(accent.card, 0.22), borderColor: darken(accent.card, 0.15) },
+                            ]}
+                          />
+                        ) : null}
+                      </View>
+                    ))}
+                  </View>
+                  <View style={styles.dayDotsLabelRow}>
+                    {weekDates.map((date) => (
+                      <Text key={date} style={styles.dayDotsDayLabel}>{weekdayLabel(date)}</Text>
+                    ))}
+                  </View>
                 </View>
               </>
             )}
@@ -605,6 +649,21 @@ const styles = StyleSheet.create({
   rhythmLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   rhythmLegendDot: { width: 8, height: 8, borderRadius: 4 },
   rhythmLegendText: { fontSize: 11, color: C.subtext },
+
+  // Deliberately not the rhythm chart's rhythmEmptyDot for an
+  // unanswered day -- that grey dot already means "present but zero
+  // count" elsewhere on this screen; a day with no Day Dots row is a
+  // different thing (no data point at all), so it renders as plain
+  // empty space instead of borrowing a dot that means something else.
+  dayDotsGridWrap: {
+    backgroundColor: C.card, borderRadius: 14, borderWidth: 1, borderColor: C.border,
+    paddingVertical: 12, paddingHorizontal: 10, marginBottom: 16,
+  },
+  dayDotsRow: { flexDirection: 'row', marginBottom: 8 },
+  dayDotsCell: { flex: 1, alignItems: 'center', justifyContent: 'center', height: 24 },
+  dayDotsDot: { width: 18, height: 18, borderRadius: 9, borderWidth: 1.5 },
+  dayDotsLabelRow: { flexDirection: 'row' },
+  dayDotsDayLabel: { flex: 1, fontSize: 11, color: C.subtext, textAlign: 'center' },
 
   goalCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
