@@ -204,10 +204,18 @@ export default function WeeklySummary() {
     if (!weekEntriesResult.error) setWeekEntries(weekEntriesResult.data || []);
 
     if (!trailingEntriesResult.error) {
-      const best = (trailingEntriesResult.data || []).reduce(
-        (b, e) => (!b || e.like_count > b.like_count ? e : b),
-        null
-      );
+      // Same two rules as Home's own pinned/spotlightEntries logic
+      // (app/(tabs)/home.js) -- My Day (day_journal) entries are private
+      // by design and never eligible here regardless of like count, and
+      // an entry with 0 likes is never a meaningful "most liked" pick
+      // (this app's existing no-gap-shaming pattern, e.g. Day Dots'
+      // own unanswered-day handling). !== not a query-level .neq() --
+      // tickle_nature can be null for untagged entries, and Postgres's
+      // <> excludes NULLs under three-valued logic, which would wrongly
+      // drop every untagged entry from eligibility.
+      const best = (trailingEntriesResult.data || [])
+        .filter((e) => e.tickle_nature !== 'day_journal' && e.like_count > 0)
+        .reduce((b, e) => (!b || e.like_count > b.like_count ? e : b), null);
       setMostLiked(best);
     }
 
