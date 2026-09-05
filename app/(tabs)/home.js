@@ -189,6 +189,7 @@ export default function Home() {
         const promptDate = currentDayDotsPromptDate(now);
         if (!promptDate) {
           setDayDotsPromptDate(null);
+          setDayDotsAvailableUntilLabel(null);
           const msUntilOpen = msUntilDayDotsWindowOpens(now);
           if (msUntilOpen > 0) {
             timer = setTimeout(() => {
@@ -198,6 +199,12 @@ export default function Home() {
           return;
         }
 
+        const msUntilClose = msUntilDayDotsWindowCloses(now);
+        const closesAt = new Date(now.getTime() + msUntilClose);
+        setDayDotsAvailableUntilLabel(
+          closesAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+        );
+
         supabase
           .from('day_dots')
           .select('id')
@@ -205,12 +212,17 @@ export default function Home() {
           .eq('prompt_date', promptDate)
           .maybeSingle()
           .then(({ data }) => {
-            if (!cancelled) setDayDotsPromptDate(data ? null : promptDate);
+            if (!cancelled && data) {
+              setDayDotsPromptDate(null);
+              setDayDotsAvailableUntilLabel(null);
+            } else if (!cancelled) {
+              setDayDotsPromptDate(promptDate);
+            }
           });
 
         timer = setTimeout(() => {
           if (!cancelled) checkNow();
-        }, msUntilDayDotsWindowCloses(now));
+        }, msUntilClose);
       }
 
       checkNow();
@@ -265,6 +277,14 @@ export default function Home() {
   // today/yesterday's date already has a row) -- see the focus effect
   // below and lib/reminders.js's currentDayDotsPromptDate.
   const [dayDotsPromptDate, setDayDotsPromptDate] = useState(null);
+  // Static "Available until X" label for the current window -- computed
+  // once, at the same moment the close-timer's own delay is computed
+  // (reusing msUntilDayDotsWindowCloses, so it's guaranteed to agree
+  // with the real close time), never re-computed on a ticking interval.
+  // Deliberately not a live countdown -- a shrinking number reads as
+  // pressure/urgency, which conflicts with this app's no-guilt design
+  // elsewhere (e.g. Day Dots' own no-backlog, no-catch-up design).
+  const [dayDotsAvailableUntilLabel, setDayDotsAvailableUntilLabel] = useState(null);
 
   // Auto-show the first-time intro exactly once, gated on the DB flag —
   // not local/session state, so it stays correctly "seen" across
@@ -1153,6 +1173,7 @@ export default function Home() {
         {dayDotsPromptDate && (
           <DayDotsCard
             accentColor={accent.card}
+            availableUntilLabel={dayDotsAvailableUntilLabel}
             onSelectDot={handleDayDotsSelect}
             onSkip={handleDayDotsSkip}
           />
