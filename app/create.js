@@ -22,7 +22,7 @@ const TICKLE_NATURE_OPTIONS = [
   { id: 'self', label: 'For me' },
 ];
 
-const DAY_JOURNAL_OPTION = { id: 'day_journal', label: 'Day Journal' };
+const DAY_JOURNAL_OPTION = { id: 'day_journal', label: 'My Day' };
 
 export default function Create() {
   const { session, profile, getNextPrompt } = useAuth();

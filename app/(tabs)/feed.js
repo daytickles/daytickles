@@ -9,11 +9,14 @@ import { supabase } from '../../lib/supabase';
 import { C, accentFor, darken, textOn } from '../../lib/theme';
 import { shareEntry, shareStatus, sharePhotoOnlyEntry, SHARE_CAPTIONS } from '../../lib/sharing';
 import { notifyLikeReceived } from '../../lib/likeNotify';
+import { localDateString } from '../../lib/week';
+import { EVENING_HOUR, EVENING_MINUTE } from '../../lib/reminders';
 import GoalTagModal from '../../components/GoalTagModal';
 import AwardPickerModal from '../../components/AwardPickerModal';
 import ShareModal from '../../components/ShareModal';
 import PhotoEnlargeModal from '../../components/PhotoEnlargeModal';
 import EntryCard, { CARD_SPACING } from '../../components/EntryCard';
+import DayDotsCard from '../../components/DayDotsCard';
 import CornerNav from '../../components/CornerNav';
 import CountBadge from '../../components/CountBadge';
 import WallpaperBackground from '../../components/WallpaperBackground';
@@ -42,8 +45,11 @@ const NATURE_FILTERS = [
 ];
 
 // Independent of tickle_nature_enabled — day_journal_enabled can show
-// this chip on its own, same as create.js's picker.
-const DAY_JOURNAL_FILTER = { id: 'day_journal', label: 'Journal' };
+// this chip on its own, same as create.js's picker. id stays
+// 'day_journal' (matches tickle_entries.tickle_nature and the
+// day_journal_enabled column) -- only the user-facing label changed
+// to "My Day".
+const DAY_JOURNAL_FILTER = { id: 'day_journal', label: 'My Day' };
 
 const EMPTY_TEXT = {
   mine: "You haven't shared any tickles to the feed yet.",
@@ -52,13 +58,13 @@ const EMPTY_TEXT = {
   rippled: 'No public tickles yet.',
 };
 
-// Mine's Day Journal filter needs its own empty message rather than the
+// Mine's My Day filter needs its own empty message rather than the
 // generic `mine` one above -- that message talks about sharing to the
-// feed, which is wrong here since Journal entries are private by design
+// feed, which is wrong here since My Day entries are private by design
 // and Mine shows entries regardless of sharing status anyway.
 function getEmptyText(tab, natureFilter) {
   if (tab === 'mine' && natureFilter === 'day_journal') {
-    return 'Write your first Day Journal entry to see it here.';
+    return 'Write your first My Day entry to see it here.';
   }
   return EMPTY_TEXT[tab];
 }
@@ -173,6 +179,15 @@ export default function Feed() {
   const initialTab = TABS.some((t) => t.id === params.tab) ? params.tab : 'mine';
   const [tab, setTab] = useState(initialTab);
   const [natureFilter, setNatureFilter] = useState('all');
+  // Day Dots state for today, re-derived on every focus of this screen
+  // (see the effect below) -- null until the first check resolves.
+  // Deliberately no live timer: a screen sitting continuously open
+  // across the 8pm cutoff just stays on 'before' until the next focus
+  // (tab switch, app resume), which is an accepted simplification, not
+  // a bug -- see project memory on the discarded open/close-timer design
+  // this replaces. { phase: 'before'|'active'|'answered'|'skipped',
+  // dotIndex? } -- dotIndex only set when phase === 'answered'.
+  const [dayDots, setDayDots] = useState(null);
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [goals, setGoals] = useState([]);
@@ -328,6 +343,65 @@ export default function Feed() {
       loadPhotoLinks();
     }, [loadPhotoLinks])
   );
+
+  // Day Dots -- deliberately simple, no timer. Re-checked on every focus
+  // of this screen (tab switch, app resume): read today's row if one
+  // exists, otherwise derive 'before'/'active' from a plain local-clock
+  // comparison against EVENING_HOUR/EVENING_MINUTE (shared with the
+  // evening reminder's own schedule, see lib/reminders.js). No longer
+  // gated on profile.daily_reminder -- this is a permanent card on My
+  // Day now, not something that only matters while a notification is
+  // scheduled.
+  const checkDayDots = useCallback(async () => {
+    if (!session) {
+      setDayDots(null);
+      return;
+    }
+    const today = localDateString(0);
+    const { data } = await supabase
+      .from('day_dots')
+      .select('status, dot_index')
+      .eq('user_id', session.user.id)
+      .eq('prompt_date', today)
+      .maybeSingle();
+
+    if (data) {
+      setDayDots(
+        data.status === 'answered'
+          ? { phase: 'answered', dotIndex: data.dot_index }
+          : { phase: 'skipped' }
+      );
+      return;
+    }
+
+    const now = new Date();
+    const isEvening =
+      now.getHours() > EVENING_HOUR ||
+      (now.getHours() === EVENING_HOUR && now.getMinutes() >= EVENING_MINUTE);
+    setDayDots({ phase: isEvening ? 'active' : 'before' });
+  }, [session]);
+
+  useFocusEffect(
+    useCallback(() => {
+      checkDayDots();
+    }, [checkDayDots])
+  );
+
+  async function handleDayDotsSelect(dotIndex) {
+    const today = localDateString(0);
+    setDayDots({ phase: 'answered', dotIndex });
+    await supabase
+      .from('day_dots')
+      .insert({ user_id: session.user.id, prompt_date: today, status: 'answered', dot_index: dotIndex });
+  }
+
+  async function handleDayDotsSkip() {
+    const today = localDateString(0);
+    setDayDots({ phase: 'skipped' });
+    await supabase
+      .from('day_dots')
+      .insert({ user_id: session.user.id, prompt_date: today, status: 'skipped' });
+  }
 
   // Same reasoning as loadFollowed/loadLiked above -- only this screen's
   // own handleGiveAward can ever create an award row (awards RLS is
@@ -978,6 +1052,16 @@ export default function Feed() {
             </TouchableOpacity>
           ))}
         </View>
+      )}
+
+      {tab === 'mine' && natureFilter === 'day_journal' && dayDots && (
+        <DayDotsCard
+          accentColor={accentFor(profile?.accent_theme).card}
+          phase={dayDots.phase}
+          selectedDotIndex={dayDots.dotIndex}
+          onSelectDot={handleDayDotsSelect}
+          onSkip={handleDayDotsSkip}
+        />
       )}
 
       {loading && <ActivityIndicator color={C.rust} style={styles.loader} />}

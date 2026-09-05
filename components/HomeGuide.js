@@ -14,7 +14,7 @@ const STEPS = [
   },
   {
     title: 'New Tickle',
-    body: "Tap New Tickle to capture something from your day. Write what's on your mind, then pick your Vibe — Made me smile, Paying forward, or For me. Its icon becomes that entry's identifier everywhere it shows up: Tickle Stash, Calendar, and Home.\n\nYou decide whether your Tickle stays private or is a post on Rippled.\n\nA Day Journal is available in Settings if you want more space for personal, in-depth writing. You will find your Journal under 'Mine' on the Tickle Stash.",
+    body: "Tap New Tickle to capture something from your day. Write what's on your mind, then pick your Vibe — Made me smile, Paying forward, or For me. Its icon becomes that entry's identifier everywhere it shows up: Tickle Stash, Calendar, and Home.\n\nYou decide whether your Tickle stays private or is a post on Rippled.\n\nMy Day is available in Settings if you want more space for personal, in-depth writing. You will find it under 'Mine' on the Tickle Stash.",
   },
   {
     title: 'Tickle Stash',

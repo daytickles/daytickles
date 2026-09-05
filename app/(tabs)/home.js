@@ -23,7 +23,6 @@ import AboutModal from '../../components/AboutModal';
 import FoundingMemberBadge from '../../components/FoundingMemberBadge';
 import GoalTagModal from '../../components/GoalTagModal';
 import QuickStartCard from '../../components/QuickStartCard';
-import DayDotsCard from '../../components/DayDotsCard';
 import ShareModal from '../../components/ShareModal';
 import CornerNav from '../../components/CornerNav';
 import WallpaperBackground from '../../components/WallpaperBackground';
@@ -33,9 +32,6 @@ import {
   cancelDailyReminder,
   regenerateAwarenessCueSchedule,
   cancelAwarenessCueSchedule,
-  currentDayDotsPromptDate,
-  msUntilDayDotsWindowCloses,
-  msUntilDayDotsWindowOpens,
 } from '../../lib/reminders';
 import { isReviewAvailable, requestReview } from '../../lib/rateUs';
 
@@ -144,112 +140,6 @@ export default function Home() {
     }, [refreshProfile])
   );
 
-  // Day Dots eligibility check -- bundled into daily_reminder, no
-  // separate toggle. currentDayDotsPromptDate returns null outside the
-  // fixed ~1hr window starting at tonight's evening reminder time, in
-  // which case there's nothing to query at all -- no yesterday
-  // fallback, no backlog (see lib/reminders.js's own header comment).
-  //
-  // checkNow() schedules whichever real-time timer applies instead of
-  // only re-checking on the next focus event -- confirmed live via a
-  // Metro console capture (2026-09-05) that a screen sitting
-  // continuously focused from before the window through its open time
-  // never re-evaluates on its own otherwise, since neither `session`
-  // nor `profile?.daily_reminder` change value once loaded. Symmetric
-  // pair: an open-side timer (msUntilDayDotsWindowOpens) for "still
-  // waiting for tonight's window", and the close-side timer
-  // (msUntilDayDotsWindowCloses) for "currently inside it" -- exactly
-  // one of the two is ever scheduled at a time, never both. Both
-  // timers' callbacks re-invoke checkNow() (not a one-off state clear)
-  // so the chain is self-sustaining across any number of open/close
-  // cycles with zero real focus events in between -- e.g. the close-
-  // timer firing schedules tomorrow's open-timer in the same call,
-  // rather than going silent until the next real app focus.
-  //
-  // All three time-window functions take an explicit `now` computed
-  // ONCE per checkNow() call, not left to each call its own
-  // new Date() -- two independent Date.now() reads a few lines apart
-  // could otherwise disagree by a few milliseconds right at the exact
-  // instant the window opens/closes, which would make promptDate null
-  // and msUntilOpen 0 simultaneously true -- a combination checkNow()
-  // doesn't schedule anything for (the `msUntilOpen > 0` guard would
-  // skip it), silently missing that one check.
-  useFocusEffect(
-    useCallback(() => {
-      if (!session || !profile?.daily_reminder) {
-        setDayDotsPromptDate(null);
-        return;
-      }
-
-      let cancelled = false;
-      let timer = null;
-
-      function checkNow() {
-        const now = new Date();
-        const promptDate = currentDayDotsPromptDate(now);
-        if (!promptDate) {
-          setDayDotsPromptDate(null);
-          setDayDotsAvailableUntilLabel(null);
-          const msUntilOpen = msUntilDayDotsWindowOpens(now);
-          if (msUntilOpen > 0) {
-            timer = setTimeout(() => {
-              if (!cancelled) checkNow();
-            }, msUntilOpen);
-          }
-          return;
-        }
-
-        const msUntilClose = msUntilDayDotsWindowCloses(now);
-        const closesAt = new Date(now.getTime() + msUntilClose);
-        setDayDotsAvailableUntilLabel(
-          closesAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-        );
-
-        supabase
-          .from('day_dots')
-          .select('id')
-          .eq('user_id', session.user.id)
-          .eq('prompt_date', promptDate)
-          .maybeSingle()
-          .then(({ data }) => {
-            if (!cancelled && data) {
-              setDayDotsPromptDate(null);
-              setDayDotsAvailableUntilLabel(null);
-            } else if (!cancelled) {
-              setDayDotsPromptDate(promptDate);
-            }
-          });
-
-        timer = setTimeout(() => {
-          if (!cancelled) checkNow();
-        }, msUntilClose);
-      }
-
-      checkNow();
-
-      return () => {
-        cancelled = true;
-        clearTimeout(timer);
-      };
-    }, [session, profile?.daily_reminder])
-  );
-
-  async function handleDayDotsSelect(dotIndex) {
-    const promptDate = dayDotsPromptDate;
-    setDayDotsPromptDate(null);
-    await supabase
-      .from('day_dots')
-      .insert({ user_id: session.user.id, prompt_date: promptDate, status: 'answered', dot_index: dotIndex });
-  }
-
-  async function handleDayDotsSkip() {
-    const promptDate = dayDotsPromptDate;
-    setDayDotsPromptDate(null);
-    await supabase
-      .from('day_dots')
-      .insert({ user_id: session.user.id, prompt_date: promptDate, status: 'skipped' });
-  }
-
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [goals, setGoals] = useState([]);
@@ -272,19 +162,6 @@ export default function Home() {
   const vibeTooltipTimerRef = useRef(null);
   const [paceReminder, setPaceReminder] = useState(null);
   const [optInReminder, setOptInReminder] = useState(null);
-  // Local 'YYYY-MM-DD' of the single currently-unanswered Day Dots
-  // prompt, or null if there isn't one right now (reminder off, or
-  // today/yesterday's date already has a row) -- see the focus effect
-  // below and lib/reminders.js's currentDayDotsPromptDate.
-  const [dayDotsPromptDate, setDayDotsPromptDate] = useState(null);
-  // Static "Available until X" label for the current window -- computed
-  // once, at the same moment the close-timer's own delay is computed
-  // (reusing msUntilDayDotsWindowCloses, so it's guaranteed to agree
-  // with the real close time), never re-computed on a ticking interval.
-  // Deliberately not a live countdown -- a shrinking number reads as
-  // pressure/urgency, which conflicts with this app's no-guilt design
-  // elsewhere (e.g. Day Dots' own no-backlog, no-catch-up design).
-  const [dayDotsAvailableUntilLabel, setDayDotsAvailableUntilLabel] = useState(null);
 
   // Auto-show the first-time intro exactly once, gated on the DB flag —
   // not local/session state, so it stays correctly "seen" across
@@ -1169,15 +1046,6 @@ export default function Home() {
         </View>
 
         <Button title="New Tickle" onPress={() => router.push('/create')} variant="secondary" style={styles.newTickleShadow} />
-
-        {dayDotsPromptDate && (
-          <DayDotsCard
-            accentColor={accent.card}
-            availableUntilLabel={dayDotsAvailableUntilLabel}
-            onSelectDot={handleDayDotsSelect}
-            onSkip={handleDayDotsSkip}
-          />
-        )}
 
         {pinned && (
           <TouchableOpacity

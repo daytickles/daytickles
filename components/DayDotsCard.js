@@ -1,81 +1,102 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { C, darken } from '../lib/theme';
+import { C, darken, withAlpha } from '../lib/theme';
 
-// Home card for an unanswered Day Dots prompt (see supabase/migrations/
-// 0060 + lib/reminders.js's currentDayDotsPromptDate). Deliberately no
-// close/"X" icon like QuickStartCard -- the only two ways to leave this
-// card are tapping a dot (onSelectDot) or the no-pressure Skip link
-// (onSkip), both of which are genuine answers to "what happened tonight",
-// not a generic dismiss. Dots are intentionally unlabeled with no stated
-// meaning, all rendered in the account's own accent color -- this
-// component doesn't know or care what any dot "means". Three distinct
-// sizes (small/medium/large) are the actual visual mechanic here, per
-// the original design -- not a cosmetic choice, and still no stated
-// meaning attached to which size is which.
+// Permanent card on the "My Day" filtered view (app/(tabs)/feed.js) --
+// no longer a fixed-window prompt that vanishes if unanswered (see
+// project memory: the discarded open/close-timer design). `phase` drives
+// which of the 4 states below is shown; the caller (feed.js) derives it
+// fresh on every screen focus from today's local date + whatever
+// day_dots row (if any) exists for it, no timers here or there.
 //
-// availableUntilLabel is a plain pre-formatted string (e.g. "9:00 PM"),
-// computed once by the caller (see app/(tabs)/home.js's checkNow()) --
-// deliberately not a live countdown here. A shrinking number reads as
-// pressure/urgency, which conflicts with this app's no-guilt design
-// elsewhere; a static "available until" line gives the same useful
-// information without it.
+//   'before'   -- not yet past EVENING_HOUR:EVENING_MINUTE locally today.
+//                 Dots shown but inert (neutral outline, no fill), no
+//                 Skip link -- nothing to skip yet.
+//   'active'   -- past that time, today still unanswered. Full
+//                 accent-color dots, tappable, "Skip today" shown.
+//   'answered' -- today already has a dot pick (selectedDotIndex).
+//                 That dot fully filled/highlighted; the other 3 render
+//                 as accent-colored outlines (not neutral -- still the
+//                 same dot set, just not the chosen one), nothing
+//                 tappable, no Skip link.
+//   'skipped'  -- today was explicitly skipped. All 4 dots render as
+//                 accent-colored outlines (same non-chosen treatment as
+//                 'answered', since none was chosen), "Skipped for
+//                 today" text in place of the Skip link, nothing
+//                 tappable.
 //
-// Plain card container -- stays an inline card in Home's own scroll
-// flow, same as entryCard/QuickStartCard, deliberately NOT a Modal
-// overlay with a backdrop (that would make this a blocking/interrupting
-// presentation, which cuts against the feature's own low-pressure
-// design intent -- see the no-live-countdown reasoning above). Corner
-// radius (18) and background (C.card) borrowed from this app's actual
-// pop-up sheets (e.g. GoalTagModal's own sheet style) purely for visual
-// language, not structure -- still no border, no shadow/elevation,
-// matching every card/sheet in this app (nothing here ever uses one).
-const DOT_SIZES = [26, 36, 46];
+// Dots are intentionally unlabeled with no stated meaning, all in the
+// account's own accent color -- this component doesn't know or care
+// what any dot "means". 4 distinct sizes (was 3) -- still the actual
+// visual mechanic, not a cosmetic choice.
+const DOT_SIZES = [22, 30, 38, 46];
 
-export default function DayDotsCard({ accentColor, availableUntilLabel, onSelectDot, onSkip, style }) {
-  // Solid accent fill (the dot itself), subtler/darker tone as the
-  // border -- reversed from an earlier build that had these backwards
-  // (a faint tint fill with a darker border reads as barely-there, not
-  // as "filled with the account's own accent color").
-  const dotFill = accentColor;
+export default function DayDotsCard({ accentColor, phase, selectedDotIndex, onSelectDot, onSkip, style }) {
   const dotBorder = darken(accentColor, 0.15);
+  const interactive = phase === 'active';
+  // 'before': neutral/faint outline -- reads as "nothing to do here
+  // yet", unrelated to the account's own accent color. Distinct on
+  // purpose from the accent-colored outline below so the two different
+  // meanings (not open yet vs. already resolved, just not this slot)
+  // don't look identical.
+  const inertBorderColor = C.border;
 
   return (
-    <View style={[styles.card, style]}>
-      <Text style={styles.heading}>How was your Day?</Text>
-      {!!availableUntilLabel && (
-        <Text style={styles.availability}>Available until {availableUntilLabel}</Text>
-      )}
+    <View
+      style={[
+        styles.card,
+        { backgroundColor: withAlpha(accentColor, 0.14), borderColor: accentColor },
+        style,
+      ]}
+    >
+      <Text style={styles.heading}>Dot your Day</Text>
 
       <View style={styles.dotRow}>
-        {DOT_SIZES.map((size, i) => (
-          <TouchableOpacity
-            key={i}
-            style={[
-              styles.dot,
-              { width: size, height: size, borderRadius: size / 2, backgroundColor: dotFill, borderColor: dotBorder },
-            ]}
-            onPress={() => onSelectDot(i)}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          />
-        ))}
+        {DOT_SIZES.map((size, i) => {
+          const isChosen = phase === 'answered' && selectedDotIndex === i;
+          const showFill = phase === 'active' || isChosen;
+          const borderColor = phase === 'before' ? inertBorderColor : dotBorder;
+          return (
+            <TouchableOpacity
+              key={i}
+              disabled={!interactive}
+              style={[
+                styles.dot,
+                {
+                  width: size, height: size, borderRadius: size / 2,
+                  backgroundColor: showFill ? accentColor : 'transparent',
+                  borderColor,
+                },
+              ]}
+              onPress={() => interactive && onSelectDot(i)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            />
+          );
+        })}
       </View>
 
-      <TouchableOpacity onPress={onSkip} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-        <Text style={styles.skipText}>Skip</Text>
-      </TouchableOpacity>
+      {phase === 'active' && (
+        <TouchableOpacity onPress={onSkip} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Text style={styles.skipText}>Skip today</Text>
+        </TouchableOpacity>
+      )}
+      {phase === 'skipped' && <Text style={styles.skipText}>Skipped for today</Text>}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  // Light-wash + solid-border treatment, matching Weekly Summary's own
+  // section cards (entryCard/goalCard/awardCard/connectionCard) rather
+  // than a solid C.card fill -- this card's accent color is per-user
+  // (accentColor prop), so the wash is computed inline below, not a
+  // fixed color in this stylesheet.
   card: {
-    backgroundColor: C.card, borderRadius: 18,
+    borderRadius: 18, borderWidth: 1,
     paddingVertical: 12, paddingHorizontal: 16, marginBottom: 12,
     alignItems: 'center',
   },
   heading: { fontSize: 15, fontWeight: '700', color: C.text },
-  availability: { fontSize: 12, color: C.subtext, marginTop: 2, marginBottom: 10 },
-  dotRow: { flexDirection: 'row', alignItems: 'center', gap: 20, marginBottom: 10 },
+  dotRow: { flexDirection: 'row', alignItems: 'center', gap: 18, marginTop: 10, marginBottom: 10 },
   dot: { borderWidth: 1.5 },
   skipText: { fontSize: 13, color: C.subtext, fontWeight: '600' },
 });

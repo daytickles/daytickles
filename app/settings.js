@@ -831,7 +831,7 @@ export default function Settings() {
 
       <View style={styles.card}>
         <View style={styles.toggleRow}>
-          <Text style={styles.toggleLabel}>Day Journal</Text>
+          <Text style={styles.toggleLabel}>My Day</Text>
           <Switch
             value={dayJournalEnabled}
             onValueChange={handleToggleDayJournal}
