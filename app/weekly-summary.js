@@ -28,9 +28,16 @@ const NATURE_LABELS = {
 // For embedding an awardLabelFor() phrase mid-sentence ("a {phrase} high
 // five") -- the phrases are written capitalized for standalone display
 // (the picker, the badge tooltip), but read wrong capitalized here.
-// Plain first-character lowercasing is safe for all of them -- none
-// contain a proper noun/acronym that needs to stay capitalized.
+// Plain first-character lowercasing handles every sentence-case label
+// (e.g. "Beautifully expressed" -> "beautifully expressed"), but an
+// all-caps acronym label (e.g. "LOL") needs to pass through untouched --
+// lowercasing just its first letter produced "lOL", which reads as
+// "IOL" at a glance (lowercase l vs. capital I are near-identical in
+// most UI fonts) -- a real bug, not just a look. Detecting "is this
+// whole label already uppercase" keeps this general for any future
+// acronym label, rather than a one-off 'lol' special case.
 function decapitalize(s) {
+  if (s === s.toUpperCase()) return s; // acronym (e.g. "LOL") -- don't touch case at all
   return s.charAt(0).toLowerCase() + s.slice(1);
 }
 
