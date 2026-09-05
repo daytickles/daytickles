@@ -35,6 +35,7 @@ import {
   cancelAwarenessCueSchedule,
   currentDayDotsPromptDate,
   msUntilDayDotsWindowCloses,
+  msUntilDayDotsWindowOpens,
 } from '../../lib/reminders';
 import { isReviewAvailable, requestReview } from '../../lib/rateUs';
 
@@ -148,40 +149,75 @@ export default function Home() {
   // fixed ~1hr window starting at tonight's evening reminder time, in
   // which case there's nothing to query at all -- no yesterday
   // fallback, no backlog (see lib/reminders.js's own header comment).
-  // Re-runs on every focus since the eligible window can open/close
-  // between focuses, PLUS a real-time expiry timer for the case where
-  // the screen stays continuously focused across the window's close
-  // (a focus-only check would otherwise leave the card showing until
-  // the next focus event, past the ~1hr point it's meant to disappear).
+  //
+  // checkNow() schedules whichever real-time timer applies instead of
+  // only re-checking on the next focus event -- confirmed live via a
+  // Metro console capture (2026-09-05) that a screen sitting
+  // continuously focused from before the window through its open time
+  // never re-evaluates on its own otherwise, since neither `session`
+  // nor `profile?.daily_reminder` change value once loaded. Symmetric
+  // pair: an open-side timer (msUntilDayDotsWindowOpens) for "still
+  // waiting for tonight's window", and the close-side timer
+  // (msUntilDayDotsWindowCloses) for "currently inside it" -- exactly
+  // one of the two is ever scheduled at a time, never both. Both
+  // timers' callbacks re-invoke checkNow() (not a one-off state clear)
+  // so the chain is self-sustaining across any number of open/close
+  // cycles with zero real focus events in between -- e.g. the close-
+  // timer firing schedules tomorrow's open-timer in the same call,
+  // rather than going silent until the next real app focus.
+  //
+  // All three time-window functions take an explicit `now` computed
+  // ONCE per checkNow() call, not left to each call its own
+  // new Date() -- two independent Date.now() reads a few lines apart
+  // could otherwise disagree by a few milliseconds right at the exact
+  // instant the window opens/closes, which would make promptDate null
+  // and msUntilOpen 0 simultaneously true -- a combination checkNow()
+  // doesn't schedule anything for (the `msUntilOpen > 0` guard would
+  // skip it), silently missing that one check.
   useFocusEffect(
     useCallback(() => {
       if (!session || !profile?.daily_reminder) {
         setDayDotsPromptDate(null);
         return;
       }
-      const promptDate = currentDayDotsPromptDate();
-      if (!promptDate) {
-        setDayDotsPromptDate(null);
-        return;
-      }
-      let cancelled = false;
-      supabase
-        .from('day_dots')
-        .select('id')
-        .eq('user_id', session.user.id)
-        .eq('prompt_date', promptDate)
-        .maybeSingle()
-        .then(({ data }) => {
-          if (!cancelled) setDayDotsPromptDate(data ? null : promptDate);
-        });
 
-      const expiryTimer = setTimeout(() => {
-        if (!cancelled) setDayDotsPromptDate(null);
-      }, msUntilDayDotsWindowCloses());
+      let cancelled = false;
+      let timer = null;
+
+      function checkNow() {
+        const now = new Date();
+        const promptDate = currentDayDotsPromptDate(now);
+        if (!promptDate) {
+          setDayDotsPromptDate(null);
+          const msUntilOpen = msUntilDayDotsWindowOpens(now);
+          if (msUntilOpen > 0) {
+            timer = setTimeout(() => {
+              if (!cancelled) checkNow();
+            }, msUntilOpen);
+          }
+          return;
+        }
+
+        supabase
+          .from('day_dots')
+          .select('id')
+          .eq('user_id', session.user.id)
+          .eq('prompt_date', promptDate)
+          .maybeSingle()
+          .then(({ data }) => {
+            if (!cancelled) setDayDotsPromptDate(data ? null : promptDate);
+          });
+
+        timer = setTimeout(() => {
+          if (!cancelled) checkNow();
+        }, msUntilDayDotsWindowCloses(now));
+      }
+
+      checkNow();
 
       return () => {
         cancelled = true;
-        clearTimeout(expiryTimer);
+        clearTimeout(timer);
       };
     }, [session, profile?.daily_reminder])
   );
