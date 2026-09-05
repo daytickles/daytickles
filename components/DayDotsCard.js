@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { C, withAlpha, darken } from '../lib/theme';
+import { C, darken } from '../lib/theme';
 
 // Home card for an unanswered Day Dots prompt (see supabase/migrations/
 // 0060 + lib/reminders.js's currentDayDotsPromptDate). Deliberately no
@@ -20,14 +20,23 @@ import { C, withAlpha, darken } from '../lib/theme';
 // elsewhere; a static "available until" line gives the same useful
 // information without it.
 //
-// Plain card container (backgroundColor/borderRadius/padding/marginBottom),
-// matching Home's other plain content cards (see entryCard in
-// app/(tabs)/home.js) rather than a bespoke bordered/tinted treatment --
-// no card on Home uses a shadow/elevation either, so this doesn't.
+// Plain card container -- stays an inline card in Home's own scroll
+// flow, same as entryCard/QuickStartCard, deliberately NOT a Modal
+// overlay with a backdrop (that would make this a blocking/interrupting
+// presentation, which cuts against the feature's own low-pressure
+// design intent -- see the no-live-countdown reasoning above). Corner
+// radius (18) and background (C.card) borrowed from this app's actual
+// pop-up sheets (e.g. GoalTagModal's own sheet style) purely for visual
+// language, not structure -- still no border, no shadow/elevation,
+// matching every card/sheet in this app (nothing here ever uses one).
 const DOT_SIZES = [26, 36, 46];
 
 export default function DayDotsCard({ accentColor, availableUntilLabel, onSelectDot, onSkip, style }) {
-  const dotFill = withAlpha(accentColor, 0.22);
+  // Solid accent fill (the dot itself), subtler/darker tone as the
+  // border -- reversed from an earlier build that had these backwards
+  // (a faint tint fill with a darker border reads as barely-there, not
+  // as "filled with the account's own accent color").
+  const dotFill = accentColor;
   const dotBorder = darken(accentColor, 0.15);
 
   return (
@@ -60,7 +69,7 @@ export default function DayDotsCard({ accentColor, availableUntilLabel, onSelect
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: C.card, borderRadius: 16,
+    backgroundColor: C.card, borderRadius: 18,
     paddingVertical: 12, paddingHorizontal: 16, marginBottom: 12,
     alignItems: 'center',
   },
