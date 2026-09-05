@@ -33,12 +33,6 @@ function rotationForId(id) {
 // getItemLayout) can't silently drift out of sync with the real value.
 export const CARD_SPACING = 12;
 
-// Heuristic for whether a journal entry's clamped-to-4-lines preview
-// needs a "Continue reading" affordance -- see the entryText render
-// site for why this is a char-count guess rather than a measured line
-// count.
-const JOURNAL_TRUNCATE_CHARS = 200;
-
 // Generous upper bound of rule-line offsets for the ruled-paper texture
 // (see journalTextWrap) -- covers the longest possible entry (MAX_LEN
 // 500 in create.js); journalTextWrap's overflow:hidden clips the rest.
@@ -100,6 +94,12 @@ export default function EntryCard({
   // Journal entries render collapsed (4 lines) behind ruled-paper
   // texture until tapped open -- local to the card, same as menuOpen.
   const [journalExpanded, setJournalExpanded] = useState(false);
+  // True line count of the FULL (unclamped) text, or null until the
+  // hidden measurement copy below has laid out once -- see that copy's
+  // own comment for why this can't be read off the visible, already-
+  // clamped Text. Drives the "Continue reading" link: null/<=4 means
+  // nothing is hidden, don't show it.
+  const [journalLineCount, setJournalLineCount] = useState(null);
   // Tap-to-reveal on the public award badge below -- which distinct
   // award TYPE's popup is open (or null), not an index, since
   // publicAwardTypes is already deduped to distinct types. Same tap-to-
@@ -436,8 +436,31 @@ export default function EntryCard({
                 >
                   {item.text_content}
                 </Text>
+                {isJournal && !journalExpanded && (
+                  // Invisible full-text twin, no numberOfLines limit --
+                  // onTextLayout on the VISIBLE Text above would only ever
+                  // report back the already-clamped line count (<=4,
+                  // whether or not more text exists beyond the clamp), so
+                  // it can't tell "exactly 4 lines, nothing hidden" apart
+                  // from "clamped at 4, more exists". This unclamped copy
+                  // measures the real total instead -- absolutely
+                  // positioned (so it doesn't affect journalTextWrap's own
+                  // height, sized by the visible clamped Text in normal
+                  // flow) and opacity 0 + pointerEvents none (invisible,
+                  // never intercepts the tap meant for the visible text or
+                  // "Continue reading" below). Same width as the visible
+                  // copy (left:0/right:0 within the same relative parent)
+                  // so line-wrapping matches exactly.
+                  <Text
+                    style={[styles.entryText, styles.journalEntryText, styles.journalMeasureText]}
+                    pointerEvents="none"
+                    onTextLayout={(e) => setJournalLineCount(e.nativeEvent.lines.length)}
+                  >
+                    {item.text_content}
+                  </Text>
+                )}
               </View>
-              {isJournal && !journalExpanded && item.text_content.length > JOURNAL_TRUNCATE_CHARS && (
+              {isJournal && !journalExpanded && journalLineCount > 4 && (
                 <TouchableOpacity
                   onPress={() => setJournalExpanded(true)}
                   hitSlop={{ top: 6, bottom: 10, left: 10, right: 10 }}
@@ -584,6 +607,9 @@ const styles = StyleSheet.create({
   journalEntryText: {
     fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif', lineHeight: 22,
   },
+  // See the render site's own comment -- an invisible, unclamped twin of
+  // journalEntryText used purely to measure the real total line count.
+  journalMeasureText: { position: 'absolute', left: 0, right: 0, top: 0, opacity: 0 },
   continueReadingLink: { fontSize: 12, fontWeight: '600', color: C.rust, marginTop: 4 },
   highlightedCard: {
     borderWidth: 1.5, borderColor: C.amberDark, backgroundColor: C.sparkleBg,
