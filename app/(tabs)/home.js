@@ -34,6 +34,7 @@ import {
   regenerateAwarenessCueSchedule,
   cancelAwarenessCueSchedule,
   currentDayDotsPromptDate,
+  msUntilDayDotsWindowCloses,
 } from '../../lib/reminders';
 import { isReviewAvailable, requestReview } from '../../lib/rateUs';
 
@@ -143,11 +144,15 @@ export default function Home() {
   );
 
   // Day Dots eligibility check -- bundled into daily_reminder, no
-  // separate toggle (see lib/reminders.js's currentDayDotsPromptDate
-  // header comment for why this is a single-date check, not a scan
-  // over every previously-missed date). Re-runs on every focus, not
-  // just mount, since the eligible date can change between focuses
-  // (e.g. backgrounding across the 8pm cutoff or across midnight).
+  // separate toggle. currentDayDotsPromptDate returns null outside the
+  // fixed ~1hr window starting at tonight's evening reminder time, in
+  // which case there's nothing to query at all -- no yesterday
+  // fallback, no backlog (see lib/reminders.js's own header comment).
+  // Re-runs on every focus since the eligible window can open/close
+  // between focuses, PLUS a real-time expiry timer for the case where
+  // the screen stays continuously focused across the window's close
+  // (a focus-only check would otherwise leave the card showing until
+  // the next focus event, past the ~1hr point it's meant to disappear).
   useFocusEffect(
     useCallback(() => {
       if (!session || !profile?.daily_reminder) {
@@ -155,6 +160,10 @@ export default function Home() {
         return;
       }
       const promptDate = currentDayDotsPromptDate();
+      if (!promptDate) {
+        setDayDotsPromptDate(null);
+        return;
+      }
       let cancelled = false;
       supabase
         .from('day_dots')
@@ -165,8 +174,14 @@ export default function Home() {
         .then(({ data }) => {
           if (!cancelled) setDayDotsPromptDate(data ? null : promptDate);
         });
+
+      const expiryTimer = setTimeout(() => {
+        if (!cancelled) setDayDotsPromptDate(null);
+      }, msUntilDayDotsWindowCloses());
+
       return () => {
         cancelled = true;
+        clearTimeout(expiryTimer);
       };
     }, [session, profile?.daily_reminder])
   );

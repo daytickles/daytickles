@@ -8,14 +8,15 @@
 -- Feed/Calendar/Vibe system at all. Its only surface is a Home card
 -- (while unanswered) and a new Weekly Summary section (once answered).
 --
--- prompt_date is the ORIGINAL evening a prompt was meant for, not the
--- date it was actually tapped/skipped -- someone who forgot last night
--- and answers today still logs against last night's date, so Weekly
--- Summary's day-by-day view stays accurate. Only the single most
--- recent unanswered date is ever eligible to be shown/answered (see
--- lib/reminders.js's currentDayDotsPromptDate) -- older missed dates
--- are never queried again once a newer one supersedes them, so they
--- quietly fade away without any explicit cleanup needed here.
+-- prompt_date is the evening a prompt was for -- always the same
+-- calendar day it's answered/skipped on, by construction: the prompt is
+-- only ever eligible for a fixed ~1hr window starting at tonight's
+-- evening reminder time (see lib/reminders.js's currentDayDotsPromptDate),
+-- never before it and never on a later day. If that window closes
+-- unanswered, the prompt is simply gone for the rest of the day -- no
+-- catch-up next evening, no backlog of missed dates to ever query
+-- again. Deliberate simplification: the point is immediacy, not
+-- avoiding a "look how many days you missed" backlog.
 --
 -- status distinguishes a genuine dot choice from a no-pressure skip --
 -- skipped rows exist purely so the prompt doesn't reappear later the
@@ -47,13 +48,13 @@ create table public.day_dots (
 );
 
 comment on column public.day_dots.prompt_date is
-  'The evening this prompt was originally for (local calendar date) -- never the date it was actually answered/skipped. Late answers still log against this original date so Weekly Summary stays accurate.';
+  'The evening this prompt was for (local calendar date) -- always the same day it was answered/skipped on, since the prompt is only ever eligible during a fixed same-evening window (see lib/reminders.js currentDayDotsPromptDate).';
 comment on column public.day_dots.status is
   '''skipped'' rows exist only so the prompt does not reappear -- deliberately excluded from every Weekly Summary query, carrying no visible trace, matching the no-pressure skip design.';
 comment on column public.day_dots.dot_index is
   'Which of the 3 unlabeled dots (0-2), only set when status = answered. No stated meaning app-side -- purely the users own private association.';
 comment on column public.day_dots.answered_at is
-  'When the user actually interacted (tap or skip) -- diagnostic only, never used to decide which prompt is currently eligible (see lib/reminders.js currentDayDotsPromptDate, which keys off prompt_date vs. today/yesterday, not this column).';
+  'When the user actually interacted (tap or skip) -- diagnostic only, never used to decide eligibility (see lib/reminders.js currentDayDotsPromptDate, a pure time-window check that never reads this table at all outside the window).';
 
 alter table public.day_dots enable row level security;
 
