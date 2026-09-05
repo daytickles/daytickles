@@ -1,5 +1,16 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { C, darken, withAlpha } from '../lib/theme';
+import { EVENING_HOUR, EVENING_MINUTE } from '../lib/reminders';
+
+// EVENING_HOUR/MINUTE are fixed constants, not per-render state -- this
+// only needs computing once at module load, not inline in render, and
+// stays in sync automatically if those constants ever change (never a
+// hardcoded "8:00 PM" string).
+const EVENING_TIME_LABEL = (() => {
+  const d = new Date();
+  d.setHours(EVENING_HOUR, EVENING_MINUTE, 0, 0);
+  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+})();
 
 // Permanent card on the "My Day" filtered view (app/(tabs)/feed.js) --
 // no longer a fixed-window prompt that vanishes if unanswered (see
@@ -9,8 +20,9 @@ import { C, darken, withAlpha } from '../lib/theme';
 // day_dots row (if any) exists for it, no timers here or there.
 //
 //   'before'   -- not yet past EVENING_HOUR:EVENING_MINUTE locally today.
-//                 Dots shown but inert (neutral outline, no fill), no
-//                 Skip link -- nothing to skip yet.
+//                 Dots shown but inert (neutral outline, no fill),
+//                 "Available after X" in place of the Skip link --
+//                 nothing to skip yet.
 //   'active'   -- past that time, today still unanswered. Full
 //                 accent-color dots, tappable, "Skip today" shown.
 //   'answered' -- today already has a dot pick (selectedDotIndex).
@@ -37,8 +49,15 @@ export default function DayDotsCard({ accentColor, phase, selectedDotIndex, onSe
   // yet", unrelated to the account's own accent color. Distinct on
   // purpose from the accent-colored outline below so the two different
   // meanings (not open yet vs. already resolved, just not this slot)
-  // don't look identical.
-  const inertBorderColor = C.border;
+  // don't look identical. C.subtext (not C.border) at a thicker 2.5px
+  // ring -- C.border read as near-invisible against the wallpaper on a
+  // real device screenshot (2026-09-06), too subtle to register as an
+  // outline at all rather than "muted". C.subtext specifically (over
+  // the also-considered C.faint) because it matches footerText's own
+  // color below -- the outline and the "Available after X" caption
+  // read as visually related rather than two different faint tones.
+  const inertBorderColor = C.subtext;
+  const inertBorderWidth = 2.5;
 
   return (
     <View
@@ -55,6 +74,7 @@ export default function DayDotsCard({ accentColor, phase, selectedDotIndex, onSe
           const isChosen = phase === 'answered' && selectedDotIndex === i;
           const showFill = phase === 'active' || isChosen;
           const borderColor = phase === 'before' ? inertBorderColor : dotBorder;
+          const borderWidth = phase === 'before' ? inertBorderWidth : styles.dot.borderWidth;
           return (
             <TouchableOpacity
               key={i}
@@ -65,6 +85,7 @@ export default function DayDotsCard({ accentColor, phase, selectedDotIndex, onSe
                   width: size, height: size, borderRadius: size / 2,
                   backgroundColor: showFill ? accentColor : 'transparent',
                   borderColor,
+                  borderWidth,
                 },
               ]}
               onPress={() => interactive && onSelectDot(i)}
@@ -74,12 +95,15 @@ export default function DayDotsCard({ accentColor, phase, selectedDotIndex, onSe
         })}
       </View>
 
+      {phase === 'before' && (
+        <Text style={styles.footerText}>Available after {EVENING_TIME_LABEL}</Text>
+      )}
       {phase === 'active' && (
         <TouchableOpacity onPress={onSkip} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Text style={styles.skipText}>Skip today</Text>
+          <Text style={styles.footerText}>Skip today</Text>
         </TouchableOpacity>
       )}
-      {phase === 'skipped' && <Text style={styles.skipText}>Skipped for today</Text>}
+      {phase === 'skipped' && <Text style={styles.footerText}>Skipped for today</Text>}
     </View>
   );
 }
@@ -98,5 +122,8 @@ const styles = StyleSheet.create({
   heading: { fontSize: 15, fontWeight: '700', color: C.text },
   dotRow: { flexDirection: 'row', alignItems: 'center', gap: 18, marginTop: 10, marginBottom: 10 },
   dot: { borderWidth: 1.5 },
-  skipText: { fontSize: 13, color: C.subtext, fontWeight: '600' },
+  // Shared by all 3 non-answered footer messages (Skip today / Skipped
+  // for today / Available after X) -- same slot, same typography, so
+  // the card's height/layout doesn't shift between phases.
+  footerText: { fontSize: 13, color: C.subtext, fontWeight: '600' },
 });
