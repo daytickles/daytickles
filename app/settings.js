@@ -840,6 +840,9 @@ export default function Settings() {
             thumbColor={C.card}
           />
         </View>
+        <Text style={styles.explainerText}>
+          A private space to write more freely about your day — separate from your regular Tickles.
+        </Text>
         <View style={styles.spacer} />
 
         <View style={styles.toggleRow}>
