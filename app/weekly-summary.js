@@ -11,6 +11,12 @@ import { flagEmoji } from '../lib/country';
 import WallpaperBackground from '../components/WallpaperBackground';
 import NatureIcon from '../components/NatureIcon';
 
+// Same relative progression as DayDotsCard.js's own DOT_SIZES
+// (22/30/38/46 there), scaled down for this row-of-7's tighter,
+// smaller context -- not meant to be pixel-precise, just enough spread
+// that a small pick reads visibly smaller than a large one at a glance.
+const DAY_DOTS_SIZES = [9, 12, 15, 18];
+
 // "Most liked" below is a distinct concept from the calendar-week stats
 // above it -- a trailing window from today, not tied to week_start_day,
 // same shape as Home's own 14-day pinned card (PINNED_WINDOW_DAYS)
@@ -96,11 +102,13 @@ export default function WeeklySummary() {
   const [madeMeSmileSends, setMadeMeSmileSends] = useState(0);
   const [photoCount, setPhotoCount] = useState(0);
   const [weeklySharesTotal, setWeeklySharesTotal] = useState(0);
-  // 'YYYY-MM-DD' -> true, one entry per day THIS week with an answered
-  // (never skipped -- see the query below) Day Dots row. Skipped rows
-  // are excluded at the query level, not just hidden in the render, so
-  // a skip really does carry no visible trace anywhere in the app.
-  const [dayDotsAnswered, setDayDotsAnswered] = useState({});
+  // 'YYYY-MM-DD' -> dot_index (0-3), one entry per day THIS week with an
+  // answered (never skipped -- see the query below) Day Dots row. Skipped
+  // rows are excluded at the query level, not just hidden in the render,
+  // so a skip really does carry no visible trace anywhere in the app.
+  // dot_index can legitimately be 0, so existence checks below use `in` /
+  // `!== undefined`, never a truthiness check on the value itself.
+  const [dayDotsPicks, setDayDotsPicks] = useState({});
 
   const weekStartDate = currentWeekStartDate(weekStartDay);
 
@@ -202,7 +210,7 @@ export default function WeeklySummary() {
         .gte('shared_at', weekStartISO),
       supabase
         .from('day_dots')
-        .select('prompt_date')
+        .select('prompt_date, dot_index')
         .eq('user_id', session.user.id)
         .eq('status', 'answered')
         .gte('prompt_date', weekStartDate),
@@ -245,7 +253,7 @@ export default function WeeklySummary() {
     setWeeklySharesTotal(weeklyTickleShares + weeklyPhotoShareEvents);
 
     if (!dayDotsResult.error) {
-      setDayDotsAnswered(Object.fromEntries((dayDotsResult.data || []).map((row) => [row.prompt_date, true])));
+      setDayDotsPicks(Object.fromEntries((dayDotsResult.data || []).map((row) => [row.prompt_date, row.dot_index])));
     }
 
     setLoading(false);
@@ -301,7 +309,7 @@ export default function WeeklySummary() {
     .filter(({ count }) => count > 0);
 
   const hasConnection = likesGiven > 0 || newFollowers > 0 || thoughtOfYouSends > 0 || madeMeSmileSends > 0;
-  const hasDayDots = weekDates.some((d) => dayDotsAnswered[d]);
+  const hasDayDots = weekDates.some((d) => dayDotsPicks[d] !== undefined);
 
   return (
     <WallpaperBackground>
@@ -445,18 +453,25 @@ export default function WeeklySummary() {
                 <Text style={styles.sectionLabel}>Day Dots</Text>
                 <View style={styles.dayDotsGridWrap}>
                   <View style={styles.dayDotsRow}>
-                    {weekDates.map((date) => (
-                      <View key={date} style={styles.dayDotsCell}>
-                        {dayDotsAnswered[date] ? (
-                          <View
-                            style={[
-                              styles.dayDotsDot,
-                              { backgroundColor: withAlpha(accent.card, 0.22), borderColor: darken(accent.card, 0.15) },
-                            ]}
-                          />
-                        ) : null}
-                      </View>
-                    ))}
+                    {weekDates.map((date) => {
+                      const dotIndex = dayDotsPicks[date];
+                      const size = dotIndex !== undefined ? DAY_DOTS_SIZES[dotIndex] : null;
+                      return (
+                        <View key={date} style={styles.dayDotsCell}>
+                          {size !== null ? (
+                            <View
+                              style={[
+                                styles.dayDotsDot,
+                                {
+                                  width: size, height: size, borderRadius: size / 2,
+                                  backgroundColor: withAlpha(accent.card, 0.22), borderColor: darken(accent.card, 0.15),
+                                },
+                              ]}
+                            />
+                          ) : null}
+                        </View>
+                      );
+                    })}
                   </View>
                   <View style={styles.dayDotsLabelRow}>
                     {weekDates.map((date) => (
@@ -676,7 +691,7 @@ const styles = StyleSheet.create({
   },
   dayDotsRow: { flexDirection: 'row', marginBottom: 8 },
   dayDotsCell: { flex: 1, alignItems: 'center', justifyContent: 'center', height: 24 },
-  dayDotsDot: { width: 18, height: 18, borderRadius: 9, borderWidth: 1.5 },
+  dayDotsDot: { borderWidth: 1.5 },
   dayDotsLabelRow: { flexDirection: 'row' },
   dayDotsDayLabel: { flex: 1, fontSize: 11, color: C.subtext, textAlign: 'center' },
 
