@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { File } from 'expo-file-system';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { C, accentFor, darken, textOn, TICKLE_NATURE_ICONS, NATURE_ORDER } from '../../lib/theme';
+import { C, accentFor, darken, textOn, withAlpha, TICKLE_NATURE_ICONS, NATURE_ORDER } from '../../lib/theme';
 import { shareEntry, shareStatus, sharePhotoOnlyEntry, SHARE_CAPTIONS } from '../../lib/sharing';
 import GoalTagModal from '../../components/GoalTagModal';
 import AwardPickerModal from '../../components/AwardPickerModal';
@@ -26,6 +26,12 @@ import { useShareCard } from '../../lib/useShareCard';
 import { makePhotoTicklePublic, makePhotoTicklePrivate, deletePhotoTickleMedia } from '../../lib/photoTickleStorage';
 
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+// Same relative progression as DayDotsCard.js's own DOT_SIZES (22/30/38/46
+// there) and weekly-summary.js's own DAY_DOTS_SIZES, scaled for this grid's
+// per-day cell -- not meant to be pixel-precise, just enough spread that a
+// small pick reads visibly smaller than a large one at a glance.
+const DAY_DOTS_SIZES = [9, 12, 15, 18];
 
 const ENTRY_SELECT =
   'id, entry_date, text_content, like_count, tickle_nature, goal_id, visibility, is_edited, created_at, user_id, entry_kind, local_photo_filename, media_url, profiles!tickle_entries_user_id_fkey(username, avatar_emoji, accent_theme, country, founding_member_number)';
@@ -87,6 +93,15 @@ export default function Calendar() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [dayEntries, setDayEntries] = useState([]);
   const [dayLoading, setDayLoading] = useState(false);
+
+  // 'YYYY-MM-DD' -> { status, dot_index } for whichever month is in view --
+  // a day with no key here simply has no day_dots row yet (unanswered),
+  // same shape as weekly-summary.js's own dayDotsPicks but keeping status
+  // too (that screen only ever renders answered rows; this grid also needs
+  // to distinguish skipped from unanswered). No separate selected-date
+  // state -- 'daydots' is a 4th viewMode sharing selectedDate/selectDate
+  // with Tickles/Vibes/Goals, same as those three already share it.
+  const [dayDotsByDate, setDayDotsByDate] = useState({});
 
   const [goals, setGoals] = useState([]);
   const [pickerEntryId, setPickerEntryId] = useState(null);
@@ -189,6 +204,30 @@ export default function Calendar() {
     setPhotoDatesInMonth(new Set(photoDates));
   }, [session, viewYear, viewMonth]);
 
+  // Own loader, same (start, end) range shape as loadMonth above but a
+  // separate query against day_dots rather than tickle_entries -- Day
+  // Dots is deliberately not a Tickle (see supabase/migrations/0060_day_dots.sql),
+  // so it has no row in tickle_entries for loadMonth's query to have
+  // already picked up.
+  const loadDayDotsMonth = useCallback(async () => {
+    if (!session) return;
+    const start = isoDate(viewYear, viewMonth, 1);
+    const end = isoDate(viewYear, viewMonth, new Date(viewYear, viewMonth + 1, 0).getDate());
+
+    const { data, error } = await supabase
+      .from('day_dots')
+      .select('prompt_date, status, dot_index')
+      .eq('user_id', session.user.id)
+      .gte('prompt_date', start)
+      .lte('prompt_date', end);
+
+    if (!error) {
+      setDayDotsByDate(
+        Object.fromEntries((data || []).map((row) => [row.prompt_date, { status: row.status, dotIndex: row.dot_index }]))
+      );
+    }
+  }, [session, viewYear, viewMonth]);
+
   // Same reasoning as feed.js's own loadAwards -- only this screen's
   // handleGiveAward (or feed.js's) can ever create an award row, and
   // awards are permanent once given, so this loads once per session
@@ -205,6 +244,7 @@ export default function Calendar() {
   useFocusEffect(useCallback(() => { loadGoals(); }, [loadGoals]));
   useFocusEffect(useCallback(() => { loadFavorited(); }, [loadFavorited]));
   useFocusEffect(useCallback(() => { loadMonth(); }, [loadMonth]));
+  useFocusEffect(useCallback(() => { loadDayDotsMonth(); }, [loadDayDotsMonth]));
   useFocusEffect(useCallback(() => { loadPinBoardData(); }, [loadPinBoardData]));
   useEffect(() => { loadAwards(); }, [loadAwards]);
 
@@ -574,6 +614,7 @@ export default function Calendar() {
     year: 'numeric',
   });
   const todayStr = isoDate(today.getFullYear(), today.getMonth(), today.getDate());
+  const selectedDayDotsEntry = selectedDate ? dayDotsByDate[selectedDate] : null;
 
   return (
     <>
@@ -601,9 +642,10 @@ export default function Calendar() {
         </View>
 
         <View style={styles.viewModeRow}>
-          {['numbers', 'vibes', 'goals'].map((mode) => {
+          {['numbers', 'vibes', 'goals', 'daydots'].map((mode) => {
             const selected = viewMode === mode;
-            const label = mode === 'numbers' ? 'Tickles' : mode === 'vibes' ? 'Vibes' : 'Goals';
+            const label =
+              mode === 'numbers' ? 'Tickles' : mode === 'vibes' ? 'Vibes' : mode === 'goals' ? 'Goals' : 'Day Dots';
             return (
               <TouchableOpacity
                 key={mode}
@@ -637,6 +679,8 @@ export default function Calendar() {
                 const hasPhoto = photoDatesInMonth.has(dateStr);
                 const isSelected = selectedDate === dateStr;
                 const isToday = dateStr === todayStr;
+                const dotEntry = dayDotsByDate[dateStr];
+                const dotSize = dotEntry?.status === 'answered' ? DAY_DOTS_SIZES[dotEntry.dotIndex] : null;
 
                 return (
                   <TouchableOpacity
@@ -679,6 +723,41 @@ export default function Calendar() {
                             <View key={g.id} style={[styles.goalDayDot, { backgroundColor: g.color }]} />
                           ))}
                       </View>
+                    ) : viewMode === 'daydots' ? (
+                      <View style={styles.dayDotsBadgeSlot}>
+                        {dotEntry?.status === 'answered' ? (
+                          <View
+                            style={[
+                              styles.dayDotsDot,
+                              {
+                                width: dotSize, height: dotSize, borderRadius: dotSize / 2,
+                                backgroundColor: isSelected ? accentCardText : withAlpha(accentCard, 0.35),
+                                borderColor: isSelected ? accentCardText : darken(accentCard, 0.15),
+                              },
+                            ]}
+                          />
+                        ) : dotEntry?.status === 'skipped' ? (
+                          <View
+                            style={[
+                              styles.dayDotsSkipMark,
+                              { backgroundColor: isSelected ? accentCardText : C.subtext },
+                            ]}
+                          />
+                        ) : (
+                          // Same dashed-outline treatment as this grid's own
+                          // countBadgeEmpty below -- "nothing here yet" for
+                          // this day, whether that's because it hasn't
+                          // happened yet or it simply passed unanswered
+                          // (Tickles' own count badge doesn't distinguish
+                          // those two cases either).
+                          <View
+                            style={[
+                              styles.dayDotsEmptyCircle,
+                              isSelected && { borderColor: accentCardText },
+                            ]}
+                          />
+                        )}
+                      </View>
                     ) : (
                       <View style={[styles.countBadge, count === 0 && styles.countBadgeEmpty]}>
                         {count > 0 && <Text style={styles.countBadgeText}>{count > 9 ? '9+' : count}</Text>}
@@ -701,7 +780,37 @@ export default function Calendar() {
                 timeZone: 'UTC',
               })}
             </Text>
-            {dayLoading ? (
+            {viewMode === 'daydots' ? (
+              // Day Dots isn't tickle_entries-backed like the other three
+              // modes, so it can't join their dayLoading/visibleDayEntries/
+              // EntryCard branch below -- own status readout instead,
+              // sharing only the title/card wrapper above with them.
+              <>
+                {selectedDayDotsEntry?.status === 'answered' && (
+                  <View style={styles.dayDotsDetailRow}>
+                    <View
+                      style={[
+                        styles.dayDotsDot,
+                        {
+                          width: DAY_DOTS_SIZES[selectedDayDotsEntry.dotIndex],
+                          height: DAY_DOTS_SIZES[selectedDayDotsEntry.dotIndex],
+                          borderRadius: DAY_DOTS_SIZES[selectedDayDotsEntry.dotIndex] / 2,
+                          backgroundColor: withAlpha(accentCard, 0.35),
+                          borderColor: darken(accentCard, 0.15),
+                        },
+                      ]}
+                    />
+                    <Text style={styles.dayDotsDetailText}>Dotted your day</Text>
+                  </View>
+                )}
+                {selectedDayDotsEntry?.status === 'skipped' && (
+                  <View style={styles.dayDotsDetailRow}>
+                    <View style={[styles.dayDotsSkipMark, { backgroundColor: C.subtext }]} />
+                    <Text style={styles.dayDotsDetailText}>Skipped</Text>
+                  </View>
+                )}
+              </>
+            ) : dayLoading ? (
               <ActivityIndicator color={C.rust} style={styles.loader} />
             ) : visibleDayEntries.length === 0 ? (
               <Text style={styles.emptyText}>{emptyDayText}</Text>
@@ -840,4 +949,20 @@ const styles = StyleSheet.create({
 
   dayEntriesSection: { marginTop: 20 },
   dayEntriesTitle: { fontSize: 16, fontWeight: '700', color: C.rustDark, marginBottom: 10 },
+
+  // Taller than the Tickles grid's own fixed 16px badge slot (vibesIconRow/
+  // goalsDotRow/countBadge) -- DAY_DOTS_SIZES' largest dot (18px) doesn't
+  // fit inside that shorter slot without clipping.
+  dayDotsBadgeSlot: { alignItems: 'center', justifyContent: 'center', height: 20, marginTop: 2 },
+  dayDotsDot: { borderWidth: 1.5 },
+  dayDotsSkipMark: { width: 10, height: 2, borderRadius: 1 },
+  // Same dashed treatment as countBadgeEmpty above, sized as a plain
+  // circle rather than a count-badge shape (no text ever goes inside it).
+  dayDotsEmptyCircle: {
+    width: 12, height: 12, borderRadius: 6,
+    borderWidth: 1.5, borderStyle: 'dashed', borderColor: C.faint,
+  },
+
+  dayDotsDetailRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  dayDotsDetailText: { fontSize: 14, color: C.text, fontWeight: '600' },
 });
