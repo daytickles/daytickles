@@ -1051,6 +1051,8 @@ export default function Settings() {
         variant="secondary"
       />
       <View style={styles.spacer} />
+      <Button title="Backup & Restore Photos" onPress={() => router.push('/photo-backup')} variant="secondary" />
+      <View style={styles.spacer} />
       <Button title="Sign Out" onPress={signOut} variant="secondary" />
       <View style={styles.spacer} />
 
