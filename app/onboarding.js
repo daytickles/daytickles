@@ -10,6 +10,7 @@ import { C } from '../lib/theme';
 import Button from '../components/Button';
 import WallpaperBackground from '../components/WallpaperBackground';
 import { redeemFoundingMemberReferralCode } from '../lib/foundingMember';
+import { localDateString } from '../lib/week';
 
 // Short and human, not trying to defeat collisions on its own -- the
 // self-correcting fallback (tapping the suggestion re-runs handleSave,
@@ -44,6 +45,14 @@ export default function Onboarding() {
       .update({
         username: trimmedUsername,
         onboarded: true,
+        // Overrides the profiles table's own `default current_date`
+        // (server/UTC) with this device's actual local calendar date --
+        // handle_new_user() has no way to know the signer-upper's
+        // timezone at insert time, so this is the first real chance to
+        // correct it. One-time, same as entry_date being set client-side
+        // rather than relying on any DB default -- see lib/sharing.js's
+        // currentPeriod().
+        share_period_start: localDateString(),
       })
       .eq('id', session.user.id);
 
