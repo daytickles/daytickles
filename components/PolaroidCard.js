@@ -27,8 +27,15 @@ function rotationFor(id) {
 // this card, skipping the New Tickle screen entirely -- see
 // pinboard.js's handlePhotoVibeTap. Independent of onTickle, which still
 // pins this same photo to a separately-written entry; a photo can go
-// through both paths.
-export default function PolaroidCard({ photo, tickled, onPress, onTickle, onVibeTap, onShare, onRequestDelete, onSaveToLibrary }) {
+// through both paths. The same handler also creates a photo-only My Day
+// entry when the sun icon below passes 'day_journal' instead of a real
+// Vibe id -- createPhotoOnlyTickle never validated its nature param
+// against the three Vibes specifically, so no change was needed there.
+//
+// profile is only read for day_journal_enabled (gates the sun icon,
+// same condition create.js/feed.js already use for My Day's text entry
+// point) -- not threaded any further than that.
+export default function PolaroidCard({ photo, tickled, profile, onPress, onTickle, onVibeTap, onShare, onRequestDelete, onSaveToLibrary }) {
   const [saved, setSaved] = useState(false);
 
   async function handleSavePress() {
@@ -83,10 +90,28 @@ export default function PolaroidCard({ photo, tickled, onPress, onTickle, onVibe
               <NatureIcon nature={nature} size={11} color={vibeIconColor(nature)} />
             </TouchableOpacity>
           ))}
+          {/* My Day has no VIBE_COLORS/NATURE_ORDER entry of its own
+              (deliberately excluded there -- it's not a Vibe) so this
+              reuses C.rust instead, matching every other icon already on
+              this card's photo (pin/trash/download/share) rather than
+              introducing a new color for one glyph. */}
+          {!!profile?.day_journal_enabled && (
+            <TouchableOpacity
+              onPress={() => onVibeTap?.(photo, 'day_journal')}
+              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+              style={styles.vibeButton}
+            >
+              <Ionicons name="sunny-outline" size={12} color={C.rust} />
+            </TouchableOpacity>
+          )}
         </View>
 
-        {/* Relocated from top-right (where downloadButton now sits) to
-            avoid overlapping it -- see downloadButton's move above. */}
+        {/* Relocated again, this time to the top-center gap between
+            deleteButton and downloadButton -- freed up vibeRow's bottom-
+            left footprint for the full 4-icon row (3 Vibes + My Day's
+            sun) at a comfortable gap, rather than narrowing that row to
+            make room for this badge instead. See tickledBadge's own
+            style comment for the exact math. */}
         {tickled && (
           <View style={styles.tickledBadge}>
             <Ionicons name="checkmark" size={9} color={darken(C.teal, 0.4)} />
@@ -180,18 +205,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 1,
   },
-  // Three vibe icons packed into the same bottom-left footprint the
-  // single Download button used to occupy -- tapping one instantly
-  // creates a photo-only Tickle (see onVibeTap).
+  // Three vibe icons plus (conditionally) the My Day sun icon, packed
+  // into the same bottom-left footprint the single Download button used
+  // to occupy -- tapping one instantly creates a photo-only Tickle (see
+  // onVibeTap).
   vibeRow: {
     position: 'absolute',
     bottom: 10,
+    // Full-width (left:8/right:8) + space-between instead of a left-
+    // anchored gap:9 row -- with tickledBadge relocated off this corner,
+    // the 4 icons (3 Vibes + My Day) now spread proportionally across
+    // the whole photo width rather than clustering against the left
+    // edge, matching the corner icons' own left/right symmetry above.
     left: 8,
+    right: 8,
     flexDirection: 'row',
-    // Widened from 3 -- still 30px clear of tickledBadge's left edge at
-    // this width (checked against photoWrap's actual 134px content
-    // width), so no crowding tradeoff against it was needed.
-    gap: 9,
+    justifyContent: 'space-between',
     zIndex: 1,
   },
   vibeButton: {
@@ -202,20 +231,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // Moved to bottom-right (was top-right) now that downloadButton sits
-  // top-right -- the two would otherwise overlap when a photo is both
-  // downloaded and tickled. Shrunk from 18px to match vibeButton's own
-  // 16px -- pure visual balance against the now-more-spread-out vibe
-  // row, not a crowding fix (there was already 30px of clearance at the
-  // wider gap:9 spacing). bottom matches vibeRow's own bottom:10 --
-  // previously 12 vs. vibeRow's 10, a 2px offset masked while this badge
-  // was still taller (18px) than vibeButton; now that both are 16px, that
-  // same offset read as a visible vertical misalignment, so it's fixed
-  // here rather than carried forward.
+  // Moved again -- was bottom-right, sharing the vibeRow corner it now
+  // needs entirely to itself for the 4-icon row (3 Vibes + My Day's sun).
+  // Top-center is the one genuinely free spot left on the photo: it sits
+  // in the same top:12 row as deleteButton/downloadButton, in the ~74px
+  // gap between them (deleteButton ends at x=30, downloadButton starts
+  // at x=104, on a 134px-wide photoWrap) -- centered the same way
+  // pinIconWrap centers itself (left:50%, negative marginLeft of half
+  // the width), well clear of pinIconWrap itself (that only bleeds ~4px
+  // into the photo's very top, nowhere near y=12).
   tickledBadge: {
     position: 'absolute',
-    bottom: 10,
-    right: 12,
+    top: 12,
+    left: '50%',
+    marginLeft: -8,
     width: 16,
     height: 16,
     borderRadius: 8,

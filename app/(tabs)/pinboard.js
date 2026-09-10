@@ -186,10 +186,13 @@ export default function PinBoard() {
     router.push({ pathname: '/create', params: { pinnedPhotoId: String(photo.id) } });
   }
 
-  // Gate: the very first time anyone taps a Vibe icon, the disclosure
-  // modal interrupts the otherwise-instant creation flow once; every
-  // tap after that goes straight through. See createPhotoOnlyTickle for
-  // what "goes straight through" actually does.
+  // Gate: the very first time anyone taps a Vibe icon OR the My Day sun
+  // icon, the disclosure modal interrupts the otherwise-instant creation
+  // flow once; every tap after that goes straight through, regardless of
+  // which icon. See createPhotoOnlyTickle for what "goes straight
+  // through" actually does. vibeId is 'day_journal' for the sun icon --
+  // createPhotoOnlyTickle never validated this against the three real
+  // Vibes, so it's accepted here unchanged.
   async function handlePhotoVibeTap(photo, vibeId) {
     if (!(await hasSeenPhotoTickleDisclosure(session.user.id))) {
       setPendingVibeTap({ photo, vibeId });
@@ -288,8 +291,9 @@ export default function PinBoard() {
         </View>
         <Text style={styles.subheading}>Share it, Save it, Tickle it</Text>
         <Text style={styles.permanentCaptionBold}>
-          Photos are stored only on this device. Tap Tickle to write about one,{' '}
-          <Ionicons name="share-outline" size={13} color={C.subtext} /> to share it, or the{' '}
+          Photos are stored only on this device — back them up anytime from Settings. Tap Tickle
+          to write about one, a Vibe icon to instantly create a private Tickle from it,{' '}
+          <Ionicons name="share-outline" size={13} color={C.subtext} /> to share it, or{' '}
           <Ionicons name="download-outline" size={13} color={C.subtext} /> to save a copy to your Photos app.
         </Text>
 
@@ -297,15 +301,18 @@ export default function PinBoard() {
           <TouchableOpacity style={styles.noteBanner} activeOpacity={0.85} onPress={handleDismissNote}>
             <Text style={styles.noteBannerText}>
               Your Tickle Pics are stored only within this app on your device. They aren't backed
-              up or synced anywhere. If you uninstall the app, replace your device, or lose it,
-              any photos taken with the app will be lost unless you've saved them first.
+              up or synced automatically.
+              {'\n\n'}
+              If you uninstall the app, replace your device, or lose it, any photos taken with the
+              app will be lost — unless you've saved them first.
+              {'\n\n'}
+              Want to keep your Tickle Pics safe? Tap the{' '}
+              <Ionicons name="download-outline" size={14} color={C.sparkleText} /> on any photo to save it
+              individually to your Photos app, or use Backup & Restore Photos in Settings to save and
+              restore your whole collection at once — handy when switching to a new device.
               {'\n\n'}
               Photos you've added from your phone's library will remain safely in your Photos app
               — only the copy stored in DayTickles will be removed.
-              {'\n\n'}
-              Want to keep a Tickle Pic? Simply tap the{' '}
-              <Ionicons name="download-outline" size={14} color={C.sparkleText} /> to save it to your phone's
-              Photos app.
               {'\n\n'}
               When you share a Tickle Pic, it's sent directly from your device to the person or
               app you choose. It's never uploaded to our servers.
@@ -334,6 +341,7 @@ export default function PinBoard() {
               key={photo.id}
               photo={photo}
               tickled={tickledIds.has(photo.id)}
+              profile={profile}
               onPress={() => setEnlargeUri(photo.file_path)}
               onTickle={() => handleTickle(photo)}
               onVibeTap={handlePhotoVibeTap}
@@ -370,7 +378,11 @@ export default function PinBoard() {
         onCancel={handleCancelDelete}
       />
 
-      <PhotoTickleDisclosureModal visible={showDisclosure} onDismiss={handleDisclosureDismiss} />
+      <PhotoTickleDisclosureModal
+        visible={showDisclosure}
+        isDayJournal={pendingVibeTap?.vibeId === 'day_journal'}
+        onDismiss={handleDisclosureDismiss}
+      />
 
       {hiddenCard}
     </View>

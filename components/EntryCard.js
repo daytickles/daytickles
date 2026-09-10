@@ -172,10 +172,13 @@ export default function EntryCard({
         // feed, not inside the standard bordered card treatment every
         // other entry uses") -- drops entryCard's fill, the Polaroid
         // itself supplies its own white frame + shadow below. Ordered
-        // last so it always wins over journalCard (mutually exclusive
-        // in practice -- day_journal and photo_only are different
-        // tickle_nature/entry_kind values -- but this keeps the
-        // override explicit rather than relying on that never changing).
+        // last so it always wins over journalCard -- day_journal and
+        // photo_only are independent columns (tickle_nature/entry_kind)
+        // and DO now co-occur for real (My Day's own photo-only entry
+        // point on Tickle Pics, see PolaroidCard's sun icon), so this
+        // ordering is load-bearing, not just defensive: a photo-only My
+        // Day entry must render as a Polaroid, never as ruled journal
+        // paper.
         isPhotoOnly && styles.photoOnlyCard,
       ]}
       onLayout={onLayout}
