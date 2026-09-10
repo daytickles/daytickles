@@ -308,11 +308,13 @@ export default function EntryCard({
               )}
               {showMineActions && !isJournal && (
                 <TouchableOpacity
-                  onPress={() => onShare?.(item.id)}
+                  onPress={() => onToggleVisibility?.(item)}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   style={styles.shareAction}
                 >
-                  <Text style={styles.shareLink}>Share</Text>
+                  <Text style={styles.shareLink}>
+                    {item.visibility === 'public' ? 'Un-Ripple' : 'Ripple'}
+                  </Text>
                 </TouchableOpacity>
               )}
               {!isJournal && (
@@ -349,14 +351,14 @@ export default function EntryCard({
                   <Ionicons name="hand-right-outline" size={16} color={C.faint} />
                 </TouchableOpacity>
               )}
-              {/* Edit/visibility/delete used to each be their own inline
+              {/* Edit/Share/delete used to each be their own inline
                   icon -- collapsed into this single menu (see the Modal
                   below) once the row started overflowing the screen's
                   right edge on Mine-tab/Calendar cards, the three most
                   crowded showMineActions icons combined with the new
                   public award badge being what tipped it over. Goal tag,
-                  Share, and Favorite stay inline as the higher-frequency
-                  actions. */}
+                  Ripple/Un-Ripple (visibility toggle), and Favorite stay
+                  inline as the higher-frequency actions. */}
               {showMineActions && (
                 <TouchableOpacity
                   onPress={() => setMenuOpen(true)}
@@ -521,17 +523,11 @@ export default function EntryCard({
                 style={styles.menuRow}
                 onPress={() => {
                   setMenuOpen(false);
-                  onToggleVisibility?.(item);
+                  onShare?.(item.id);
                 }}
               >
-                <Ionicons
-                  name={item.visibility === 'public' ? 'eye-off-outline' : 'eye-outline'}
-                  size={18}
-                  color={C.text}
-                />
-                <Text style={styles.menuRowLabel}>
-                  {item.visibility === 'public' ? 'Make private' : 'Make public'}
-                </Text>
+                <Ionicons name="share-outline" size={18} color={C.text} />
+                <Text style={styles.menuRowLabel}>Share</Text>
               </TouchableOpacity>
             )}
 
