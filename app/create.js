@@ -245,7 +245,8 @@ export default function Create() {
         title={saving ? 'Saving...' : 'Save'}
         onPress={handleSave}
         disabled={saving}
-        variant="primary"
+        variant="secondary"
+        style={styles.saveShadow}
       />
     </ScrollView>
     </KeyboardAvoidingView>
@@ -291,4 +292,14 @@ const styles = StyleSheet.create({
     marginTop: 8, marginBottom: 28,
   },
   status: { marginBottom: 12, color: C.error, textAlign: 'center' },
+  // Same shadow as Home's own New Tickle button (home.js's
+  // newTickleShadow) -- identical values, this app's one deliberate
+  // exception to its usual no-shadow-on-cards convention, copied
+  // verbatim rather than centralized (matching how PolaroidCard.js/
+  // EntryCard.js's own shared shadow language is already duplicated
+  // per-file elsewhere in this codebase).
+  saveShadow: {
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15, shadowRadius: 4, elevation: 3,
+  },
 });
