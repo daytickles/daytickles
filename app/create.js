@@ -7,9 +7,10 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { C, accentFor, darken, textOn } from '../lib/theme';
+import { C, accentFor, darken, textOn, VIBE_COLORS, vibeIconColor, withAlpha } from '../lib/theme';
 import Button from '../components/Button';
 import WallpaperBackground from '../components/WallpaperBackground';
+import NatureIcon from '../components/NatureIcon';
 import { linkPhotoToEntry } from '../lib/pinBoardDb';
 import { localDateString } from '../lib/week';
 
@@ -181,6 +182,28 @@ export default function Create() {
       <View style={styles.natureRow}>
         {natureOptions.map((opt) => {
           const selected = tickleNature === opt.id;
+          // My Day deliberately has no VIBE_COLORS entry (see EntryCard.js's
+          // vibeIconSlot comment for the full reasoning) -- reuses C.rust
+          // directly instead, the same color already established for it
+          // elsewhere (EntryCard's leading icon, PolaroidCard's sun icon),
+          // rather than adding it to VIBE_COLORS and turning it into a
+          // real, trackable Vibe everywhere else in the app.
+          const tintColor = opt.id === 'day_journal' ? C.rust : VIBE_COLORS[opt.id];
+          // vibeIconColor, not the raw tintColor -- same reasoning as
+          // EntryCard.js's own leading icon (Tickle Stash): at small
+          // icon size on a light/near-white backing, several raw Vibe
+          // colors fail WCAG's 3:1 minimum for graphical objects, so the
+          // contrast-corrected variant is the actually-reused value, not
+          // just the swatch color. My Day still has no such helper (it's
+          // not in VIBE_COLORS), so it keeps the plain C.rust EntryCard/
+          // PolaroidCard already use for it directly.
+          const unselectedIconColor = opt.id === 'day_journal' ? C.rust : vibeIconColor(opt.id);
+          // Selected state keeps its own existing accentDark fill
+          // untouched -- the per-Vibe tint only applies while unselected,
+          // so the icon switches to accentDarkText on selection too
+          // (its own color wouldn't have reliable contrast against an
+          // arbitrary accent color).
+          const iconColor = selected ? accentDarkText : unselectedIconColor;
           return (
             <TouchableOpacity
               key={opt.id}
@@ -190,9 +213,15 @@ export default function Create() {
               }}
               style={[
                 styles.natureOption,
+                { backgroundColor: withAlpha(tintColor, 0.14), borderColor: tintColor },
                 selected && { backgroundColor: accentDark, borderColor: accentDark },
               ]}
             >
+              {opt.id === 'day_journal' ? (
+                <Ionicons name="sunny-outline" size={16} color={iconColor} />
+              ) : (
+                <NatureIcon nature={opt.id} size={16} color={iconColor} />
+              )}
               <Text style={[styles.natureOptionLabel, selected && { color: accentDarkText }]}>
                 {opt.label}
               </Text>
@@ -245,10 +274,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8, marginTop: 12, marginBottom: 28, height: 50,
   },
   moodOption: { alignItems: 'center', justifyContent: 'center', width: 50, height: 50 },
-  natureRow: { flexDirection: 'row', gap: 8, marginTop: 8, marginBottom: 20 },
+  // 2x2 grid (was a single row of 4) -- width:'48%' + space-between
+  // rather than flex:1 + gap, so the row math stays simple regardless
+  // of how many options ever end up in this array.
+  natureRow: {
+    flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between',
+    rowGap: 10, marginTop: 8, marginBottom: 20,
+  },
   natureOption: {
-    flex: 1, paddingVertical: 10, borderRadius: 20,
-    alignItems: 'center', backgroundColor: C.card, borderWidth: 1, borderColor: C.border,
+    width: '48%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingVertical: 10, borderRadius: 20, borderWidth: 1,
   },
   natureOptionLabel: { fontSize: 12, fontWeight: '600', color: C.subtext, textAlign: 'center' },
   shareRow: {
