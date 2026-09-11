@@ -1008,6 +1008,9 @@ export default function Settings() {
       />
       <View style={styles.spacer} />
       <Button title="Backup & Restore Photos" onPress={() => router.push('/photo-backup')} variant="secondary" />
+      <Text style={styles.explainerText}>
+        Save your Tickle Pics and private photos to a file, so you don't lose them if you switch devices.
+      </Text>
       <View style={styles.spacer} />
       <Button title="Sign Out" onPress={signOut} variant="secondary" />
       <View style={styles.spacer} />
