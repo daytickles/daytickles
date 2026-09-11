@@ -62,7 +62,7 @@ export default function FoundingMember() {
   // later backgrounded behind Settings-shaped navigation. Home's own
   // focus-triggered refreshProfile() (see its "Reconciliation point"
   // comment) already catches this field up whenever Home is next
-  // focused, same as day_journal_enabled/daily_reminder/notify_on_likes.
+  // focused, same as daily_reminder/notify_on_likes.
   const [remindersEnabled, setRemindersEnabled] = useState(!!profile?.founding_member_reminders_enabled);
   useEffect(() => {
     setRemindersEnabled(!!profile?.founding_member_reminders_enabled);

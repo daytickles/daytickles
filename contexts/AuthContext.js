@@ -23,7 +23,6 @@ const RENDER_RELEVANT_FIELDS = [
   'share_period_start',
   'share_count_this_period',
   'trial_started_at',
-  'day_journal_enabled',
   'week_start_day',
   'is_founding_member',
   'founding_member_number',

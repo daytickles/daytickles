@@ -37,21 +37,20 @@ const TABS = [
 ];
 
 // Mine-only. 'all' is the default: everything, tagged or not, EXCEPT
-// My Day (day_journal) entries -- those are private/reflective by
-// design and only ever surface via their own dedicated chip, same
-// exclusion Home's spotlightEntries and Weekly Summary's Most Liked
-// already apply (see loadFeed's own entriesData filter below).
+// My Day (day_journal) entries -- those only ever surface via their own
+// dedicated chip below, so they don't clutter the all-Vibes view (see
+// loadFeed's own entriesData filter below). Unrelated to My Day's own
+// privacy status -- a Rippled My Day entry is just as public as any
+// other Rippled Tickle, it's simply kept out of this particular chip.
 const NATURE_FILTERS = [
   { id: 'received', label: 'Smiles' },
   { id: 'given', label: 'Given' },
   { id: 'self', label: 'For me' },
 ];
 
-// Independent of tickle_nature_enabled — day_journal_enabled can show
-// this chip on its own, same as create.js's picker. id stays
-// 'day_journal' (matches tickle_entries.tickle_nature and the
-// day_journal_enabled column) -- only the user-facing label changed
-// to "My Day".
+// My Day is a permanent chip now, same as the three Vibe filters above
+// -- id stays 'day_journal' (matches tickle_entries.tickle_nature),
+// only the user-facing label reads "My Day".
 const DAY_JOURNAL_FILTER = { id: 'day_journal', label: 'My Day' };
 
 const EMPTY_TEXT = {
@@ -1045,7 +1044,7 @@ export default function Feed() {
           {[
             { id: 'all', label: 'All' },
             ...NATURE_FILTERS,
-            ...(profile?.day_journal_enabled ? [DAY_JOURNAL_FILTER] : []),
+            DAY_JOURNAL_FILTER,
           ].map((f) => (
             <TouchableOpacity
               key={f.id}

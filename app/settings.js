@@ -112,13 +112,11 @@ export default function Settings() {
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [savingTheme, setSavingTheme] = useState(null);
   const [savingWeekStartDay, setSavingWeekStartDay] = useState(null);
-  const [savingDayJournal, setSavingDayJournal] = useState(false);
   const [savingNotifyOnLikes, setSavingNotifyOnLikes] = useState(false);
   const [savingCountry, setSavingCountry] = useState(false);
   const [savingDailyReminder, setSavingDailyReminder] = useState(false);
   const [notifyOnLikes, setNotifyOnLikes] = useState(!!profile?.notify_on_likes);
   const [dailyReminderEnabled, setDailyReminderEnabled] = useState(!!profile?.daily_reminder);
-  const [dayJournalEnabled, setDayJournalEnabled] = useState(!!profile?.day_journal_enabled);
   const [goalValues, setGoalValues] = useState(() => buildGoalValues(profile));
   const [savingGoal, setSavingGoal] = useState(null);
   const [reminderPermissionDenied, setReminderPermissionDenied] = useState(false);
@@ -173,10 +171,6 @@ export default function Settings() {
   useEffect(() => {
     setDailyReminderEnabled(!!profile?.daily_reminder);
   }, [profile?.daily_reminder]);
-
-  useEffect(() => {
-    setDayJournalEnabled(!!profile?.day_journal_enabled);
-  }, [profile?.day_journal_enabled]);
 
   useEffect(() => {
     setGoalValues(buildGoalValues(profile));
@@ -309,29 +303,6 @@ export default function Settings() {
       setProfile(previous);
     } else {
       refreshProfile();
-    }
-  }
-
-  // Local-state-only (no setProfile()/refreshProfile()) -- see project
-  // memory: tickle-nature-toggle-bug. day_journal_enabled has real
-  // cross-screen dependents (create.js, feed.js); Home's own
-  // focus-triggered reconciliation effect keeps the shared profile
-  // eventually consistent whenever the user passes back through Home.
-  async function handleToggleDayJournal(value) {
-    if (!profile) return;
-    const previous = dayJournalEnabled;
-
-    setDayJournalEnabled(value);
-    setSavingDayJournal(true);
-
-    const { error } = await supabase
-      .from('profiles')
-      .update({ day_journal_enabled: value })
-      .eq('id', profile.id);
-    setSavingDayJournal(false);
-
-    if (error) {
-      setDayJournalEnabled(previous);
     }
   }
 
@@ -830,21 +801,6 @@ export default function Settings() {
       </View>
 
       <View style={styles.card}>
-        <View style={styles.toggleRow}>
-          <Text style={styles.toggleLabel}>My Day</Text>
-          <Switch
-            value={dayJournalEnabled}
-            onValueChange={handleToggleDayJournal}
-            disabled={savingDayJournal}
-            trackColor={{ false: C.border, true: accentDark }}
-            thumbColor={C.card}
-          />
-        </View>
-        <Text style={styles.explainerText}>
-          A private space to write more freely about your day — separate from your regular Tickles.
-        </Text>
-        <View style={styles.spacer} />
-
         <View style={styles.toggleRow}>
           <Text style={styles.toggleLabel}>Daily reminder</Text>
           <Switch

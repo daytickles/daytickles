@@ -341,7 +341,6 @@ export default function PinBoard() {
               key={photo.id}
               photo={photo}
               tickled={tickledIds.has(photo.id)}
-              profile={profile}
               onPress={() => setEnlargeUri(photo.file_path)}
               onTickle={() => handleTickle(photo)}
               onVibeTap={handlePhotoVibeTap}

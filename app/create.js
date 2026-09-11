@@ -137,13 +137,12 @@ export default function Create() {
     );
   }
 
-  // The nature picker (Made me Smile / Paying forward / For me)
-  // always shows now -- tickle_nature_enabled's gating was removed. Day
-  // Journal keeps its own independent opt-in toggle, contributing a 4th
-  // option into the same single-select tickle_nature field.
-  const baseNatureOptions = TICKLE_NATURE_OPTIONS;
-  const showDayJournal = !!profile?.day_journal_enabled;
-  const dayJournalSelected = tickleNature === DAY_JOURNAL_OPTION.id;
+  // The nature picker (Made me Smile / Paying forward / For me / My Day)
+  // always shows now -- tickle_nature_enabled's gating was removed
+  // earlier, and day_journal_enabled's gating is removed here too. My
+  // Day is a permanent 4th option in the same row, contributing into
+  // the same single-select tickle_nature field as the three Vibes.
+  const natureOptions = [...TICKLE_NATURE_OPTIONS, DAY_JOURNAL_OPTION];
 
   return (
     <WallpaperBackground>
@@ -178,54 +177,29 @@ export default function Create() {
       />
       <Text style={styles.counter}>{text.length}/{MAX_LEN}</Text>
 
-      {(baseNatureOptions.length > 0 || showDayJournal) && (
-        <>
-          <Text style={styles.label}>Pick your Vibe.</Text>
-          {baseNatureOptions.length > 0 && (
-            <View style={styles.natureRow}>
-              {baseNatureOptions.map((opt) => {
-                const selected = tickleNature === opt.id;
-                return (
-                  <TouchableOpacity
-                    key={opt.id}
-                    onPress={() => {
-                      Keyboard.dismiss();
-                      setTickleNature(selected ? null : opt.id);
-                    }}
-                    style={[
-                      styles.natureOption,
-                      selected && { backgroundColor: accentDark, borderColor: accentDark },
-                    ]}
-                  >
-                    <Text style={[styles.natureOptionLabel, selected && { color: accentDarkText }]}>
-                      {opt.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          )}
-          {showDayJournal && (
-            <View style={styles.natureRowSingle}>
-              <TouchableOpacity
-                onPress={() => {
-                  Keyboard.dismiss();
-                  setTickleNature(dayJournalSelected ? null : DAY_JOURNAL_OPTION.id);
-                }}
-                style={[
-                  styles.natureOption,
-                  styles.natureOptionCentered,
-                  dayJournalSelected && { backgroundColor: accentDark, borderColor: accentDark },
-                ]}
-              >
-                <Text style={[styles.natureOptionLabel, dayJournalSelected && { color: accentDarkText }]}>
-                  {DAY_JOURNAL_OPTION.label}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </>
-      )}
+      <Text style={styles.label}>Pick your Vibe.</Text>
+      <View style={styles.natureRow}>
+        {natureOptions.map((opt) => {
+          const selected = tickleNature === opt.id;
+          return (
+            <TouchableOpacity
+              key={opt.id}
+              onPress={() => {
+                Keyboard.dismiss();
+                setTickleNature(selected ? null : opt.id);
+              }}
+              style={[
+                styles.natureOption,
+                selected && { backgroundColor: accentDark, borderColor: accentDark },
+              ]}
+            >
+              <Text style={[styles.natureOptionLabel, selected && { color: accentDarkText }]}>
+                {opt.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
 
       <View style={styles.shareRow}>
         <Text style={styles.label}>Good Vibe? – Let it Ripple.</Text>
@@ -272,12 +246,10 @@ const styles = StyleSheet.create({
   },
   moodOption: { alignItems: 'center', justifyContent: 'center', width: 50, height: 50 },
   natureRow: { flexDirection: 'row', gap: 8, marginTop: 8, marginBottom: 20 },
-  natureRowSingle: { flexDirection: 'row', justifyContent: 'center', marginTop: 8, marginBottom: 20 },
   natureOption: {
     flex: 1, paddingVertical: 10, borderRadius: 20,
     alignItems: 'center', backgroundColor: C.card, borderWidth: 1, borderColor: C.border,
   },
-  natureOptionCentered: { flex: 0, paddingHorizontal: 20 },
   natureOptionLabel: { fontSize: 12, fontWeight: '600', color: C.subtext, textAlign: 'center' },
   shareRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

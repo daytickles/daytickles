@@ -31,11 +31,7 @@ function rotationFor(id) {
 // entry when the sun icon below passes 'day_journal' instead of a real
 // Vibe id -- createPhotoOnlyTickle never validated its nature param
 // against the three Vibes specifically, so no change was needed there.
-//
-// profile is only read for day_journal_enabled (gates the sun icon,
-// same condition create.js/feed.js already use for My Day's text entry
-// point) -- not threaded any further than that.
-export default function PolaroidCard({ photo, tickled, profile, onPress, onTickle, onVibeTap, onShare, onRequestDelete, onSaveToLibrary }) {
+export default function PolaroidCard({ photo, tickled, onPress, onTickle, onVibeTap, onShare, onRequestDelete, onSaveToLibrary }) {
   const [saved, setSaved] = useState(false);
 
   async function handleSavePress() {
@@ -94,16 +90,16 @@ export default function PolaroidCard({ photo, tickled, profile, onPress, onTickl
               (deliberately excluded there -- it's not a Vibe) so this
               reuses C.rust instead, matching every other icon already on
               this card's photo (pin/trash/download/share) rather than
-              introducing a new color for one glyph. */}
-          {!!profile?.day_journal_enabled && (
-            <TouchableOpacity
-              onPress={() => onVibeTap?.(photo, 'day_journal')}
-              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-              style={styles.vibeButton}
-            >
-              <Ionicons name="sunny-outline" size={12} color={C.rust} />
-            </TouchableOpacity>
-          )}
+              introducing a new color for one glyph. Always shown now --
+              My Day is a permanent feature, no more day_journal_enabled
+              gate. */}
+          <TouchableOpacity
+            onPress={() => onVibeTap?.(photo, 'day_journal')}
+            hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+            style={styles.vibeButton}
+          >
+            <Ionicons name="sunny-outline" size={12} color={C.rust} />
+          </TouchableOpacity>
         </View>
 
         {/* Relocated again, this time to the top-center gap between
@@ -205,10 +201,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 1,
   },
-  // Three vibe icons plus (conditionally) the My Day sun icon, packed
-  // into the same bottom-left footprint the single Download button used
-  // to occupy -- tapping one instantly creates a photo-only Tickle (see
-  // onVibeTap).
+  // Three vibe icons plus the My Day sun icon, packed into the same
+  // bottom-left footprint the single Download button used to occupy --
+  // tapping one instantly creates a photo-only Tickle (see onVibeTap).
   vibeRow: {
     position: 'absolute',
     bottom: 10,
