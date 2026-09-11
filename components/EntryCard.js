@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, Alert, Modal, Platform } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity, Alert, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { C, accentFor, darken, lighten, withAlpha, SAVED_ENTRY_DOT_SIZE, VIBE_COLORS, vibeIconColor, NATURE_LABELS, AWARD_TYPES, AWARD_BADGE_COLOR, AWARD_HAND_ICON, awardLabelFor } from '../lib/theme';
@@ -32,11 +32,6 @@ function rotationForId(id) {
 // any caller doing its own height math (e.g. feed.js's FlatList
 // getItemLayout) can't silently drift out of sync with the real value.
 export const CARD_SPACING = 12;
-
-// Generous upper bound of rule-line offsets for the ruled-paper texture
-// (see journalTextWrap) -- covers the longest possible entry (MAX_LEN
-// 500 in create.js); journalTextWrap's overflow:hidden clips the rest.
-const JOURNAL_RULE_OFFSETS = Array.from({ length: 20 }, (_, i) => (i + 1) * 22);
 
 // Extracted from feed.js's original renderEntry — same markup, same
 // styles, same tab==='mine'-gated actions (now `showMineActions`), same
@@ -91,15 +86,6 @@ export default function EntryCard({
   // (onToggleVisibility/onDelete/router push for edit), so there's
   // nothing a parent screen needs to coordinate across cards.
   const [menuOpen, setMenuOpen] = useState(false);
-  // Journal entries render collapsed (4 lines) behind ruled-paper
-  // texture until tapped open -- local to the card, same as menuOpen.
-  const [journalExpanded, setJournalExpanded] = useState(false);
-  // True line count of the FULL (unclamped) text, or null until the
-  // hidden measurement copy below has laid out once -- see that copy's
-  // own comment for why this can't be read off the visible, already-
-  // clamped Text. Drives the "Continue reading" link: null/<=4 means
-  // nothing is hidden, don't show it.
-  const [journalLineCount, setJournalLineCount] = useState(null);
   // Tap-to-reveal on the public award badge below -- which distinct
   // award TYPE's popup is open (or null), not an index, since
   // publicAwardTypes is already deduped to distinct types. Same tap-to-
@@ -156,29 +142,14 @@ export default function EntryCard({
         // card/Settings cards (withAlpha(color, 0.14) bg + colored
         // border). Additive alongside the stripe above -- different
         // style keys (borderColor/borderWidth vs borderLeft*), so the
-        // stripe's own left-edge values are never touched. Gated on
-        // !isJournal rather than relying on journalCard's later
-        // ordering, since journalCard only overrides backgroundColor +
-        // borderLeft -- an ungated wash would still leak its top/
-        // right/bottom border through on an awarded journal entry.
-        hasPublicAward && !isJournal && !isPhotoOnly && styles.awardWash,
-        // Ordered last so a journal entry's own look always wins over a
-        // legacy award stripe (award-giving is suppressed for journal
-        // entries going forward, but a pre-existing award could still
-        // be on one).
-        isJournal && styles.journalCard,
+        // stripe's own left-edge values are never touched. My Day is a
+        // regular Tickle for award purposes now -- no isJournal gate.
+        hasPublicAward && !isPhotoOnly && styles.awardWash,
         // Photo-only Tickles deliberately have no card surface at all
         // (spec: "sits as a standalone Polaroid object directly in the
         // feed, not inside the standard bordered card treatment every
         // other entry uses") -- drops entryCard's fill, the Polaroid
-        // itself supplies its own white frame + shadow below. Ordered
-        // last so it always wins over journalCard -- day_journal and
-        // photo_only are independent columns (tickle_nature/entry_kind)
-        // and DO now co-occur for real (My Day's own photo-only entry
-        // point on Tickle Pics, see PolaroidCard's sun icon), so this
-        // ordering is load-bearing, not just defensive: a photo-only My
-        // Day entry must render as a Polaroid, never as ruled journal
-        // paper.
+        // itself supplies its own white frame + shadow below.
         isPhotoOnly && styles.photoOnlyCard,
       ]}
       onLayout={onLayout}
@@ -202,6 +173,23 @@ export default function EntryCard({
               color={vibeIconColor(item.tickle_nature)}
             />
           )}
+          {/* My Day gets a real icon in the same leading slot a Vibe
+              icon occupies, for visual parity now that it's a regular
+              Tickle in every other way -- but it's deliberately NOT
+              added to TICKLE_NATURE_ICONS/VIBE_COLORS/NATURE_ORDER
+              itself, rendered directly instead (same technique
+              PolaroidCard's own sun icon already uses). Those three are
+              iterated all over the app as "every real Vibe" with actual
+              tracking/aggregation behavior riding on it -- Settings'
+              daily/weekly Vibe Targets picker, Home's VibeCard stat row
+              + lightbulb goal indicators, AuthContext's dynamic
+              daily_goal_/weekly_goal_ field list, Weekly Summary's Vibe
+              breakdown/rhythm chart. Adding day_journal there would
+              silently turn My Day into a 4th taggable/trackable Vibe
+              everywhere at once, including goal-target columns that
+              don't exist for it -- none of that is wanted, so this
+              stays a parallel, independent condition instead. */}
+          {isJournal && <Ionicons name="sunny-outline" size={SAVED_ENTRY_DOT_SIZE} color={C.rust} />}
         </View>
         <View style={styles.entryBody}>
           <View style={styles.headerRow}>
@@ -227,19 +215,6 @@ export default function EntryCard({
               )}
             </View>
             <View style={styles.iconGroup}>
-              {isJournal && (
-                // Deliberately not added to TICKLE_NATURE_ICONS/NatureIcon --
-                // calendar.js's month-grid keys off "no TICKLE_NATURE_ICONS
-                // entry" to keep Day Journal out of the Vibes category dots
-                // (see its own comment at the natureCategories build site).
-                // Doing it there would silently pull journal entries into
-                // Vibes categorization on the calendar grid.
-                //
-                // The non-journal branch that used to render a second,
-                // plain-grey NatureIcon here was removed -- it duplicated
-                // the colored vibe icon in the entry row's icon slot.
-                <Ionicons name="journal-outline" size={16} color={C.subtext} style={styles.natureIcon} />
-              )}
               {/* Suppressed for a photo-only entry -- this icon means
                   "a photo is attached", which is redundant and
                   confusing on a card whose entire content already is
@@ -286,7 +261,7 @@ export default function EntryCard({
                   ))}
                 </View>
               )}
-              {showMineActions && !isJournal && (
+              {showMineActions && (
                 <TouchableOpacity
                   onPress={() => onPickGoal?.(item.id)}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -309,7 +284,7 @@ export default function EntryCard({
                   </View>
                 </TouchableOpacity>
               )}
-              {showMineActions && !isJournal && (
+              {showMineActions && (
                 <TouchableOpacity
                   onPress={() => onToggleVisibility?.(item)}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -320,17 +295,15 @@ export default function EntryCard({
                   </Text>
                 </TouchableOpacity>
               )}
-              {!isJournal && (
-                <TouchableOpacity
-                  onPress={() => onToggleFavorite?.(item.id)}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  style={styles.starAction}
-                >
-                  <Text style={[styles.starIcon, isFavorited && styles.starIconActive]}>
-                    {isFavorited ? '★' : '☆'}
-                  </Text>
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity
+                onPress={() => onToggleFavorite?.(item.id)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={styles.starAction}
+              >
+                <Text style={[styles.starIcon, isFavorited && styles.starIconActive]}>
+                  {isFavorited ? '★' : '☆'}
+                </Text>
+              </TouchableOpacity>
               {/* Give-High-Five CTA -- shown only while the viewer
                   hasn't given their own award yet. Once they have
                   (awardType truthy), this element is dropped entirely
@@ -343,9 +316,9 @@ export default function EntryCard({
                   -- both here client-side and server-side via migration
                   0020's prevent_self_award trigger, same defense-in-
                   depth shape as the Like button's own !isOwnEntry gate
-                  further down this file. Journal entries suppress
-                  award-giving entirely, same as the favorite star above. */}
-              {!isJournal && isFavorited && !isOwnEntry && !awardType && (
+                  further down this file. My Day entries are eligible for
+                  awards now, same as any other Tickle. */}
+              {isFavorited && !isOwnEntry && !awardType && (
                 <TouchableOpacity
                   onPress={() => onGiveAward?.(item.id)}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -422,58 +395,12 @@ export default function EntryCard({
               </View>
             </TouchableOpacity>
           ) : (
-            <>
-              <View style={isJournal ? styles.journalTextWrap : undefined}>
-                {isJournal && (
-                  // Fixed, generous upper bound (covers the longest possible
-                  // entry at MAX_LEN=500) -- the wrap's own overflow:hidden
-                  // clips extra lines to the text's real rendered height, so
-                  // no onLayout/measurement pass is needed.
-                  <View style={styles.journalRuleLines} pointerEvents="none">
-                    {JOURNAL_RULE_OFFSETS.map((top) => (
-                      <View key={top} style={[styles.journalRuleLine, { top }]} />
-                    ))}
-                  </View>
-                )}
-                <Text
-                  style={[styles.entryText, isJournal && styles.journalEntryText]}
-                  numberOfLines={isJournal && !journalExpanded ? 4 : undefined}
-                >
-                  {item.text_content}
-                </Text>
-                {isJournal && !journalExpanded && (
-                  // Invisible full-text twin, no numberOfLines limit --
-                  // onTextLayout on the VISIBLE Text above would only ever
-                  // report back the already-clamped line count (<=4,
-                  // whether or not more text exists beyond the clamp), so
-                  // it can't tell "exactly 4 lines, nothing hidden" apart
-                  // from "clamped at 4, more exists". This unclamped copy
-                  // measures the real total instead -- absolutely
-                  // positioned (so it doesn't affect journalTextWrap's own
-                  // height, sized by the visible clamped Text in normal
-                  // flow) and opacity 0 + pointerEvents none (invisible,
-                  // never intercepts the tap meant for the visible text or
-                  // "Continue reading" below). Same width as the visible
-                  // copy (left:0/right:0 within the same relative parent)
-                  // so line-wrapping matches exactly.
-                  <Text
-                    style={[styles.entryText, styles.journalEntryText, styles.journalMeasureText]}
-                    pointerEvents="none"
-                    onTextLayout={(e) => setJournalLineCount(e.nativeEvent.lines.length)}
-                  >
-                    {item.text_content}
-                  </Text>
-                )}
-              </View>
-              {isJournal && !journalExpanded && journalLineCount > 4 && (
-                <TouchableOpacity
-                  onPress={() => setJournalExpanded(true)}
-                  hitSlop={{ top: 6, bottom: 10, left: 10, right: 10 }}
-                >
-                  <Text style={styles.continueReadingLink}>Continue reading</Text>
-                </TouchableOpacity>
-              )}
-            </>
+            // My Day entries used to render behind a ruled-paper texture,
+            // clamped to 4 lines with a "Continue reading" expand -- both
+            // removed now that My Day is a regular Tickle in every way.
+            // Plain, fully untruncated text_content, same as every other
+            // entry type already gets here.
+            <Text style={styles.entryText}>{item.text_content}</Text>
           )}
           <View style={styles.entryMetaRow}>
             <Text style={styles.entryDate}>
@@ -481,7 +408,7 @@ export default function EntryCard({
               {item.visibility === 'public' && item.is_edited ? ' · (edited)' : ''}
             </Text>
             <View style={styles.entryMetaRight}>
-              {!isJournal && !isOwnEntry && (
+              {!isOwnEntry && (
                 <TouchableOpacity
                   onPress={() => onToggleLike?.(item.id)}
                   style={styles.likeButton}
@@ -521,18 +448,16 @@ export default function EntryCard({
               </TouchableOpacity>
             )}
 
-            {!isJournal && (
-              <TouchableOpacity
-                style={styles.menuRow}
-                onPress={() => {
-                  setMenuOpen(false);
-                  onShare?.(item.id);
-                }}
-              >
-                <Ionicons name="share-outline" size={18} color={C.text} />
-                <Text style={styles.menuRowLabel}>Share</Text>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity
+              style={styles.menuRow}
+              onPress={() => {
+                setMenuOpen(false);
+                onShare?.(item.id);
+              }}
+            >
+              <Ionicons name="share-outline" size={18} color={C.text} />
+              <Text style={styles.menuRowLabel}>Share</Text>
+            </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.menuRow}
@@ -592,24 +517,6 @@ const styles = StyleSheet.create({
   relinkButtonText: { fontSize: 12, fontWeight: '600', color: C.sparkleText },
   polaroidCaptionStrip: { paddingTop: 8, paddingHorizontal: 2 },
   polaroidCaptionLabel: { fontSize: 13, fontWeight: '600', color: C.rustDark, textAlign: 'center' },
-  journalCard: {
-    // C.bg is the exact color WallpaperBackground paints as its own
-    // base layer -- an opaque journalCard in that color was literally
-    // invisible against the page. Lightened + alpha'd instead, so the
-    // wallpaper's cream/texture shows through faintly while the card
-    // still reads as a distinct surface.
-    backgroundColor: withAlpha(lighten(C.bg, 0.6), 0.55), borderLeftWidth: 4, borderLeftColor: C.rustDark,
-  },
-  journalTextWrap: { position: 'relative', overflow: 'hidden' },
-  journalRuleLines: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
-  journalRuleLine: { position: 'absolute', left: 0, right: 0, height: 1, backgroundColor: C.border },
-  journalEntryText: {
-    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif', lineHeight: 22,
-  },
-  // See the render site's own comment -- an invisible, unclamped twin of
-  // journalEntryText used purely to measure the real total line count.
-  journalMeasureText: { position: 'absolute', left: 0, right: 0, top: 0, opacity: 0 },
-  continueReadingLink: { fontSize: 12, fontWeight: '600', color: C.rust, marginTop: 4 },
   highlightedCard: {
     borderWidth: 1.5, borderColor: C.amberDark, backgroundColor: C.sparkleBg,
   },
@@ -629,7 +536,6 @@ const styles = StyleSheet.create({
   authorText: { fontSize: 13, fontWeight: '600', color: C.rustDark, flexShrink: 1 },
   followAction: { marginLeft: 10 },
   iconGroup: { flexDirection: 'row', alignItems: 'center' },
-  natureIcon: { marginLeft: 12 },
   photoAction: { marginLeft: 12 },
   publicAwardBadge: { flexDirection: 'row', alignItems: 'center', marginLeft: 12, gap: 4 },
   awardBadgeIconWrap: { position: 'relative' },

@@ -763,11 +763,12 @@ export default function Home() {
 
   const totalLikes = entries.reduce((sum, e) => sum + (e.like_count || 0), 0);
 
-  // Day Journal entries are private/reflective by design -- excluded
-  // from both spotlight picks below, same intent as their exclusion
-  // from the vibe counts above. totalTickles/totalLikes above still
-  // count them; only "what gets surfaced" is filtered here.
-  const spotlightEntries = entries.filter((e) => e.tickle_nature !== 'day_journal');
+  // My Day is a regular Tickle now (can be Rippled public, gets likes/
+  // awards/etc. like any other entry) -- no longer excluded from the
+  // spotlight picks below. Kept as its own variable (rather than using
+  // `entries` directly at both call sites) in case a real exclusion
+  // reason ever comes back.
+  const spotlightEntries = entries;
 
   const pinnedCutoff = localDateString(PINNED_WINDOW_DAYS - 1);
   const pinned = spotlightEntries
@@ -783,10 +784,11 @@ export default function Home() {
         <View style={styles.entryRow}>
           {/* The plain-grey NatureIcon that used to render in iconRow
               below was removed -- it duplicated this colored vibe icon.
-              Day Journal entries never reach renderEntryBody
-              (spotlightEntries already excludes tickle_nature ===
-              'day_journal'), so there's no journal-icon case to
-              preserve here, unlike EntryCard.js's iconGroup. */}
+              My Day entries can reach renderEntryBody now that
+              spotlightEntries no longer excludes them -- same
+              deliberately-not-a-Vibe sun icon as EntryCard.js's own
+              vibeIconSlot (see that file's comment for why day_journal
+              stays out of VIBE_COLORS/NATURE_ORDER itself). */}
           <View
             style={[
               styles.vibeIconSlot,
@@ -804,6 +806,9 @@ export default function Home() {
                 size={SAVED_ENTRY_DOT_SIZE}
                 color={vibeIconColor(entry.tickle_nature)}
               />
+            )}
+            {entry.tickle_nature === 'day_journal' && (
+              <Ionicons name="sunny-outline" size={SAVED_ENTRY_DOT_SIZE} color={C.rust} />
             )}
           </View>
           <View style={styles.entryBody}>

@@ -219,17 +219,14 @@ export default function WeeklySummary() {
     if (!weekEntriesResult.error) setWeekEntries(weekEntriesResult.data || []);
 
     if (!trailingEntriesResult.error) {
-      // Same two rules as Home's own pinned/spotlightEntries logic
-      // (app/(tabs)/home.js) -- My Day (day_journal) entries are private
-      // by design and never eligible here regardless of like count, and
-      // an entry with 0 likes is never a meaningful "most liked" pick
-      // (this app's existing no-gap-shaming pattern, e.g. Day Dots'
-      // own unanswered-day handling). !== not a query-level .neq() --
-      // tickle_nature can be null for untagged entries, and Postgres's
-      // <> excludes NULLs under three-valued logic, which would wrongly
-      // drop every untagged entry from eligibility.
+      // Same rule as Home's own pinned/spotlightEntries logic
+      // (app/(tabs)/home.js) -- My Day (day_journal) entries are eligible
+      // here now, same as any other Tickle. An entry with 0 likes is
+      // still never a meaningful "most liked" pick (this app's existing
+      // no-gap-shaming pattern, e.g. Day Dots' own unanswered-day
+      // handling).
       const best = (trailingEntriesResult.data || [])
-        .filter((e) => e.tickle_nature !== 'day_journal' && e.like_count > 0)
+        .filter((e) => e.like_count > 0)
         .reduce((b, e) => (!b || e.like_count > b.like_count ? e : b), null);
       setMostLiked(best);
     }
@@ -377,6 +374,13 @@ export default function WeeklySummary() {
                           size={SAVED_ENTRY_DOT_SIZE}
                           color={vibeIconColor(mostLiked.tickle_nature)}
                         />
+                      )}
+                      {/* My Day can win this pick now that it's no longer
+                          excluded above -- same deliberately-not-a-Vibe
+                          sun icon as EntryCard.js/home.js's own
+                          vibeIconSlot. */}
+                      {mostLiked.tickle_nature === 'day_journal' && (
+                        <Ionicons name="sunny-outline" size={SAVED_ENTRY_DOT_SIZE} color={C.rust} />
                       )}
                     </View>
                     <View style={styles.entryBody}>
