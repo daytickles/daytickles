@@ -26,7 +26,7 @@ const TICKLE_NATURE_OPTIONS = [
 const DAY_JOURNAL_OPTION = { id: 'day_journal', label: 'My Day' };
 
 export default function Create() {
-  const { session, profile, getNextPrompt } = useAuth();
+  const { session, profile } = useAuth();
   const { entryId, pinnedPhotoId } = useLocalSearchParams();
   const accent = accentFor(profile?.accent_theme);
   const accentDark = darken(accent.card, 0.35);
@@ -38,11 +38,6 @@ export default function Create() {
   const [status, setStatus] = useState('');
   const [saving, setSaving] = useState(false);
   const [loadingEntry, setLoadingEntry] = useState(!!entryId);
-  // Picked once at mount, not re-rolled on every render, so it doesn't
-  // change while the user is still deciding what to write (same
-  // deterministic-not-jarring instinct as PolaroidCard's tilt).
-  const [prompt] = useState(() => getNextPrompt?.() ?? null);
-  const isEmpty = text.trim().length === 0;
 
   // Edit mode: seed every field from the existing row, including
   // shareToFeed from its actual current visibility rather than leaving
@@ -159,14 +154,8 @@ export default function Create() {
         <Text style={styles.backLink}>‹ Back</Text>
       </TouchableOpacity>
 
-      <Text style={styles.title}>{entryId ? 'Edit your tickle' : 'What made you smile today?'}</Text>
+      <Text style={styles.title}>{entryId ? 'Edit your tickle' : 'Tickle it.'}</Text>
       {!!pinnedPhotoId && <Text style={styles.photoLinkHint}>📌 Linking to your pinned photo</Text>}
-      {isEmpty && !!prompt && (
-        <View style={styles.promptHintRow}>
-          <Ionicons name="bulb" size={14} color={C.amberBg} />
-          <Text style={styles.promptHint}>{prompt}</Text>
-        </View>
-      )}
 
       <TextInput
         style={styles.input}
@@ -261,8 +250,6 @@ const styles = StyleSheet.create({
   loadingContainer: { justifyContent: 'center', alignItems: 'center' },
   title: { fontSize: 20, fontWeight: 'bold', marginBottom: 16, color: C.rustDark },
   photoLinkHint: { fontSize: 13, color: C.subtext, marginTop: -12, marginBottom: 12 },
-  promptHintRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
-  promptHint: { fontSize: 14, fontStyle: 'italic', color: C.subtext },
   input: {
     borderWidth: 1, borderColor: C.border, borderRadius: 14,
     padding: 12, minHeight: 120, fontSize: 16,
