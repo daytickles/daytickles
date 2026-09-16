@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
@@ -64,8 +64,8 @@ const EMPTY_TEXT = {
 // generic `mine` one above -- that message talks about sharing to the
 // feed, which is wrong here since My Day entries are private by design
 // and Mine shows entries regardless of sharing status anyway.
-function getEmptyText(tab, natureFilter) {
-  if (tab === 'mine' && natureFilter === 'day_journal') {
+function getEmptyText(tab, natureFilter, goalFilter) {
+  if (tab === 'mine' && natureFilter === 'day_journal' && !goalFilter) {
     return 'Write your first My Day entry to see it here.';
   }
   return EMPTY_TEXT[tab];
@@ -186,6 +186,17 @@ export default function Feed() {
   const initialTab = TABS.some((t) => t.id === params.tab) ? params.tab : 'mine';
   const [tab, setTab] = useState(initialTab);
   const [natureFilter, setNatureFilter] = useState('all');
+  // Mine-only, mutually exclusive with natureFilter rather than merged
+  // into it -- a goal_id filter mixes every nature together (including
+  // My Day), which a single shared enum couldn't express alongside
+  // natureFilter's own 'all'/'received'/'given'/'self'/'day_journal'
+  // values without overloading what each one means. null = no Goal
+  // filter active. Picking a Goal chip doesn't touch natureFilter's own
+  // value (so it's remembered if the Goal filter is later cleared) --
+  // the nature row's selected-chip highlight instead checks
+  // `!goalFilter` too, so nothing in that row LOOKS selected while a
+  // Goal filter is active.
+  const [goalFilter, setGoalFilter] = useState(null);
   // Day Dots state for today, re-derived on every focus of this screen
   // (see the effect below) -- null until the first check resolves.
   // Deliberately no live timer: a screen sitting continuously open
@@ -481,7 +492,7 @@ export default function Feed() {
 
   const loadFeed = useCallback(async () => {
     if (!session) return;
-    const loadKey = `${tab}:${natureFilter}`;
+    const loadKey = `${tab}:${natureFilter}:${goalFilter}`;
     const isTabChange = loadKey !== lastLoadedKeyRef.current;
     lastLoadedKeyRef.current = loadKey;
     // Show the spinner for a genuine tab/filter switch, or when there's
@@ -552,7 +563,16 @@ export default function Feed() {
       // (reached by tapping an entry on Home) is where you read your
       // own entries in full regardless of sharing status.
       query = query.eq('user_id', session.user.id);
-      if (natureFilter !== 'all') query = query.eq('tickle_nature', natureFilter);
+      // A Goal filter overrides the nature filter entirely rather than
+      // combining with it -- every nature (including My Day) mixed
+      // together for that one goal, per the Goal chips spec. natureFilter
+      // itself is left untouched in state either way, so whichever nature
+      // chip was last picked is still there once the Goal filter clears.
+      if (goalFilter) {
+        query = query.eq('goal_id', goalFilter);
+      } else if (natureFilter !== 'all') {
+        query = query.eq('tickle_nature', natureFilter);
+      }
     } else {
       query = query.eq('visibility', 'public');
     }
@@ -568,7 +588,7 @@ export default function Feed() {
       // silently dropped every untagged entry from "All" too (same
       // pitfall already hit once in weekly-summary.js's Most Liked fix).
       let entriesData = data || [];
-      if (tab === 'mine' && natureFilter === 'all') {
+      if (tab === 'mine' && natureFilter === 'all' && !goalFilter) {
         entriesData = entriesData.filter((e) => e.tickle_nature !== 'day_journal');
       }
       const awardedTypesById = await fetchAwardedEntryTypes(entriesData.map((e) => e.id));
@@ -580,7 +600,7 @@ export default function Feed() {
     // likedIds isn't used to filter any query above — it's a dependency
     // purely so a like/unlike triggers this refetch, pulling like_count
     // fresh from the DB rather than ever computing it locally.
-  }, [session, tab, natureFilter, followedIds, favoritedIds, likedIds]);
+  }, [session, tab, natureFilter, goalFilter, followedIds, favoritedIds, likedIds]);
 
   useFocusEffect(
     useCallback(() => {
@@ -640,16 +660,17 @@ export default function Feed() {
   }, [tab, highlightedEntryId, entries]);
 
   // Scroll back to the top on every tab switch (Mine/Fav's/Following/
-  // Rippled) or Mine's nature-filter chip switch (All/Smiles/
-  // Given/Boost/Journal) so a newly-selected tab or filter doesn't inherit
-  // whatever scroll position the previous one was left at. Skipped when
-  // a highlightEntry deep link just set the tab -- that case scrolls to
-  // the specific highlighted entry via the effect above instead, and
-  // this would otherwise stomp on that scroll immediately after.
+  // Rippled), Mine's nature-filter chip switch (All/Smiles/
+  // Given/Boost/Journal), or Mine's Goal-filter chip switch, so a newly-
+  // selected tab or filter doesn't inherit whatever scroll position the
+  // previous one was left at. Skipped when a highlightEntry deep link
+  // just set the tab -- that case scrolls to the specific highlighted
+  // entry via the effect above instead, and this would otherwise stomp
+  // on that scroll immediately after.
   useEffect(() => {
     if (highlightedEntryId) return;
     listRef.current?.scrollToOffset({ offset: 0, animated: true });
-  }, [tab, natureFilter]);
+  }, [tab, natureFilter, goalFilter]);
 
   function handleTabPress(tabId) {
     setTab(tabId);
@@ -1053,16 +1074,22 @@ export default function Feed() {
           ].map((f) => (
             <TouchableOpacity
               key={f.id}
-              onPress={() => setNatureFilter(f.id)}
+              onPress={() => {
+                // Picking any nature chip (including "All") always clears
+                // an active Goal filter -- the two are mutually exclusive,
+                // never combined (see goalFilter's own comment above).
+                setGoalFilter(null);
+                setNatureFilter(f.id);
+              }}
               style={[
                 styles.natureFilterChip,
-                natureFilter === f.id && { backgroundColor: accentDark, borderColor: accentDark },
+                !goalFilter && natureFilter === f.id && { backgroundColor: accentDark, borderColor: accentDark },
               ]}
             >
               <Text
                 style={[
                   styles.natureFilterLabel,
-                  natureFilter === f.id && { color: accentDarkText },
+                  !goalFilter && natureFilter === f.id && { color: accentDarkText },
                 ]}
               >
                 {f.label}
@@ -1072,7 +1099,51 @@ export default function Feed() {
         </View>
       )}
 
-      {tab === 'mine' && natureFilter === 'day_journal' && dayDots && (
+      {/* Goal filter chips -- horizontal ScrollView rather than
+          flexWrap or truncating the row itself: the nature row above
+          already uses ~95% of its available width with five short fixed
+          labels (measured on-device), and goal labels are free user text
+          up to 60 characters, so a plain wrapping row risked silently
+          clipping or pushing chips off-screen. Hidden entirely when there
+          are no goals at all -- an empty scrollable row would just be
+          clutter for anyone who's never created one. Shows every goal
+          (`goals`, not `activeGoals`) including achieved ones,
+          unconditionally and with no visual distinction -- same
+          precedent as Calendar's Goals view, which draws its day-dots
+          from the full list too. */}
+      {tab === 'mine' && goals.length > 0 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.goalFilterRow}
+          style={styles.goalFilterScroll}
+        >
+          {goals.map((g) => (
+            <TouchableOpacity
+              key={g.id}
+              onPress={() => setGoalFilter(g.id)}
+              style={[
+                styles.goalFilterChip,
+                goalFilter === g.id && { backgroundColor: accentDark, borderColor: accentDark },
+              ]}
+            >
+              <View style={[styles.goalFilterDot, { backgroundColor: g.color }]} />
+              <Text
+                style={[
+                  styles.goalFilterLabel,
+                  goalFilter === g.id && { color: accentDarkText },
+                ]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {g.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      )}
+
+      {tab === 'mine' && !goalFilter && natureFilter === 'day_journal' && dayDots && (
         <DayDotsCard
           accentColor={accentFor(profile?.accent_theme).card}
           phase={dayDots.phase}
@@ -1111,7 +1182,7 @@ export default function Feed() {
             });
           }, 50);
         }}
-        ListEmptyComponent={!loading && <Text style={styles.emptyText}>{getEmptyText(tab, natureFilter)}</Text>}
+        ListEmptyComponent={!loading && <Text style={styles.emptyText}>{getEmptyText(tab, natureFilter, goalFilter)}</Text>}
       />
     </View>
     </WallpaperBackground>
@@ -1175,6 +1246,25 @@ const styles = StyleSheet.create({
     backgroundColor: C.bg, borderWidth: 1, borderColor: C.border,
   },
   natureFilterLabel: { fontSize: 11, fontWeight: '600', color: C.subtext },
+
+  goalFilterScroll: { marginBottom: 16 },
+  goalFilterRow: { flexDirection: 'row', gap: 6, paddingRight: 8 },
+  // Same paddingVertical/Horizontal/borderRadius/border as
+  // natureFilterChip -- only difference is the dot + maxWidth, so a Goal
+  // chip reads as the same visual family, not a new one. maxWidth: 160
+  // derived from this same chip's own measured overhead (24dp padding +
+  // 2dp border + 8dp dot + 6dp dot-gap = 40dp) plus the nature chips'
+  // own measured ~6dp/char label width -- leaves ~120dp (~20 characters)
+  // of text before truncating, comfortably past a typical short goal
+  // name but well short of the 60-char max `goals.label` allows.
+  goalFilterChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 0,
+    maxWidth: 160, overflow: 'hidden',
+    paddingVertical: 5, paddingHorizontal: 12, borderRadius: 12,
+    backgroundColor: C.bg, borderWidth: 1, borderColor: C.border,
+  },
+  goalFilterDot: { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
+  goalFilterLabel: { fontSize: 11, fontWeight: '600', color: C.subtext, flexShrink: 1 },
 
   // "New since you were here" divider -- plain text label, deliberately
   // no icon (would overlap with the High Five hand icon's existing
