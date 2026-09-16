@@ -36,23 +36,24 @@ const DAY_DOTS_SIZES = [9, 12, 15, 18];
 const ENTRY_SELECT =
   'id, entry_date, text_content, like_count, tickle_nature, goal_id, visibility, is_edited, created_at, user_id, entry_kind, local_photo_filename, media_url, profiles!tickle_entries_user_id_fkey(username, avatar_emoji, accent_theme, country, founding_member_number)';
 
-// Same idea as feed.js's own resolvePhotoOnlyUris -- Calendar's day
-// entries are always this account's own (loadDayEntries always filters
-// user_id=session.user.id), so the media_url fallback there never
-// actually matters here in practice, but keeping the same resolution
-// logic in both places means neither screen has to know which case it
-// is.
-async function resolvePhotoOnlyUris(userId, entries) {
-  const photoOnlyEntries = entries.filter((e) => e.entry_kind === 'photo_only');
-  if (!photoOnlyEntries.length) return new Map();
+// Same idea as feed.js's own resolveLinkedPhotoUris (also resolves
+// entry_kind='text' entries with a Tickle-a-Photo link now, for
+// EntryCard.js's linkedPhotoStrip, not just photo_only) -- Calendar's
+// day entries are always this account's own (loadDayEntries always
+// filters user_id=session.user.id), so the media_url fallback there
+// never actually matters here in practice, but keeping the same
+// resolution logic in both places means neither screen has to know
+// which case it is.
+async function resolveLinkedPhotoUris(userId, entries) {
+  if (!entries.length) return new Map();
 
-  const localPhotos = await getPhotosForEntries(userId, photoOnlyEntries.map((e) => e.id));
+  const localPhotos = await getPhotosForEntries(userId, entries.map((e) => e.id));
   const map = new Map();
-  for (const entry of photoOnlyEntries) {
+  for (const entry of entries) {
     const local = localPhotos.get(entry.id);
     if (local && new File(local.file_path).exists) {
       map.set(entry.id, local.file_path);
-    } else if (entry.media_url) {
+    } else if (entry.entry_kind === 'photo_only' && entry.media_url) {
       map.set(entry.id, entry.media_url);
     }
   }
@@ -119,9 +120,9 @@ export default function Calendar() {
   const [photoLinkedIds, setPhotoLinkedIds] = useState(new Set());
   const [photoDatesInMonth, setPhotoDatesInMonth] = useState(new Set());
   // Map<entryId, uri> -- same shape/reasoning as feed.js's own
-  // photoOnlyUris, resolved for whichever day's entries are currently
+  // linkedPhotoUris, resolved for whichever day's entries are currently
   // loaded (see loadDayEntries below).
-  const [photoOnlyUris, setPhotoOnlyUris] = useState(new Map());
+  const [linkedPhotoUris, setLinkedPhotoUris] = useState(new Map());
   const [enlargeUri, setEnlargeUri] = useState(null);
   const { hiddenCard, captureCard } = useShareCard();
 
@@ -253,7 +254,7 @@ export default function Calendar() {
   // case the local-only lookup below can't find one). Calendar's day
   // entries are always this account's own, so in practice the local
   // lookup always succeeds here -- kept for the same reason
-  // resolvePhotoOnlyUris' media_url branch is kept, not because this
+  // resolveLinkedPhotoUris' media_url branch is kept, not because this
   // path is expected to matter yet.
   async function handleOpenPhoto(entryId, fallbackUri) {
     const photo = await getPhotoForEntry(session.user.id, entryId);
@@ -274,7 +275,7 @@ export default function Calendar() {
       if (!error) {
         const entriesData = data || [];
         setDayEntries(entriesData);
-        setPhotoOnlyUris(await resolvePhotoOnlyUris(session.user.id, entriesData));
+        setLinkedPhotoUris(await resolveLinkedPhotoUris(session.user.id, entriesData));
       }
       setDayLoading(false);
     },
@@ -295,7 +296,7 @@ export default function Calendar() {
     const existing = await getPhotosForEntries(session.user.id, [entry.id]);
     const oldPhotoId = existing.get(entry.id)?.id ?? null;
     await relinkPhotoToEntry(session.user.id, oldPhotoId, entry.id, picked.uri);
-    setPhotoOnlyUris((prev) => new Map(prev).set(entry.id, picked.uri));
+    setLinkedPhotoUris((prev) => new Map(prev).set(entry.id, picked.uri));
   }
 
   // Same reasoning as feed.js's own entries-reactive effect -- scoped
@@ -412,7 +413,7 @@ export default function Calendar() {
     // it's actually succeeded, rather than flashing "public" and then
     // reverting it a moment later.
     if (entry.entry_kind === 'photo_only' && newVisibility === 'public') {
-      const photoUri = photoOnlyUris.get(entry.id) || null;
+      const photoUri = linkedPhotoUris.get(entry.id) || null;
       if (!photoUri) {
         Alert.alert(
           "Can't make this public yet",
@@ -538,7 +539,7 @@ export default function Calendar() {
 
   // Thin wrapper around lib/sharing.js's sharePhotoOnlyEntry (shared
   // with home.js/feed.js's own Share buttons) -- this file's job is
-  // just resolving this screen's own already-loaded photoOnlyUris into a
+  // just resolving this screen's own already-loaded linkedPhotoUris into a
   // uri and turning the returned status into the right Alert; the
   // actual skip-ShareModal / bake-in-the-Vibe-label decision logic lives
   // there once, not duplicated per screen.
@@ -546,7 +547,7 @@ export default function Calendar() {
     const result = await sharePhotoOnlyEntry({
       profile,
       entry,
-      photoUri: photoOnlyUris.get(entry.id) || null,
+      photoUri: linkedPhotoUris.get(entry.id) || null,
       captureCard,
       accentColor: accentFor(profile?.accent_theme).card,
       onProfileUpdated: refreshProfile,
@@ -827,7 +828,7 @@ export default function Calendar() {
                   isLiked={false}
                   taggedGoal={item.goal_id ? goalsById[item.goal_id] : null}
                   hasLinkedPhoto={photoLinkedIds.has(item.id)}
-                  photoUri={photoOnlyUris.get(item.id) || null}
+                  photoUri={linkedPhotoUris.get(item.id) || null}
                   awardType={awardedTypes.get(item.id) || null}
                   publicAwardTypes={awardedPublicTypes.get(item.id) || []}
                   onOpenPhoto={handleOpenPhoto}

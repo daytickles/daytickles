@@ -219,8 +219,14 @@ export default function EntryCard({
                   "a photo is attached", which is redundant and
                   confusing on a card whose entire content already is
                   one; hasLinkedPhoto is also always true for its own
-                  entry_id in this case anyway. */}
-              {hasLinkedPhoto && !isPhotoOnly && (
+                  entry_id in this case anyway. Also suppressed once
+                  photoUri resolves -- that case renders the linked-photo
+                  strip below instead (see DayTickles_Tickle_A_Photo_
+                  Display_Change.md), and this icon becomes its fallback
+                  only for the rarer case of a link existing but the
+                  local file being unresolved (e.g. gone missing) --
+                  same tap target, still opens PhotoEnlargeModal. */}
+              {hasLinkedPhoto && !isPhotoOnly && !photoUri && (
                 <TouchableOpacity
                   onPress={() => onOpenPhoto?.(item.id)}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -395,12 +401,39 @@ export default function EntryCard({
               </View>
             </TouchableOpacity>
           ) : (
-            // My Day entries used to render behind a ruled-paper texture,
-            // clamped to 4 lines with a "Continue reading" expand -- both
-            // removed now that My Day is a regular Tickle in every way.
-            // Plain, fully untruncated text_content, same as every other
-            // entry type already gets here.
-            <Text style={styles.entryText}>{item.text_content}</Text>
+            <>
+              {/* Tickle-a-Photo display change -- a linked photo that
+                  came from the "Tickle" button on a Tickle Pics photo
+                  (create.js's pinnedPhotoId flow is the only path that
+                  links a photo to an entry_kind='text' entry, so
+                  hasLinkedPhoto + !isPhotoOnly already scopes this
+                  correctly with no new column needed -- see
+                  DayTickles_Tickle_A_Photo_Display_Change.md's Phase 0
+                  question). Deliberately its own plainer style, not
+                  isPhotoOnly's Polaroid treatment -- full-width strip,
+                  no white border/rotation/caption. photoUri only
+                  resolves here on the owning device (the link is local-
+                  only, see lib/pinBoardDb.js), so a non-owner or a
+                  second device just falls back to the header icon above
+                  instead. Height/proportions are a first pass, flagged
+                  in the spec as needing a real-device look. */}
+              {hasLinkedPhoto && !!photoUri && (
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() => onOpenPhoto?.(item.id)}
+                  style={styles.linkedPhotoStrip}
+                >
+                  <Image source={{ uri: photoUri }} style={styles.linkedPhotoStripImage} />
+                </TouchableOpacity>
+              )}
+              {/* My Day entries used to render behind a ruled-paper
+                  texture, clamped to 4 lines with a "Continue reading"
+                  expand -- both removed now that My Day is a regular
+                  Tickle in every way. Plain, fully untruncated
+                  text_content, same as every other entry type already
+                  gets here. */}
+              <Text style={styles.entryText}>{item.text_content}</Text>
+            </>
           )}
           <View style={styles.entryMetaRow}>
             <Text style={styles.entryDate}>
@@ -581,6 +614,13 @@ const styles = StyleSheet.create({
   menuRowLabel: { fontSize: 15, color: C.text },
   menuRowLabelDestructive: { color: C.rust },
   entryText: { fontSize: 15, color: C.text, lineHeight: 20 },
+  // borderRadius matches entryCard's own (16) per spec -- "rounded
+  // corners matching the card's own radius".
+  linkedPhotoStrip: {
+    width: '100%', height: 100, borderRadius: 16, overflow: 'hidden', marginBottom: 8,
+    backgroundColor: C.border,
+  },
+  linkedPhotoStripImage: { width: '100%', height: '100%' },
 
   entryMetaRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8,

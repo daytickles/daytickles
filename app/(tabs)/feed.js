@@ -112,30 +112,35 @@ async function fetchAwardedEntryTypes(entryIds) {
 }
 
 // Resolves the actual displayable image for every currently-loaded
-// photo-only entry -- local file if this device has (and still has) the
-// link (lib/pinBoardDb.js's getPhotosForEntries), falling back to the
-// entry's own media_url for a device/viewer with no local link (a
+// entry that has one -- local file if this device has (and still has)
+// the link (lib/pinBoardDb.js's getPhotosForEntries), falling back to
+// the entry's own media_url for a device/viewer with no local link (a
 // non-owner viewing a public photo-only entry, or the owner's own
 // second device) -- media_url is only ever populated once the still-
 // open "upload on make-public" mechanic exists, so this fallback is a
-// no-op today, not dead code. Neither existing covers "the file's
-// genuinely missing" -- callers just get back a falsy uri for that
-// entry, which EntryCard already renders as its Relink/"not available"
-// placeholder.
-async function resolvePhotoOnlyUris(userId, entries) {
-  const photoOnlyEntries = entries.filter((e) => e.entry_kind === 'photo_only');
-  if (!photoOnlyEntries.length) return new Map();
+// no-op today, not dead code. A normal entry_kind='text' entry with a
+// Tickle-a-Photo link (see EntryCard.js's linkedPhotoStrip) never has
+// media_url populated -- that upload mechanic is photo_only-only -- so
+// it only ever resolves here via the local link, never the fallback;
+// no photoUri for it just means no photo on this device, same "nothing
+// to show" case photo_only already handles. Neither case covers "the
+// file's genuinely missing" -- callers just get back a falsy uri for
+// that entry, which EntryCard already renders as its Relink/"not
+// available" placeholder (photo_only) or its fallback camera icon
+// (linked text entry).
+async function resolveLinkedPhotoUris(userId, entries) {
+  if (!entries.length) return new Map();
 
-  const localPhotos = await getPhotosForEntries(userId, photoOnlyEntries.map((e) => e.id));
+  const localPhotos = await getPhotosForEntries(userId, entries.map((e) => e.id));
   const map = new Map();
-  for (const entry of photoOnlyEntries) {
+  for (const entry of entries) {
     const local = localPhotos.get(entry.id);
     // A cheap stat, not a full read -- fine to run once per feed load
     // rather than per render (the spec flags per-render existence
     // checking as a real perf concern; this isn't that).
     if (local && new File(local.file_path).exists) {
       map.set(entry.id, local.file_path);
-    } else if (entry.media_url) {
+    } else if (entry.entry_kind === 'photo_only' && entry.media_url) {
       map.set(entry.id, entry.media_url);
     }
   }
@@ -201,12 +206,12 @@ export default function Feed() {
   const [likedIds, setLikedIds] = useState(new Set());
   const [photoLinkedIds, setPhotoLinkedIds] = useState(new Set());
   // Map<entryId, uri> -- resolved display image for every currently-
-  // loaded photo-only entry, see resolvePhotoOnlyUris below. Loaded
+  // loaded photo-only entry, see resolveLinkedPhotoUris below. Loaded
   // alongside setEntries in loadFeed (same shape as awardedPublicTypes),
   // not folded into loadPhotoLinks above -- that Set only ever needs
   // membership (badge on/off) for a *pinned-to* photo, this needs the
   // actual resolved uri for an entry's *own* photo, a different job.
-  const [photoOnlyUris, setPhotoOnlyUris] = useState(new Map());
+  const [linkedPhotoUris, setLinkedPhotoUris] = useState(new Map());
   // Map<entryId, awardType> -- only this viewer's own awards (awards
   // RLS is private to the giver, same shape as favoritedIds), and a Map
   // rather than a Set since the icon needs to know *which* award, not
@@ -423,7 +428,7 @@ export default function Feed() {
   }, [loadAwards]);
 
   // fallbackUri is only ever passed by a photo-only Polaroid's own tap
-  // (its already-resolved photoOnlyUris value) -- the local-only lookup
+  // (its already-resolved linkedPhotoUris value) -- the local-only lookup
   // above can never find a link for a non-owner's entry on this device,
   // so without it, tapping to enlarge a stranger's photo-only Tickle
   // would silently do nothing once media_url-sourced photos exist.
@@ -453,7 +458,7 @@ export default function Feed() {
     const existing = await getPhotosForEntries(session.user.id, [entry.id]);
     const oldPhotoId = existing.get(entry.id)?.id ?? null;
     await relinkPhotoToEntry(session.user.id, oldPhotoId, entry.id, picked.uri);
-    setPhotoOnlyUris((prev) => new Map(prev).set(entry.id, picked.uri));
+    setLinkedPhotoUris((prev) => new Map(prev).set(entry.id, picked.uri));
   }
 
   // Mirrors `entries.length > 0` for loadFeed without making `entries`
@@ -505,7 +510,7 @@ export default function Feed() {
         const awardedTypesById = await fetchAwardedEntryTypes(entriesData.map((e) => e.id));
         setEntries(entriesData);
         setAwardedPublicTypes(awardedTypesById);
-        setPhotoOnlyUris(await resolvePhotoOnlyUris(session.user.id, entriesData));
+        setLinkedPhotoUris(await resolveLinkedPhotoUris(session.user.id, entriesData));
       }
       setLoading(false);
       return;
@@ -533,7 +538,7 @@ export default function Feed() {
         const awardedTypesById = await fetchAwardedEntryTypes(entriesData.map((e) => e.id));
         setEntries(entriesData);
         setAwardedPublicTypes(awardedTypesById);
-        setPhotoOnlyUris(await resolvePhotoOnlyUris(session.user.id, entriesData));
+        setLinkedPhotoUris(await resolveLinkedPhotoUris(session.user.id, entriesData));
       }
       setLoading(false);
       return;
@@ -569,7 +574,7 @@ export default function Feed() {
       const awardedTypesById = await fetchAwardedEntryTypes(entriesData.map((e) => e.id));
       setEntries(entriesData);
       setAwardedPublicTypes(awardedTypesById);
-      setPhotoOnlyUris(await resolvePhotoOnlyUris(session.user.id, entriesData));
+      setLinkedPhotoUris(await resolveLinkedPhotoUris(session.user.id, entriesData));
     }
     setLoading(false);
     // likedIds isn't used to filter any query above — it's a dependency
@@ -799,7 +804,7 @@ export default function Feed() {
 
   // Thin wrapper around lib/sharing.js's sharePhotoOnlyEntry (shared
   // with home.js/calendar.js's own Share buttons) -- this file's job is
-  // just resolving this screen's own already-loaded photoOnlyUris into a
+  // just resolving this screen's own already-loaded linkedPhotoUris into a
   // uri and turning the returned status into the right Alert; the
   // actual skip-ShareModal / bake-in-the-Vibe-label decision logic lives
   // there once, not duplicated per screen.
@@ -807,7 +812,7 @@ export default function Feed() {
     const result = await sharePhotoOnlyEntry({
       profile,
       entry,
-      photoUri: photoOnlyUris.get(entry.id) || null,
+      photoUri: linkedPhotoUris.get(entry.id) || null,
       captureCard,
       accentColor: accentFor(profile?.accent_theme).card,
       onProfileUpdated: refreshProfile,
@@ -865,7 +870,7 @@ export default function Feed() {
     // it's actually succeeded, rather than flashing "public" and then
     // reverting it a moment later.
     if (entry.entry_kind === 'photo_only' && newVisibility === 'public') {
-      const photoUri = photoOnlyUris.get(entry.id) || null;
+      const photoUri = linkedPhotoUris.get(entry.id) || null;
       if (!photoUri) {
         Alert.alert(
           "Can't make this public yet",
@@ -939,7 +944,7 @@ export default function Feed() {
         isLiked={likedIds.has(item.id)}
         taggedGoal={item.goal_id ? goalsById[item.goal_id] : null}
         hasLinkedPhoto={photoLinkedIds.has(item.id)}
-        photoUri={photoOnlyUris.get(item.id) || null}
+        photoUri={linkedPhotoUris.get(item.id) || null}
         awardType={awardedTypes.get(item.id) || null}
         publicAwardTypes={awardedPublicTypes.get(item.id) || []}
         onOpenPhoto={handleOpenPhoto}
