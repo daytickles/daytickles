@@ -1112,35 +1112,37 @@ export default function Feed() {
           precedent as Calendar's Goals view, which draws its day-dots
           from the full list too. */}
       {tab === 'mine' && goals.length > 0 && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.goalFilterRow}
-          style={styles.goalFilterScroll}
-        >
-          {goals.map((g) => (
-            <TouchableOpacity
-              key={g.id}
-              onPress={() => setGoalFilter(g.id)}
-              style={[
-                styles.goalFilterChip,
-                goalFilter === g.id && { backgroundColor: accentDark, borderColor: accentDark },
-              ]}
-            >
-              <View style={[styles.goalFilterDot, { backgroundColor: g.color }]} />
-              <Text
+        <View style={styles.goalFilterWrap}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.goalFilterRow}
+            style={styles.goalFilterScroll}
+          >
+            {goals.map((g) => (
+              <TouchableOpacity
+                key={g.id}
+                onPress={() => setGoalFilter(g.id)}
                 style={[
-                  styles.goalFilterLabel,
-                  goalFilter === g.id && { color: accentDarkText },
+                  styles.goalFilterChip,
+                  goalFilter === g.id && { backgroundColor: accentDark, borderColor: accentDark },
                 ]}
-                numberOfLines={1}
-                ellipsizeMode="tail"
               >
-                {g.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+                <View style={[styles.goalFilterDot, { backgroundColor: g.color }]} />
+                <Text
+                  style={[
+                    styles.goalFilterLabel,
+                    goalFilter === g.id && { color: accentDarkText },
+                  ]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {g.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
       )}
 
       {tab === 'mine' && !goalFilter && natureFilter === 'day_journal' && dayDots && (
@@ -1247,8 +1249,29 @@ const styles = StyleSheet.create({
   },
   natureFilterLabel: { fontSize: 11, fontWeight: '600', color: C.subtext },
 
-  goalFilterScroll: { marginBottom: 16 },
-  goalFilterRow: { flexDirection: 'row', gap: 6, paddingRight: 8 },
+  // The height fix lives on THIS wrapping View, not on the ScrollView
+  // itself -- confirmed on-device that setting height directly via a
+  // horizontal ScrollView's own `style` is silently ignored on Android
+  // (a known RN/Android issue: the ScrollView still measured ~950px
+  // tall with height:34 set directly on it, verified against a
+  // guaranteed-fresh bundle, not a caching artifact). Wrapping it in a
+  // plain View that itself has the fixed height, with the ScrollView
+  // just told to fill that wrapper (flex:1 below), is the documented
+  // workaround. 34 isn't a guess -- natureFilterChip's own identical
+  // paddingVertical/borderWidth/fontSize measured at 80px tall
+  // on-device (1080x2400 @ 3x DPR = 26.7dp), and 34 gives ~7dp of
+  // headroom above that for font-scale/rendering variance. This is the
+  // one row in this file that needs an explicit height at all --
+  // every other filter row here is a plain View, which sizes to
+  // content correctly with no such quirk.
+  goalFilterWrap: { height: 34, marginBottom: 16 },
+  goalFilterScroll: { flex: 1 },
+  // alignItems: 'center' is also load-bearing, not cosmetic -- without
+  // it this row defaults to RN's 'stretch' cross-axis alignment same as
+  // any other row, but inside a horizontal ScrollView specifically that
+  // stretches each chip to fill the wrapper's 34dp height rather than
+  // sizing each chip to its own content.
+  goalFilterRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingRight: 8 },
   // Same paddingVertical/Horizontal/borderRadius/border as
   // natureFilterChip -- only difference is the dot + maxWidth, so a Goal
   // chip reads as the same visual family, not a new one. maxWidth: 160
