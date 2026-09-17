@@ -12,7 +12,7 @@ import { shareEntry, shareStatus, sharePhotoOnlyEntry, SHARE_CAPTIONS } from '..
 import { isThisWeek, isThisMonth, localDateString, DEFAULT_WEEK_START_DAY } from '../../lib/week';
 import { fetchFoundingMemberPaceStatus, fetchFoundingMemberOptInReminderStatus } from '../../lib/foundingMember';
 import { flagEmoji } from '../../lib/country';
-import { initPinBoardDb, getPhotosForEntries } from '../../lib/pinBoardDb';
+import { initPinBoardDb, getPhotosForEntries, getPhotoForEntry } from '../../lib/pinBoardDb';
 import { useShareCard } from '../../lib/useShareCard';
 import { makePhotoTicklePublic, makePhotoTicklePrivate, deletePhotoTickleMedia } from '../../lib/photoTickleStorage';
 import Button from '../../components/Button';
@@ -573,6 +573,61 @@ export default function Home() {
         );
       } catch (err) {
         console.error('handleToggleVisibility: photo removal failed', err);
+        Alert.alert(
+          "Couldn't make this private",
+          `Something went wrong removing this photo — try again.\n\n${err.message || String(err)}`
+        );
+      }
+      return;
+    }
+
+    // A text entry with a Tickle-a-Photo link gets the same upload
+    // treatment on Ripple as a photo-only entry -- same underlying
+    // mechanic (lib/photoTickleStorage.js). Unlike photo-only, a
+    // missing/unresolvable local photo does NOT block the share here:
+    // most text entries have no linked photo at all, and even one that
+    // does has real text content of its own, so an unresolvable bonus
+    // photo just falls through to the plain flip below and shares as
+    // text only, rather than blocking the whole Ripple the way
+    // photo-only's own no-photo case does above. On-demand lookup
+    // (rather than a pre-loaded map like feed.js/calendar.js use) since
+    // photoOnlyUris here is only ever populated for entry_kind='photo_only'
+    // -- this is the one Home entry a user actually taps Ripple on, so
+    // a single extra local-db query here costs nothing.
+    if (entry.entry_kind === 'text' && newVisibility === 'public') {
+      const linkedPhoto = await getPhotoForEntry(session.user.id, entry.id);
+      const photoUri = linkedPhoto && new File(linkedPhoto.file_path).exists ? linkedPhoto.file_path : null;
+      if (photoUri) {
+        try {
+          const mediaUrl = await makePhotoTicklePublic(entry, photoUri);
+          setEntries((prev) =>
+            prev.map((e) => (e.id === entry.id ? { ...e, visibility: 'public', media_url: mediaUrl } : e))
+          );
+        } catch (err) {
+          console.error('handleToggleVisibility: linked-photo upload failed', err);
+          Alert.alert(
+            "Couldn't make this public",
+            `Something went wrong uploading this photo — try again.\n\n${err.message || String(err)}`
+          );
+        }
+        return;
+      }
+    }
+
+    // Symmetric to the block above -- an already-public text entry
+    // whose linked photo was actually uploaded (media_url set) gets the
+    // same Storage removal as a photo-only entry going private. Gated
+    // on media_url itself rather than a fresh local-link lookup, since
+    // only an entry that went through the upload branch above ever has
+    // media_url set for entry_kind='text'.
+    if (entry.entry_kind === 'text' && newVisibility === 'private' && entry.media_url) {
+      try {
+        await makePhotoTicklePrivate(entry);
+        setEntries((prev) =>
+          prev.map((e) => (e.id === entry.id ? { ...e, visibility: 'private', media_url: null } : e))
+        );
+      } catch (err) {
+        console.error('handleToggleVisibility: linked-photo removal failed', err);
         Alert.alert(
           "Couldn't make this private",
           `Something went wrong removing this photo — try again.\n\n${err.message || String(err)}`
