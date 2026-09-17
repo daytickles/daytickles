@@ -6,7 +6,7 @@ import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { C, accentFor, darken, textOn } from '../../lib/theme';
+import { C, accentFor, darken, lighten, textOn } from '../../lib/theme';
 import { shareEntry, shareStatus, sharePhotoOnlyEntry, SHARE_CAPTIONS } from '../../lib/sharing';
 import { notifyLikeReceived } from '../../lib/likeNotify';
 import { localDateString } from '../../lib/week';
@@ -1128,10 +1128,42 @@ export default function Feed() {
                   goalFilter === g.id && { backgroundColor: accentDark, borderColor: accentDark },
                 ]}
               >
-                <View style={[styles.goalFilterDot, { backgroundColor: g.color }]} />
+                {/* Same lighten(0.6)/checkmark-darken(0.4) formula as
+                    goals.js/GoalTagModal/EntryCard's own achieved-goal
+                    dots -- dot-only here (label/background untouched),
+                    matching EntryCard's scope rather than goals.js's
+                    fuller treatment (which also mutes the label). Icon
+                    size scaled down from those dots' own size:10 on a
+                    14-16px dot (~0.65x diameter) to size:6 here, since
+                    this dot is only 8px -- a literal size:10 checkmark
+                    would overflow it. */}
+                <View
+                  style={[
+                    styles.goalFilterDot,
+                    { backgroundColor: g.achieved_at ? lighten(g.color, 0.6) : g.color },
+                  ]}
+                >
+                  {!!g.achieved_at && (
+                    <Ionicons name="checkmark" size={6} color={darken(g.color, 0.4)} />
+                  )}
+                </View>
                 <Text
                   style={[
                     styles.goalFilterLabel,
+                    // Muted to echo goals.js's own goalLabelAchieved
+                    // (color: C.subtext there) -- but this label's own
+                    // unselected baseline (goalFilterLabel) is ALREADY
+                    // C.subtext, same as every other filter chip in this
+                    // row, so setting achieved to that same value would
+                    // be invisible. C.faint is one step fainter still,
+                    // the actual visible mute goals.js's default->
+                    // subtext step achieves relative to ITS OWN default
+                    // (C.text). Applied before the selected-state
+                    // override below so a selected-AND-achieved chip
+                    // still gets accentDarkText for contrast against
+                    // accentDark, rather than staying faint on a dark
+                    // background.
+                    !!g.achieved_at && { color: C.faint },
                     goalFilter === g.id && { color: accentDarkText },
                   ]}
                   numberOfLines={1}
@@ -1286,7 +1318,10 @@ const styles = StyleSheet.create({
     paddingVertical: 5, paddingHorizontal: 12, borderRadius: 12,
     backgroundColor: C.bg, borderWidth: 1, borderColor: C.border,
   },
-  goalFilterDot: { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
+  goalFilterDot: {
+    width: 8, height: 8, borderRadius: 4, flexShrink: 0,
+    alignItems: 'center', justifyContent: 'center',
+  },
   goalFilterLabel: { fontSize: 11, fontWeight: '600', color: C.subtext, flexShrink: 1 },
 
   // "New since you were here" divider -- plain text label, deliberately
