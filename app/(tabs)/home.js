@@ -12,7 +12,7 @@ import { shareEntry, shareStatus, sharePhotoOnlyEntry, SHARE_CAPTIONS } from '..
 import { isThisWeek, isThisMonth, localDateString, DEFAULT_WEEK_START_DAY } from '../../lib/week';
 import { fetchFoundingMemberPaceStatus, fetchFoundingMemberOptInReminderStatus } from '../../lib/foundingMember';
 import { flagEmoji } from '../../lib/country';
-import { initPinBoardDb, getPhotosForEntries, getPhotoForEntry } from '../../lib/pinBoardDb';
+import { initPinBoardDb, getPhotosForEntries } from '../../lib/pinBoardDb';
 import { useShareCard } from '../../lib/useShareCard';
 import { makePhotoTicklePublic, makePhotoTicklePrivate, deletePhotoTickleMedia } from '../../lib/photoTickleStorage';
 import Button from '../../components/Button';
@@ -51,20 +51,25 @@ function rotationForId(id) {
   return `${((sum % 5) - 2) * 1.5}deg`;
 }
 
-// Same idea as feed.js's/calendar.js's own resolvePhotoOnlyUris --
+// Same idea as feed.js's/calendar.js's own resolveLinkedPhotoUris --
+// resolves both photo_only entries and entry_kind='text' entries with a
+// Tickle-a-Photo link (renderEntryBody's own linked-photo strip below):
 // local file if this device has (and still has) the pin-board link,
-// falling back to the entry's own media_url otherwise (a no-op today
-// since upload-on-public isn't built yet, see project memory). Neither
-// existing covers "the file's genuinely missing" -- callers just get
-// back no map entry for that id, which the photo-only render below
-// treats as "not available".
-async function resolvePhotoOnlyUris(userId, entries) {
-  const photoOnlyEntries = entries.filter((e) => e.entry_kind === 'photo_only');
-  if (!photoOnlyEntries.length) return new Map();
+// falling back to the entry's own media_url otherwise. Home's own
+// entries are always this account's own (loadEntries always filters
+// user_id=session.user.id), so that fallback mostly matters for the
+// owner's own second device, same as calendar.js's own version of this
+// function -- kept anyway so this screen doesn't have to know which
+// case it is. Neither branch covers "the file's genuinely missing" --
+// callers just get back no map entry for that id, which the photo-only
+// render below treats as "not available" and the linked-photo strip
+// below just omits.
+async function resolveLinkedPhotoUris(userId, entries) {
+  if (!entries.length) return new Map();
 
-  const localPhotos = await getPhotosForEntries(userId, photoOnlyEntries.map((e) => e.id));
+  const localPhotos = await getPhotosForEntries(userId, entries.map((e) => e.id));
   const map = new Map();
-  for (const entry of photoOnlyEntries) {
+  for (const entry of entries) {
     const local = localPhotos.get(entry.id);
     if (local && new File(local.file_path).exists) {
       map.set(entry.id, local.file_path);
@@ -146,10 +151,11 @@ export default function Home() {
   const [pickerEntryId, setPickerEntryId] = useState(null);
   const [shareEntryId, setShareEntryId] = useState(null);
   // Map<entryId, uri> -- resolved display image for every currently-
-  // loaded photo-only entry, see resolvePhotoOnlyUris above. Also reused
+  // loaded entry that has one (photo_only, or a text entry with a
+  // Tickle-a-Photo link), see resolveLinkedPhotoUris above. Also reused
   // as the share source in handlePhotoOnlyShare below, rather than
   // re-resolving per share.
-  const [photoOnlyUris, setPhotoOnlyUris] = useState(new Map());
+  const [linkedPhotoUris, setLinkedPhotoUris] = useState(new Map());
   const { hiddenCard, captureCard } = useShareCard();
   const [sharesTotal, setSharesTotal] = useState(0);
   const [showGuide, setShowGuide] = useState(false);
@@ -330,7 +336,7 @@ export default function Home() {
       // loadPhotoLinks, so it can't assume another tab already created
       // the local SQLite tables.
       await initPinBoardDb(session.user.id);
-      setPhotoOnlyUris(await resolvePhotoOnlyUris(session.user.id, data || []));
+      setLinkedPhotoUris(await resolveLinkedPhotoUris(session.user.id, data || []));
     }
     setLoading(false);
   }, [session]);
@@ -455,15 +461,18 @@ export default function Home() {
 
   // Thin wrapper around lib/sharing.js's sharePhotoOnlyEntry (shared with
   // feed.js/calendar.js's own Share buttons) -- this file's job is just
-  // resolving this screen's own already-loaded photoOnlyUris into a uri
+  // resolving this screen's own already-loaded linkedPhotoUris into a uri
   // and turning the returned status into the right Alert; the actual
   // skip-ShareModal / bake-in-the-Vibe-label decision logic lives there
-  // once, not duplicated per screen.
+  // once, not duplicated per screen. Only ever called for a photo_only
+  // entry (see this function's own call sites), so entry.id here always
+  // resolves via linkedPhotoUris' photo_only half, never its
+  // linked-text-entry half.
   async function handlePhotoOnlyShare(entry) {
     const result = await sharePhotoOnlyEntry({
       profile,
       entry,
-      photoUri: photoOnlyUris.get(entry.id) || null,
+      photoUri: linkedPhotoUris.get(entry.id) || null,
       captureCard,
       accentColor: accent.card,
       onProfileUpdated: refreshProfile,
@@ -530,7 +539,7 @@ export default function Home() {
     // it's actually succeeded, rather than flashing "public" and then
     // reverting it a moment later.
     if (entry.entry_kind === 'photo_only' && newVisibility === 'public') {
-      const photoUri = photoOnlyUris.get(entry.id) || null;
+      const photoUri = linkedPhotoUris.get(entry.id) || null;
       if (!photoUri) {
         Alert.alert(
           "Can't make this public yet",
@@ -589,14 +598,13 @@ export default function Home() {
     // does has real text content of its own, so an unresolvable bonus
     // photo just falls through to the plain flip below and shares as
     // text only, rather than blocking the whole Ripple the way
-    // photo-only's own no-photo case does above. On-demand lookup
-    // (rather than a pre-loaded map like feed.js/calendar.js use) since
-    // photoOnlyUris here is only ever populated for entry_kind='photo_only'
-    // -- this is the one Home entry a user actually taps Ripple on, so
-    // a single extra local-db query here costs nothing.
+    // photo-only's own no-photo case does above. Reuses the same
+    // pre-loaded linkedPhotoUris map the photo_only branch above and
+    // renderEntryBody's own linked-photo strip already read from --
+    // no separate on-demand lookup needed now that resolveLinkedPhotoUris
+    // resolves every entry, not just photo_only ones.
     if (entry.entry_kind === 'text' && newVisibility === 'public') {
-      const linkedPhoto = await getPhotoForEntry(session.user.id, entry.id);
-      const photoUri = linkedPhoto && new File(linkedPhoto.file_path).exists ? linkedPhoto.file_path : null;
+      const photoUri = linkedPhotoUris.get(entry.id) || null;
       if (photoUri) {
         try {
           const mediaUrl = await makePhotoTicklePublic(entry, photoUri);
@@ -833,7 +841,7 @@ export default function Home() {
   function renderEntryBody(entry) {
     const taggedGoal = entry.goal_id ? goalsById[entry.goal_id] : null;
     const isPhotoOnly = entry.entry_kind === 'photo_only';
-    const photoUri = photoOnlyUris.get(entry.id) || null;
+    const photoUri = linkedPhotoUris.get(entry.id) || null;
     return (
       <View>
         <View style={styles.entryRow}>
@@ -896,7 +904,27 @@ export default function Home() {
                 </View>
               </View>
             ) : (
-              <Text style={styles.entryText} numberOfLines={1}>{entry.text_content}</Text>
+              <>
+                {/* Tickle-a-Photo display, mirroring EntryCard.js's own
+                    linkedPhotoStrip -- plain full-width strip, no
+                    Polaroid frame/rotation/caption (that treatment is
+                    photo_only-only, both here and in EntryCard.js).
+                    Deliberately a plain non-interactive Image, not its
+                    own TouchableOpacity/onOpenPhoto -- unlike Feed/
+                    Calendar, Home has no PhotoEnlargeModal at all; the
+                    entire spotlight card is already one tap target that
+                    navigates to Feed (goToEntryInFeed), same as the
+                    photo-only Polaroid above already behaves (plain
+                    View, no independent tap handler). Renders whenever
+                    photoUri resolves, kind-agnostic, same as
+                    EntryCard.js -- silently omitted otherwise, same as
+                    today's plain-text-only rendering when there's no
+                    link or it's unresolved on this device. */}
+                {!!photoUri && (
+                  <Image source={{ uri: photoUri }} style={styles.linkedPhotoStrip} />
+                )}
+                <Text style={styles.entryText} numberOfLines={1}>{entry.text_content}</Text>
+              </>
             )}
             <View style={styles.entryMetaRow}>
               <Text style={styles.entryDate}>
@@ -1294,6 +1322,12 @@ const styles = StyleSheet.create({
   entryRow: { flexDirection: 'row', alignItems: 'flex-start' },
   vibeIconSlot: { marginRight: 12, marginTop: 4 },
   entryBody: { flex: 1 },
+  // Same values as EntryCard.js's own linkedPhotoStrip/linkedPhotoStripImage
+  // pair, collapsed into one style since this is a plain Image here, not a
+  // TouchableOpacity wrapping one -- see renderEntryBody's own comment.
+  linkedPhotoStrip: {
+    width: '100%', height: 100, borderRadius: 16, marginBottom: 8, backgroundColor: C.border,
+  },
   entryText: { fontSize: 15, color: C.text, lineHeight: 20 },
   entryMetaRow: {
     flexDirection: 'row', justifyContent: 'space-between',
