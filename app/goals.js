@@ -20,6 +20,12 @@ export default function Goals() {
   const [color, setColor] = useState(GOAL_COLORS[0]);
   const [status, setStatus] = useState('');
   const [saving, setSaving] = useState(false);
+  // Separate from `saving` (which is specifically the Add Goal button's
+  // own state, unchanged below) -- shared between Achieve and Delete
+  // only, so achieving one goal doesn't make the Add Goal button
+  // misleadingly show "Adding..." (confirmed on-device: reusing
+  // `saving` for this did exactly that).
+  const [mutating, setMutating] = useState(false);
 
   const loadGoals = useCallback(async () => {
     setLoading(true);
@@ -101,11 +107,20 @@ export default function Goals() {
     );
   }
 
+  // mutating is set for the whole round-trip -- without it, nothing
+  // stopped a fast tap on "‹ Back" (or another row's Achieve/Delete)
+  // between confirming this Alert and the update actually committing.
+  // A screen navigated to in that gap (e.g. Tickle Stash's own
+  // independent goals fetch on focus) could read the pre-achieve row
+  // and briefly offer it as a selectable tag target -- a real,
+  // confirmed-possible race, not a fetch/filter bug on the other end.
   async function handleAchieve(id) {
+    setMutating(true);
     const { error } = await supabase
       .from('goals')
       .update({ achieved_at: new Date().toISOString() })
       .eq('id', id);
+    setMutating(false);
     if (error) {
       setStatus(`Error: ${error.message}`);
     } else {
@@ -124,8 +139,13 @@ export default function Goals() {
     );
   }
 
+  // Same mutating guard as handleAchieve, same reason -- a delete has
+  // the identical race shape (a screen focused mid-flight could still
+  // see the now-gone goal as taggable).
   async function handleDelete(id) {
+    setMutating(true);
     const { error } = await supabase.from('goals').delete().eq('id', id);
+    setMutating(false);
     if (error) {
       setStatus(`Error: ${error.message}`);
     } else {
@@ -140,11 +160,17 @@ export default function Goals() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      {/* disabled (not just visually dimmed) while ANY goals mutation on
+          this screen is in flight -- Add (saving) or Achieve/Delete
+          (mutating) -- see handleAchieve/handleDelete's own comments for
+          the race this closes. TouchableOpacity's disabled prop
+          genuinely blocks onPress, so this isn't cosmetic. */}
       <TouchableOpacity
         onPress={() => router.back()}
+        disabled={saving || mutating}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
       >
-        <Text style={styles.backLink}>‹ Back</Text>
+        <Text style={[styles.backLink, (saving || mutating) && styles.linkDisabled]}>‹ Back</Text>
       </TouchableOpacity>
 
       <Text style={styles.title}>My Goals</Text>
@@ -158,11 +184,11 @@ export default function Goals() {
           <View style={[styles.dot, { backgroundColor: item.color }]} />
           <Text style={styles.goalLabel}>{item.label}</Text>
           <View style={styles.goalActions}>
-            <TouchableOpacity onPress={() => confirmAchieve(item)}>
-              <Text style={styles.achieveText}>Achieve</Text>
+            <TouchableOpacity onPress={() => confirmAchieve(item)} disabled={mutating}>
+              <Text style={[styles.achieveText, mutating && styles.linkDisabled]}>Achieve</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => confirmDelete(item)}>
-              <Text style={styles.deleteText}>Delete</Text>
+            <TouchableOpacity onPress={() => confirmDelete(item)} disabled={mutating}>
+              <Text style={[styles.deleteText, mutating && styles.linkDisabled]}>Delete</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -226,8 +252,8 @@ export default function Goals() {
               </View>
               <Text style={[styles.goalLabel, styles.goalLabelAchieved]}>{item.label}</Text>
               <View style={styles.goalActions}>
-                <TouchableOpacity onPress={() => confirmDelete(item)}>
-                  <Text style={styles.deleteText}>Delete</Text>
+                <TouchableOpacity onPress={() => confirmDelete(item)} disabled={mutating}>
+                  <Text style={[styles.deleteText, mutating && styles.linkDisabled]}>Delete</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -260,6 +286,7 @@ const styles = StyleSheet.create({
   goalActions: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   achieveText: { color: C.tealText, fontWeight: '600' },
   deleteText: { color: C.rust, fontWeight: '600' },
+  linkDisabled: { opacity: 0.4 },
   sectionHeader: {
     fontSize: 12, fontWeight: '700', color: C.subtext,
     textTransform: 'uppercase', letterSpacing: 0.5,
