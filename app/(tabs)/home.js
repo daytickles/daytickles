@@ -157,7 +157,8 @@ export default function Home() {
   // re-resolving per share.
   const [linkedPhotoUris, setLinkedPhotoUris] = useState(new Map());
   const { hiddenCard, captureCard } = useShareCard();
-  const [sharesTotal, setSharesTotal] = useState(0);
+  const [madeMeSmileSharesTotal, setMadeMeSmileSharesTotal] = useState(0);
+  const [thoughtOfYouSharesTotal, setThoughtOfYouSharesTotal] = useState(0);
   const [showGuide, setShowGuide] = useState(false);
   const [showRatePrompt, setShowRatePrompt] = useState(false);
   const [showReturnedMessage, setShowReturnedMessage] = useState(false);
@@ -351,21 +352,29 @@ export default function Home() {
     if (!error) setGoals(data || []);
   }, [session]);
 
-  // All-time total, cloud-only -- tickle_shares (entry shares) +
-  // photo_share_events (bare Pin Board photo shares), same combined
-  // definition the Founding Member month-progress RPC uses (migration
-  // 0023). Deliberately NOT lib/pinBoardDb.js's local-only photo_shares
-  // table -- that's device-local and wouldn't survive a reinstall or a
-  // second device, which would make an "all-time" total silently wrong.
-  const loadSharesTotal = useCallback(async () => {
+  // All-time totals for Home's two caption-split stat pills -- tickle_shares
+  // only, all-time-safe cloud table (same table + no-date-filter shape as
+  // Home's old all-time Shares pill). Deliberately NOT lib/pinBoardDb.js's
+  // local-only photo_shares table (device-local, doesn't survive a reinstall
+  // or a second device -- same correctness reasoning the old Shares pill
+  // already established).
+  //
+  // Measures ANY share tagged with that caption, not Photo-Only Tickle
+  // shares specifically: text-entry shares carry the user's real caption
+  // choice, while every Photo-Only Tickle share is always recorded under
+  // 'made_me_smile' regardless of its actual content (see
+  // PHOTO_ONLY_SHARE_CAPTION_ID in lib/sharing.js) -- a deliberate, accepted
+  // scope decision, not an oversight.
+  const loadCaptionShareTotals = useCallback(async () => {
     if (!session) return;
-    const [tickleSharesResult, photoShareEventsResult] = await Promise.all([
-      supabase.from('tickle_shares').select('id', { count: 'exact', head: true }).eq('created_by', session.user.id),
-      supabase.from('photo_share_events').select('id', { count: 'exact', head: true }).eq('user_id', session.user.id),
+    const [madeMeSmileResult, thoughtOfYouResult] = await Promise.all([
+      supabase.from('tickle_shares').select('id', { count: 'exact', head: true })
+        .eq('created_by', session.user.id).eq('caption', 'made_me_smile'),
+      supabase.from('tickle_shares').select('id', { count: 'exact', head: true })
+        .eq('created_by', session.user.id).eq('caption', 'thought_of_you'),
     ]);
-    const tickleSharesCount = tickleSharesResult.error ? 0 : (tickleSharesResult.count || 0);
-    const photoShareEventsCount = photoShareEventsResult.error ? 0 : (photoShareEventsResult.count || 0);
-    setSharesTotal(tickleSharesCount + photoShareEventsCount);
+    setMadeMeSmileSharesTotal(madeMeSmileResult.error ? 0 : (madeMeSmileResult.count || 0));
+    setThoughtOfYouSharesTotal(thoughtOfYouResult.error ? 0 : (thoughtOfYouResult.count || 0));
   }, [session]);
 
   useFocusEffect(
@@ -382,8 +391,8 @@ export default function Home() {
 
   useFocusEffect(
     useCallback(() => {
-      loadSharesTotal();
-    }, [loadSharesTotal])
+      loadCaptionShareTotals();
+    }, [loadCaptionShareTotals])
   );
 
   // Read-only (see fetchFoundingMemberPaceStatus) so it's fine to run
@@ -692,6 +701,7 @@ export default function Home() {
   }
 
   const totalTickles = entries.length;
+  const totalRipples = entries.filter((e) => e.visibility === 'public').length;
 
   // Single pass over the full (already-loaded, unfiltered) entries
   // history -- no new query needed for this, since home.js already
@@ -823,8 +833,6 @@ export default function Home() {
       .eq('id', session.user.id);
     refreshProfile();
   }
-
-  const totalLikes = entries.reduce((sum, e) => sum + (e.like_count || 0), 0);
 
   // My Day is a regular Tickle now (can be Rippled public, gets likes/
   // awards/etc. like any other entry) -- no longer excluded from the
@@ -995,9 +1003,9 @@ export default function Home() {
   const shareBlocked = !!shareStat && !shareStat.unlimited && shareStat.remaining <= 0;
 
   const STAT_PILLS = [
-    { key: 'tickles', icon: 'create-outline', value: totalTickles, tooltip: "Tickles you've written, all-time" },
-    { key: 'likes', icon: 'thumbs-up-outline', value: totalLikes, tooltip: "Likes you've received, all-time" },
-    { key: 'shares', icon: 'share-social-outline', value: sharesTotal, tooltip: "Tickles and photos you've shared, all-time" },
+    { key: 'madeMeSmile', icon: 'happy-outline', value: madeMeSmileSharesTotal, tooltip: "Shares captioned “This made me smile today”, all-time" },
+    { key: 'thoughtOfYou', icon: 'heart-outline', value: thoughtOfYouSharesTotal, tooltip: "Shares captioned “I saw this and thought of you”, all-time" },
+    { key: 'ripples', icon: 'eye-outline', value: totalRipples, tooltip: "Entries you've made public (Ripples), all-time" },
   ];
 
   return (
@@ -1132,6 +1140,7 @@ export default function Home() {
             </TouchableOpacity>
           ))}
         </View>
+        <Text style={styles.statPillsCaption}>Mojo Shared</Text>
 
         <Button title="New Tickle" onPress={() => router.push('/create')} variant="secondary" style={styles.newTickleShadow} />
 
@@ -1250,7 +1259,7 @@ const styles = StyleSheet.create({
     flex: 1, fontSize: 12, fontWeight: '600', color: C.subtext, textAlign: 'center',
   },
 
-  statPillsRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
+  statPillsRow: { flexDirection: 'row', gap: 10, marginBottom: 4 },
   statPill: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
     backgroundColor: C.card, borderWidth: 1.2,
@@ -1262,6 +1271,9 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   statPillNumber: { fontSize: 13, fontWeight: '700', color: C.text },
+  statPillsCaption: {
+    fontSize: 11, fontWeight: '600', color: C.subtext, textAlign: 'center', marginBottom: 14,
+  },
   statTooltip: {
     position: 'absolute', top: -34, left: -30, right: -30,
     alignItems: 'center',
