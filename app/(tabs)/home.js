@@ -1003,9 +1003,9 @@ export default function Home() {
   const shareBlocked = !!shareStat && !shareStat.unlimited && shareStat.remaining <= 0;
 
   const STAT_PILLS = [
-    { key: 'madeMeSmile', icon: 'happy-outline', value: madeMeSmileSharesTotal, tooltip: "Shares captioned “This made me smile today”, all-time" },
-    { key: 'thoughtOfYou', icon: 'heart-outline', value: thoughtOfYouSharesTotal, tooltip: "Shares captioned “I saw this and thought of you”, all-time" },
-    { key: 'ripples', icon: 'eye-outline', value: totalRipples, tooltip: "Entries you've made public (Ripples), all-time" },
+    { key: 'madeMeSmile', icon: 'happy-outline', value: madeMeSmileSharesTotal, tooltip: "This made me smile today" },
+    { key: 'thoughtOfYou', icon: 'heart-outline', value: thoughtOfYouSharesTotal, tooltip: "I saw this and thought of you" },
+    { key: 'ripples', icon: 'eye-outline', value: totalRipples, tooltip: "Ripples" },
   ];
 
   return (
