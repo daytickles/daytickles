@@ -781,6 +781,15 @@ export default function Feed() {
   // — they only ever appear read-only, on entries already tagged before
   // achievement (resolved via goalsById above, achieved or not).
   const activeGoals = goals.filter((g) => !g.achieved_at);
+  // Goal filter chip row only -- active goals always before achieved
+  // ones, rather than interleaved in whatever order `goals` itself
+  // comes back in. A plain stable sort on "is achieved" (0/1) preserves
+  // each group's existing relative order (the query's own
+  // created_at-ascending) with no secondary key needed -- Array.sort is
+  // spec-guaranteed stable since ES2019. Scoped to this local variable,
+  // not applied to `goals` itself, so goalsById/activeGoals/GoalTagModal
+  // above are all untouched.
+  const goalFilterChips = [...goals].sort((a, b) => (a.achieved_at ? 1 : 0) - (b.achieved_at ? 1 : 0));
 
   async function assignGoal(entryId, goalId) {
     const previous = entries;
@@ -1165,7 +1174,7 @@ export default function Feed() {
             contentContainerStyle={styles.goalFilterRow}
             style={styles.goalFilterScroll}
           >
-            {goals.map((g) => (
+            {goalFilterChips.map((g) => (
               <TouchableOpacity
                 key={g.id}
                 onPress={() => setGoalFilter(g.id)}
