@@ -215,17 +215,26 @@ export default function EntryCard({
               )}
             </View>
             <View style={styles.iconGroup}>
-              {/* Suppressed for a photo-only entry -- this icon means
-                  "a photo is attached", which is redundant and
-                  confusing on a card whose entire content already is
-                  one; hasLinkedPhoto is also always true for its own
-                  entry_id in this case anyway. Also suppressed once
-                  photoUri resolves -- that case renders the linked-photo
-                  strip below instead (see DayTickles_Tickle_A_Photo_
-                  Display_Change.md), and this icon becomes its fallback
-                  only for the rarer case of a link existing but the
-                  local file being unresolved (e.g. gone missing) --
-                  same tap target, still opens PhotoEnlargeModal. */}
+              {/* hasLinkedPhoto's one remaining use in this file (the
+                  linked-photo strip below no longer gates on it -- see
+                  that block's own comment). This icon means "YOUR local
+                  Pin Board link exists for this entry, but nothing
+                  resolved to show for it" -- an owner-only affordance,
+                  which is exactly what hasLinkedPhoto (the viewer's own
+                  local link table) correctly signals here: a non-owner
+                  never has a link to speak of, so this icon rightly
+                  never shows for them, with or without a resolvable
+                  photoUri via media_url. Suppressed for a photo-only
+                  entry -- this icon means "a photo is attached", which
+                  is redundant and confusing on a card whose entire
+                  content already is one; hasLinkedPhoto is also always
+                  true for its own entry_id in this case anyway. Also
+                  suppressed once photoUri resolves -- that case renders
+                  the linked-photo strip below instead, and this icon
+                  becomes its fallback only for the rarer case of a link
+                  existing but the local file being unresolved (e.g. gone
+                  missing) -- same tap target, still opens
+                  PhotoEnlargeModal. */}
               {hasLinkedPhoto && !isPhotoOnly && !photoUri && (
                 <TouchableOpacity
                   onPress={() => onOpenPhoto?.(item.id)}
@@ -405,19 +414,28 @@ export default function EntryCard({
               {/* Tickle-a-Photo display change -- a linked photo that
                   came from the "Tickle" button on a Tickle Pics photo
                   (create.js's pinnedPhotoId flow is the only path that
-                  links a photo to an entry_kind='text' entry, so
-                  hasLinkedPhoto + !isPhotoOnly already scopes this
-                  correctly with no new column needed -- see
-                  DayTickles_Tickle_A_Photo_Display_Change.md's Phase 0
-                  question). Deliberately its own plainer style, not
-                  isPhotoOnly's Polaroid treatment -- full-width strip,
-                  no white border/rotation/caption. photoUri only
-                  resolves here on the owning device (the link is local-
-                  only, see lib/pinBoardDb.js), so a non-owner or a
-                  second device just falls back to the header icon above
-                  instead. Height/proportions are a first pass, flagged
-                  in the spec as needing a real-device look. */}
-              {hasLinkedPhoto && !!photoUri && (
+                  links a photo to an entry_kind='text' entry). Gated on
+                  photoUri alone, same as isPhotoOnly's own Polaroid
+                  branch above -- NOT additionally on hasLinkedPhoto,
+                  which is the viewer's own local-device Pin Board link
+                  and can never be true for anyone but the linking
+                  device/account. Once the upload-on-Ripple mechanic
+                  populated media_url for entry_kind='text' too,
+                  resolveLinkedPhotoUris (feed.js/calendar.js) already
+                  resolves photoUri correctly for a non-owner or a
+                  second device via that fallback -- gating on
+                  hasLinkedPhoto on top of that was a real bug (found and
+                  confirmed live cross-account, see
+                  ripple_photo_cross_account_bug_findings.md), not a
+                  deliberate restriction: it silently blocked the strip
+                  for every viewer except the one device that created the
+                  link, even once a perfectly valid photoUri existed.
+                  Deliberately its own plainer style, not isPhotoOnly's
+                  Polaroid treatment -- full-width strip, no white
+                  border/rotation/caption. Height/proportions are a first
+                  pass, flagged in the spec as needing a real-device
+                  look. */}
+              {!!photoUri && (
                 <TouchableOpacity
                   activeOpacity={0.85}
                   onPress={() => onOpenPhoto?.(item.id)}
