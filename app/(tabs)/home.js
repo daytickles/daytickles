@@ -1003,9 +1003,9 @@ export default function Home() {
   const shareBlocked = !!shareStat && !shareStat.unlimited && shareStat.remaining <= 0;
 
   const STAT_PILLS = [
-    { key: 'madeMeSmile', icon: 'happy-outline', value: madeMeSmileSharesTotal, tooltip: "This made me smile today" },
-    { key: 'thoughtOfYou', icon: 'heart-outline', value: thoughtOfYouSharesTotal, tooltip: "I saw this and thought of you" },
-    { key: 'ripples', icon: 'eye-outline', value: totalRipples, tooltip: "Ripples" },
+    { key: 'madeMeSmile', icon: 'happy-outline', value: madeMeSmileSharesTotal, tooltip: "This made me smile today", label: 'Polaroid' },
+    { key: 'thoughtOfYou', icon: 'heart-outline', value: thoughtOfYouSharesTotal, tooltip: "I saw this and thought of you", label: 'Polaroid' },
+    { key: 'ripples', icon: 'eye-outline', value: totalRipples, tooltip: "Ripples", label: 'Ripples' },
   ];
 
   return (
@@ -1140,6 +1140,11 @@ export default function Home() {
             </TouchableOpacity>
           ))}
         </View>
+        <View style={styles.statPillLabelsRow}>
+          {STAT_PILLS.map((pill) => (
+            <Text key={pill.key} style={styles.statPillLabel} numberOfLines={1}>{pill.label}</Text>
+          ))}
+        </View>
         <Text style={styles.statPillsCaption}>Mojo Shared</Text>
 
         <Button title="New Tickle" onPress={() => router.push('/create')} variant="secondary" style={styles.newTickleShadow} />
@@ -1259,7 +1264,11 @@ const styles = StyleSheet.create({
     flex: 1, fontSize: 12, fontWeight: '600', color: C.subtext, textAlign: 'center',
   },
 
-  statPillsRow: { flexDirection: 'row', gap: 10, marginBottom: 4 },
+  statPillsRow: { flexDirection: 'row', gap: 10, marginBottom: 6 },
+  statPillLabelsRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
+  statPillLabel: {
+    flex: 1, fontSize: 11, fontWeight: '600', color: C.subtext, textAlign: 'center',
+  },
   statPill: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
     backgroundColor: C.card, borderWidth: 1.2,
