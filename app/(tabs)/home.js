@@ -9,7 +9,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { C, accentFor, SAVED_ENTRY_DOT_SIZE, withAlpha, NATURE_ORDER, NATURE_LABELS, VIBE_COLORS, vibeIconColor } from '../../lib/theme';
 import { shareEntry, shareStatus, sharePhotoOnlyEntry, SHARE_CAPTIONS } from '../../lib/sharing';
-import { isThisWeek, isThisMonth, localDateString, DEFAULT_WEEK_START_DAY } from '../../lib/week';
+import { isThisWeek, isThisMonth, localDateString, currentWeekStartISO, monthStartISO, DEFAULT_WEEK_START_DAY } from '../../lib/week';
 import { fetchFoundingMemberPaceStatus, fetchFoundingMemberOptInReminderStatus } from '../../lib/foundingMember';
 import { flagEmoji } from '../../lib/country';
 import { initPinBoardDb, getPhotosForEntries } from '../../lib/pinBoardDb';
@@ -157,8 +157,8 @@ export default function Home() {
   // re-resolving per share.
   const [linkedPhotoUris, setLinkedPhotoUris] = useState(new Map());
   const { hiddenCard, captureCard } = useShareCard();
-  const [madeMeSmileSharesTotal, setMadeMeSmileSharesTotal] = useState(0);
-  const [thoughtOfYouSharesTotal, setThoughtOfYouSharesTotal] = useState(0);
+  const [madeMeSmileTotals, setMadeMeSmileTotals] = useState({ week: 0, month: 0, allTime: 0 });
+  const [thoughtOfYouTotals, setThoughtOfYouTotals] = useState({ week: 0, month: 0, allTime: 0 });
   const [showGuide, setShowGuide] = useState(false);
   const [showRatePrompt, setShowRatePrompt] = useState(false);
   const [showReturnedMessage, setShowReturnedMessage] = useState(false);
@@ -352,30 +352,48 @@ export default function Home() {
     if (!error) setGoals(data || []);
   }, [session]);
 
-  // All-time totals for Home's two caption-split stat pills -- tickle_shares
-  // only, all-time-safe cloud table (same table + no-date-filter shape as
-  // Home's old all-time Shares pill). Deliberately NOT lib/pinBoardDb.js's
-  // local-only photo_shares table (device-local, doesn't survive a reinstall
-  // or a second device -- same correctness reasoning the old Shares pill
-  // already established).
+  // Week/month/all-time totals for Home's two caption-split stat pills --
+  // polaroid_share_events (migration 0064), the real per-caption log of
+  // Tickle Pics' captioned polaroid shares. Replaces the earlier
+  // tickle_shares-based approach, which counted ANY captioned share (text
+  // entries, Photo-Only Tickles hardcoded to one caption regardless of
+  // content) rather than this specific action.
   //
-  // Measures ANY share tagged with that caption, not Photo-Only Tickle
-  // shares specifically: text-entry shares carry the user's real caption
-  // choice, while every Photo-Only Tickle share is always recorded under
-  // 'made_me_smile' regardless of its actual content (see
-  // PHOTO_ONLY_SHARE_CAPTION_ID in lib/sharing.js) -- a deliberate, accepted
-  // scope decision, not an oversight.
+  // Same week/month boundary helpers Weekly Summary already uses for
+  // identical cloud timestamptz filtering (lib/week.js) -- no new date
+  // logic invented here.
   const loadCaptionShareTotals = useCallback(async () => {
     if (!session) return;
-    const [madeMeSmileResult, thoughtOfYouResult] = await Promise.all([
-      supabase.from('tickle_shares').select('id', { count: 'exact', head: true })
-        .eq('created_by', session.user.id).eq('caption', 'made_me_smile'),
-      supabase.from('tickle_shares').select('id', { count: 'exact', head: true })
-        .eq('created_by', session.user.id).eq('caption', 'thought_of_you'),
+    const weekStartISO = currentWeekStartISO(profile?.week_start_day ?? DEFAULT_WEEK_START_DAY);
+    const monthStartISOValue = monthStartISO();
+
+    const countSince = (caption, sinceISO) =>
+      supabase.from('polaroid_share_events').select('id', { count: 'exact', head: true })
+        .eq('user_id', session.user.id).eq('caption', caption).gte('created_at', sinceISO);
+    const countAllTime = (caption) =>
+      supabase.from('polaroid_share_events').select('id', { count: 'exact', head: true })
+        .eq('user_id', session.user.id).eq('caption', caption);
+
+    const [smileWeek, smileMonth, smileAll, thoughtWeek, thoughtMonth, thoughtAll] = await Promise.all([
+      countSince('made_me_smile', weekStartISO),
+      countSince('made_me_smile', monthStartISOValue),
+      countAllTime('made_me_smile'),
+      countSince('thought_of_you', weekStartISO),
+      countSince('thought_of_you', monthStartISOValue),
+      countAllTime('thought_of_you'),
     ]);
-    setMadeMeSmileSharesTotal(madeMeSmileResult.error ? 0 : (madeMeSmileResult.count || 0));
-    setThoughtOfYouSharesTotal(thoughtOfYouResult.error ? 0 : (thoughtOfYouResult.count || 0));
-  }, [session]);
+
+    setMadeMeSmileTotals({
+      week: smileWeek.error ? 0 : (smileWeek.count || 0),
+      month: smileMonth.error ? 0 : (smileMonth.count || 0),
+      allTime: smileAll.error ? 0 : (smileAll.count || 0),
+    });
+    setThoughtOfYouTotals({
+      week: thoughtWeek.error ? 0 : (thoughtWeek.count || 0),
+      month: thoughtMonth.error ? 0 : (thoughtMonth.count || 0),
+      allTime: thoughtAll.error ? 0 : (thoughtAll.count || 0),
+    });
+  }, [session, profile]);
 
   useFocusEffect(
     useCallback(() => {
@@ -701,7 +719,10 @@ export default function Home() {
   }
 
   const totalTickles = entries.length;
+  const rippleWeekStartDay = profile?.week_start_day ?? DEFAULT_WEEK_START_DAY;
   const totalRipples = entries.filter((e) => e.visibility === 'public').length;
+  const weekRipples = entries.filter((e) => e.visibility === 'public' && isThisWeek(e.entry_date, rippleWeekStartDay)).length;
+  const monthRipples = entries.filter((e) => e.visibility === 'public' && isThisMonth(e.entry_date)).length;
 
   // Single pass over the full (already-loaded, unfiltered) entries
   // history -- no new query needed for this, since home.js already
@@ -1003,9 +1024,9 @@ export default function Home() {
   const shareBlocked = !!shareStat && !shareStat.unlimited && shareStat.remaining <= 0;
 
   const STAT_PILLS = [
-    { key: 'madeMeSmile', icon: 'happy-outline', value: madeMeSmileSharesTotal, tooltip: "This made me smile today", label: 'Polaroid' },
-    { key: 'thoughtOfYou', icon: 'heart-outline', value: thoughtOfYouSharesTotal, tooltip: "I saw this and thought of you", label: 'Polaroid' },
-    { key: 'ripples', icon: 'eye-outline', value: totalRipples, tooltip: "Ripples", label: 'Ripples' },
+    { key: 'madeMeSmile', icon: 'happy-outline', value: `${madeMeSmileTotals.week} | ${madeMeSmileTotals.month} | ${madeMeSmileTotals.allTime}`, tooltip: "This made me smile today · week / month / all-time", label: 'Polaroid' },
+    { key: 'thoughtOfYou', icon: 'heart-outline', value: `${thoughtOfYouTotals.week} | ${thoughtOfYouTotals.month} | ${thoughtOfYouTotals.allTime}`, tooltip: "I saw this and thought of you · week / month / all-time", label: 'Polaroid' },
+    { key: 'ripples', icon: 'eye-outline', value: `${weekRipples} | ${monthRipples} | ${totalRipples}`, tooltip: "Ripples · week / month / all-time", label: 'Ripples' },
   ];
 
   return (
@@ -1265,7 +1286,7 @@ const styles = StyleSheet.create({
   },
 
   statPillsRow: { flexDirection: 'row', gap: 10, marginBottom: 6 },
-  statPillLabelsRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
+  statPillLabelsRow: { flexDirection: 'row', gap: 10, marginBottom: 2 },
   statPillLabel: {
     flex: 1, fontSize: 11, fontWeight: '600', color: C.subtext, textAlign: 'center',
   },
