@@ -1176,7 +1176,7 @@ export default function Home() {
             activeOpacity={0.8}
             onPress={() => goToEntryInFeed(pinned.id)}
           >
-            <Text style={styles.pinnedLabel}>Most smiled with you the past 14 days</Text>
+            <Text style={styles.pinnedLabel}>Most liked the past 14 days</Text>
             {renderEntryBody(pinned)}
           </TouchableOpacity>
         )}
