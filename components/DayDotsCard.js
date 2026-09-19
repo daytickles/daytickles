@@ -40,7 +40,7 @@ const EVENING_TIME_LABEL = (() => {
 // account's own accent color -- this component doesn't know or care
 // what any dot "means". 4 distinct sizes (was 3) -- still the actual
 // visual mechanic, not a cosmetic choice.
-const DOT_SIZES = [22, 30, 38, 46];
+const DOT_SIZES = [14, 18, 22, 26];
 
 export default function DayDotsCard({ accentColor, phase, selectedDotIndex, onSelectDot, onSkip, style }) {
   const dotBorder = darken(accentColor, 0.15);
@@ -116,11 +116,11 @@ const styles = StyleSheet.create({
   // fixed color in this stylesheet.
   card: {
     borderRadius: 18, borderWidth: 1,
-    paddingVertical: 12, paddingHorizontal: 16, marginBottom: 12,
+    paddingVertical: 8, paddingHorizontal: 16, marginBottom: 12,
     alignItems: 'center',
   },
   heading: { fontSize: 15, fontWeight: '700', color: C.text },
-  dotRow: { flexDirection: 'row', alignItems: 'center', gap: 18, marginTop: 10, marginBottom: 10 },
+  dotRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 6, marginBottom: 6 },
   dot: { borderWidth: 1.5 },
   // Shared by all 3 non-answered footer messages (Skip today / Skipped
   // for today / Available after X) -- same slot, same typography, so
