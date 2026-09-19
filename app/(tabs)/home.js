@@ -503,7 +503,7 @@ export default function Home() {
       }
     }
 
-    await shareEntry({ profile, entry, captionId, onProfileUpdated: refreshProfile, cardImageUri });
+    await shareEntry({ profile, entry, captionId, onProfileUpdated: refreshProfile, cardImageUri, logCaptionShare: true });
   }
 
   // Thin wrapper around lib/sharing.js's sharePhotoOnlyEntry (shared with
