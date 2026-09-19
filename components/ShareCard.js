@@ -7,9 +7,14 @@
 // file-only and can't carry text alongside a URI. Deliberately drops
 // PolaroidCard's tilt and delete/save buttons: those exist for photos
 // sitting loose on a board, not for a single image standing alone in
-// someone's chat thread. Caption-only by design — never auto-includes
-// entry.text_content, since the caption is a deliberately chosen phrase
-// and the entry text might carry context never meant for that recipient.
+// someone's chat thread.
+//
+// textContent is optional and additive -- Pin Board bare-photo shares
+// and Photo-Only Tickle shares never pass it (those genuinely have no
+// separate written entry, just the caption), so they render exactly as
+// before. Only a text entry with a linked photo (feed.js/calendar.js/
+// home.js's handleShare) passes it, to stop that entry's own written
+// words from being silently dropped from its share image.
 
 import { forwardRef } from 'react';
 import { View, Text, Image, StyleSheet } from 'react-native';
@@ -19,7 +24,7 @@ import { C, darken } from '../lib/theme';
 const CARD_WIDTH = 320;
 const PHOTO_SIZE = CARD_WIDTH - 40; // 20px border on each side, polaroid-style
 
-const ShareCard = forwardRef(function ShareCard({ photo, captionLabel, accentColor, onImageLoad, onImageError }, ref) {
+const ShareCard = forwardRef(function ShareCard({ photo, captionLabel, textContent, accentColor, onImageLoad, onImageError }, ref) {
   return (
     <View ref={ref} style={styles.card} collapsable={false}>
       <View style={styles.pinBadge}>
@@ -39,6 +44,12 @@ const ShareCard = forwardRef(function ShareCard({ photo, captionLabel, accentCol
       </View>
 
       <Text style={styles.caption}>{captionLabel}</Text>
+
+      {textContent ? (
+        <Text style={styles.entryText} numberOfLines={6} ellipsizeMode="tail">
+          "{textContent}"
+        </Text>
+      ) : null}
 
       <View style={styles.dividerRow}>
         <View style={styles.dividerLine} />
@@ -107,6 +118,16 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     marginTop: 18,
     paddingHorizontal: 4,
+  },
+  entryText: {
+    fontSize: 14,
+    fontWeight: '400',
+    fontStyle: 'italic',
+    color: C.text,
+    textAlign: 'center',
+    lineHeight: 19,
+    marginTop: 10,
+    paddingHorizontal: 6,
   },
   dividerRow: {
     flexDirection: 'row',

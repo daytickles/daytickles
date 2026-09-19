@@ -815,6 +815,7 @@ export default function Feed() {
         cardImageUri = await captureCard({
           photo,
           captionLabel: caption.label,
+          textContent: entry.text_content,
           accentColor: accentFor(profile?.accent_theme).card,
         });
       } catch (err) {

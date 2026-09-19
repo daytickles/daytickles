@@ -12,7 +12,7 @@ import { shareEntry, shareStatus, sharePhotoOnlyEntry, SHARE_CAPTIONS } from '..
 import { isThisWeek, isThisMonth, localDateString, currentWeekStartISO, monthStartISO, DEFAULT_WEEK_START_DAY } from '../../lib/week';
 import { fetchFoundingMemberPaceStatus, fetchFoundingMemberOptInReminderStatus } from '../../lib/foundingMember';
 import { flagEmoji } from '../../lib/country';
-import { initPinBoardDb, getPhotosForEntries } from '../../lib/pinBoardDb';
+import { initPinBoardDb, getPhotosForEntries, getPhotoForEntry } from '../../lib/pinBoardDb';
 import { useShareCard } from '../../lib/useShareCard';
 import { makePhotoTicklePublic, makePhotoTicklePrivate, deletePhotoTickleMedia } from '../../lib/photoTickleStorage';
 import Button from '../../components/Button';
@@ -483,7 +483,27 @@ export default function Home() {
 
   async function handleShare(entry, captionId) {
     setShareEntryId(null);
-    await shareEntry({ profile, entry, captionId, onProfileUpdated: refreshProfile });
+    const caption = SHARE_CAPTIONS.find((c) => c.id === captionId);
+    const photo = await getPhotoForEntry(session.user.id, entry.id);
+
+    let cardImageUri;
+    if (photo) {
+      try {
+        cardImageUri = await captureCard({
+          photo,
+          captionLabel: caption.label,
+          textContent: entry.text_content,
+          accentColor: accent.card,
+        });
+      } catch (err) {
+        // Falls back to the text-only share below rather than blocking
+        // the share outright — capture failure shouldn't cost the person
+        // their share.
+        console.error('handleShare: card capture failed, falling back to text share', err);
+      }
+    }
+
+    await shareEntry({ profile, entry, captionId, onProfileUpdated: refreshProfile, cardImageUri });
   }
 
   // Thin wrapper around lib/sharing.js's sharePhotoOnlyEntry (shared with

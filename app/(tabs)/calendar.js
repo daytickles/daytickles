@@ -575,6 +575,7 @@ export default function Calendar() {
         cardImageUri = await captureCard({
           photo,
           captionLabel: caption.label,
+          textContent: entry.text_content,
           accentColor: accentFor(profile?.accent_theme).card,
         });
       } catch (err) {
