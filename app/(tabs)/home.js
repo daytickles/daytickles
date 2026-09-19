@@ -1151,7 +1151,6 @@ export default function Home() {
               activeOpacity={0.7}
               onPress={() => showStatTooltip(pill.key)}
             >
-              <Ionicons name={pill.icon} size={13} color={C.subtext} />
               <Text style={styles.statPillNumber}>{pill.value}</Text>
               {activeStatTooltip === pill.key && (
                 <View style={styles.statTooltip} pointerEvents="none">
@@ -1163,7 +1162,10 @@ export default function Home() {
         </View>
         <View style={styles.statPillLabelsRow}>
           {STAT_PILLS.map((pill) => (
-            <Text key={pill.key} style={styles.statPillLabel} numberOfLines={1}>{pill.label}</Text>
+            <View key={pill.key} style={styles.statPillLabelItem}>
+              <Ionicons name={pill.icon} size={11} color={C.subtext} />
+              <Text style={styles.statPillLabel} numberOfLines={1}>{pill.label}</Text>
+            </View>
           ))}
         </View>
         <Text style={styles.statPillsCaption}>Mojo Shared</Text>
@@ -1287,8 +1289,11 @@ const styles = StyleSheet.create({
 
   statPillsRow: { flexDirection: 'row', gap: 10, marginBottom: 6 },
   statPillLabelsRow: { flexDirection: 'row', gap: 10, marginBottom: 2 },
+  statPillLabelItem: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3,
+  },
   statPillLabel: {
-    flex: 1, fontSize: 11, fontWeight: '600', color: C.subtext, textAlign: 'center',
+    fontSize: 11, fontWeight: '600', color: C.subtext, textAlign: 'center',
   },
   statPill: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
