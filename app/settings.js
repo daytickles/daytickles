@@ -146,6 +146,8 @@ export default function Settings() {
   // below and the mount-effect that populates these.
   const [scheduledClientCueTimes, setScheduledClientCueTimes] = useState([]);
   const [scheduledServerCueTimes, setScheduledServerCueTimes] = useState([]);
+  const [tokensEnabled, setTokensEnabled] = useState(profile?.tokens_enabled !== false);
+  const [savingTokensEnabled, setSavingTokensEnabled] = useState(false);
   const [pinEnabled, setPinEnabled] = useState(false);
   const [togglingPinLock, setTogglingPinLock] = useState(false);
   const [showPinSetup, setShowPinSetup] = useState(false);
@@ -171,6 +173,10 @@ export default function Settings() {
   useEffect(() => {
     setDailyReminderEnabled(!!profile?.daily_reminder);
   }, [profile?.daily_reminder]);
+
+  useEffect(() => {
+    setTokensEnabled(profile?.tokens_enabled !== false);
+  }, [profile?.tokens_enabled]);
 
   useEffect(() => {
     setGoalValues(buildGoalValues(profile));
@@ -325,6 +331,31 @@ export default function Settings() {
 
     if (error) {
       setNotifyOnLikes(previous);
+    }
+  }
+
+  // Local-state-only (no setProfile()/refreshProfile()) -- see project
+  // memory: tickle-nature-toggle-bug. Read cross-screen by CornerNav
+  // (all four tabs, to decide whether to show the token circle), same
+  // shape as day_journal_enabled's dependents -- CornerNav's own
+  // focus-triggered refreshProfile() (see components/CornerNav.js) is
+  // the reconciliation point that keeps the shared profile eventually
+  // consistent, regardless of which tab Settings was opened from.
+  async function handleToggleTokens(value) {
+    if (!profile) return;
+    const previous = tokensEnabled;
+
+    setTokensEnabled(value);
+    setSavingTokensEnabled(true);
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ tokens_enabled: value })
+      .eq('id', profile.id);
+    setSavingTokensEnabled(false);
+
+    if (error) {
+      setTokensEnabled(previous);
     }
   }
 
@@ -724,6 +755,31 @@ export default function Settings() {
         <View style={styles.spacer} />
 
         <Button title="Manage Goals" onPress={() => router.push('/goals')} variant="secondary" />
+      </View>
+
+      <View style={styles.card}>
+        <View style={styles.toggleRow}>
+          <Text style={styles.toggleLabel}>Tokens & Rewards</Text>
+          <Switch
+            value={tokensEnabled}
+            onValueChange={handleToggleTokens}
+            disabled={savingTokensEnabled}
+            trackColor={{ false: C.border, true: accentDark }}
+            thumbColor={C.card}
+          />
+        </View>
+        <Text style={styles.explainerText}>
+          Earn tokens by tagging Tickles to a token-enabled Goal, then spend them on rewards you
+          set up yourself. Off hides this everywhere, regardless of your balance or any Goal's own
+          toggle.
+        </Text>
+        <View style={styles.spacer} />
+        <Button
+          title="Manage Reward List"
+          onPress={() => router.push('/wishlist')}
+          variant="secondary"
+          disabled={!tokensEnabled}
+        />
       </View>
 
       <View style={styles.card}>

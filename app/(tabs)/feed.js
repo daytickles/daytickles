@@ -11,6 +11,7 @@ import { shareEntry, shareStatus, sharePhotoOnlyEntry, SHARE_CAPTIONS } from '..
 import { notifyLikeReceived } from '../../lib/likeNotify';
 import { localDateString } from '../../lib/week';
 import { EVENING_HOUR, EVENING_MINUTE } from '../../lib/reminders';
+import { assignEntryGoal } from '../../lib/goalTagging';
 import GoalTagModal from '../../components/GoalTagModal';
 import AwardPickerModal from '../../components/AwardPickerModal';
 import ShareModal from '../../components/ShareModal';
@@ -792,16 +793,9 @@ export default function Feed() {
   const goalFilterChips = [...goals].sort((a, b) => (a.achieved_at ? 1 : 0) - (b.achieved_at ? 1 : 0));
 
   async function assignGoal(entryId, goalId) {
-    const previous = entries;
-    setEntries((prev) => prev.map((e) => (e.id === entryId ? { ...e, goal_id: goalId } : e)));
+    const currentGoalId = entries.find((e) => e.id === entryId)?.goal_id ?? null;
     setPickerEntryId(null);
-
-    const { error } = await supabase
-      .from('tickle_entries')
-      .update({ goal_id: goalId })
-      .eq('id', entryId);
-
-    if (error) setEntries(previous);
+    await assignEntryGoal({ entryId, goalId, currentGoalId, setEntries });
   }
 
   async function handleShare(entry, captionId) {

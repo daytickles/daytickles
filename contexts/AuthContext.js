@@ -40,6 +40,7 @@ const RENDER_RELEVANT_FIELDS = [
   'awareness_cue_sound_confirmed',
   'awareness_cue_batch_valid_until',
   'awareness_cue_batch_source',
+  'tokens_enabled',
   // Generated, not hand-enumerated -- dynamic per-nature columns
   // (daily_goal_<nature>, weekly_goal_<nature>) were previously missing
   // from this list entirely, a real bug: loadProfile's profilesEqual

@@ -15,6 +15,7 @@ import { flagEmoji } from '../../lib/country';
 import { initPinBoardDb, getPhotosForEntries, getPhotoForEntry } from '../../lib/pinBoardDb';
 import { useShareCard } from '../../lib/useShareCard';
 import { makePhotoTicklePublic, makePhotoTicklePrivate, deletePhotoTickleMedia } from '../../lib/photoTickleStorage';
+import { assignEntryGoal } from '../../lib/goalTagging';
 import Button from '../../components/Button';
 import VibeCard from '../../components/VibeCard';
 import NatureIcon from '../../components/NatureIcon';
@@ -135,15 +136,14 @@ export default function Home() {
   const tabBarHeight = useBottomTabBarHeight();
   const insets = useSafeAreaInsets();
 
-  // Reconciliation point for Settings toggles that intentionally no longer
-  // call setProfile()/refreshProfile() themselves (notify_on_likes,
-  // daily_reminder — see project memory: tickle-nature-toggle-bug), so the
-  // shared profile object still catches up whenever Home is focused.
-  useFocusEffect(
-    useCallback(() => {
-      refreshProfile();
-    }, [refreshProfile])
-  );
+  // Reconciliation for Settings toggles that intentionally no longer call
+  // setProfile()/refreshProfile() themselves (notify_on_likes,
+  // daily_reminder, tokens_enabled, etc. — see project memory:
+  // tickle-nature-toggle-bug) now lives in CornerNav.js's own
+  // useFocusEffect, since that component is mounted on all four tab
+  // screens rather than just this one — closes the previously-accepted
+  // gap where reaching Settings from Feed/Calendar/Pinboard directly
+  // (not via Home) left the shared profile stale until the next Home visit.
 
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -469,16 +469,9 @@ export default function Home() {
   const activeGoals = goals.filter((g) => !g.achieved_at);
 
   async function assignGoal(entryId, goalId) {
-    const previous = entries;
-    setEntries((prev) => prev.map((e) => (e.id === entryId ? { ...e, goal_id: goalId } : e)));
+    const currentGoalId = entries.find((e) => e.id === entryId)?.goal_id ?? null;
     setPickerEntryId(null);
-
-    const { error } = await supabase
-      .from('tickle_entries')
-      .update({ goal_id: goalId })
-      .eq('id', entryId);
-
-    if (error) setEntries(previous);
+    await assignEntryGoal({ entryId, goalId, currentGoalId, setEntries });
   }
 
   async function handleShare(entry, captionId) {

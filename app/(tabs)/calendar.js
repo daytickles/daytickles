@@ -9,6 +9,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { C, accentFor, darken, textOn, withAlpha, TICKLE_NATURE_ICONS, NATURE_ORDER } from '../../lib/theme';
 import { shareEntry, shareStatus, sharePhotoOnlyEntry, SHARE_CAPTIONS } from '../../lib/sharing';
+import { assignEntryGoal } from '../../lib/goalTagging';
 import GoalTagModal from '../../components/GoalTagModal';
 import AwardPickerModal from '../../components/AwardPickerModal';
 import NatureIcon from '../../components/NatureIcon';
@@ -552,16 +553,9 @@ export default function Calendar() {
   }
 
   async function assignGoal(entryId, goalId) {
-    const previous = dayEntries;
-    setDayEntries((prev) => prev.map((e) => (e.id === entryId ? { ...e, goal_id: goalId } : e)));
+    const currentGoalId = dayEntries.find((e) => e.id === entryId)?.goal_id ?? null;
     setPickerEntryId(null);
-
-    const { error } = await supabase
-      .from('tickle_entries')
-      .update({ goal_id: goalId })
-      .eq('id', entryId);
-
-    if (error) setDayEntries(previous);
+    await assignEntryGoal({ entryId, goalId, currentGoalId, setEntries: setDayEntries });
   }
 
   async function handleShare(entry, captionId) {

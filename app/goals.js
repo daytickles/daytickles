@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, Alert, Keyboard,
-  KeyboardAvoidingView, Platform,
+  KeyboardAvoidingView, Platform, Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
@@ -18,8 +18,12 @@ export default function Goals() {
   const [loading, setLoading] = useState(true);
   const [label, setLabel] = useState('');
   const [color, setColor] = useState(GOAL_COLORS[0]);
+  const [earnsTokens, setEarnsTokens] = useState(false);
   const [status, setStatus] = useState('');
   const [saving, setSaving] = useState(false);
+  // Keyed per-goal so toggling one goal's earns_tokens Switch doesn't
+  // disable every other row's Switch while its own write is in flight.
+  const [savingEarnsTokensId, setSavingEarnsTokensId] = useState(null);
   // Separate from `saving` (which is specifically the Add Goal button's
   // own state, unchanged below) -- shared between Achieve and Delete
   // only, so achieving one goal doesn't make the Add Goal button
@@ -82,6 +86,7 @@ export default function Goals() {
       user_id: session.user.id,
       label: label.trim(),
       color,
+      earns_tokens: earnsTokens,
     });
 
     setSaving(false);
@@ -93,7 +98,24 @@ export default function Goals() {
 
     setLabel('');
     setColor(GOAL_COLORS[0]);
+    setEarnsTokens(false);
     await loadGoals();
+  }
+
+  // Optimistic, like handleAdd/handleAchieve/handleDelete above -- not
+  // gated behind the shared `mutating` flag, since toggling
+  // earns_tokens doesn't remove or add a goal from the assignable list
+  // (the race those two guard against), only flips a boolean on one
+  // that's already there.
+  async function handleToggleEarnsTokens(goal, value) {
+    setGoals((prev) => prev.map((g) => (g.id === goal.id ? { ...g, earns_tokens: value } : g)));
+    setSavingEarnsTokensId(goal.id);
+    const { error } = await supabase.from('goals').update({ earns_tokens: value }).eq('id', goal.id);
+    setSavingEarnsTokensId(null);
+    if (error) {
+      setGoals((prev) => prev.map((g) => (g.id === goal.id ? { ...g, earns_tokens: !value } : g)));
+      setStatus(`Error: ${error.message}`);
+    }
   }
 
   function confirmAchieve(goal) {
@@ -180,16 +202,28 @@ export default function Goals() {
       <Text style={styles.subtitle}>{activeGoals.length}/{MAX_GOALS} used</Text>
 
       {activeGoals.map((item) => (
-        <View key={item.id} style={styles.goalRow}>
-          <View style={[styles.dot, { backgroundColor: item.color }]} />
-          <Text style={styles.goalLabel}>{item.label}</Text>
-          <View style={styles.goalActions}>
-            <TouchableOpacity onPress={() => confirmAchieve(item)} disabled={mutating}>
-              <Text style={[styles.achieveText, mutating && styles.linkDisabled]}>Achieve</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => confirmDelete(item)} disabled={mutating}>
-              <Text style={[styles.deleteText, mutating && styles.linkDisabled]}>Delete</Text>
-            </TouchableOpacity>
+        <View key={item.id} style={styles.goalCard}>
+          <View style={styles.goalRow}>
+            <View style={[styles.dot, { backgroundColor: item.color }]} />
+            <Text style={styles.goalLabel}>{item.label}</Text>
+            <View style={styles.goalActions}>
+              <TouchableOpacity onPress={() => confirmAchieve(item)} disabled={mutating}>
+                <Text style={[styles.achieveText, mutating && styles.linkDisabled]}>Achieve</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => confirmDelete(item)} disabled={mutating}>
+                <Text style={[styles.deleteText, mutating && styles.linkDisabled]}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          <View style={styles.goalTokenRow}>
+            <Text style={styles.goalTokenLabel}>Earns tokens</Text>
+            <Switch
+              value={!!item.earns_tokens}
+              onValueChange={(value) => handleToggleEarnsTokens(item, value)}
+              disabled={savingEarnsTokensId === item.id}
+              trackColor={{ false: C.border, true: accentDark }}
+              thumbColor={C.card}
+            />
           </View>
         </View>
       ))}
@@ -231,6 +265,16 @@ export default function Goals() {
             })}
           </View>
 
+          <View style={styles.goalTokenRow}>
+            <Text style={styles.goalTokenLabel}>Earns tokens</Text>
+            <Switch
+              value={earnsTokens}
+              onValueChange={setEarnsTokens}
+              trackColor={{ false: C.border, true: accentDark }}
+              thumbColor={C.card}
+            />
+          </View>
+
           <Button
             title={saving ? 'Adding...' : 'Add Goal'}
             onPress={handleAdd}
@@ -246,15 +290,17 @@ export default function Goals() {
         <>
           <Text style={styles.sectionHeader}>Achieved</Text>
           {achievedGoals.map((item) => (
-            <View key={item.id} style={styles.goalRow}>
-              <View style={[styles.dot, styles.dotAchieved, { backgroundColor: lighten(item.color, 0.6) }]}>
-                <Ionicons name="checkmark" size={10} color={darken(item.color, 0.4)} />
-              </View>
-              <Text style={[styles.goalLabel, styles.goalLabelAchieved]}>{item.label}</Text>
-              <View style={styles.goalActions}>
-                <TouchableOpacity onPress={() => confirmDelete(item)} disabled={mutating}>
-                  <Text style={[styles.deleteText, mutating && styles.linkDisabled]}>Delete</Text>
-                </TouchableOpacity>
+            <View key={item.id} style={styles.goalCard}>
+              <View style={styles.goalRow}>
+                <View style={[styles.dot, styles.dotAchieved, { backgroundColor: lighten(item.color, 0.6) }]}>
+                  <Ionicons name="checkmark" size={10} color={darken(item.color, 0.4)} />
+                </View>
+                <Text style={[styles.goalLabel, styles.goalLabelAchieved]}>{item.label}</Text>
+                <View style={styles.goalActions}>
+                  <TouchableOpacity onPress={() => confirmDelete(item)} disabled={mutating}>
+                    <Text style={[styles.deleteText, mutating && styles.linkDisabled]}>Delete</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
           ))}
@@ -273,12 +319,17 @@ const styles = StyleSheet.create({
   title: { fontSize: 22, fontWeight: 'bold', color: C.rustDark },
   description: { fontSize: 13, color: C.subtext, lineHeight: 18, marginTop: 6 },
   subtitle: { color: C.subtext, marginBottom: 16 },
-  goalRow: {
-    flexDirection: 'row', alignItems: 'center',
+  goalCard: {
     paddingVertical: 10, paddingHorizontal: 12,
     backgroundColor: C.card, borderRadius: 14,
     marginBottom: 8, borderWidth: 1, borderColor: C.border,
   },
+  goalRow: { flexDirection: 'row', alignItems: 'center' },
+  goalTokenRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginTop: 8, marginBottom: 12, paddingTop: 8, borderTopWidth: 1, borderTopColor: C.border,
+  },
+  goalTokenLabel: { fontSize: 13, color: C.subtext },
   dot: { width: 14, height: 14, borderRadius: 7, marginRight: 10 },
   dotAchieved: { alignItems: 'center', justifyContent: 'center' },
   goalLabel: { flex: 1, fontSize: 16, color: C.text },
