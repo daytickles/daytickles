@@ -8,7 +8,8 @@ import { File } from 'expo-file-system';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { C, accentFor, darken, textOn, withAlpha, TICKLE_NATURE_ICONS, NATURE_ORDER } from '../../lib/theme';
-import { shareEntry, shareStatus, sharePhotoOnlyEntry, SHARE_CAPTIONS } from '../../lib/sharing';
+import { shareEntry, useShareStatus, sharePhotoOnlyEntry, SHARE_CAPTIONS } from '../../lib/sharing';
+import { alertCapBlocked, checkAndConsumeWeeklyCap, rippleFeatureFor } from '../../lib/freemiumCaps';
 import { assignEntryGoal } from '../../lib/goalTagging';
 import GoalTagModal from '../../components/GoalTagModal';
 import AwardPickerModal from '../../components/AwardPickerModal';
@@ -71,7 +72,7 @@ function isoDate(year, month, day) {
 }
 
 export default function Calendar() {
-  const { session, profile, refreshProfile } = useAuth();
+  const { session, profile } = useAuth();
   const accentDark = darken(accentFor(profile?.accent_theme).card, 0.35);
   const accentDarkText = textOn(accentDark);
   // Selected-day-cell background is the person's actual accent color,
@@ -375,6 +376,15 @@ export default function Calendar() {
   // correct/only recovery. Same shape as feed.js's own handleGiveAward.
   async function handleGiveAward(entryId, awardType) {
     setAwardEntryId(null);
+
+    // High Five soft cap (lib/freemiumCaps.js) -- every award row counts
+    // as one, so two types on the same entry cost two.
+    const capResult = await checkAndConsumeWeeklyCap(profile, 'highFivesGiven');
+    if (capResult.blocked) {
+      alertCapBlocked(capResult, profile);
+      return;
+    }
+
     setAwardedTypes((prev) => new Map(prev).set(entryId, awardType));
     setAwardedPublicTypes((prev) => {
       const next = new Map(prev);
@@ -406,6 +416,20 @@ export default function Calendar() {
 
   async function handleToggleVisibility(entry) {
     const newVisibility = entry.visibility === 'public' ? 'private' : 'public';
+
+    // Ripple soft cap (lib/freemiumCaps.js) -- every private -> public
+    // flip draws one from its bucket, re-Ripples included. Checked
+    // before any branch below so a blocked flip never uploads anything.
+    if (newVisibility === 'public') {
+      const rippleFeature = rippleFeatureFor(entry, linkedPhotoUris.get(entry.id) || null);
+      if (rippleFeature) {
+        const capResult = await checkAndConsumeWeeklyCap(profile, rippleFeature);
+        if (capResult.blocked) {
+          alertCapBlocked(capResult, profile);
+          return;
+        }
+      }
+    }
 
     // Photo-only entries going private -> public need the actual image
     // uploaded first (see lib/photoTickleStorage.js) -- not the plain
@@ -580,7 +604,8 @@ export default function Calendar() {
       }
     }
 
-    await shareEntry({ profile, entry, captionId, onProfileUpdated: refreshProfile, cardImageUri, logCaptionShare: true });
+    const result = await shareEntry({ profile, entry, captionId, cardImageUri, logCaptionShare: true });
+    if (result.blocked) alertCapBlocked(result, profile);
   }
 
   // Thin wrapper around lib/sharing.js's sharePhotoOnlyEntry (shared
@@ -596,7 +621,6 @@ export default function Calendar() {
       photoUri: linkedPhotoUris.get(entry.id) || null,
       captureCard,
       accentColor: accentFor(profile?.accent_theme).card,
-      onProfileUpdated: refreshProfile,
     });
 
     if (result.missingPhoto) {
@@ -605,10 +629,7 @@ export default function Calendar() {
         "This photo isn't available on this device right now — relink it, then try sharing again."
       );
     } else if (result.blocked) {
-      Alert.alert(
-        'Share limit reached',
-        `You've used all ${result.cap} shares for this 30-day period. It renews automatically, or go unlimited with a paid plan.`
-      );
+      alertCapBlocked(result, profile);
     } else if (result.captureFailed) {
       Alert.alert("Couldn't share", 'Something went wrong preparing this photo to share — try again.');
     }
@@ -647,7 +668,7 @@ export default function Calendar() {
   // wordweaver row can pick the right photo-only-aware phrase -- same
   // lookup pattern as shareTargetEntry above.
   const awardTargetEntry = dayEntries.find((e) => e.id === awardEntryId) || null;
-  const shareStat = profile ? shareStatus(profile) : null;
+  const shareStat = useShareStatus(profile, !!shareTargetEntry);
   const shareBlocked = !!shareStat && !shareStat.unlimited && shareStat.remaining <= 0;
 
   const firstWeekday = new Date(viewYear, viewMonth, 1).getDay();
@@ -913,6 +934,7 @@ export default function Calendar() {
         captions={SHARE_CAPTIONS}
         blocked={shareBlocked}
         cap={shareStat?.cap}
+        profile={profile}
         onConfirm={(captionId) => handleShare(shareTargetEntry, captionId)}
         onDismiss={() => setShareEntryId(null)}
       />

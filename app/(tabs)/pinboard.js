@@ -7,7 +7,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { C, accentFor } from '../../lib/theme';
-import { sharePhoto, shareStatus, SHARE_CAPTIONS } from '../../lib/sharing';
+import { sharePhoto, useShareStatus, SHARE_CAPTIONS } from '../../lib/sharing';
+import { alertCapBlocked } from '../../lib/freemiumCaps';
 import { localDateString } from '../../lib/week';
 import Button from '../../components/Button';
 import PolaroidCard from '../../components/PolaroidCard';
@@ -30,7 +31,7 @@ import { useShareCard } from '../../lib/useShareCard';
 import WallpaperBackground from '../../components/WallpaperBackground';
 
 export default function PinBoard() {
-  const { session, profile, refreshProfile } = useAuth();
+  const { session, profile } = useAuth();
   const tabBarHeight = useBottomTabBarHeight();
   const insets = useSafeAreaInsets();
   const [photos, setPhotos] = useState([]);
@@ -270,10 +271,11 @@ export default function PinBoard() {
       return;
     }
 
-    await sharePhoto({ profile, photoId: photo.id, captionId, onProfileUpdated: refreshProfile, cardImageUri });
+    const result = await sharePhoto({ profile, photoId: photo.id, captionId, cardImageUri });
+    if (result.blocked) alertCapBlocked(result, profile);
   }
 
-  const shareStat = profile ? shareStatus(profile) : null;
+  const shareStat = useShareStatus(profile, !!sharePhotoTarget);
   const shareBlocked = !!shareStat && !shareStat.unlimited && shareStat.remaining <= 0;
 
   return (
@@ -366,6 +368,7 @@ export default function PinBoard() {
         captions={SHARE_CAPTIONS}
         blocked={shareBlocked}
         cap={shareStat?.cap}
+        profile={profile}
         onConfirm={(captionId) => handleSharePhoto(sharePhotoTarget, captionId)}
         onDismiss={() => setSharePhotoTarget(null)}
       />

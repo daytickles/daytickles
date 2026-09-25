@@ -7,7 +7,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { C, accentFor, darken, lighten, textOn } from '../../lib/theme';
-import { shareEntry, shareStatus, sharePhotoOnlyEntry, SHARE_CAPTIONS } from '../../lib/sharing';
+import { shareEntry, useShareStatus, sharePhotoOnlyEntry, SHARE_CAPTIONS } from '../../lib/sharing';
+import { alertCapBlocked, capFor, checkAndConsumeWeeklyCap, rippleFeatureFor } from '../../lib/freemiumCaps';
 import { notifyLikeReceived } from '../../lib/likeNotify';
 import { localDateString } from '../../lib/week';
 import { EVENING_HOUR, EVENING_MINUTE } from '../../lib/reminders';
@@ -174,7 +175,7 @@ function dividerLabel(tabId, count) {
 }
 
 export default function Feed() {
-  const { session, profile, refreshProfile } = useAuth();
+  const { session, profile } = useAuth();
   const accentDark = darken(accentFor(profile?.accent_theme).card, 0.35);
   const accentDarkText = textOn(accentDark);
   const tabBarHeight = useBottomTabBarHeight();
@@ -682,6 +683,19 @@ export default function Feed() {
     const isFollowing = followedIds.has(followeeId);
     const previous = followedIds;
 
+    // Following soft cap (lib/freemiumCaps.js) -- a ceiling on how many
+    // you follow right now. followedIds is every follow you have (see
+    // loadFollowed), not just authors in the loaded feed, so its size is
+    // the real count. Unfollowing is never blocked, so an over-cap
+    // account from an earlier tier keeps everyone it already follows.
+    if (!isFollowing) {
+      const cap = capFor(profile, 'following');
+      if (followedIds.size >= cap) {
+        alertCapBlocked({ feature: 'following', cap }, profile);
+        return;
+      }
+    }
+
     setFollowedIds((prev) => {
       const next = new Set(prev);
       if (isFollowing) next.delete(followeeId);
@@ -718,6 +732,16 @@ export default function Feed() {
     const isLiked = likedIds.has(entryId);
     const previous = likedIds;
 
+    // Likes-given soft cap (lib/freemiumCaps.js) -- only a fresh like
+    // counts; unliking is never blocked and doesn't refund the use.
+    if (!isLiked) {
+      const capResult = await checkAndConsumeWeeklyCap(profile, 'likesGiven');
+      if (capResult.blocked) {
+        alertCapBlocked(capResult, profile);
+        return;
+      }
+    }
+
     setLikedIds((prev) => {
       const next = new Set(prev);
       if (isLiked) next.delete(entryId);
@@ -748,6 +772,15 @@ export default function Feed() {
   // award" is the correct/only recovery, not restoring some prior value.
   async function handleGiveAward(entryId, awardType) {
     setAwardEntryId(null);
+
+    // High Five soft cap (lib/freemiumCaps.js) -- every award row counts
+    // as one, so two types on the same entry cost two.
+    const capResult = await checkAndConsumeWeeklyCap(profile, 'highFivesGiven');
+    if (capResult.blocked) {
+      alertCapBlocked(capResult, profile);
+      return;
+    }
+
     setAwardedTypes((prev) => new Map(prev).set(entryId, awardType));
     setAwardedPublicTypes((prev) => {
       const next = new Map(prev);
@@ -820,7 +853,8 @@ export default function Feed() {
       }
     }
 
-    await shareEntry({ profile, entry, captionId, onProfileUpdated: refreshProfile, cardImageUri, logCaptionShare: true });
+    const result = await shareEntry({ profile, entry, captionId, cardImageUri, logCaptionShare: true });
+    if (result.blocked) alertCapBlocked(result, profile);
   }
 
   // Thin wrapper around lib/sharing.js's sharePhotoOnlyEntry (shared
@@ -836,7 +870,6 @@ export default function Feed() {
       photoUri: linkedPhotoUris.get(entry.id) || null,
       captureCard,
       accentColor: accentFor(profile?.accent_theme).card,
-      onProfileUpdated: refreshProfile,
     });
 
     if (result.missingPhoto) {
@@ -845,10 +878,7 @@ export default function Feed() {
         "This photo isn't available on this device right now — relink it, then try sharing again."
       );
     } else if (result.blocked) {
-      Alert.alert(
-        'Share limit reached',
-        `You've used all ${result.cap} shares for this 30-day period. It renews automatically, or go unlimited with a paid plan.`
-      );
+      alertCapBlocked(result, profile);
     } else if (result.captureFailed) {
       Alert.alert("Couldn't share", 'Something went wrong preparing this photo to share — try again.');
     }
@@ -882,6 +912,20 @@ export default function Feed() {
   // showing it either way.
   async function handleToggleVisibility(entry) {
     const newVisibility = entry.visibility === 'public' ? 'private' : 'public';
+
+    // Ripple soft cap (lib/freemiumCaps.js) -- every private -> public
+    // flip draws one from its bucket, re-Ripples included. Checked
+    // before any branch below so a blocked flip never uploads anything.
+    if (newVisibility === 'public') {
+      const rippleFeature = rippleFeatureFor(entry, linkedPhotoUris.get(entry.id) || null);
+      if (rippleFeature) {
+        const capResult = await checkAndConsumeWeeklyCap(profile, rippleFeature);
+        if (capResult.blocked) {
+          alertCapBlocked(capResult, profile);
+          return;
+        }
+      }
+    }
 
     // Photo-only entries going private -> public need the actual image
     // uploaded first (see lib/photoTickleStorage.js) -- not the plain
@@ -1079,7 +1123,7 @@ export default function Feed() {
   // wordweaver row can pick the right photo-only-aware phrase -- same
   // lookup pattern as shareTargetEntry above.
   const awardTargetEntry = entries.find((e) => e.id === awardEntryId) || null;
-  const shareStat = profile ? shareStatus(profile) : null;
+  const shareStat = useShareStatus(profile, !!shareTargetEntry);
   const shareBlocked = !!shareStat && !shareStat.unlimited && shareStat.remaining <= 0;
 
   return (
@@ -1291,6 +1335,7 @@ export default function Feed() {
       captions={SHARE_CAPTIONS}
       blocked={shareBlocked}
       cap={shareStat?.cap}
+      profile={profile}
       onConfirm={(captionId) => handleShare(shareTargetEntry, captionId)}
       onDismiss={() => setShareEntryId(null)}
     />

@@ -7,7 +7,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { C, GOAL_COLORS, MAX_GOALS, accentFor, darken, lighten } from '../lib/theme';
+import { C, GOAL_COLORS, accentFor, darken, lighten } from '../lib/theme';
+import { capFor } from '../lib/freemiumCaps';
 import Button from '../components/Button';
 import WallpaperBackground from '../components/WallpaperBackground';
 
@@ -53,10 +54,14 @@ export default function Goals() {
   );
 
   const activeGoals = useMemo(() => goals.filter((g) => !g.achieved_at), [goals]);
+  // Age-tiered active-goal ceiling (lib/freemiumCaps.js) -- MAX_GOALS in
+  // month 1, then 4/2/1. Only active goals count; an account already
+  // over a lower tier keeps its goals, it just can't add more.
+  const goalCap = profile ? capFor(profile, 'activeGoals') : 0;
   const achievedGoals = useMemo(() => goals.filter((g) => g.achieved_at), [goals]);
 
   // Only active goals reserve a swatch — achieving a goal frees its
-  // color for reuse, same as it frees its slot against MAX_GOALS below.
+  // color for reuse, same as it frees its slot against goalCap above.
   const usedColors = useMemo(() => new Set(activeGoals.map((g) => g.color)), [activeGoals]);
 
   // Keep the pending new-goal color off of whatever's already taken —
@@ -74,8 +79,8 @@ export default function Goals() {
       setStatus('Enter a goal name.');
       return;
     }
-    if (activeGoals.length >= MAX_GOALS) {
-      setStatus(`Limit reached (${MAX_GOALS} max).`);
+    if (activeGoals.length >= goalCap) {
+      setStatus(`Limit reached (${goalCap} max).`);
       return;
     }
 
@@ -199,7 +204,7 @@ export default function Goals() {
       <Text style={styles.description}>
         Add a goal and choose a colour to represent it. That colour will mark all Tickles linked to this goal.
       </Text>
-      <Text style={styles.subtitle}>{activeGoals.length}/{MAX_GOALS} used</Text>
+      <Text style={styles.subtitle}>{activeGoals.length}/{goalCap} used</Text>
 
       {activeGoals.map((item) => (
         <View key={item.id} style={styles.goalCard}>
@@ -232,7 +237,7 @@ export default function Goals() {
           <Text style={styles.empty}>No goals yet — add one below.</Text>
         )}
 
-      {activeGoals.length < MAX_GOALS && (
+      {activeGoals.length < goalCap && (
         <View style={styles.form}>
           <TextInput
             style={styles.input}

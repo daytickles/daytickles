@@ -13,6 +13,7 @@ import WallpaperBackground from '../components/WallpaperBackground';
 import NatureIcon from '../components/NatureIcon';
 import { linkPhotoToEntry } from '../lib/pinBoardDb';
 import { localDateString } from '../lib/week';
+import { alertCapBlocked, checkAndConsumeWeeklyCap } from '../lib/freemiumCaps';
 
 const MAX_LEN = 500;
 
@@ -35,6 +36,10 @@ export default function Create() {
   const [text, setText] = useState('');
   const [tickleNature, setTickleNature] = useState(null);
   const [shareToFeed, setShareToFeed] = useState(false);
+  // What the row was when this screen opened -- only a private -> public
+  // change on save draws from the Ripple cap, not every save of an
+  // already-public entry.
+  const [wasPublic, setWasPublic] = useState(false);
   const [status, setStatus] = useState('');
   const [saving, setSaving] = useState(false);
   const [loadingEntry, setLoadingEntry] = useState(!!entryId);
@@ -57,6 +62,7 @@ export default function Create() {
         setText(data.text_content);
         setTickleNature(data.tickle_nature);
         setShareToFeed(data.visibility === 'public');
+        setWasPublic(data.visibility === 'public');
       }
       setLoadingEntry(false);
     })();
@@ -70,6 +76,19 @@ export default function Create() {
     }
     setSaving(true);
     setStatus('');
+
+    // Ripple soft cap (lib/freemiumCaps.js). Always the text bucket from
+    // here -- this screen never uploads a linked photo (only the Ripple
+    // toggles on Home/Tickle Stash/Calendar do), so even an entry saved
+    // with pinnedPhotoId goes up on Ripple as text only.
+    if (shareToFeed && !wasPublic) {
+      const capResult = await checkAndConsumeWeeklyCap(profile, 'rippleTextTickle');
+      if (capResult.blocked) {
+        setSaving(false);
+        alertCapBlocked(capResult, profile);
+        return;
+      }
+    }
 
     let savedEntryId = entryId;
     let error;

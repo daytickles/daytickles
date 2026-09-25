@@ -1,7 +1,8 @@
 import { Text, StyleSheet, TouchableOpacity, Modal } from 'react-native';
 import { C } from '../lib/theme';
+import { capBlockedMessage } from '../lib/freemiumCaps';
 
-export default function ShareModal({ visible, captions, blocked, cap, onConfirm, onDismiss }) {
+export default function ShareModal({ visible, captions, blocked, cap, profile, onConfirm, onDismiss }) {
   return (
     <Modal visible={!!visible} transparent animationType="fade" onRequestClose={onDismiss}>
       <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={onDismiss}>
@@ -10,8 +11,7 @@ export default function ShareModal({ visible, captions, blocked, cap, onConfirm,
             <>
               <Text style={styles.pickerTitle}>Share limit reached</Text>
               <Text style={styles.shareBlockedText}>
-                You've used all {cap} shares for this 30-day period. It renews
-                automatically, or go unlimited with a paid plan.
+                {capBlockedMessage({ feature: 'polaroidExternalShare', cap }, profile).message}
               </Text>
             </>
           ) : (

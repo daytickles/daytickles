@@ -8,7 +8,8 @@ import { File } from 'expo-file-system';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { C, accentFor, SAVED_ENTRY_DOT_SIZE, withAlpha, NATURE_ORDER, NATURE_LABELS, VIBE_COLORS, vibeIconColor } from '../../lib/theme';
-import { shareEntry, shareStatus, sharePhotoOnlyEntry, SHARE_CAPTIONS } from '../../lib/sharing';
+import { shareEntry, useShareStatus, sharePhotoOnlyEntry, SHARE_CAPTIONS } from '../../lib/sharing';
+import { alertCapBlocked, checkAndConsumeWeeklyCap, rippleFeatureFor } from '../../lib/freemiumCaps';
 import { isThisWeek, isThisMonth, localDateString, currentWeekStartISO, monthStartISO, DEFAULT_WEEK_START_DAY } from '../../lib/week';
 import { fetchFoundingMemberPaceStatus, fetchFoundingMemberOptInReminderStatus } from '../../lib/foundingMember';
 import { flagEmoji } from '../../lib/country';
@@ -496,7 +497,8 @@ export default function Home() {
       }
     }
 
-    await shareEntry({ profile, entry, captionId, onProfileUpdated: refreshProfile, cardImageUri, logCaptionShare: true });
+    const result = await shareEntry({ profile, entry, captionId, cardImageUri, logCaptionShare: true });
+    if (result.blocked) alertCapBlocked(result, profile);
   }
 
   // Thin wrapper around lib/sharing.js's sharePhotoOnlyEntry (shared with
@@ -515,7 +517,6 @@ export default function Home() {
       photoUri: linkedPhotoUris.get(entry.id) || null,
       captureCard,
       accentColor: accent.card,
-      onProfileUpdated: refreshProfile,
     });
 
     if (result.missingPhoto) {
@@ -524,10 +525,7 @@ export default function Home() {
         "This photo isn't available on this device right now — open it in Tickle Stash to relink it, then try sharing again."
       );
     } else if (result.blocked) {
-      Alert.alert(
-        'Share limit reached',
-        `You've used all ${result.cap} shares for this 30-day period. It renews automatically, or go unlimited with a paid plan.`
-      );
+      alertCapBlocked(result, profile);
     } else if (result.captureFailed) {
       Alert.alert("Couldn't share", 'Something went wrong preparing this photo to share — try again.');
     }
@@ -570,6 +568,20 @@ export default function Home() {
   // on visibility, so they keep showing it either way.
   async function handleToggleVisibility(entry) {
     const newVisibility = entry.visibility === 'public' ? 'private' : 'public';
+
+    // Ripple soft cap (lib/freemiumCaps.js) -- every private -> public
+    // flip draws one from its bucket, re-Ripples included. Checked
+    // before any branch below so a blocked flip never uploads anything.
+    if (newVisibility === 'public') {
+      const rippleFeature = rippleFeatureFor(entry, linkedPhotoUris.get(entry.id) || null);
+      if (rippleFeature) {
+        const capResult = await checkAndConsumeWeeklyCap(profile, rippleFeature);
+        if (capResult.blocked) {
+          alertCapBlocked(capResult, profile);
+          return;
+        }
+      }
+    }
 
     // Photo-only entries going private -> public need the actual image
     // uploaded first (see lib/photoTickleStorage.js) -- not the plain
@@ -1033,7 +1045,7 @@ export default function Home() {
 
   const pickerEntry = entries.find((e) => e.id === pickerEntryId) || null;
   const shareTargetEntry = entries.find((e) => e.id === shareEntryId) || null;
-  const shareStat = profile ? shareStatus(profile) : null;
+  const shareStat = useShareStatus(profile, !!shareTargetEntry);
   const shareBlocked = !!shareStat && !shareStat.unlimited && shareStat.remaining <= 0;
 
   const STAT_PILLS = [
@@ -1243,6 +1255,7 @@ export default function Home() {
       captions={SHARE_CAPTIONS}
       blocked={shareBlocked}
       cap={shareStat?.cap}
+      profile={profile}
       onConfirm={(captionId) => handleShare(shareTargetEntry, captionId)}
       onDismiss={() => setShareEntryId(null)}
     />

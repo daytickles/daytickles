@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { C, ACCENT_THEMES, accentFor, darken, textOn, withAlpha, NATURE_ORDER } from '../lib/theme';
 import { DEFAULT_WEEK_START_DAY } from '../lib/week';
+import { allowedAccentThemeIds, alertCapBlocked, capFor } from '../lib/freemiumCaps';
 import { flagEmoji, countryNameFor } from '../lib/country';
 import Button from '../components/Button';
 import HomeGuide from '../components/HomeGuide';
@@ -107,6 +108,8 @@ function buildGoalValues(profile) {
 export default function Settings() {
   const { profile, setProfile, refreshProfile } = useAuth();
   const accentDark = darken(accentFor(profile?.accent_theme).card, 0.35);
+  // Accent colors this account's age tier allows (lib/freemiumCaps.js).
+  const allowedThemeIds = profile ? allowedAccentThemeIds(profile) : ACCENT_THEMES.map((t) => t.id);
   const [showGuide, setShowGuide] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
   const [showCountryPicker, setShowCountryPicker] = useState(false);
@@ -279,6 +282,10 @@ export default function Settings() {
 
   async function handlePickTheme(themeId) {
     if (!profile || themeId === profile.accent_theme) return;
+    if (!allowedThemeIds.includes(themeId)) {
+      alertCapBlocked({ feature: 'accentColors', cap: capFor(profile, 'accentColors') }, profile);
+      return;
+    }
     const previous = profile;
 
     setProfile({ ...profile, accent_theme: themeId });
@@ -692,6 +699,10 @@ export default function Settings() {
         <View style={styles.swatchRow}>
           {ACCENT_THEMES.map((theme) => {
             const selected = profile?.accent_theme === theme.id;
+            // Still shown, just dimmed + padlocked -- tapping explains why.
+            // The current theme is never shown locked even if it's past
+            // this tier's allowance (grandfathered, stays applied).
+            const locked = !selected && !allowedThemeIds.includes(theme.id);
             return (
               <TouchableOpacity
                 key={theme.id}
@@ -704,9 +715,11 @@ export default function Settings() {
                     styles.swatch,
                     { backgroundColor: theme.card },
                     selected && { borderColor: accentDark },
+                    locked && styles.swatchLocked,
                   ]}
                 >
                   {selected && <Ionicons name="checkmark" size={18} color={textOn(theme.card)} />}
+                  {locked && <Ionicons name="lock-closed" size={16} color={textOn(theme.card)} />}
                 </View>
               </TouchableOpacity>
             );
@@ -1119,6 +1132,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 2, borderColor: 'transparent',
   },
+  swatchLocked: { opacity: 0.35 },
   // Narrower gap than swatchRow -- 7 day options vs 5 accent colors
   // need to fit the same content width.
   weekDayRow: { flexDirection: 'row', gap: 8 },
