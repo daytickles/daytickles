@@ -52,7 +52,7 @@ export default function FoundingMember() {
   // pool now auto-expands in 100-number blocks server-side (see
   // supabase/migrations/0030), so app_config.founding_members_cap
   // (fetched below) is the only real source of truth for this value.
-  const [poolStats, setPoolStats] = useState({ granted: 0, cap: 1000, nextNumber: null, available: 0 });
+  const [poolStats, setPoolStats] = useState({ cap: 1000, nextNumber: null, available: 0 });
   const [savingTakingPart, setSavingTakingPart] = useState(false);
   const [savingReminders, setSavingReminders] = useState(false);
   const [savingOptIn, setSavingOptIn] = useState(false);
@@ -134,7 +134,7 @@ export default function FoundingMember() {
         supabase.rpc('count_opted_in_founding_member_referrals', { p_user_id: userId }),
         supabase
           .from('app_config')
-          .select('founding_members_awarded_count, founding_members_cap')
+          .select('founding_members_cap')
           .eq('id', 1)
           .single(),
         supabase
@@ -158,7 +158,6 @@ export default function FoundingMember() {
 
       setReferralCount(referralCountResult.data || 0);
       setPoolStats({
-        granted: configResult.data?.founding_members_awarded_count ?? 0,
         cap: configResult.data?.founding_members_cap ?? 1000,
         nextNumber: nextSlotResult.data?.number ?? null,
         available: availableCountResult.error ? 0 : (availableCountResult.count ?? 0),
@@ -343,7 +342,7 @@ export default function FoundingMember() {
               </Text>
             </View>
             <Text style={styles.cardSubtext}>
-              Lifetime top-tier access, on us — thank you for being here from the start.
+              Lifetime top-tier access, on us.
             </Text>
           </>
         ) : enrollment?.status === 'pending_opt_in' ? (
@@ -497,18 +496,6 @@ export default function FoundingMember() {
               />
             </View>
           </>
-        )}
-
-        {enrollment?.status === 'completed' && (
-          <View style={[styles.card, { backgroundColor: C.card, borderColor: C.border }]}>
-            <Text style={styles.cardHeading}>Moji IDs</Text>
-            <Text style={styles.cardSubtext}>
-              {poolStats.granted} of {poolStats.cap} claimed
-            </Text>
-            <Text style={styles.cardSubtext}>
-              Next available: {poolStats.nextNumber ? formatBadge(poolStats.nextNumber) : 'none left'}
-            </Text>
-          </View>
         )}
       </ScrollView>
       <MojicianInfoModal visible={mojicianInfoOpen} onDismiss={() => setMojicianInfoOpen(false)} />
