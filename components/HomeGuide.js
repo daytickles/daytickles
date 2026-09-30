@@ -37,8 +37,8 @@ const STEPS = [
     body: "Awareness Cue is a private, contentless vibration or sound burst that fires a few times a day, at random moments — a personal nudge to notice what's happening right now. No message, no response expected.\n\nTurn it on in Settings, then choose Vibrate or Sound, how often (Surprise me, or an exact count from 1 to 10 a day), and the hours it's allowed to fire in.",
   },
   {
-    title: 'Founding Member',
-    body: "Tap the crown to see your Founding Member invite. Opting in starts your 6-month Quest — the clock doesn't start until you do, and missing the opt-in window closes the opportunity for good. Complete the Quest and you'll receive lifetime membership and your own unique Founding Member ID.",
+    title: 'Moji Quest',
+    body: "Tap the crown to see your Moji Quest invite. Opting in starts your 6-month Quest — the clock doesn't start until you do, and missing the opt-in window closes the opportunity for good. Complete the Quest and you'll receive lifetime membership and your own unique Moji ID.",
   },
   {
     title: 'Weekly Summary',

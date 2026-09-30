@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase';
 import { C, accentFor, darken, textOn, withAlpha } from '../lib/theme';
 import Button from '../components/Button';
 import WallpaperBackground from '../components/WallpaperBackground';
+import MojicianInfoModal from '../components/MojicianInfoModal';
 import {
   MONTHLY_REQUIREMENTS,
   checkpointWindow,
@@ -19,7 +20,7 @@ import {
 } from '../lib/foundingMember';
 
 function formatBadge(number) {
-  return number ? `FM${number}` : null;
+  return number ? `MOJI${number}` : null;
 }
 
 // Display only -- the real deadline is enforced server-side (opt_in_to_
@@ -55,6 +56,7 @@ export default function FoundingMember() {
   const [savingTakingPart, setSavingTakingPart] = useState(false);
   const [savingReminders, setSavingReminders] = useState(false);
   const [savingOptIn, setSavingOptIn] = useState(false);
+  const [mojicianInfoOpen, setMojicianInfoOpen] = useState(false);
   // Local-only mirror of profile.founding_member_reminders_enabled --
   // see project memory tickle-nature-toggle-bug: a bare setProfile()
   // call (which refreshProfile() ultimately triggers) is proven
@@ -193,8 +195,8 @@ export default function FoundingMember() {
 
   function confirmOptOut() {
     Alert.alert(
-      'Stop taking part in Founding Member?',
-      "This can't be undone. If you'd like another shot at becoming a Founding Member later, you'd need to delete your account and start fresh, which means losing all your tickles and data.",
+      'Stop taking part in Moji Quest?',
+      "This can't be undone. If you'd like another shot at becoming a Mojician later, you'd need to delete your account and start fresh, which means losing all your tickles and data.",
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Continue', style: 'destructive', onPress: confirmOptOutFinal },
@@ -232,7 +234,7 @@ export default function FoundingMember() {
       // state card, for consistency.
       Alert.alert(
         'This opportunity has closed for now.',
-        "You're on the regular free plan. This can't be undone. If you'd like another shot at becoming a Founding Member later, you'd need to delete your account and start fresh — which means losing all your tickles and data, so it's here but we don't recommend it lightly. A lighter option: a subscription unlocks more functionality without starting over, and it's inexpensive."
+        "You're on the regular free plan. This can't be undone. If you'd like another shot at becoming a Mojician later, you'd need to delete your account and start fresh — which means losing all your tickles and data, so it's here but we don't recommend it lightly. A lighter option: a subscription unlocks more functionality without starting over, and it's inexpensive."
       );
 
       await refreshProfile();
@@ -302,7 +304,15 @@ export default function FoundingMember() {
           <Text style={styles.backLink}>‹ Back</Text>
         </TouchableOpacity>
 
-        <Text style={styles.title}>Be a Founding Member</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>Be a Moji</Text>
+          <TouchableOpacity
+            onPress={() => setMojicianInfoOpen(true)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="information-circle-outline" size={20} color={C.subtext} />
+          </TouchableOpacity>
+        </View>
 
         {loading ? (
           <ActivityIndicator color={C.rust} style={styles.loader} />
@@ -314,7 +324,7 @@ export default function FoundingMember() {
               This opportunity has closed for now — you're on the regular free plan.
             </Text>
             <Text style={styles.cardSubtext}>
-              This can't be undone. If you'd like another shot at becoming a Founding Member later, you'd
+              This can't be undone. If you'd like another shot at becoming a Mojician later, you'd
               need to delete your account and start fresh — which means losing all your tickles and data,
               so it's here but we don't recommend it lightly. A lighter option: a subscription unlocks more
               functionality without starting over, and it's inexpensive.
@@ -327,9 +337,9 @@ export default function FoundingMember() {
           <>
             <View style={[styles.heroCard, { backgroundColor: accentDark }]}>
               <MaterialCommunityIcons name="crown" size={32} color={textOn(accentDark)} />
-              <Text style={[styles.heroTitle, { color: textOn(accentDark) }]}>You're a Founding Member</Text>
+              <Text style={[styles.heroTitle, { color: textOn(accentDark) }]}>You're a Mojician</Text>
               <Text style={[styles.heroSubtitle, { color: textOn(accentDark) }]}>
-                {badgeNumber || 'All numbered badges have been claimed — you\'re still a lifetime Founding Member'}
+                {badgeNumber || 'All numbered badges have been claimed — you\'re still a lifetime Mojician'}
               </Text>
             </View>
             <Text style={styles.cardSubtext}>
@@ -339,7 +349,7 @@ export default function FoundingMember() {
         ) : enrollment?.status === 'pending_opt_in' ? (
           <>
             <Text style={styles.subheading}>
-              Finish your Quest and receive Free Lifetime Membership and a unique FM ID number.
+              Finish your Moji Quest and receive Free Lifetime Membership and a unique Moji ID number.
             </Text>
             <View style={[styles.card, { backgroundColor: C.amberBg, borderColor: C.amberBg }]}>
               <Text style={[styles.cardHeading, { color: textOn(C.amberBg) }]}>
@@ -354,7 +364,7 @@ export default function FoundingMember() {
             <View style={[styles.card, { backgroundColor: C.amberBg, borderColor: C.amberBg }]}>
               <View style={styles.nextNumberRow}>
                 <Text style={[styles.cardSubtext, { color: textOn(C.amberBg) }]}>
-                  Next FM number available is:
+                  Next Moji ID available is:
                 </Text>
                 {poolStats.nextNumber ? (
                   <View style={styles.nextNumberPill}>
@@ -384,14 +394,14 @@ export default function FoundingMember() {
             </View>
 
             <Button
-              title={savingOptIn ? 'Joining…' : 'Join Founding Member'}
+              title={savingOptIn ? 'Joining…' : 'Join Moji Quest'}
               onPress={handleOptIn}
               disabled={savingOptIn}
             />
           </>
         ) : (
           <>
-            <Text style={styles.subheading}>Finish your Quest and receive Free Lifetime Membership and a unique FM ID number.</Text>
+            <Text style={styles.subheading}>Finish your Moji Quest and receive Free Lifetime Membership and a unique Moji ID number.</Text>
 
             {/* C.amberBg -- the bright yellow already used for Home's
                 vibe cards, deliberately not FOUNDING_MEMBER_HERO_COLOR
@@ -404,7 +414,7 @@ export default function FoundingMember() {
             <View style={[styles.card, { backgroundColor: C.amberBg, borderColor: C.amberBg }]}>
               <View style={styles.nextNumberRow}>
                 <Text style={[styles.cardSubtext, { color: textOn(C.amberBg) }]}>
-                  Next FM number available is:
+                  Next Moji ID available is:
                 </Text>
                 {poolStats.nextNumber ? (
                   <View style={styles.nextNumberPill}>
@@ -491,7 +501,7 @@ export default function FoundingMember() {
 
         {enrollment?.status === 'completed' && (
           <View style={[styles.card, { backgroundColor: C.card, borderColor: C.border }]}>
-            <Text style={styles.cardHeading}>Founding Member numbers</Text>
+            <Text style={styles.cardHeading}>Moji IDs</Text>
             <Text style={styles.cardSubtext}>
               {poolStats.granted} of {poolStats.cap} claimed
             </Text>
@@ -501,6 +511,7 @@ export default function FoundingMember() {
           </View>
         )}
       </ScrollView>
+      <MojicianInfoModal visible={mojicianInfoOpen} onDismiss={() => setMojicianInfoOpen(false)} />
     </View>
     </WallpaperBackground>
   );
@@ -510,7 +521,8 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: 20, paddingTop: 60, paddingBottom: 40 },
   backLink: { fontSize: 16, color: C.rust, marginBottom: 16 },
-  title: { fontSize: 22, fontWeight: 'bold', color: C.rustDark, marginBottom: 20 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 20 },
+  title: { fontSize: 22, fontWeight: 'bold', color: C.rustDark },
   subheading: { fontSize: 15, fontWeight: '600', color: C.rustDark, marginBottom: 16 },
   loader: { marginTop: 40 },
   sectionLabel: { fontSize: 14, fontWeight: '700', color: C.subtext, marginBottom: 8 },

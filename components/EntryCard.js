@@ -200,7 +200,7 @@ export default function EntryCard({
                 {item.profiles?.country ? `  ${flagEmoji(item.profiles.country)}` : ''}
               </Text>
               {!!item.profiles?.founding_member_number && (
-                <FoundingMemberBadge number={item.profiles.founding_member_number} />
+                <FoundingMemberBadge number={item.profiles.founding_member_number} compact />
               )}
               {!isOwnEntry && (
                 <TouchableOpacity

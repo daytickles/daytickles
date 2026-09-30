@@ -10,7 +10,7 @@ import { C, withAlpha } from '../lib/theme';
 const BULLETS = [
   "Write about something that made you smile, paying it forward, or Me-time moments — that's a Tickle. It's private by default; you choose if and when to share.",
   'Curious about daily targets or personalizing your experience? All in Settings, anytime — no rush.',
-  "Thinking long-term? Tap the crown to see what Founding Member's about.",
+  "Thinking long-term? Tap the crown to see what Moji Quest's about.",
   'Want more on how it all works? See Settings.',
 ];
 

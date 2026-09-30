@@ -1113,7 +1113,7 @@ export default function Home() {
           <View style={styles.paceReminderBanner}>
             <MaterialCommunityIcons name="crown-outline" size={18} color={C.sparkleText} style={styles.paceReminderIcon} />
             <Text style={styles.ratePromptText}>
-              Halfway through the month — a little nudge to check in on your Founding Member progress. {paceReminderText}
+              Halfway through the month — a little nudge to check in on your Moji Quest progress. {paceReminderText}
             </Text>
             <TouchableOpacity
               onPress={handleDismissPaceReminder}
@@ -1133,7 +1133,7 @@ export default function Home() {
             <MaterialCommunityIcons name="crown-outline" size={18} color={C.sparkleText} style={styles.paceReminderIcon} />
             <TouchableOpacity style={{ flex: 1 }} onPress={() => router.push('/founding-member')}>
               <Text style={styles.ratePromptText}>
-                Founding Member invite — opt in before it closes to start your 6-month quest.
+                Moji Quest invite — opt in before it closes to start your 6-month quest.
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
