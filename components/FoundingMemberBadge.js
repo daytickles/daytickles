@@ -18,7 +18,7 @@ export default function FoundingMemberBadge({ number, compact = false, style = u
   const textColor = textOn(FOUNDING_MEMBER_BADGE_COLOR);
 
   return (
-    <View style={[styles.badge, { backgroundColor: FOUNDING_MEMBER_BADGE_COLOR }, style]}>
+    <View style={[styles.badge, compact && styles.badgeCompact, { backgroundColor: FOUNDING_MEMBER_BADGE_COLOR }, style]}>
       <MaterialCommunityIcons name="crown" size={11} color={textColor} />
       <Text style={[styles.text, { color: textColor }]}>{compact ? `${number}` : `MOJI${number}`}</Text>
     </View>
@@ -34,5 +34,6 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 8,
   },
+  badgeCompact: { paddingHorizontal: 4, gap: 2 },
   text: { fontSize: 10, fontWeight: '700' },
 });

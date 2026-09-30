@@ -197,8 +197,10 @@ export default function EntryCard({
               <InitialsAvatar username={item.profiles?.username} accentTheme={item.profiles?.accent_theme} size={18} />
               <Text style={styles.authorText} numberOfLines={1}>
                 {item.profiles?.username}
-                {item.profiles?.country ? `  ${flagEmoji(item.profiles.country)}` : ''}
               </Text>
+              {!!item.profiles?.country && (
+                <Text style={styles.authorFlag}>{flagEmoji(item.profiles.country)}</Text>
+              )}
               {!!item.profiles?.founding_member_number && (
                 <FoundingMemberBadge number={item.profiles.founding_member_number} compact />
               )}
@@ -583,12 +585,17 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4,
   },
-  authorRow: { flexDirection: 'row', alignItems: 'center', flexShrink: 1, marginRight: 8, gap: 6 },
+  // Username is the only thing in this row that shrinks -- the flag and
+  // Moji badge sit beside it as non-shrinking siblings, so a long name
+  // truncates to "…" without ever clipping the flag. The flag used to be
+  // appended inside authorText itself, so it was the first thing cut.
+  authorRow: { flexDirection: 'row', alignItems: 'center', flexShrink: 1, marginRight: 6, gap: 4 },
   authorText: { fontSize: 13, fontWeight: '600', color: C.rustDark, flexShrink: 1 },
+  authorFlag: { fontSize: 13 },
   followAction: { marginLeft: 10 },
   iconGroup: { flexDirection: 'row', alignItems: 'center' },
-  photoAction: { marginLeft: 12 },
-  publicAwardBadge: { flexDirection: 'row', alignItems: 'center', marginLeft: 12, gap: 4 },
+  photoAction: { marginLeft: 8 },
+  publicAwardBadge: { flexDirection: 'row', alignItems: 'center', marginLeft: 8, gap: 4 },
   awardBadgeIconWrap: { position: 'relative' },
   // Pops upward from the icon (same direction as Home's own stat-pill
   // tooltip) and is nudged left via the negative `right` offset so it
@@ -607,17 +614,20 @@ const styles = StyleSheet.create({
     paddingVertical: 4, paddingHorizontal: 10,
   },
   goalDot: {
-    width: 16, height: 16, borderRadius: 8, marginLeft: 12,
+    width: 16, height: 16, borderRadius: 8, marginLeft: 8,
     alignItems: 'center', justifyContent: 'center',
   },
   goalDotEmpty: {
     backgroundColor: 'transparent', borderWidth: 1.5,
     borderStyle: 'dashed', borderColor: C.faint,
   },
-  shareAction: { marginLeft: 12 },
-  starAction: { marginLeft: 12 },
-  awardAction: { marginLeft: 12 },
-  moreAction: { marginLeft: 12 },
+  // 8, not 12 -- the Mine-tab header (goal dot + Un-Ripple + star + menu)
+  // left the username only ~32dp on a 360dp screen at 12; 8 hands ~16dp
+  // back to it. hitSlop (10) is unchanged, so tap targets are too.
+  shareAction: { marginLeft: 8 },
+  starAction: { marginLeft: 8 },
+  awardAction: { marginLeft: 8 },
+  moreAction: { marginLeft: 8 },
   menuBackdrop: {
     flex: 1, backgroundColor: 'rgba(44,44,42,0.4)',
     justifyContent: 'center', alignItems: 'center', padding: 32,
