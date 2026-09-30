@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, Image, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, Image, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
@@ -10,6 +10,7 @@ import { supabase } from '../../lib/supabase';
 import { C, accentFor, SAVED_ENTRY_DOT_SIZE, withAlpha, NATURE_ORDER, NATURE_LABELS, VIBE_COLORS, vibeIconColor } from '../../lib/theme';
 import { shareEntry, useShareStatus, sharePhotoOnlyEntry, SHARE_CAPTIONS } from '../../lib/sharing';
 import { alertCapBlocked, checkAndConsumeWeeklyCap, rippleFeatureFor } from '../../lib/freemiumCaps';
+import { showAlert } from '../../lib/themedAlert';
 import { isThisWeek, isThisMonth, localDateString, currentWeekStartISO, monthStartISO, DEFAULT_WEEK_START_DAY } from '../../lib/week';
 import { fetchFoundingMemberPaceStatus, fetchFoundingMemberOptInReminderStatus } from '../../lib/foundingMember';
 import { flagEmoji } from '../../lib/country';
@@ -520,14 +521,14 @@ export default function Home() {
     });
 
     if (result.missingPhoto) {
-      Alert.alert(
+      showAlert(
         "Can't share yet",
         "This photo isn't available on this device right now — open it in Tickle Stash to relink it, then try sharing again."
       );
     } else if (result.blocked) {
       alertCapBlocked(result, profile);
     } else if (result.captureFailed) {
-      Alert.alert("Couldn't share", 'Something went wrong preparing this photo to share — try again.');
+      showAlert("Couldn't share", 'Something went wrong preparing this photo to share — try again.');
     }
   }
 
@@ -539,7 +540,7 @@ export default function Home() {
   // picked up by the other the next time it's revisited — no separate
   // cross-screen refresh mechanism needed.
   function confirmDeleteEntry(entry) {
-    Alert.alert(
+    showAlert(
       'Delete this tickle?',
       "This can't be undone — it removes the entry everywhere, including any likes or shares.",
       [
@@ -593,7 +594,7 @@ export default function Home() {
     if (entry.entry_kind === 'photo_only' && newVisibility === 'public') {
       const photoUri = linkedPhotoUris.get(entry.id) || null;
       if (!photoUri) {
-        Alert.alert(
+        showAlert(
           "Can't make this public yet",
           "This photo isn't available on this device right now — open it in Tickle Stash to relink it, then try again."
         );
@@ -611,7 +612,7 @@ export default function Home() {
         // RLS, no established pattern elsewhere in this app to lean on),
         // so a failure here should be self-diagnosing on-device rather
         // than requiring a Metro console dig every time.
-        Alert.alert(
+        showAlert(
           "Couldn't make this public",
           `Something went wrong uploading this photo — try again.\n\n${err.message || String(err)}`
         );
@@ -634,7 +635,7 @@ export default function Home() {
         );
       } catch (err) {
         console.error('handleToggleVisibility: photo removal failed', err);
-        Alert.alert(
+        showAlert(
           "Couldn't make this private",
           `Something went wrong removing this photo — try again.\n\n${err.message || String(err)}`
         );
@@ -665,7 +666,7 @@ export default function Home() {
           );
         } catch (err) {
           console.error('handleToggleVisibility: linked-photo upload failed', err);
-          Alert.alert(
+          showAlert(
             "Couldn't make this public",
             `Something went wrong uploading this photo — try again.\n\n${err.message || String(err)}`
           );
@@ -688,7 +689,7 @@ export default function Home() {
         );
       } catch (err) {
         console.error('handleToggleVisibility: linked-photo removal failed', err);
-        Alert.alert(
+        showAlert(
           "Couldn't make this private",
           `Something went wrong removing this photo — try again.\n\n${err.message || String(err)}`
         );

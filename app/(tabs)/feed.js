@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
@@ -9,6 +9,7 @@ import { supabase } from '../../lib/supabase';
 import { C, accentFor, darken, lighten, textOn } from '../../lib/theme';
 import { shareEntry, useShareStatus, sharePhotoOnlyEntry, SHARE_CAPTIONS } from '../../lib/sharing';
 import { alertCapBlocked, capFor, checkAndConsumeWeeklyCap, rippleFeatureFor } from '../../lib/freemiumCaps';
+import { showAlert } from '../../lib/themedAlert';
 import { notifyLikeReceived } from '../../lib/likeNotify';
 import { localDateString } from '../../lib/week';
 import { EVENING_HOUR, EVENING_MINUTE } from '../../lib/reminders';
@@ -460,7 +461,7 @@ export default function Feed() {
     const picked = await pickFromLibrary(session.user.id);
     if (picked.canceled) return;
     if (picked.error) {
-      Alert.alert('Could not relink that photo', picked.error);
+      showAlert('Could not relink that photo', picked.error);
       return;
     }
 
@@ -873,14 +874,14 @@ export default function Feed() {
     });
 
     if (result.missingPhoto) {
-      Alert.alert(
+      showAlert(
         "Can't share yet",
         "This photo isn't available on this device right now — relink it, then try sharing again."
       );
     } else if (result.blocked) {
       alertCapBlocked(result, profile);
     } else if (result.captureFailed) {
-      Alert.alert("Couldn't share", 'Something went wrong preparing this photo to share — try again.');
+      showAlert("Couldn't share", 'Something went wrong preparing this photo to share — try again.');
     }
   }
 
@@ -937,7 +938,7 @@ export default function Feed() {
     if (entry.entry_kind === 'photo_only' && newVisibility === 'public') {
       const photoUri = linkedPhotoUris.get(entry.id) || null;
       if (!photoUri) {
-        Alert.alert(
+        showAlert(
           "Can't make this public yet",
           "This photo isn't available on this device right now — relink it, then try again."
         );
@@ -955,7 +956,7 @@ export default function Feed() {
         // RLS, no established pattern elsewhere in this app to lean on),
         // so a failure here should be self-diagnosing on-device rather
         // than requiring a Metro console dig every time.
-        Alert.alert(
+        showAlert(
           "Couldn't make this public",
           `Something went wrong uploading this photo — try again.\n\n${err.message || String(err)}`
         );
@@ -978,7 +979,7 @@ export default function Feed() {
         );
       } catch (err) {
         console.error('handleToggleVisibility: photo removal failed', err);
-        Alert.alert(
+        showAlert(
           "Couldn't make this private",
           `Something went wrong removing this photo — try again.\n\n${err.message || String(err)}`
         );
@@ -1005,7 +1006,7 @@ export default function Feed() {
           );
         } catch (err) {
           console.error('handleToggleVisibility: linked-photo upload failed', err);
-          Alert.alert(
+          showAlert(
             "Couldn't make this public",
             `Something went wrong uploading this photo — try again.\n\n${err.message || String(err)}`
           );
@@ -1028,7 +1029,7 @@ export default function Feed() {
         );
       } catch (err) {
         console.error('handleToggleVisibility: linked-photo removal failed', err);
-        Alert.alert(
+        showAlert(
           "Couldn't make this private",
           `Something went wrong removing this photo — try again.\n\n${err.message || String(err)}`
         );
