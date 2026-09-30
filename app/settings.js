@@ -20,7 +20,6 @@ import {
   requestReminderPermission,
   scheduleDailyReminder,
   cancelDailyReminder,
-  sendTestReminderNotification,
   sendAwarenessCueTestCue,
   getScheduledAwarenessCueTimes,
 } from '../lib/reminders';
@@ -886,13 +885,6 @@ export default function Settings() {
             to get the daily reminder.
           </Text>
         )}
-        {/* On-demand test button: fires sendTestReminderNotification (lib/reminders.js)
-            so reminder display can be tested without waiting for 8am/8pm. */}
-        <Button
-          title="Send test notification"
-          variant="secondary"
-          onPress={() => sendTestReminderNotification()}
-        />
         <View style={styles.spacer} />
 
         <View style={styles.toggleRow}>
