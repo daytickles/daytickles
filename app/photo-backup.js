@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { showAlert } from '../lib/themedAlert';
 import { router } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { File } from 'expo-file-system';
@@ -97,7 +98,7 @@ export default function PhotoBackup() {
 
   function confirmImport() {
     const photoCount = pickedManifest.photos.length;
-    Alert.alert(
+    showAlert(
       'Import this backup?',
       `This will add ${photoCount} photo${photoCount === 1 ? '' : 's'} to your Pin Board. If you've already restored this backup before, importing it again will create duplicate photos — there's no automatic duplicate detection.`,
       [

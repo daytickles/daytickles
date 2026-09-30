@@ -3,6 +3,7 @@ import * as Notifications from 'expo-notifications';
 import { AuthProvider } from '../contexts/AuthContext';
 import { NotificationsProvider } from '../contexts/NotificationsContext';
 import AppLockGate from '../components/AppLockGate';
+import ThemedAlertHost from '../components/ThemedAlertHost';
 
 // Without this, expo-notifications' own default applies: any notification
 // that fires while the app is in the foreground (which local test buttons
@@ -29,6 +30,9 @@ export default function RootLayout() {
       <NotificationsProvider>
         <AppLockGate>
           <Stack screenOptions={{ headerShown: false }} />
+          {/* Every alert's themed popup (lib/themedAlert.js). Inside
+              AppLockGate so it never draws over the lock screen. */}
+          <ThemedAlertHost />
         </AppLockGate>
       </NotificationsProvider>
     </AuthProvider>

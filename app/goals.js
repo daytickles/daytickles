@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import {
-  View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, Alert, Keyboard,
+  View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, Keyboard,
   KeyboardAvoidingView, Platform, Switch,
 } from 'react-native';
+import { showAlert } from '../lib/themedAlert';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { supabase } from '../lib/supabase';
@@ -124,7 +125,7 @@ export default function Goals() {
   }
 
   function confirmAchieve(goal) {
-    Alert.alert(
+    showAlert(
       'Mark as achieved?',
       `"${goal.label}" moves to your achieved goals. Entries already tagged with it keep the tag (shown faded with a check), and the slot frees up for a new goal.`,
       [
@@ -156,7 +157,7 @@ export default function Goals() {
   }
 
   function confirmDelete(goal) {
-    Alert.alert(
+    showAlert(
       'Delete goal?',
       `"${goal.label}" will be removed. Entries tagged with it will just lose the tag.`,
       [

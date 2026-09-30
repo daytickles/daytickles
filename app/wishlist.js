@@ -1,8 +1,9 @@
 import React, { useCallback, useState } from 'react';
 import {
-  View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, Alert, Keyboard,
+  View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, Keyboard,
   KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { showAlert } from '../lib/themedAlert';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
@@ -84,7 +85,7 @@ export default function Wishlist() {
   }
 
   function confirmRedeem(item) {
-    Alert.alert(
+    showAlert(
       `Redeem "${item.label}"?`,
       `This uses ${item.cost} token${item.cost === 1 ? '' : 's'}. It stays on your reward list afterward.`,
       [
@@ -112,7 +113,7 @@ export default function Wishlist() {
   }
 
   function confirmDeleteItem(item) {
-    Alert.alert(
+    showAlert(
       'Remove from reward list?',
       `"${item.label}" will be removed.`,
       [
