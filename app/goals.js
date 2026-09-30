@@ -238,6 +238,17 @@ export default function Goals() {
           <Text style={styles.empty}>No goals yet — add one below.</Text>
         )}
 
+      {/* The form is hidden at the cap, so handleAdd's own "Limit
+          reached" status could never actually show -- this says why the
+          form is gone instead, in the same inline status style. Gated on
+          !loading and profile so a not-yet-loaded goalCap of 0 never
+          flashes "(0 max)". */}
+      {!loading && !!profile && activeGoals.length >= goalCap && (
+        <Text style={styles.status}>
+          Limit reached ({goalCap} max). Achieve or delete a goal to add a new one.
+        </Text>
+      )}
+
       {activeGoals.length < goalCap && (
         <View style={styles.form}>
           <TextInput
