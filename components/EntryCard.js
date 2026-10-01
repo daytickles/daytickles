@@ -1,8 +1,9 @@
 import { useRef, useState } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, Alert, Modal } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { C, accentFor, darken, lighten, withAlpha, SAVED_ENTRY_DOT_SIZE, VIBE_COLORS, vibeIconColor, NATURE_LABELS, AWARD_TYPES, AWARD_BADGE_COLOR, AWARD_HAND_ICON, awardLabelFor } from '../lib/theme';
+import { showAlert } from '../lib/themedAlert';
 import { flagEmoji } from '../lib/country';
 import InitialsAvatar from './InitialsAvatar';
 import FoundingMemberBadge from './FoundingMemberBadge';
@@ -112,7 +113,7 @@ export default function EntryCard({
     const photoOnlyMessage =
       "This can't be undone — it removes the entry everywhere, including any likes or shares. The photo itself isn't deleted by this — it stays in your device gallery, and in Tickle Pics if it's still pinned there." +
       (item.visibility === 'public' ? ' The shared copy is removed too.' : '');
-    Alert.alert(
+    showAlert(
       'Delete this tickle?',
       isPhotoOnly
         ? photoOnlyMessage

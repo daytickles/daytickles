@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Switch, StyleSheet, ScrollView, Alert, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, Switch, StyleSheet, ScrollView, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { C, ACCENT_THEMES, accentFor, darken, textOn, withAlpha, NATURE_ORDER } from '../lib/theme';
+import { showAlert } from '../lib/themedAlert';
 import { DEFAULT_WEEK_START_DAY } from '../lib/week';
 import { allowedAccentThemeIds, alertCapBlocked, capFor } from '../lib/freemiumCaps';
 import { flagEmoji, countryNameFor } from '../lib/country';
@@ -248,7 +249,7 @@ export default function Settings() {
   }
 
   function confirmDeleteAccount() {
-    Alert.alert(
+    showAlert(
       'Delete your account?',
       "This permanently deletes your account and everything in it — tickles, likes, follows, goals, and shares. There's no way to undo this.",
       [
@@ -484,17 +485,18 @@ export default function Settings() {
       await new Promise((resolve) => setTimeout(resolve, 2500));
       setTestingAwarenessCueSound(false);
 
-      Alert.alert(
+      showAlert(
         'Did you hear it?',
         'DayTickles just tried to play your Awareness Cue sound.',
         [
           { text: 'No', onPress: () => saveAwarenessCueType(type, false) },
           { text: 'Yes', onPress: () => saveAwarenessCueType(type, true) },
-        ],
+        ]
         // No dismiss-without-answering path -- an unanswered prompt
         // would leave awareness_cue_sound_confirmed at its previous
         // value, which could be a stale `true` from an earlier test.
-        { cancelable: false }
+        // Themed alerts are always button-only (no backdrop tap, no
+        // Android back), so this needs no cancelable option.
       );
       return;
     }

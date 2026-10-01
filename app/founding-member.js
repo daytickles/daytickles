@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Share, Switch, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Share, Switch } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
@@ -8,6 +8,7 @@ import { C, accentFor, darken, textOn, withAlpha } from '../lib/theme';
 import Button from '../components/Button';
 import WallpaperBackground from '../components/WallpaperBackground';
 import MojicianInfoModal from '../components/MojicianInfoModal';
+import { showAlert } from '../lib/themedAlert';
 import {
   MONTHLY_REQUIREMENTS,
   checkpointWindow,
@@ -193,7 +194,7 @@ export default function FoundingMember() {
   }
 
   function confirmOptOut() {
-    Alert.alert(
+    showAlert(
       'Stop taking part in Moji Quest?',
       "This can't be undone. If you'd like another shot at becoming a Mojician later, you'd need to delete your account and start fresh, which means losing all your tickles and data.",
       [
@@ -204,7 +205,7 @@ export default function FoundingMember() {
   }
 
   function confirmOptOutFinal() {
-    Alert.alert(
+    showAlert(
       'Are you sure?',
       "This is the last step — once confirmed, you're on the regular free plan.",
       [
@@ -215,7 +216,7 @@ export default function FoundingMember() {
   }
 
   async function handleOptOut() {
-    // Alert's onPress doesn't await or catch this -- a thrown/rejected
+    // The alert's onPress doesn't await or catch this -- a thrown/rejected
     // call here would otherwise silently die with no error shown and
     // no state ever updated, leaving the page stuck showing pre-opt-
     // out content with no sign anything went wrong.
@@ -229,9 +230,11 @@ export default function FoundingMember() {
       // app's own logic -- see project notes) can unmount this screen
       // around when the profile refresh below fires, before the
       // closed-state card gets a chance to render. This guarantees the
-      // message reaches the user either way. Same copy as the closed-
-      // state card, for consistency.
-      Alert.alert(
+      // message reaches the user either way -- the themed alert lives in
+      // ThemedAlertHost at the app root, not in this screen, so it
+      // survives that unmount. Same copy as the closed-state card, for
+      // consistency.
+      showAlert(
         'This opportunity has closed for now.',
         "You're on the regular free plan. This can't be undone. If you'd like another shot at becoming a Mojician later, you'd need to delete your account and start fresh — which means losing all your tickles and data, so it's here but we don't recommend it lightly. A lighter option: a subscription unlocks more functionality without starting over, and it's inexpensive."
       );
