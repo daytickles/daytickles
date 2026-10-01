@@ -14,10 +14,10 @@ import Button from './Button';
 // on whichever icon triggered THIS tap -- since the underlying seen-flag
 // is a single one-time-ever gate (not per-icon-type), whichever kind a
 // person happens to tap first is the only copy they'll ever see here.
-// Vibe-flavored copy wrongly claims "you can make it public any time",
-// which is false for My Day (see EntryCard.js's isJournal-gated
-// visibility toggle) -- hence the separate variant, not just a reworded
-// single copy.
+// The variants differ only in what the icon does (turn the photo into a
+// Vibe Tickle vs. add it to My Day). Both start private and can be
+// Rippled later -- My Day entries have the same Ripple/Un-Ripple label
+// as any other Tickle.
 export default function PhotoTickleDisclosureModal({ visible, onDismiss, isDayJournal }) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onDismiss}>
@@ -28,8 +28,8 @@ export default function PhotoTickleDisclosureModal({ visible, onDismiss, isDayJo
               <Text style={styles.heading}>Adding this to My Day</Text>
               <Text style={styles.body}>
                 Tapping the sun icon instantly adds this photo to My Day — no writing
-                required. My Day entries are always private, just for you, and can't be made
-                public.
+                required. My Day entries start out private, just for you; you can Ripple them any
+                time from the Tickle itself.
               </Text>
             </>
           ) : (
