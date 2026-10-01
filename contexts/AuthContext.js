@@ -113,7 +113,6 @@ export function AuthProvider({ children }) {
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (event, newSession) => {
-      console.log('Auth event:', event, newSession?.user?.email);
       setSession(newSession);
       if (newSession) {
         handledRef.current = false;

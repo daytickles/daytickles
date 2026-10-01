@@ -1,0 +1,20 @@
+# EAS reads this file INSTEAD of .gitignore when it exists, so everything
+# .gitignore excludes is repeated here -- above all /android and /ios,
+# without which EAS would build from the stale local native projects.
+node_modules/
+.expo/
+*.log
+/android
+/ios
+supabase/.temp/
+
+# Local working files that never belong in a build upload: diffs, audits,
+# handoffs, test SQL, and on-device check screenshots. Nothing the app
+# build needs lives at the repo root as .md/.txt/.sql. A new screenshot
+# folder needs adding here too.
+/*.md
+/*.txt
+/*.sql
+/freemium_test_screens/
+/moji_device_check/
+/themed_alert_device_check/

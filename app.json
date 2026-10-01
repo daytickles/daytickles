@@ -14,7 +14,14 @@
     },
     "android": {
       "package": "com.daytickles.daytickles",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "blockedPermissions": [
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW"
+      ]
     },
     "plugins": [
       "expo-web-browser",
@@ -37,7 +44,8 @@
         "expo-image-picker",
         {
           "photosPermission": "Allow DayTickles to access your photos so you can pin them to your Tickle Pics.",
-          "cameraPermission": "Allow DayTickles to use your camera to take a photo for your Tickle Pics."
+          "cameraPermission": "Allow DayTickles to use your camera to take a photo for your Tickle Pics.",
+          "microphonePermission": false
         }
       ],
       [
