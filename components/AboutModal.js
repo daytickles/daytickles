@@ -8,6 +8,7 @@ const FEATURES = [
   'Set gentle goals to notice more of the good, find balance where needed.',
   'Discover the moments that made others smile, and smile with them.',
   'Favourite the Tickles that mean the most, and follow people whose moments inspire you.',
+  'Turn a string of Ripples into a Tale others can follow as it unfolds.',
   'Revisit your memories anytime through your personal calendar.',
   'Pin photos to Tickle Pics, write about the ones that matter, or share them straight from your device.',
 ];
