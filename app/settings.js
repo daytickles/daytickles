@@ -769,6 +769,8 @@ export default function Settings() {
         <View style={styles.spacer} />
 
         <Button title="Manage Goals" onPress={() => router.push('/goals')} variant="secondary" />
+        <View style={styles.spacer} />
+        <Button title="Manage Tales" onPress={() => router.push('/tales')} variant="secondary" />
       </View>
 
       <View style={styles.card}>

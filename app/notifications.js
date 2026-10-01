@@ -18,8 +18,8 @@ function formatTimestamp(createdAt) {
 }
 
 // The type column is a Postgres check constraint ('like' | 'comment' |
-// 'streak_milestone' | 'favorite' | 'award', see migration 0020 for the
-// latter two), but 'comment' has no real UI built on top of it yet —
+// 'streak_milestone' | 'favorite' | 'award' | 'tale_chapter', see
+// migration 0020 for favorite/award and 0067 for tale_chapter), but 'comment' has no real UI built on top of it yet —
 // that row type is handled defensively so it never crashes this screen,
 // just degrades to a generic line.
 function notificationText(n) {
@@ -44,6 +44,12 @@ function notificationText(n) {
         : `${actorName} gave you a high five`;
     case 'comment':
       return entryText ? `${actorName} commented on your tickle: ${entryText}` : `${actorName} commented on your tickle`;
+    // Migration 0067 -- one row per follower of a Tale, written by the
+    // handle_tale_chapter_visible trigger when a chapter goes live.
+    case 'tale_chapter':
+      return n.tales?.title
+        ? `${actorName} added a new chapter to ${n.tales.title}`
+        : `${actorName} added a new chapter to a Tale you follow`;
     case 'streak_milestone':
       return 'You hit a streak milestone! 🔥';
     default:
@@ -59,6 +65,7 @@ function notificationText(n) {
 function notificationAccent(n) {
   if (n.type === 'favorite') return C.teal;
   if (n.type === 'award') return AWARD_TYPES[n.award_type]?.color || null;
+  if (n.type === 'tale_chapter') return C.rust;
   return null;
 }
 
@@ -75,7 +82,7 @@ export default function Notifications() {
     const { data, error } = await supabase
       .from('notifications')
       .select(
-        'id, type, award_type, is_read, created_at, entry_id, actor_id, tickle_entries(text_content), profiles!notifications_actor_id_fkey(username, avatar_emoji, country)'
+        'id, type, award_type, tale_id, is_read, created_at, entry_id, actor_id, tickle_entries(text_content), tales(title), profiles!notifications_actor_id_fkey(username, avatar_emoji, country)'
       )
       .eq('recipient_id', session.user.id)
       .order('created_at', { ascending: false });
@@ -105,7 +112,11 @@ export default function Notifications() {
       else refreshUnreadCount();
     }
 
-    if (n.entry_id) {
+    // A Tale chapter is someone else's entry, so the Mine-tab highlight
+    // route below would land on nothing -- open the Tale itself instead.
+    if (n.type === 'tale_chapter' && n.tale_id) {
+      router.push({ pathname: '/tale', params: { id: n.tale_id } });
+    } else if (n.entry_id) {
       router.push({ pathname: '/feed', params: { tab: 'mine', highlightEntry: n.entry_id } });
     }
   }

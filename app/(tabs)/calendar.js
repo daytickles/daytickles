@@ -13,6 +13,8 @@ import { alertCapBlocked, checkAndConsumeWeeklyCap, rippleFeatureFor } from '../
 import { showAlert } from '../../lib/themedAlert';
 import { assignEntryGoal } from '../../lib/goalTagging';
 import GoalTagModal from '../../components/GoalTagModal';
+import { assignEntryTale, fetchMyTales, fetchTaleBadges } from '../../lib/tales';
+import TaleTagModal from '../../components/TaleTagModal';
 import AwardPickerModal from '../../components/AwardPickerModal';
 import NatureIcon from '../../components/NatureIcon';
 import ShareModal from '../../components/ShareModal';
@@ -37,7 +39,7 @@ const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const DAY_DOTS_SIZES = [9, 12, 15, 18];
 
 const ENTRY_SELECT =
-  'id, entry_date, text_content, like_count, tickle_nature, goal_id, visibility, is_edited, created_at, user_id, entry_kind, local_photo_filename, media_url, profiles!tickle_entries_user_id_fkey(username, avatar_emoji, accent_theme, country, founding_member_number)';
+  'id, entry_date, text_content, like_count, tickle_nature, goal_id, tale_id, visibility, is_edited, created_at, user_id, entry_kind, local_photo_filename, media_url, profiles!tickle_entries_user_id_fkey(username, avatar_emoji, accent_theme, country, founding_member_number)';
 
 // Same idea as feed.js's own resolveLinkedPhotoUris -- resolves both
 // photo_only entries and entry_kind='text' entries with a Tickle-a-
@@ -110,6 +112,10 @@ export default function Calendar() {
 
   const [goals, setGoals] = useState([]);
   const [pickerEntryId, setPickerEntryId] = useState(null);
+  // TickleTales -- same three pieces of state as feed.js's own.
+  const [myTales, setMyTales] = useState([]);
+  const [taleBadges, setTaleBadges] = useState(new Map());
+  const [talePickerEntryId, setTalePickerEntryId] = useState(null);
   const [shareEntryId, setShareEntryId] = useState(null);
   const [awardEntryId, setAwardEntryId] = useState(null);
   const [favoritedIds, setFavoritedIds] = useState(new Set());
@@ -246,7 +252,13 @@ export default function Calendar() {
     if (!error) setAwardedTypes(new Map((data || []).map((a) => [a.entry_id, a.award_type])));
   }, [session]);
 
+  const loadMyTales = useCallback(async () => {
+    if (!session) return;
+    setMyTales(await fetchMyTales(session.user.id));
+  }, [session]);
+
   useFocusEffect(useCallback(() => { loadGoals(); }, [loadGoals]));
+  useFocusEffect(useCallback(() => { loadMyTales(); }, [loadMyTales]));
   useFocusEffect(useCallback(() => { loadFavorited(); }, [loadFavorited]));
   useFocusEffect(useCallback(() => { loadMonth(); }, [loadMonth]));
   useFocusEffect(useCallback(() => { loadDayDotsMonth(); }, [loadDayDotsMonth]));
@@ -324,6 +336,17 @@ export default function Calendar() {
         }
         setAwardedPublicTypes(map);
       });
+  }, [dayEntries]);
+
+  // Same entries-reactive shape as feed.js's own taleBadges effect.
+  useEffect(() => {
+    let cancelled = false;
+    fetchTaleBadges(dayEntries).then((badges) => {
+      if (!cancelled) setTaleBadges(badges);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [dayEntries]);
 
   function selectDate(dateStr) {
@@ -583,6 +606,13 @@ export default function Calendar() {
     await assignEntryGoal({ entryId, goalId, currentGoalId, setEntries: setDayEntries });
   }
 
+  async function assignTale(entryId, taleId) {
+    const currentTaleId = dayEntries.find((e) => e.id === entryId)?.tale_id ?? null;
+    setTalePickerEntryId(null);
+    const { error } = await assignEntryTale({ entryId, taleId, currentTaleId, setEntries: setDayEntries });
+    if (error) showAlert("Couldn't update the Tale", error.message);
+  }
+
   async function handleShare(entry, captionId) {
     setShareEntryId(null);
     const caption = SHARE_CAPTIONS.find((c) => c.id === captionId);
@@ -664,6 +694,7 @@ export default function Calendar() {
       : 'No tickles logged this day.';
 
   const pickerEntry = dayEntries.find((e) => e.id === pickerEntryId) || null;
+  const talePickerEntry = dayEntries.find((e) => e.id === talePickerEntryId) || null;
   const shareTargetEntry = dayEntries.find((e) => e.id === shareEntryId) || null;
   // AwardPickerModal needs the actual entry (not just its id) so its
   // wordweaver row can pick the right photo-only-aware phrase -- same
@@ -895,6 +926,7 @@ export default function Calendar() {
                   isFavorited={favoritedIds.has(item.id)}
                   isLiked={false}
                   taggedGoal={item.goal_id ? goalsById[item.goal_id] : null}
+                  taleBadge={taleBadges.get(item.id) || null}
                   hasLinkedPhoto={photoLinkedIds.has(item.id)}
                   photoUri={linkedPhotoUris.get(item.id) || null}
                   awardType={awardedTypes.get(item.id) || null}
@@ -902,6 +934,7 @@ export default function Calendar() {
                   onOpenPhoto={handleOpenPhoto}
                   onRelinkPhoto={handleRelinkPhoto}
                   onPickGoal={setPickerEntryId}
+                  onPickTale={setTalePickerEntryId}
                   onShare={() => (item.entry_kind === 'photo_only' ? handlePhotoOnlyShare(item) : setShareEntryId(item.id))}
                   onToggleFavorite={handleToggleFavorite}
                   onToggleVisibility={handleToggleVisibility}
@@ -921,6 +954,13 @@ export default function Calendar() {
         taggedGoal={pickerEntry?.goal_id ? goalsById[pickerEntry.goal_id] : null}
         onAssign={(goalId) => assignGoal(pickerEntry.id, goalId)}
         onDismiss={() => setPickerEntryId(null)}
+      />
+
+      <TaleTagModal
+        entry={talePickerEntry}
+        tales={myTales}
+        onAssign={(taleId) => assignTale(talePickerEntry.id, taleId)}
+        onDismiss={() => setTalePickerEntryId(null)}
       />
 
       <AwardPickerModal

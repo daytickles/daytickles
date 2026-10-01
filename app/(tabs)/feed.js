@@ -15,6 +15,8 @@ import { localDateString } from '../../lib/week';
 import { EVENING_HOUR, EVENING_MINUTE } from '../../lib/reminders';
 import { assignEntryGoal } from '../../lib/goalTagging';
 import GoalTagModal from '../../components/GoalTagModal';
+import { assignEntryTale, fetchMyTales, fetchTaleBadges } from '../../lib/tales';
+import TaleTagModal from '../../components/TaleTagModal';
 import AwardPickerModal from '../../components/AwardPickerModal';
 import ShareModal from '../../components/ShareModal';
 import PhotoEnlargeModal from '../../components/PhotoEnlargeModal';
@@ -75,7 +77,7 @@ function getEmptyText(tab, natureFilter, goalFilter) {
 }
 
 const ENTRY_SELECT =
-  'id, entry_date, text_content, like_count, tickle_nature, goal_id, visibility, is_edited, created_at, user_id, entry_kind, local_photo_filename, media_url, profiles!tickle_entries_user_id_fkey(username, avatar_emoji, accent_theme, country, founding_member_number)';
+  'id, entry_date, text_content, like_count, tickle_nature, goal_id, tale_id, visibility, is_edited, created_at, user_id, entry_kind, local_photo_filename, media_url, profiles!tickle_entries_user_id_fkey(username, avatar_emoji, accent_theme, country, founding_member_number)';
 
 // Mine shows entries fully untruncated (deliberate — people should be
 // able to read the complete text), so real cards range from one line to
@@ -209,6 +211,12 @@ export default function Feed() {
   const [loading, setLoading] = useState(true);
   const [goals, setGoals] = useState([]);
   const [pickerEntryId, setPickerEntryId] = useState(null);
+  // TickleTales (lib/tales.js) -- myTales is the viewer's own Tales for
+  // the "Add to a Tale…" picker; taleBadges is Map<entryId, badge> for
+  // every loaded entry that's tagged, from anyone.
+  const [myTales, setMyTales] = useState([]);
+  const [taleBadges, setTaleBadges] = useState(new Map());
+  const [talePickerEntryId, setTalePickerEntryId] = useState(null);
   const [shareEntryId, setShareEntryId] = useState(null);
   const [awardEntryId, setAwardEntryId] = useState(null);
   const [followedIds, setFollowedIds] = useState(new Set());
@@ -339,6 +347,34 @@ export default function Feed() {
       loadGoals();
     }, [loadGoals])
   );
+
+  // Same on-every-focus reasoning as loadGoals -- Manage Tales and the
+  // Tale view can both change these while this screen is backgrounded.
+  const loadMyTales = useCallback(async () => {
+    if (!session) return;
+    setMyTales(await fetchMyTales(session.user.id));
+  }, [session]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadMyTales();
+    }, [loadMyTales])
+  );
+
+  // Reacts to `entries` rather than living inside loadFeed (unlike
+  // fetchAwardedEntryTypes) on purpose: chapter numbers depend on
+  // visibility and tale_id, and both change through optimistic
+  // setEntries calls (Ripple/Un-Ripple, Tale tagging) that never go
+  // back through loadFeed. Costs nothing when no loaded entry is tagged.
+  useEffect(() => {
+    let cancelled = false;
+    fetchTaleBadges(entries).then((badges) => {
+      if (!cancelled) setTaleBadges(badges);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [entries]);
 
   // Local-only Pin Board links (see lib/pinBoardDb.js) — loaded the same
   // way as followedIds/favoritedIds/likedIds above: independent of tab,
@@ -832,6 +868,13 @@ export default function Feed() {
     await assignEntryGoal({ entryId, goalId, currentGoalId, setEntries });
   }
 
+  async function assignTale(entryId, taleId) {
+    const currentTaleId = entries.find((e) => e.id === entryId)?.tale_id ?? null;
+    setTalePickerEntryId(null);
+    const { error } = await assignEntryTale({ entryId, taleId, currentTaleId, setEntries });
+    if (error) showAlert("Couldn't update the Tale", error.message);
+  }
+
   async function handleShare(entry, captionId) {
     setShareEntryId(null);
     const caption = SHARE_CAPTIONS.find((c) => c.id === captionId);
@@ -1059,6 +1102,7 @@ export default function Feed() {
         isFavorited={favoritedIds.has(item.id)}
         isLiked={likedIds.has(item.id)}
         taggedGoal={item.goal_id ? goalsById[item.goal_id] : null}
+        taleBadge={taleBadges.get(item.id) || null}
         hasLinkedPhoto={photoLinkedIds.has(item.id)}
         photoUri={linkedPhotoUris.get(item.id) || null}
         awardType={awardedTypes.get(item.id) || null}
@@ -1070,6 +1114,7 @@ export default function Feed() {
         }}
         onToggleFollow={handleToggleFollow}
         onPickGoal={setPickerEntryId}
+        onPickTale={setTalePickerEntryId}
         onShare={() => (item.entry_kind === 'photo_only' ? handlePhotoOnlyShare(item) : setShareEntryId(item.id))}
         onToggleFavorite={handleToggleFavorite}
         onToggleVisibility={handleToggleVisibility}
@@ -1119,6 +1164,7 @@ export default function Feed() {
   }
 
   const pickerEntry = entries.find((e) => e.id === pickerEntryId) || null;
+  const talePickerEntry = entries.find((e) => e.id === talePickerEntryId) || null;
   const shareTargetEntry = entries.find((e) => e.id === shareEntryId) || null;
   // AwardPickerModal needs the actual entry (not just its id) so its
   // wordweaver row can pick the right photo-only-aware phrase -- same
@@ -1322,6 +1368,13 @@ export default function Feed() {
       taggedGoal={pickerEntry?.goal_id ? goalsById[pickerEntry.goal_id] : null}
       onAssign={(goalId) => assignGoal(pickerEntry.id, goalId)}
       onDismiss={() => setPickerEntryId(null)}
+    />
+
+    <TaleTagModal
+      entry={talePickerEntry}
+      tales={myTales}
+      onAssign={(taleId) => assignTale(talePickerEntry.id, taleId)}
+      onDismiss={() => setTalePickerEntryId(null)}
     />
 
     <AwardPickerModal

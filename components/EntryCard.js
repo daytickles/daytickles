@@ -48,6 +48,7 @@ export default function EntryCard({
   isFavorited,
   isLiked,
   taggedGoal,
+  taleBadge,
   hasLinkedPhoto,
   photoUri,
   awardType,
@@ -55,6 +56,7 @@ export default function EntryCard({
   onLayout,
   onToggleFollow,
   onPickGoal,
+  onPickTale,
   onShare,
   onToggleFavorite,
   onToggleVisibility,
@@ -364,6 +366,28 @@ export default function EntryCard({
               )}
             </View>
           </View>
+          {/* TickleTale chip (migration 0067) -- its own full-width
+              line rather than another icon in headerRow above, which
+              is already down to ~4dp spare on Un-Ripple rows. Shown to
+              everyone who can see the entry; taleBadge comes from
+              lib/tales.js's fetchTaleBadges. chapterNumber is null only
+              for the owner's own tagged-but-private entry (nobody else
+              can see that row), which isn't a numbered chapter until
+              it's Rippled again. */}
+          {!!taleBadge && (
+            <TouchableOpacity
+              onPress={() => router.push({ pathname: '/tale', params: { id: taleBadge.taleId } })}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              style={styles.taleChip}
+            >
+              <Ionicons name="book-outline" size={12} color={C.rust} />
+              <Text style={styles.taleChipTitle} numberOfLines={1}>{taleBadge.title}</Text>
+              <Text style={styles.taleChipMeta}>
+                {taleBadge.chapterNumber != null ? `· Ch. ${taleBadge.chapterNumber}` : '· not Rippled'}
+              </Text>
+              {taleBadge.completed && <Ionicons name="checkmark-circle" size={12} color={C.subtext} />}
+            </TouchableOpacity>
+          )}
           {isPhotoOnly ? (
             // The Polaroid itself -- tilted, drop-shadowed, its own
             // white frame (see polaroidPhotoCard below), deliberately
@@ -499,6 +523,23 @@ export default function EntryCard({
               >
                 <Ionicons name="pencil-outline" size={18} color={C.text} />
                 <Text style={styles.menuRowLabel}>Edit</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Tagging only applies to Ripples, but an already-tagged
+                entry keeps its tag across Un-Ripple, so it stays
+                reachable then too -- TaleTagModal itself only offers
+                "Remove" for a private entry. */}
+            {(item.visibility === 'public' || !!item.tale_id) && (
+              <TouchableOpacity
+                style={styles.menuRow}
+                onPress={() => {
+                  setMenuOpen(false);
+                  onPickTale?.(item.id);
+                }}
+              >
+                <Ionicons name="book-outline" size={18} color={C.text} />
+                <Text style={styles.menuRowLabel}>{item.tale_id ? 'Change Tale…' : 'Add to a Tale…'}</Text>
               </TouchableOpacity>
             )}
 
@@ -643,6 +684,16 @@ const styles = StyleSheet.create({
   menuRowLabel: { fontSize: 15, color: C.text },
   menuRowLabelDestructive: { color: C.rust },
   entryText: { fontSize: 15, color: C.text, lineHeight: 20 },
+  // alignSelf flex-start so the chip hugs its content instead of
+  // stretching the full row; the title is the only part that shrinks,
+  // so a long Tale title truncates without ever clipping "· Ch. N".
+  taleChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', maxWidth: '100%',
+    paddingVertical: 3, paddingHorizontal: 8, borderRadius: 10, marginBottom: 6,
+    backgroundColor: C.sparkleBg, borderWidth: 1, borderColor: C.border,
+  },
+  taleChipTitle: { fontSize: 11, fontWeight: '600', color: C.rustDark, flexShrink: 1 },
+  taleChipMeta: { fontSize: 11, fontWeight: '600', color: C.subtext },
   // borderRadius matches entryCard's own (16) per spec -- "rounded
   // corners matching the card's own radius".
   linkedPhotoStrip: {
