@@ -10,27 +10,27 @@ import Button from './Button';
 const STEPS = [
   {
     title: 'Home & Your Vibes',
-    body: "Every Tickle you write gets a Vibe — Made me smile, Paying forward, or For me. Choose one when you save your entry.\n\nThe three Vibe cards on Home show your activity by week, month, and all-time. You can also set daily and weekly targets for any Vibe in Settings — each has its own lightbulb on the Vibe card, lighting up once you hit that target for the day or the week. It is completely optional — a little extra motivation if you like having something to aim for.",
+    body: "With every Tickle you write, you can add one of three Vibes — Made me smile, Paying forward, or For me — or add it to My Day instead.\n\nThe three Vibe cards on Home show your activity by week, month, and all-time. You can also set daily and weekly targets for any Vibe in Settings — each has its own lightbulb on the Vibe card, lighting up once you hit that target for the day or the week. It is completely optional — a little extra motivation if you like having something to aim for.\n\nBelow the Vibe cards, the Mojo Shared pills track your polaroid shares and Ripples the same way — this week, this month, and all-time. Tap a pill to see exactly what it's counting.",
   },
   {
     title: 'New Tickle',
-    body: "Tap New Tickle to capture something from your day. Write what's on your mind, then pick your Vibe — Made me smile, Paying forward, or For me. Its icon becomes that entry's identifier everywhere it shows up: Tickle Stash, Calendar, and Home.\n\nYou decide whether your Tickle stays private or is a post on Rippled.\n\nMy Day is available in Settings if you want more space for personal, in-depth writing. You will find it under 'Mine' on the Tickle Stash.",
+    body: "Tap New Tickle to capture something from your day. Write what's on your mind, then pick a Vibe — Made me smile, Paying forward, or For me — or choose My Day if you want more space for personal, in-depth writing. Its icon becomes that entry's identifier everywhere it shows up: Tickle Stash, Calendar, and Home.\n\nYou decide whether your Tickle stays private or is a post on Rippled.\n\nMy Day entries live under 'Mine' on the Tickle Stash.",
   },
   {
     title: 'Tickle Stash',
-    body: "The Tickle Stash has four tabs: Mine, Fav's, Following, and Rippled.\n\nLike a Tickle with the thumbs-up, or save it to your favourites with the star.\n\nOnce you've favourited a Tickle, you can give it recognition with a High Five — beautifully expressed, touching or heartfelt, or witty, amusing or entertaining.\n\nUse the three-dot menu on your own Tickles to Edit, Make public, or Delete.",
+    body: "The Tickle Stash has four tabs: Mine, Fav's, Following, and Rippled. Under Mine, a row of Goal Pills lets you filter at a glance — tap one to see every entry tagged to that Goal.\n\nLike a Tickle with the thumbs-up, or save it to your favourites with the star.\n\nOnce you've favourited a Tickle, you can give it recognition with a High Five — beautifully expressed, touching or heartfelt, witty, amusing or entertaining, or just LOL.\n\nUse the three-dot menu on your own Tickles to Edit or Delete. To make a Tickle public, use the Ripple / Un-Ripple label on the card instead.",
   },
   {
     title: 'Calendar',
-    body: "Calendar marks every day you've written a Tickle with its Vibe icon, so you can see your rhythm at a glance. Days with a Goal-tagged entry also show a colored dot for that Goal. Tap any day to see what you wrote.",
+    body: "Calendar marks every day you've written a Tickle with its Vibe icon, so you can see your rhythm at a glance. Days with a Goal-tagged entry also show a colored dot for that Goal. Tap any day to see what you wrote.\n\nSwitch to the Day Dots tab to see your daily check-ins over time — how was your day, at a glance, going back through your history.",
   },
   {
     title: 'Tickle Pics',
-    body: 'Tickle Pics is where your meaningful photos live. Pin a photo to an entry, or share it instantly as a polaroid tagged as either "This made me smile today" or "I saw this and thought of you."\n\nYour privacy comes first. Photos taken through the app are kept only on your device — they are never uploaded to or stored in our database. To keep a photo outside the app, simply download it to your device.',
+    body: 'Tickle Pics is where your meaningful photos live. Pin a photo to an entry, or share it instantly as a polaroid tagged as either "This made me smile today" or "I saw this and thought of you." Tap a Vibe icon on any photo to instantly create a private Tickle from it — no writing required.\n\nYour privacy comes first. Photos taken through the app are kept only on your device — they are never uploaded to or stored in our database. Use Backup & Restore Photos in Settings to keep a copy safe, or bring your photos along when you switch devices.',
   },
   {
     title: 'Goals',
-    body: "Manage your Goals from Settings. Use them for anything you're focusing on, then tag Tickles to a Goal by tapping the empty circle on the entry. This is an easy, private way to record your progress. Goals can be archived or deleted whenever you like.",
+    body: "Manage your Goals from Settings. Use them for anything you're focusing on, then tag Tickles to a Goal by tapping the empty circle on the entry. This is an easy, private way to record your progress. Mark a Goal as Achieved or delete it whenever you like.\n\nToggle on 'Earns tokens' for any Goal to collect a token each time you tag a Tickle to it. Spend tokens on rewards you set up yourself, from Manage Reward List in Settings.",
   },
   {
     title: 'Awareness Cue',
@@ -38,11 +38,11 @@ const STEPS = [
   },
   {
     title: 'Moji Quest',
-    body: "Tap the crown to see your Moji Quest invite. Opting in starts your 6-month Quest — the clock doesn't start until you do, and missing the opt-in window closes the opportunity for good. Complete the Quest and you'll receive lifetime membership and your own unique Moji ID.",
+    body: "Tap the crown — in the top bar on any tab — to see your Moji Quest invite. Opting in starts your 6-month Quest — the clock doesn't start until you do, and missing the opt-in window closes the opportunity for good. Complete the Quest and you'll become a Mojician: lifetime membership and your own unique Moji ID.",
   },
   {
     title: 'Weekly Summary',
-    body: "Tap the chart icon on Home to open your Weekly Summary — a look back at your week, including your most-liked Tickle, Weekly Vibes, Goals you've achieved, connections you've made, High Fives given and received, and your Tickle Pics activity.",
+    body: "Tap the chart icon — in the top bar on any tab — to open your Weekly Summary: a look back at your week, including your most-liked Tickle, Weekly Vibes, Goals you've achieved, connections you've made, High Fives given and received, and your Tickle Pics activity.",
   },
 ];
 
