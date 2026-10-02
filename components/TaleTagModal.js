@@ -23,7 +23,7 @@ export default function TaleTagModal({ entry, tales, onAssign, onDismiss }) {
     <Modal visible={!!entry} transparent animationType="fade" onRequestClose={onDismiss}>
       <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={onDismiss}>
         <TouchableOpacity activeOpacity={1} style={styles.pickerSheet} onPress={() => {}}>
-          <Text style={styles.pickerTitle}>Add to a Tale</Text>
+          <Text style={styles.pickerTitle}>Add to a Multickle</Text>
 
           {taggedTale?.completed_at && (
             <View style={[styles.pickerRow, styles.pickerRowReadOnly]}>
@@ -50,19 +50,19 @@ export default function TaleTagModal({ entry, tales, onAssign, onDismiss }) {
                 );
               })}
               {ongoingTales.length === 0 && (
-                <Text style={styles.pickerEmpty}>No ongoing Tales yet.</Text>
+                <Text style={styles.pickerEmpty}>No ongoing Multickles yet.</Text>
               )}
             </>
           ) : (
             <Text style={styles.pickerEmpty}>
-              Only Rippled Tickles can be Tics. Ripple this one to add it to a Tale.
+              Only Rippled Tickles can be Tics. Ripple this one to add it to a Multickle.
             </Text>
           )}
 
           {!!entry?.tale_id && (
             <TouchableOpacity style={styles.pickerRow} onPress={() => onAssign(null)}>
               <Ionicons name="close-circle-outline" size={16} color={C.subtext} />
-              <Text style={styles.pickerRowLabel}>Remove from Tale</Text>
+              <Text style={styles.pickerRowLabel}>Remove from Multickle</Text>
             </TouchableOpacity>
           )}
 
@@ -74,7 +74,7 @@ export default function TaleTagModal({ entry, tales, onAssign, onDismiss }) {
             }}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Text style={styles.manageLinkText}>Start or manage Tales ›</Text>
+            <Text style={styles.manageLinkText}>Start or manage Multickles ›</Text>
           </TouchableOpacity>
         </TouchableOpacity>
       </TouchableOpacity>

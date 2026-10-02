@@ -770,7 +770,7 @@ export default function Settings() {
 
         <Button title="Manage Goals" onPress={() => router.push('/goals')} variant="secondary" />
         <View style={styles.spacer} />
-        <Button title="Manage Tales" onPress={() => router.push('/tales')} variant="secondary" />
+        <Button title="Manage Multickles" onPress={() => router.push('/tales')} variant="secondary" />
       </View>
 
       <View style={styles.card}>

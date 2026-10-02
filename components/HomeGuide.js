@@ -18,11 +18,11 @@ const STEPS = [
   },
   {
     title: 'Tickle Stash',
-    body: "The Tickle Stash has four tabs: Mine, Fav's, Following, and Rippled. Under Mine, a row of Goal Pills lets you filter at a glance — tap one to see every entry tagged to that Goal.\n\nLike a Tickle with the thumbs-up, or save it to your favourites with the star.\n\nOnce you've favourited a Tickle, you can give it recognition with a High Five — beautifully expressed, touching or heartfelt, witty, amusing or entertaining, or just LOL.\n\nUse the three-dot menu on your own Tickles for Edit, Share or Delete, and — once a Tickle is Rippled — to add it to a Tale. To make a Tickle public, use the Ripple / Un-Ripple label on the card instead.",
+    body: "The Tickle Stash has four tabs: Mine, Fav's, Following, and Rippled. Under Mine, a row of Goal Pills lets you filter at a glance — tap one to see every entry tagged to that Goal.\n\nLike a Tickle with the thumbs-up, or save it to your favourites with the star.\n\nOnce you've favourited a Tickle, you can give it recognition with a High Five — beautifully expressed, touching or heartfelt, witty, amusing or entertaining, or just LOL.\n\nUse the three-dot menu on your own Tickles for Edit, Share or Delete, and — once a Tickle is Rippled — to add it to a Multickle. To make a Tickle public, use the Ripple / Un-Ripple label on the card instead.",
   },
   {
-    title: 'Tales',
-    body: "Turn a string of Rippled Tickles into a Tale — a named, ongoing story other users can recognise and follow as it unfolds. Start one from Manage Tales in Settings, then add Tics by tagging any Rippled Tickle to it from its three-dot menu.\n\nEach Tic carries a small Tale chip, on Tickle Stash and Calendar, showing its place in the story. Tap it to open the Tale and see every Tic in order, plus a Follow button of its own — separate from following the author.\n\nMark a Tale Complete once its story is finished. No new Tics can be added after that, but everything already there stays exactly as it is.",
+    title: 'Multickles',
+    body: "Turn a string of Rippled Tickles into a Multickle — a named, ongoing story other users can recognise and follow as it unfolds. Start one from Manage Multickles in Settings, then add Tics by tagging any Rippled Tickle to it from its three-dot menu.\n\nEach Tic carries a small Multickle chip, on Tickle Stash and Calendar, showing its place in the story. Tap it to open the Multickle and see every Tic in order, plus a Follow button of its own — separate from following the author.\n\nMark a Multickle Complete once its story is finished. No new Tics can be added after that, but everything already there stays exactly as it is.",
   },
   {
     title: 'Calendar',

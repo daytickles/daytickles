@@ -539,7 +539,7 @@ export default function EntryCard({
                 }}
               >
                 <Ionicons name="book-outline" size={18} color={C.text} />
-                <Text style={styles.menuRowLabel}>{item.tale_id ? 'Change Tale…' : 'Add to a Tale…'}</Text>
+                <Text style={styles.menuRowLabel}>{item.tale_id ? 'Change Multickle…' : 'Add to a Multickle…'}</Text>
               </TouchableOpacity>
             )}
 

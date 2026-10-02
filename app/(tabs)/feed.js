@@ -872,7 +872,7 @@ export default function Feed() {
     const currentTaleId = entries.find((e) => e.id === entryId)?.tale_id ?? null;
     setTalePickerEntryId(null);
     const { error } = await assignEntryTale({ entryId, taleId, currentTaleId, setEntries });
-    if (error) showAlert("Couldn't update the Tale", error.message);
+    if (error) showAlert("Couldn't update the Multickle", error.message);
   }
 
   async function handleShare(entry, captionId) {

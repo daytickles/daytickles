@@ -49,7 +49,7 @@ function notificationText(n) {
     case 'tale_chapter':
       return n.tales?.title
         ? `${actorName} added a new Tic to ${n.tales.title}`
-        : `${actorName} added a new Tic to a Tale you follow`;
+        : `${actorName} added a new Tic to a Multickle you follow`;
     case 'streak_milestone':
       return 'You hit a streak milestone! 🔥';
     default:

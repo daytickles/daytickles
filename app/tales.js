@@ -49,7 +49,7 @@ export default function Tales() {
 
   async function handleAdd() {
     if (!title.trim()) {
-      setStatus('Give your Tale a title.');
+      setStatus('Give your Multickle a title.');
       return;
     }
 
@@ -103,8 +103,8 @@ export default function Tales() {
 
   function confirmDelete(tale) {
     showAlert(
-      'Delete Tale?',
-      `"${tale.title}" will be removed, along with its followers. Its Tics aren't deleted — they stay as regular Ripples, just no longer part of a Tale.`,
+      'Delete Multickle?',
+      `"${tale.title}" will be removed, along with its followers. Its Tics aren't deleted — they stay as regular Ripples, just no longer part of a Multickle.`,
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Delete', style: 'destructive', onPress: () => handleDelete(tale.id) },
@@ -173,18 +173,19 @@ export default function Tales() {
         <Text style={[styles.backLink, (saving || mutating) && styles.linkDisabled]}>‹ Back</Text>
       </TouchableOpacity>
 
-      <Text style={styles.title}>Tell a Tale</Text>
+      <Text style={styles.title}>Multickle Moments</Text>
       <Text style={styles.description}>
-        A Tale is an experience that's bigger than a single Tickle — a string of moments, a weekend away, a
-        special occasion, an adventure, or simply a collection of moments that belong together. Start one
-        here, then add new Tics to it as they happen by going to the ⋯ of the Tickle and picking the Tale
-        to attach it to. Other users can then follow your Tale to see it unfold.
+        A Multickle is an experience that's bigger than a single Tickle — a string of moments, a weekend
+        away, a special occasion, an adventure, or simply a collection of moments that belong together. Give
+        your Multi Tickle journey a name here, then tag Tickles to it by going to ⋯ on the Tickle and
+        selecting the Multickle tag you want to attach it to. Other users can then follow your Multickle to
+        see it unfold.
       </Text>
 
       {ongoingTales.map((item) => renderTale(item, false))}
 
       {!loading && tales.length === 0 && (
-        <Text style={styles.empty}>No Tales yet — start one below.</Text>
+        <Text style={styles.empty}>No Multickles yet — start one below.</Text>
       )}
 
       <View style={styles.form}>
@@ -206,7 +207,7 @@ export default function Tales() {
           multiline
         />
         <Button
-          title={saving ? 'Starting...' : 'Start Tale'}
+          title={saving ? 'Starting...' : 'Start Multickle'}
           onPress={handleAdd}
           disabled={saving}
           variant="secondary"

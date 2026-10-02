@@ -154,7 +154,7 @@ export default function Tale() {
       .update({ completed_at: new Date().toISOString() })
       .eq('id', taleId);
     setMutating(false);
-    if (error) showAlert("Couldn't complete this Tale", error.message);
+    if (error) showAlert("Couldn't complete this Multickle", error.message);
     else await loadTale();
   }
 
@@ -210,7 +210,7 @@ export default function Tale() {
         {loading && !tale && <ActivityIndicator color={C.rust} style={styles.loader} />}
 
         {!loading && !tale && (
-          <Text style={styles.emptyText}>This Tale isn't available anymore.</Text>
+          <Text style={styles.emptyText}>This Multickle isn't available anymore.</Text>
         )}
 
         {!!tale && (
@@ -261,7 +261,7 @@ export default function Tale() {
                 onPress={handleToggleFollow}
               >
                 <Text style={[styles.actionButtonText, isFollowing && styles.actionButtonTextActive]}>
-                  {isFollowing ? 'Following this Tale' : 'Follow this Tale'}
+                  {isFollowing ? 'Following this Multickle' : 'Follow this Multickle'}
                 </Text>
               </TouchableOpacity>
             )}

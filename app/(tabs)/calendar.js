@@ -610,7 +610,7 @@ export default function Calendar() {
     const currentTaleId = dayEntries.find((e) => e.id === entryId)?.tale_id ?? null;
     setTalePickerEntryId(null);
     const { error } = await assignEntryTale({ entryId, taleId, currentTaleId, setEntries: setDayEntries });
-    if (error) showAlert("Couldn't update the Tale", error.message);
+    if (error) showAlert("Couldn't update the Multickle", error.message);
   }
 
   async function handleShare(entry, captionId) {
