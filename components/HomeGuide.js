@@ -22,7 +22,7 @@ const STEPS = [
   },
   {
     title: 'Tales',
-    body: "Turn a string of Rippled Tickles into a Tale — a named, ongoing story other users can recognise and follow as it unfolds. Start one from Manage Tales in Settings, then add chapters by tagging any Rippled Tickle to it from its three-dot menu.\n\nEach chapter carries a small Tale chip, on Tickle Stash and Calendar, showing its place in the story. Tap it to open the Tale and see every chapter in order, plus a Follow button of its own — separate from following the author.\n\nMark a Tale Complete once its story is finished. No new chapters can be added after that, but everything already there stays exactly as it is.",
+    body: "Turn a string of Rippled Tickles into a Tale — a named, ongoing story other users can recognise and follow as it unfolds. Start one from Manage Tales in Settings, then add Tics by tagging any Rippled Tickle to it from its three-dot menu.\n\nEach Tic carries a small Tale chip, on Tickle Stash and Calendar, showing its place in the story. Tap it to open the Tale and see every Tic in order, plus a Follow button of its own — separate from following the author.\n\nMark a Tale Complete once its story is finished. No new Tics can be added after that, but everything already there stays exactly as it is.",
   },
   {
     title: 'Calendar',

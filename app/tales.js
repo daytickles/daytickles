@@ -77,7 +77,7 @@ export default function Tales() {
   function confirmComplete(tale) {
     showAlert(
       'Mark as complete?',
-      `"${tale.title}" will show as Complete to everyone following it. Its chapters stay exactly as they are, but no new chapters can be added.`,
+      `"${tale.title}" will show as Complete to everyone following it. Its Tics stay exactly as they are, but no new Tics can be added.`,
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Complete', onPress: () => handleComplete(tale.id) },
@@ -104,7 +104,7 @@ export default function Tales() {
   function confirmDelete(tale) {
     showAlert(
       'Delete Tale?',
-      `"${tale.title}" will be removed, along with its followers. Its chapters aren't deleted — they stay as regular Ripples, just no longer part of a Tale.`,
+      `"${tale.title}" will be removed, along with its followers. Its Tics aren't deleted — they stay as regular Ripples, just no longer part of a Tale.`,
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Delete', style: 'destructive', onPress: () => handleDelete(tale.id) },
@@ -173,10 +173,11 @@ export default function Tales() {
         <Text style={[styles.backLink, (saving || mutating) && styles.linkDisabled]}>‹ Back</Text>
       </TouchableOpacity>
 
-      <Text style={styles.title}>My Tales</Text>
+      <Text style={styles.title}>Tell a Tale</Text>
       <Text style={styles.description}>
-        A Tale is a story you tell over several Ripples. Start one here, then add Rippled Tickles to it
-        from their ⋯ menu — others can follow the Tale and read its chapters in order.
+        A Tale is an experience that's bigger than a single Tickle — a string of moments, a weekend away, a
+        special occasion, an adventure, or simply a collection of moments that belong together. Start one
+        here, then add new Tics to it as they happen.
       </Text>
 
       {ongoingTales.map((item) => renderTale(item, false))}

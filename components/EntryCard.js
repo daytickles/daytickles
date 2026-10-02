@@ -383,7 +383,7 @@ export default function EntryCard({
               <Ionicons name="book-outline" size={12} color={C.rust} />
               <Text style={styles.taleChipTitle} numberOfLines={1}>{taleBadge.title}</Text>
               <Text style={styles.taleChipMeta}>
-                {taleBadge.chapterNumber != null ? `· Ch. ${taleBadge.chapterNumber}` : '· not Rippled'}
+                {taleBadge.chapterNumber != null ? `· Tic ${taleBadge.chapterNumber}` : '· not Rippled'}
               </Text>
               {taleBadge.completed && <Ionicons name="checkmark-circle" size={12} color={C.subtext} />}
             </TouchableOpacity>
@@ -686,7 +686,7 @@ const styles = StyleSheet.create({
   entryText: { fontSize: 15, color: C.text, lineHeight: 20 },
   // alignSelf flex-start so the chip hugs its content instead of
   // stretching the full row; the title is the only part that shrinks,
-  // so a long Tale title truncates without ever clipping "· Ch. N".
+  // so a long Tale title truncates without ever clipping "· Tic N".
   taleChip: {
     flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', maxWidth: '100%',
     paddingVertical: 3, paddingHorizontal: 8, borderRadius: 10, marginBottom: 6,

@@ -139,7 +139,7 @@ export default function Tale() {
   function confirmComplete() {
     showAlert(
       'Mark as complete?',
-      `"${tale.title}" will show as Complete to everyone following it. Its chapters stay exactly as they are, but no new chapters can be added.`,
+      `"${tale.title}" will show as Complete to everyone following it. Its Tics stay exactly as they are, but no new Tics can be added.`,
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Complete', onPress: handleComplete },
@@ -172,7 +172,7 @@ export default function Tale() {
       <View key={c.id} style={[styles.chapterCard, c.chapterNumber == null && styles.chapterCardHidden]}>
         <View style={styles.chapterHeader}>
           <Text style={styles.chapterLabel}>
-            {c.chapterNumber != null ? `Chapter ${c.chapterNumber}` : 'Not Rippled — only you can see this'}
+            {c.chapterNumber != null ? `Tic ${c.chapterNumber}` : 'Not Rippled — only you can see this'}
           </Text>
           <Text style={styles.chapterDate}>{formatEntryDate(c.entry_date)}</Text>
         </View>
@@ -238,7 +238,7 @@ export default function Tale() {
                 </Text>
               </View>
               <Text style={styles.statusMeta}>
-                {n} chapter{n === 1 ? '' : 's'} · {followerCount} follower{followerCount === 1 ? '' : 's'}
+                {n} Tic{n === 1 ? '' : 's'} · {followerCount} follower{followerCount === 1 ? '' : 's'}
               </Text>
             </View>
 
@@ -271,8 +271,8 @@ export default function Tale() {
             {!loading && numbered.length === 0 && (
               <Text style={styles.emptyText}>
                 {isOwner
-                  ? 'No chapters yet — add a Rippled Tickle from its ⋯ menu.'
-                  : 'No chapters yet.'}
+                  ? 'No Tics yet — add a Rippled Tickle from its ⋯ menu.'
+                  : 'No Tics yet.'}
               </Text>
             )}
           </>

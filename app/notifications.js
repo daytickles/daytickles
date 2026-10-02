@@ -48,8 +48,8 @@ function notificationText(n) {
     // handle_tale_chapter_visible trigger when a chapter goes live.
     case 'tale_chapter':
       return n.tales?.title
-        ? `${actorName} added a new chapter to ${n.tales.title}`
-        : `${actorName} added a new chapter to a Tale you follow`;
+        ? `${actorName} added a new Tic to ${n.tales.title}`
+        : `${actorName} added a new Tic to a Tale you follow`;
     case 'streak_milestone':
       return 'You hit a streak milestone! 🔥';
     default:
