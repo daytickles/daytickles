@@ -4,8 +4,14 @@
     "slug": "daytickles",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "scheme": "daytickles",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F9CB42"
+    },
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -14,6 +20,10 @@
     },
     "android": {
       "package": "com.daytickles.daytickles",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#F9CB42"
+      },
       "googleServicesFile": "./google-services.json",
       "blockedPermissions": [
         "android.permission.READ_MEDIA_IMAGES",
@@ -29,6 +39,7 @@
       [
         "expo-notifications",
         {
+          "icon": "./assets/notification-icon.png",
           "sounds": ["./assets/sounds/psst.wav"]
         }
       ],
