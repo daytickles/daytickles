@@ -2,6 +2,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { C } from '../lib/theme';
+import { taleIconName } from '../lib/tales';
 
 // Same sheet as GoalTagModal, for TickleTales (lib/tales.js). `tales` is
 // the owner's full list; only Ongoing ones are offered as a new tag
@@ -10,10 +11,23 @@ import { C } from '../lib/theme';
 // is shown read-only above the list when it's Completed, same as an
 // achieved goal in GoalTagModal.
 //
+// Each row shows that Multickle's own icon (tales.icon, 0069) -- the
+// filled variant marks the entry's current one, the outline the rest.
+//
 // Only a public entry can be tagged. The ⋯ menu still opens this for a
 // private entry that's already tagged (it stays tagged across
 // Un-Ripple), so the owner can remove the tag -- the list itself is
 // replaced by a one-line explanation in that case.
+// Every TALE_ICONS name is "<x>-outline" and Ionicons ships a filled
+// "<x>" for each.
+function taleGlyph(tale) {
+  return taleIconName(tale.icon);
+}
+
+function filledIcon(name) {
+  return name.replace(/-outline$/, '');
+}
+
 export default function TaleTagModal({ entry, tales, onAssign, onDismiss }) {
   const isPublic = entry?.visibility === 'public';
   const taggedTale = entry?.tale_id ? tales.find((t) => t.id === entry.tale_id) : null;
@@ -27,7 +41,7 @@ export default function TaleTagModal({ entry, tales, onAssign, onDismiss }) {
 
           {taggedTale?.completed_at && (
             <View style={[styles.pickerRow, styles.pickerRowReadOnly]}>
-              <Ionicons name="book" size={16} color={C.faint} />
+              <Ionicons name={filledIcon(taleGlyph(taggedTale))} size={16} color={C.faint} />
               <Text style={[styles.pickerRowLabel, styles.pickerRowLabelMuted]} numberOfLines={1}>
                 {taggedTale.title} (complete)
               </Text>
@@ -44,7 +58,7 @@ export default function TaleTagModal({ entry, tales, onAssign, onDismiss }) {
                     style={[styles.pickerRow, isCurrent && styles.pickerRowCurrent]}
                     onPress={() => onAssign(t.id)}
                   >
-                    <Ionicons name={isCurrent ? 'book' : 'book-outline'} size={16} color={C.rust} />
+                    <Ionicons name={isCurrent ? filledIcon(taleGlyph(t)) : taleGlyph(t)} size={16} color={C.rust} />
                     <Text style={styles.pickerRowLabel} numberOfLines={1}>{t.title}</Text>
                   </TouchableOpacity>
                 );

@@ -10,7 +10,7 @@ import { supabase } from '../lib/supabase';
 import { C, NATURE_LABELS, withAlpha } from '../lib/theme';
 import { showAlert } from '../lib/themedAlert';
 import { flagEmoji } from '../lib/country';
-import { compareChapters } from '../lib/tales';
+import { compareChapters, taleIconName } from '../lib/tales';
 import { initPinBoardDb, getPhotosForEntries } from '../lib/pinBoardDb';
 import InitialsAvatar from '../components/InitialsAvatar';
 import FoundingMemberBadge from '../components/FoundingMemberBadge';
@@ -64,7 +64,7 @@ export default function Tale() {
         .from('tales')
         // Explicit FK hint: tale_follows links tales and profiles too, so
         // a bare profiles(...) embed would be ambiguous to PostgREST.
-        .select('id, user_id, title, blurb, completed_at, created_at, profiles!tales_user_id_fkey(username, accent_theme, country, founding_member_number)')
+        .select('id, user_id, title, blurb, icon, completed_at, created_at, profiles!tales_user_id_fkey(username, accent_theme, country, founding_member_number)')
         .eq('id', taleId)
         .maybeSingle(),
       supabase
@@ -216,7 +216,7 @@ export default function Tale() {
         {!!tale && (
           <>
             <View style={styles.titleRow}>
-              <Ionicons name="book-outline" size={20} color={C.rust} />
+              <Ionicons name={taleIconName(tale.icon)} size={20} color={C.rust} />
               <Text style={styles.title}>{tale.title}</Text>
             </View>
 

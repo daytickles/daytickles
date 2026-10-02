@@ -380,7 +380,7 @@ export default function EntryCard({
               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
               style={styles.taleChip}
             >
-              <Ionicons name="book-outline" size={12} color={C.rust} />
+              <Ionicons name={taleBadge.icon} size={12} color={C.rust} />
               <Text style={styles.taleChipTitle} numberOfLines={1}>{taleBadge.title}</Text>
               <Text style={styles.taleChipMeta}>
                 {taleBadge.chapterNumber != null ? `· Tic ${taleBadge.chapterNumber}` : '· not Rippled'}
@@ -538,7 +538,13 @@ export default function EntryCard({
                   onPickTale?.(item.id);
                 }}
               >
-                <Ionicons name="book-outline" size={18} color={C.text} />
+                {/* Change shows the tagged Multickle's own icon; Add has
+                    no Multickle yet, so it keeps the generic book. */}
+                <Ionicons
+                  name={item.tale_id && taleBadge ? taleBadge.icon : 'book-outline'}
+                  size={18}
+                  color={C.text}
+                />
                 <Text style={styles.menuRowLabel}>{item.tale_id ? 'Change Multickle…' : 'Add to a Multickle…'}</Text>
               </TouchableOpacity>
             )}

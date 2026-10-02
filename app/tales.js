@@ -9,22 +9,27 @@ import { router, useFocusEffect } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { C } from '../lib/theme';
-import { fetchMyTales, TALE_TITLE_MAX, TALE_BLURB_MAX } from '../lib/tales';
+import {
+  fetchMyTales, TALE_TITLE_MAX, TALE_BLURB_MAX, TALE_ICONS, DEFAULT_TALE_ICON, taleIconName,
+} from '../lib/tales';
+import { alertCapBlocked, capFor } from '../lib/freemiumCaps';
 import Button from '../components/Button';
 import WallpaperBackground from '../components/WallpaperBackground';
 
 // Manage Tales -- the TickleTale counterpart to goals.js (migration
 // 0067). Same create -> list -> complete/delete shape, minus the colour
-// palette, the cap, and the token switch: Tales are uncapped by product
-// decision, and Tale tagging never earns tokens. Complete mirrors
+// palette and the token switch (Tale tagging never earns tokens); an
+// icon picker (0069) stands in for the palette, and the age-tiered
+// activeTales cap (lib/freemiumCaps.js) limits ongoing ones. Complete mirrors
 // Goals' Achieve (one-way, no reopen); a Completed Tale keeps its
 // chapters but is closed to new ones.
 export default function Tales() {
-  const { session } = useAuth();
+  const { session, profile } = useAuth();
   const [tales, setTales] = useState([]);
   const [loading, setLoading] = useState(true);
   const [title, setTitle] = useState('');
   const [blurb, setBlurb] = useState('');
+  const [icon, setIcon] = useState(DEFAULT_TALE_ICON);
   const [status, setStatus] = useState('');
   const [saving, setSaving] = useState(false);
   // Same split as goals.js -- Complete/Delete share this, so completing
@@ -56,10 +61,34 @@ export default function Tales() {
     setSaving(true);
     setStatus('');
 
+    // Ongoing-Multickle soft cap (lib/freemiumCaps.js) -- same block-
+    // and-alert shape as the Following cap. Counted fresh from the DB
+    // rather than from `tales` state, so one started on another device
+    // since this screen focused still counts. Only ongoing ones count;
+    // an account already over a lower tier keeps them, it just can't
+    // start more until one is Completed.
+    const cap = capFor(profile, 'activeTales');
+    const { count, error: countError } = await supabase
+      .from('tales')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', session.user.id)
+      .is('completed_at', null);
+    if (countError) {
+      setSaving(false);
+      setStatus(`Error: ${countError.message}`);
+      return;
+    }
+    if ((count ?? 0) >= cap) {
+      setSaving(false);
+      alertCapBlocked({ feature: 'activeTales', cap }, profile);
+      return;
+    }
+
     const { error } = await supabase.from('tales').insert({
       user_id: session.user.id,
       title: title.trim(),
       blurb: blurb.trim() || null,
+      icon,
     });
 
     setSaving(false);
@@ -71,6 +100,7 @@ export default function Tales() {
 
     setTitle('');
     setBlurb('');
+    setIcon(DEFAULT_TALE_ICON);
     await loadTales();
   }
 
@@ -132,7 +162,7 @@ export default function Tales() {
           disabled={mutating}
         >
           <Ionicons
-            name={isCompleted ? 'checkmark-circle' : 'book-outline'}
+            name={taleIconName(item.icon)}
             size={16}
             color={isCompleted ? C.subtext : C.rust}
             style={styles.taleIcon}
@@ -206,6 +236,23 @@ export default function Tales() {
           maxLength={TALE_BLURB_MAX}
           multiline
         />
+        <View style={styles.iconRow}>
+          {TALE_ICONS.map((opt) => {
+            const isSelected = icon === opt.name;
+            return (
+              <TouchableOpacity
+                key={opt.name}
+                onPress={() => setIcon(opt.name)}
+                style={[styles.iconOption, isSelected && styles.iconOptionSelected]}
+                accessibilityRole="button"
+                accessibilityLabel={opt.label}
+                accessibilityState={{ selected: isSelected }}
+              >
+                <Ionicons name={opt.name} size={22} color={isSelected ? C.rust : C.subtext} />
+              </TouchableOpacity>
+            );
+          })}
+        </View>
         <Button
           title={saving ? 'Starting...' : 'Start Multickle'}
           onPress={handleAdd}
@@ -264,5 +311,12 @@ const styles = StyleSheet.create({
     backgroundColor: C.card, color: C.text,
   },
   inputMultiline: { minHeight: 64, textAlignVertical: 'top' },
+  iconRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+  iconOption: {
+    width: 44, height: 44, borderRadius: 22,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: C.border, backgroundColor: C.card,
+  },
+  iconOptionSelected: { borderWidth: 2, borderColor: C.rust },
   status: { marginTop: 12, color: C.rust, textAlign: 'center' },
 });
