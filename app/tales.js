@@ -177,8 +177,8 @@ export default function Tales() {
       <Text style={styles.description}>
         A Tale is an experience that's bigger than a single Tickle — a string of moments, a weekend away, a
         special occasion, an adventure, or simply a collection of moments that belong together. Start one
-        here, then add new Tics to it as they happen. Other users can then follow your Tale to see it
-        unfold.
+        here, then add new Tics to it as they happen by going to the ⋯ of the Tickle and picking the Tale
+        to attach it to. Other users can then follow your Tale to see it unfold.
       </Text>
 
       {ongoingTales.map((item) => renderTale(item, false))}
