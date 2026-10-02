@@ -256,9 +256,17 @@ export default function Tale() {
                 </TouchableOpacity>
               )
             ) : (
+              // A completed Multickle takes no new followers (client-side
+              // only), but an existing follower can still unfollow --
+              // so this only disables the not-yet-following state.
               <TouchableOpacity
-                style={[styles.actionButton, isFollowing && styles.actionButtonActive]}
+                style={[
+                  styles.actionButton,
+                  isFollowing && styles.actionButtonActive,
+                  !!tale.completed_at && !isFollowing && styles.actionButtonDisabled,
+                ]}
                 onPress={handleToggleFollow}
+                disabled={!!tale.completed_at && !isFollowing}
               >
                 <Text style={[styles.actionButtonText, isFollowing && styles.actionButtonTextActive]}>
                   {isFollowing ? 'Following this Multickle' : 'Follow this Multickle'}

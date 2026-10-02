@@ -15,7 +15,7 @@ import { localDateString } from '../../lib/week';
 import { EVENING_HOUR, EVENING_MINUTE } from '../../lib/reminders';
 import { assignEntryGoal } from '../../lib/goalTagging';
 import GoalTagModal from '../../components/GoalTagModal';
-import { assignEntryTale, fetchMyTales, fetchTaleBadges } from '../../lib/tales';
+import { assignEntryTale, fetchFollowedTales, fetchMyTales, fetchTaleBadges } from '../../lib/tales';
 import TaleTagModal from '../../components/TaleTagModal';
 import AwardPickerModal from '../../components/AwardPickerModal';
 import ShareModal from '../../components/ShareModal';
@@ -69,7 +69,10 @@ const EMPTY_TEXT = {
 // generic `mine` one above -- that message talks about sharing to the
 // feed, which is wrong here since My Day entries are private by design
 // and Mine shows entries regardless of sharing status anyway.
-function getEmptyText(tab, natureFilter, goalFilter) {
+function getEmptyText(tab, natureFilter, goalFilter, taleFilter) {
+  if (tab === 'following' && taleFilter) {
+    return 'No Tics in this Multickle yet.';
+  }
   if (tab === 'mine' && natureFilter === 'day_journal' && !goalFilter) {
     return 'Write your first My Day entry to see it here.';
   }
@@ -198,6 +201,13 @@ export default function Feed() {
   // `!goalFilter` too, so nothing in that row LOOKS selected while a
   // Goal filter is active.
   const [goalFilter, setGoalFilter] = useState(null);
+  // Following-only counterpart to goalFilter: a followed Multickle's id,
+  // or null for the tab's normal account-based list. tale_follows is
+  // independent of following the author, so with a pill selected the
+  // list is that Multickle's public Tics from anyone -- the one place a
+  // followed Multickle's Tics surface without also following its author.
+  const [taleFilter, setTaleFilter] = useState(null);
+  const [followedTales, setFollowedTales] = useState([]);
   // Day Dots state for today, re-derived on every focus of this screen
   // (see the effect below) -- null until the first check resolves.
   // Deliberately no live timer: a screen sitting continuously open
@@ -359,6 +369,23 @@ export default function Feed() {
     useCallback(() => {
       loadMyTales();
     }, [loadMyTales])
+  );
+
+  // Every focus, since the Multickle view's Follow button can change
+  // this while the Stash is backgrounded. A selected pill whose
+  // Multickle was unfollowed (or deleted) meanwhile drops back to the
+  // normal Following list rather than leaving a filter with no pill.
+  const loadFollowedTales = useCallback(async () => {
+    if (!session) return;
+    const list = await fetchFollowedTales(session.user.id);
+    setFollowedTales(list);
+    setTaleFilter((current) => (current && !list.some((t) => t.id === current) ? null : current));
+  }, [session]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadFollowedTales();
+    }, [loadFollowedTales])
   );
 
   // Reacts to `entries` rather than living inside loadFeed (unlike
@@ -527,13 +554,36 @@ export default function Feed() {
 
   const loadFeed = useCallback(async () => {
     if (!session) return;
-    const loadKey = `${tab}:${natureFilter}:${goalFilter}`;
+    const loadKey = `${tab}:${natureFilter}:${goalFilter}:${taleFilter}`;
     const isTabChange = loadKey !== lastLoadedKeyRef.current;
     lastLoadedKeyRef.current = loadKey;
     // Show the spinner for a genuine tab/filter switch, or when there's
     // nothing on screen yet -- skip it for a same-tab refocus where the
     // list is just refreshing in place.
     if (isTabChange || !hasEntriesRef.current) setLoading(true);
+
+    if (tab === 'following' && taleFilter) {
+      // One followed Multickle's Tics, by tale_id -- deliberately not
+      // narrowed to followedIds. Public only: RLS hides private chapters
+      // from non-owners anyway, and this keeps the owner's own view of
+      // their Multickle matching what its followers see. Newest first,
+      // same as the rest of the tab.
+      const { data, error } = await supabase
+        .from('tickle_entries')
+        .select(ENTRY_SELECT)
+        .eq('visibility', 'public')
+        .eq('tale_id', taleFilter)
+        .order('created_at', { ascending: false });
+      if (!error) {
+        const entriesData = data || [];
+        const awardedTypesById = await fetchAwardedEntryTypes(entriesData.map((e) => e.id));
+        setEntries(entriesData);
+        setAwardedPublicTypes(awardedTypesById);
+        setLinkedPhotoUris(await resolveLinkedPhotoUris(session.user.id, entriesData));
+      }
+      setLoading(false);
+      return;
+    }
 
     if (tab === 'following') {
       // Followed accounts' public entries only — RLS blocks their private
@@ -635,7 +685,7 @@ export default function Feed() {
     // likedIds isn't used to filter any query above — it's a dependency
     // purely so a like/unlike triggers this refetch, pulling like_count
     // fresh from the DB rather than ever computing it locally.
-  }, [session, tab, natureFilter, goalFilter, followedIds, favoritedIds, likedIds]);
+  }, [session, tab, natureFilter, goalFilter, taleFilter, followedIds, favoritedIds, likedIds]);
 
   useFocusEffect(
     useCallback(() => {
@@ -705,7 +755,7 @@ export default function Feed() {
   useEffect(() => {
     if (highlightedEntryId) return;
     listRef.current?.scrollToOffset({ offset: 0, animated: true });
-  }, [tab, natureFilter, goalFilter]);
+  }, [tab, natureFilter, goalFilter, taleFilter]);
 
   function handleTabPress(tabId) {
     setTab(tabId);
@@ -1131,8 +1181,10 @@ export default function Feed() {
   // when nothing is new (newCount === 0) or when every currently-loaded
   // entry is new (newCount === entries.length -- nothing "already seen"
   // is loaded to separate from).
+  // No divider on a Multickle pill's list -- the threshold and the
+  // tab badge both count the account-based Following list, not this one.
   const dividerThresholdMs =
-    tab === 'following' || tab === 'rippled' ? dividerThresholds[tab] : null;
+    (tab === 'following' && !taleFilter) || tab === 'rippled' ? dividerThresholds[tab] : null;
   let listData = entries;
   if (dividerThresholdMs != null) {
     const newCount = entries.filter((e) => new Date(e.created_at).getTime() > dividerThresholdMs).length;
@@ -1318,6 +1370,51 @@ export default function Feed() {
         </View>
       )}
 
+      {/* Multickle pills -- one per followed Multickle, same chip
+          family and scroll quirks as the Goal pills above (see
+          goalFilterWrap). Unlike Goal chips, re-tapping the selected
+          pill clears it, since there's no other chip row on Following
+          to clear it with. Nothing renders when none are followed. */}
+      {tab === 'following' && followedTales.length > 0 && (
+        <View style={styles.goalFilterWrap}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.goalFilterRow}
+            style={styles.goalFilterScroll}
+          >
+            {followedTales.map((t) => {
+              const isSelected = taleFilter === t.id;
+              return (
+                <TouchableOpacity
+                  key={t.id}
+                  onPress={() => setTaleFilter(isSelected ? null : t.id)}
+                  style={[
+                    styles.goalFilterChip,
+                    isSelected && { backgroundColor: accentDark, borderColor: accentDark },
+                  ]}
+                >
+                  <Ionicons name={t.icon} size={12} color={isSelected ? accentDarkText : C.rust} />
+                  <Text
+                    style={[
+                      styles.goalFilterLabel,
+                      // Same completed mute + selected override order as
+                      // the Goal chips' achieved state.
+                      t.completed && { color: C.faint },
+                      isSelected && { color: accentDarkText },
+                    ]}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
+                    {t.title}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
+
       {tab === 'mine' && !goalFilter && natureFilter === 'day_journal' && dayDots && (
         <DayDotsCard
           accentColor={accentFor(profile?.accent_theme).card}
@@ -1357,7 +1454,7 @@ export default function Feed() {
             });
           }, 50);
         }}
-        ListEmptyComponent={!loading && <Text style={styles.emptyText}>{getEmptyText(tab, natureFilter, goalFilter)}</Text>}
+        ListEmptyComponent={!loading && <Text style={styles.emptyText}>{getEmptyText(tab, natureFilter, goalFilter, taleFilter)}</Text>}
       />
     </View>
     </WallpaperBackground>
