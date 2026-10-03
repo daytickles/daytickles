@@ -148,7 +148,7 @@ export default function WeeklySummary() {
         .select('id, text_content, like_count, tickle_nature')
         .eq('user_id', session.user.id)
         .gte('entry_date', trailingCutoff),
-      supabase.from('goals').select('*').order('created_at', { ascending: true }),
+      supabase.from('goals').select('*').order('created_at', { ascending: false }),
       supabase
         .from('awards')
         // entry_kind alongside text_content -- awardLabelFor needs it

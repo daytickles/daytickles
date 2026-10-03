@@ -141,7 +141,7 @@ export default function Calendar() {
     const { data, error } = await supabase
       .from('goals')
       .select('*')
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: false });
     if (!error) setGoals(data || []);
   }, [session]);
 

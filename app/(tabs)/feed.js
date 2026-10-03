@@ -334,7 +334,7 @@ export default function Feed() {
     const { data, error } = await supabase
       .from('goals')
       .select('*')
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: false });
     if (!error) setGoals(data || []);
   }, [session]);
 
@@ -906,7 +906,7 @@ export default function Feed() {
   // ones, rather than interleaved in whatever order `goals` itself
   // comes back in. A plain stable sort on "is achieved" (0/1) preserves
   // each group's existing relative order (the query's own
-  // created_at-ascending) with no secondary key needed -- Array.sort is
+  // created_at-descending, newest first) with no secondary key needed -- Array.sort is
   // spec-guaranteed stable since ES2019. Scoped to this local variable,
   // not applied to `goals` itself, so goalsById/activeGoals/GoalTagModal
   // above are all untouched.
