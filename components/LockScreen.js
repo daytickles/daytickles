@@ -2,8 +2,14 @@
 //
 // Full-screen app lock, rendered by AppLockGate whenever a PIN has been
 // set and the app is locked (cold start or resume-from-background).
-// Attempts biometric auth automatically once on mount; any failure or
-// unavailability falls through to the PIN pad. Wrong PIN just shakes out
+// Attempts biometric auth automatically once per mount, but only while the
+// app is foregrounded: AppLockGate mounts this on 'background' (so content
+// is hidden in the app switcher), and a prompt started then is silently
+// dropped by Android and never resolves — the old stuck-spinner-on-wake
+// bug. So if we mount backgrounded, the attempt waits for 'active'.
+// The PIN pad is shown immediately rather than a spinner; the biometric
+// sheet overlays it, and if the native call ever fails silently again
+// there's still a usable PIN pad underneath. Wrong PIN just shakes out
 // an error and clears the pad — no lockout/attempt-limiting, matching the
 // "simple 4-digit PIN entry pad" scope this was built to.
 //
@@ -16,7 +22,7 @@
 // its own since there's no session.
 
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, AppState } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C } from '../lib/theme';
 import { supabase } from '../lib/supabase';
@@ -24,32 +30,40 @@ import { verifyPin, authenticateWithBiometrics, isBiometricAvailable, clearPin }
 import PinPad from './PinPad';
 
 export default function LockScreen({ onUnlock }) {
-  const [checkingBiometrics, setCheckingBiometrics] = useState(true);
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [error, setError] = useState('');
   const [signingOut, setSigningOut] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
+    let subscription = null;
 
-    (async () => {
+    async function attemptBiometrics() {
       const available = await isBiometricAvailable();
       if (cancelled) return;
       setBiometricAvailable(available);
+      if (!available) return;
 
-      if (available) {
-        const success = await authenticateWithBiometrics();
-        if (cancelled) return;
-        if (success) {
-          onUnlock();
-          return;
-        }
-      }
-      setCheckingBiometrics(false);
-    })();
+      const success = await authenticateWithBiometrics();
+      if (!cancelled && success) onUnlock();
+    }
+
+    if (AppState.currentState === 'active') {
+      attemptBiometrics();
+    } else {
+      // Mounted while backgrounded (device sleep / Home) — wait for the
+      // first return to the foreground before prompting.
+      subscription = AppState.addEventListener('change', (nextState) => {
+        if (nextState !== 'active') return;
+        subscription.remove();
+        subscription = null;
+        attemptBiometrics();
+      });
+    }
 
     return () => {
       cancelled = true;
+      subscription?.remove();
     };
     // Runs once per mount — AppLockGate remounts this screen fresh on
     // every lock (cold start / resume), which is exactly when a new
@@ -69,13 +83,8 @@ export default function LockScreen({ onUnlock }) {
 
   async function retryBiometrics() {
     setError('');
-    setCheckingBiometrics(true);
     const success = await authenticateWithBiometrics();
-    if (success) {
-      onUnlock();
-    } else {
-      setCheckingBiometrics(false);
-    }
+    if (success) onUnlock();
   }
 
   async function handleForgotPin() {
@@ -88,29 +97,23 @@ export default function LockScreen({ onUnlock }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {checkingBiometrics ? (
-        <View style={styles.centered}>
-          <ActivityIndicator color={C.rust} size="large" />
-        </View>
-      ) : (
-        <View style={styles.centered}>
-          <PinPad
-            title="Enter your PIN"
-            error={error}
-            onComplete={signingOut ? () => {} : handlePinComplete}
-          />
-          {biometricAvailable && (
-            <TouchableOpacity onPress={retryBiometrics} style={styles.biometricRetry} disabled={signingOut}>
-              <Text style={styles.biometricRetryText}>Try biometrics again</Text>
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity onPress={handleForgotPin} style={styles.forgotPin} disabled={signingOut}>
-            <Text style={styles.forgotPinText}>
-              {signingOut ? 'Signing out...' : 'Forgot PIN?'}
-            </Text>
+      <View style={styles.centered}>
+        <PinPad
+          title="Enter your PIN"
+          error={error}
+          onComplete={signingOut ? () => {} : handlePinComplete}
+        />
+        {biometricAvailable && (
+          <TouchableOpacity onPress={retryBiometrics} style={styles.biometricRetry} disabled={signingOut}>
+            <Text style={styles.biometricRetryText}>Try biometrics again</Text>
           </TouchableOpacity>
-        </View>
-      )}
+        )}
+        <TouchableOpacity onPress={handleForgotPin} style={styles.forgotPin} disabled={signingOut}>
+          <Text style={styles.forgotPinText}>
+            {signingOut ? 'Signing out...' : 'Forgot PIN?'}
+          </Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
