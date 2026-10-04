@@ -33,13 +33,18 @@ const SECTIONS = [
   {
     title: 'Photos',
     items: [
-      { id: 'photo-open-own', label: 'Open a photo on your own entry' },
-      { id: 'photo-open-other-rippled', label: "Open a photo on someone else's Rippled entry (photo-attached text entry)" },
+      { id: 'photo-attach', label: 'Attach a photo to a Tickle' },
+      { id: 'photo-create-photo-only', label: 'Create a Photo-Only Tickle (tap a Vibe icon on a Tickle Pics photo)' },
+      { id: 'photo-pin', label: 'Pin a photo to Tickle Pics' },
+      { id: 'photo-tickle-from-pinned', label: 'Write a Tickle from a pinned photo' },
+      { id: 'photo-open-own', label: 'Open a photo full-screen on your own entry' },
+      { id: 'photo-open-other-rippled', label: "Open a photo full-screen on someone else's Rippled entry (photo-attached text entry)" },
       { id: 'photo-open-other-polaroid', label: 'Open a photo-only Polaroid from someone else' },
-      { id: 'photo-take-new', label: 'Take a new photo' },
+      { id: 'photo-take-new', label: 'Take a new photo (camera)' },
       { id: 'photo-pick-gallery', label: 'Pick from gallery' },
-      { id: 'photo-relink', label: 'Use Relink' },
-      { id: 'photo-save-to-photos', label: 'Use Save to Photos' },
+      { id: 'photo-relink', label: 'Use Relink (reconnect an orphaned local photo)' },
+      { id: 'photo-share-external', label: 'Share a photo externally (share sheet / Polaroid, e.g. WhatsApp)' },
+      { id: 'photo-save-to-photos', label: 'Save a photo to device' },
     ],
   },
   {
@@ -74,6 +79,78 @@ const SECTIONS = [
     items: [
       { id: 'general-icon-splash', label: 'App icon/splash look right' },
       { id: 'general-dark-photo-tabbar', label: 'Nothing visually broken on a dark photo behind the tab bar' },
+    ],
+  },
+  {
+    title: 'Creating & managing Tickles',
+    items: [
+      { id: 'tickle-write-text', label: 'Write a text-only Tickle' },
+      { id: 'tickle-edit', label: 'Edit a Tickle' },
+      { id: 'tickle-delete', label: 'Delete a Tickle' },
+      { id: 'tickle-ripple-unripple', label: 'Ripple a Tickle (make public) / Un-Ripple it (make private)' },
+    ],
+  },
+  {
+    title: 'Reactions & social',
+    items: [
+      { id: 'social-like', label: 'Like a Tickle' },
+      { id: 'social-favourite', label: 'Favourite a Tickle (star)' },
+      { id: 'social-high-five', label: 'Give a High Five' },
+      { id: 'social-follow', label: 'Follow another user' },
+      { id: 'social-view-profile', label: "View someone's profile" },
+      { id: 'social-share', label: 'Share a Tickle (share sheet / Polaroid)' },
+    ],
+  },
+  {
+    title: 'Browsing',
+    items: [
+      { id: 'browse-stash-tabs', label: "Switch between Stash tabs (Mine, Fav's, Following, Rippled)" },
+      { id: 'browse-goal-pills', label: 'Use the Goal Pills filter on Mine' },
+      { id: 'browse-calendar-past-day', label: 'Browse the Calendar and tap into a past day' },
+      { id: 'browse-weekly-summary', label: 'Open the Weekly Summary' },
+    ],
+  },
+  {
+    title: 'Tickle Pics',
+    items: [
+      { id: 'pics-view-board', label: 'View the Pin Board' },
+    ],
+  },
+  {
+    title: 'Day Dots',
+    items: [
+      { id: 'daydots-answer-today', label: "Answer today's Day Dot" },
+      { id: 'daydots-calendar-history', label: 'Check Day Dot history on the Calendar' },
+    ],
+  },
+  {
+    title: 'Daily Vibe targets',
+    items: [
+      { id: 'vibe-target-set-daily', label: 'Set a daily target for a Vibe (Settings → Daily Vibe Targets, + / − stepper)' },
+      { id: 'vibe-target-daily-bulb', label: "Hit it today and see that Vibe's daily lightbulb light up on its Home card" },
+      { id: 'vibe-target-weekly', label: 'Set a weekly target too (Settings → Weekly Vibe Targets) and see its weekly lightbulb light up once hit' },
+    ],
+  },
+  {
+    title: 'Tokens & Rewards',
+    items: [
+      { id: 'tokens-earn-on-tag', label: 'Turn "Earns tokens" on for a Goal (Manage Goals). Tag an entry to it → header circle goes +1 (switch tabs if it hasn\'t updated)' },
+      { id: 'tokens-retag-same-goal', label: 'Re-tag the same entry to the same Goal → confirm no extra token' },
+      { id: 'tokens-untag-retag', label: "Remove the tag, then re-tag → confirm no extra token, and confirm removing the tag doesn't take the token away" },
+      { id: 'tokens-non-earning-goal', label: 'Tag an entry to a Goal with "Earns tokens" off → confirm no token' },
+      { id: 'tokens-add-reward', label: 'Add a reward (name, cost, optional icon) on the Reward List' },
+      { id: 'tokens-header-circle', label: "Check the header circle: outlined when you can't afford your cheapest reward, filled once you can; tap it to confirm it opens the Reward List" },
+      { id: 'tokens-redeem', label: "Redeem a reward you can afford → balance drops, reward stays on the list; confirm Redeem is disabled when you can't afford it" },
+      { id: 'tokens-delete-reward', label: 'Delete a reward' },
+      { id: 'tokens-master-toggle', label: 'Turn Tokens & Rewards off in Settings → circle disappears on all tabs and Manage Reward List is disabled; turn it back on → circle returns with the same balance' },
+    ],
+  },
+  {
+    title: 'Settings & account',
+    items: [
+      { id: 'settings-accent-colour', label: 'Change accent colour' },
+      { id: 'settings-sign-out-in', label: 'Sign out and sign back in' },
+      { id: 'settings-awareness-cue', label: 'Receive and tap an Awareness Cue reminder' },
     ],
   },
 ];
