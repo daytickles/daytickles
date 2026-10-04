@@ -500,13 +500,15 @@ export default function Feed() {
     loadAwards();
   }, [loadAwards]);
 
-  // fallbackUri is only ever passed by a photo-only Polaroid's own tap
-  // (its already-resolved linkedPhotoUris value) -- the local-only lookup
-  // above can never find a link for a non-owner's entry on this device,
-  // so without it, tapping to enlarge a stranger's photo-only Tickle
-  // would silently do nothing once media_url-sourced photos exist.
-  // Every other caller (the hasLinkedPhoto icon on a normal entry) omits
-  // this param and keeps the original local-only behavior exactly.
+  // fallbackUri is the card's already-resolved linkedPhotoUris value,
+  // passed by both a photo-only Polaroid's tap and a text entry's
+  // linked-photo strip -- the local-only lookup below can never find a
+  // link for a non-owner's entry on this device, so without it, tapping
+  // to enlarge someone else's photo would silently do nothing (a real
+  // bug on the strip until it started passing photoUri too). The local
+  // file still wins whenever this device has one. Only the hasLinkedPhoto
+  // camera icon omits it -- that icon only renders for the viewer's own
+  // local link with no resolved photoUri, so local-only is correct there.
   async function handleOpenPhoto(entryId, fallbackUri) {
     const photo = await getPhotoForEntry(session.user.id, entryId);
     if (photo) setEnlargeUri(photo.file_path);

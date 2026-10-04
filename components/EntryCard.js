@@ -465,7 +465,7 @@ export default function EntryCard({
               {!!photoUri && (
                 <TouchableOpacity
                   activeOpacity={0.85}
-                  onPress={() => onOpenPhoto?.(item.id)}
+                  onPress={() => onOpenPhoto?.(item.id, photoUri)}
                   style={styles.linkedPhotoStrip}
                 >
                   <Image source={{ uri: photoUri }} style={styles.linkedPhotoStripImage} />

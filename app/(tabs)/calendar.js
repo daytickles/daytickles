@@ -266,8 +266,9 @@ export default function Calendar() {
   useEffect(() => { loadAwards(); }, [loadAwards]);
 
   // fallbackUri: see feed.js's own handleOpenPhoto for why this exists
-  // (a photo-only Polaroid's tap passes its already-resolved uri, in
-  // case the local-only lookup below can't find one). Calendar's day
+  // (a photo-only Polaroid's tap and a text entry's linked-photo strip
+  // both pass their already-resolved uri, in case the local-only lookup
+  // below can't find one). Calendar's day
   // entries are always this account's own, so in practice the local
   // lookup always succeeds here -- kept for the same reason
   // resolveLinkedPhotoUris' media_url branch is kept, not because this
