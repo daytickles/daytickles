@@ -1077,6 +1077,15 @@ export default function Settings() {
         Save your Tickle Pics and private photos to a file, so you don't lose them if you switch devices.
       </Text>
       <View style={styles.spacer} />
+
+      {/* TEMPORARY -- internal testing only. Remove this card and
+          app/testing-checklist.js before public release. */}
+      <View style={styles.card}>
+        <Text style={styles.label}>Internal Testing</Text>
+        <Text style={styles.explainerText}>Temporary — removed before public release.</Text>
+        <View style={styles.spacer} />
+        <Button title="Testing Checklist" onPress={() => router.push('/testing-checklist')} variant="secondary" />
+      </View>
       <Button title="Sign Out" onPress={signOut} variant="secondary" />
       <View style={styles.spacer} />
 
