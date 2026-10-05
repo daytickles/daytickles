@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { File } from 'expo-file-system';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { C, accentFor, NATURE_ORDER, NATURE_LABELS, VIBE_COLORS, vibeIconColor } from '../../lib/theme';
+import { C, accentFor, NATURE_ORDER, NATURE_LABELS, VIBE_COLORS, vibeIconColor, withAlpha } from '../../lib/theme';
 import {
   isThisWeek, isThisMonth, localDateString, toLocalDateString, parseLocalDateString,
   currentWeekStartISO, monthStartISO, DEFAULT_WEEK_START_DAY,
@@ -817,7 +817,11 @@ export default function Home() {
           <Text style={[styles.cardLabel, styles.redeemHeaderLabel]}>You can redeem</Text>
           <Ionicons name="chevron-forward" size={16} color={C.faint} />
         </TouchableOpacity>
+        {/* Keyed by the affordable ids so the row remounts at the first
+            chip whenever that list changes (e.g. a redeem drops a chip),
+            rather than keeping a stale scroll offset into a shorter row. */}
         <ScrollView
+          key={affordableRewards.map((i) => i.id).join(',')}
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.redeemChipsRow}
@@ -845,14 +849,20 @@ export default function Home() {
     );
   }
 
-  // One row per active Goal -> that Goal's own summary screen
-  // (app/goal.js). With no active Goals, a gentle prompt instead; the
-  // caller hides this card entirely until the first entry exists, so a
-  // brand-new account isn't shown two calls to action at once
-  // (QuickStartCard already covers that state).
+  // One pill per active Goal -> that Goal's own summary screen
+  // (app/goal.js), in a sideways-scrolling row -- same pattern as the
+  // "You can redeem" strip below: each pill is its own touchable, with no
+  // wrapper touchable around the card, so a swipe on the row scrolls it
+  // without opening a Goal. No white card: like the Vibe cards and the
+  // Mojo Shared pill rows above, it sits straight on the wallpaper as a
+  // plain View with no fill/border/padding, so the pills run to the
+  // content edge and the last one peeks there. With no active Goals, a
+  // gentle prompt instead; the caller hides this section entirely until
+  // the first entry exists, so a brand-new account isn't shown two calls
+  // to action at once (QuickStartCard already covers that state).
   function renderGoalsCard() {
     return (
-      <View style={styles.entryCard}>
+      <View style={styles.goalsSection}>
         <Text style={[styles.cardLabel, styles.goalsCardLabel]}>Your Goals</Text>
         {activeGoals.length === 0 ? (
           <>
@@ -862,29 +872,44 @@ export default function Home() {
             <Button title="Add a Goal" onPress={() => router.push('/goals')} variant="secondary" />
           </>
         ) : (
-          activeGoals.map((g, i) => (
-            <TouchableOpacity
-              key={g.id}
-              style={[styles.goalRow, i > 0 && styles.goalRowDivider]}
-              activeOpacity={0.7}
-              onPress={() => router.push({ pathname: '/goal', params: { id: g.id } })}
-            >
-              <View style={[styles.goalRowDot, { backgroundColor: g.color }]} />
-              <Text style={styles.goalRowLabel} numberOfLines={1}>{g.label}</Text>
-              {/* Hidden when the Tokens master switch is off, same
-                  "!== false" idiom as CornerNav's showTokens. */}
-              {g.earns_tokens && profile?.tokens_enabled !== false && (
-                <MaterialCommunityIcons
-                  name="circle-multiple-outline"
-                  size={15}
-                  color={C.subtext}
-                  style={styles.goalRowCoin}
-                />
-              )}
-              <Text style={styles.goalRowCount}>{goalCounts.get(g.id) || 0}</Text>
-              <Ionicons name="chevron-forward" size={16} color={C.faint} />
-            </TouchableOpacity>
-          ))
+          // Keyed by the active Goal ids so the row restarts at the first
+          // pill whenever the Goals change, same as the redeem row.
+          <ScrollView
+            key={activeGoals.map((g) => g.id).join(',')}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.goalPillsRow}
+          >
+            {activeGoals.map((g) => {
+              const count = goalCounts.get(g.id) || 0;
+              // Hidden when the Tokens master switch is off, same
+              // "!== false" idiom as CornerNav's showTokens.
+              const showCoin = g.earns_tokens && profile?.tokens_enabled !== false;
+              return (
+                // Unselected look of New Tickle's Vibe pills (create.js's
+                // natureOption): 14% tint fill + full-colour 1px border. The
+                // Goal colour lives in the tint and border, so the separate
+                // dot is gone.
+                <TouchableOpacity
+                  key={g.id}
+                  style={[styles.goalPill, { backgroundColor: withAlpha(g.color, 0.14), borderColor: g.color }]}
+                  activeOpacity={0.7}
+                  onPress={() => router.push({ pathname: '/goal', params: { id: g.id } })}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    `${g.label}, ${count} Tickle${count === 1 ? '' : 's'}` +
+                    `${showCoin ? ', earns tokens' : ''}. Opens Goal summary.`
+                  }
+                >
+                  <Text style={styles.goalPillLabel} numberOfLines={1}>{g.label}</Text>
+                  {showCoin && (
+                    <MaterialCommunityIcons name="circle-multiple-outline" size={16} color={C.subtext} />
+                  )}
+                  <Text style={styles.goalPillCount}>{count}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
         )}
       </View>
     );
@@ -1180,14 +1205,28 @@ const styles = StyleSheet.create({
   openAction: { marginLeft: 'auto' },
   openLink: { fontSize: 13, fontWeight: '700', color: C.rust },
 
-  goalsCardLabel: { marginBottom: 4 },
+  // Transparent section -- same treatment as vibeCardsRow/statPillsRow:
+  // no background, border, shadow or padding, only the bottom margin
+  // that entryCard uses, so the gap to the next card is unchanged.
+  goalsSection: { marginBottom: 12 },
+  goalsCardLabel: { marginBottom: 6 },
   goalsPromptText: { fontSize: 14, color: C.subtext, lineHeight: 20, marginBottom: 10 },
-  goalRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },
-  goalRowDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.border },
-  goalRowDot: { width: 12, height: 12, borderRadius: 6, marginRight: 10 },
-  goalRowLabel: { flex: 1, fontSize: 15, color: C.text },
-  goalRowCoin: { marginLeft: 6 },
-  goalRowCount: { fontSize: 14, fontWeight: '700', color: C.text, marginLeft: 10, marginRight: 4 },
+  goalPillsRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  // Shape, border, gap, paddingVertical and label type copied from
+  // create.js's natureOption/natureOptionLabel (New Tickle's Vibe pills),
+  // which keep these values local rather than in a shared style; the
+  // per-Goal fill/border colour is applied inline. minHeight 44 (above
+  // natureOption's ~37 natural height) for a comfortable touch target;
+  // maxWidth caps a long (up to 60-char) Goal name so only it truncates.
+  goalPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    minHeight: 44, maxWidth: 240, paddingVertical: 10, paddingHorizontal: 14,
+    borderRadius: 20, borderWidth: 1,
+  },
+  goalPillLabel: { flexShrink: 1, fontSize: 12, fontWeight: '600', color: C.subtext },
+  // Count stays a step bolder and darker than the label so the number
+  // still reads first at New Tickle's smaller 12px size.
+  goalPillCount: { flexShrink: 0, fontSize: 12, fontWeight: '700', color: C.text },
 
   // No right padding -- the chip row runs to the card's edge so the last
   // visible chip peeks out as a scroll hint; the header row and the
