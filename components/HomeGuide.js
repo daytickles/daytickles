@@ -10,7 +10,7 @@ import Button from './Button';
 const STEPS = [
   {
     title: 'Home & Your Vibes',
-    body: "With every Tickle you write, you can add one of three Vibes — Made me smile, Paying forward, or For me — or add it to My Day instead.\n\nThe three Vibe cards on Home show your activity by week, month, and all-time. You can also set daily and weekly targets for any Vibe in Settings — each has its own lightbulb on the Vibe card, lighting up once you hit that target for the day or the week. It is completely optional — a little extra motivation if you like having something to aim for.\n\nBelow the Vibe cards, the Mojo Shared pills track your polaroid shares and Ripples the same way — this week, this month, and all-time. Tap a pill to see exactly what it's counting.",
+    body: "With every Tickle you write, you can add one of three Vibes — Made me smile, Paying forward, or For me — or add it to My Day instead.\n\nThe three Vibe cards on Home show your activity by week, month, and all-time. You can also set daily and weekly targets for any Vibe in Settings — each has its own lightbulb on the Vibe card, lighting up once you hit that target for the day or the week. It is completely optional — a little extra motivation if you like having something to aim for.\n\nBelow the Vibe cards, the Mojo Shared pills track your polaroid shares and Ripples the same way — this week, this month, and all-time. Tap a pill to see exactly what it's counting.\n\nFurther down, Remember this? brings back one of your past Tickles each day, and Your Goals shows how many Tickles you've tagged to each active Goal — tap one to see them all.",
   },
   {
     title: 'New Tickle',

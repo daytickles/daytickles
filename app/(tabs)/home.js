@@ -7,26 +7,21 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { File } from 'expo-file-system';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { C, accentFor, SAVED_ENTRY_DOT_SIZE, withAlpha, NATURE_ORDER, NATURE_LABELS, VIBE_COLORS, vibeIconColor } from '../../lib/theme';
-import { shareEntry, useShareStatus, sharePhotoOnlyEntry, SHARE_CAPTIONS } from '../../lib/sharing';
-import { alertCapBlocked, checkAndConsumeWeeklyCap, rippleFeatureFor } from '../../lib/freemiumCaps';
-import { showAlert } from '../../lib/themedAlert';
-import { isThisWeek, isThisMonth, localDateString, currentWeekStartISO, monthStartISO, DEFAULT_WEEK_START_DAY } from '../../lib/week';
+import { C, accentFor, NATURE_ORDER, NATURE_LABELS, VIBE_COLORS, vibeIconColor } from '../../lib/theme';
+import {
+  isThisWeek, isThisMonth, localDateString, toLocalDateString, parseLocalDateString,
+  currentWeekStartISO, monthStartISO, DEFAULT_WEEK_START_DAY,
+} from '../../lib/week';
 import { fetchFoundingMemberPaceStatus, fetchFoundingMemberOptInReminderStatus } from '../../lib/foundingMember';
 import { flagEmoji } from '../../lib/country';
-import { initPinBoardDb, getPhotosForEntries, getPhotoForEntry } from '../../lib/pinBoardDb';
-import { useShareCard } from '../../lib/useShareCard';
-import { makePhotoTicklePublic, makePhotoTicklePrivate, deletePhotoTickleMedia } from '../../lib/photoTickleStorage';
-import { assignEntryGoal } from '../../lib/goalTagging';
+import { initPinBoardDb, getPhotosForEntries } from '../../lib/pinBoardDb';
 import Button from '../../components/Button';
 import VibeCard from '../../components/VibeCard';
 import NatureIcon from '../../components/NatureIcon';
 import InitialsAvatar from '../../components/InitialsAvatar';
 import AboutModal from '../../components/AboutModal';
 import FoundingMemberBadge from '../../components/FoundingMemberBadge';
-import GoalTagModal from '../../components/GoalTagModal';
 import QuickStartCard from '../../components/QuickStartCard';
-import ShareModal from '../../components/ShareModal';
 import CornerNav from '../../components/CornerNav';
 import WallpaperBackground from '../../components/WallpaperBackground';
 import {
@@ -38,35 +33,21 @@ import {
 } from '../../lib/reminders';
 import { isReviewAvailable, requestReview } from '../../lib/rateUs';
 
-const PINNED_WINDOW_DAYS = 14;
-
 // Caps Home's content on tablet/wide screens so it doesn't stretch
 // edge-to-edge -- wallpaper (painted by WallpaperBackground, behind
 // this content) still fills the full screen width either way.
 const HOME_CONTENT_MAX_WIDTH = 600;
 
-// Deterministic per-entry tilt for the photo-only Polaroid render below --
-// same idea as EntryCard.js's own rotationForId.
-function rotationForId(id) {
-  const str = String(id);
-  let sum = 0;
-  for (let i = 0; i < str.length; i++) sum += str.charCodeAt(i);
-  return `${((sum % 5) - 2) * 1.5}deg`;
-}
-
 // Same idea as feed.js's/calendar.js's own resolveLinkedPhotoUris --
 // resolves both photo_only entries and entry_kind='text' entries with a
-// Tickle-a-Photo link (renderEntryBody's own linked-photo strip below):
-// local file if this device has (and still has) the pin-board link,
-// falling back to the entry's own media_url otherwise. Home's own
-// entries are always this account's own (loadEntries always filters
-// user_id=session.user.id), so that fallback mostly matters for the
-// owner's own second device, same as calendar.js's own version of this
-// function -- kept anyway so this screen doesn't have to know which
-// case it is. Neither branch covers "the file's genuinely missing" --
-// callers just get back no map entry for that id, which the photo-only
-// render below treats as "not available" and the linked-photo strip
-// below just omits.
+// Tickle-a-Photo link: local file if this device has (and still has) the
+// pin-board link, falling back to the entry's own media_url otherwise.
+// Home's own entries are always this account's own (loadEntries always
+// filters user_id=session.user.id), so that fallback mostly matters for
+// the owner's own second device, same as calendar.js's own version of
+// this function. Neither branch covers "the file's genuinely missing" --
+// callers just get back no map entry for that id, which the "Remember
+// this?" card's photo-only thumbnail below treats as "not available".
 async function resolveLinkedPhotoUris(userId, entries) {
   if (!entries.length) return new Map();
 
@@ -83,18 +64,87 @@ async function resolveLinkedPhotoUris(userId, entries) {
   return map;
 }
 
-function formatEntryDate(entryDate) {
-  return new Date(`${entryDate}T00:00:00Z`).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    timeZone: 'UTC',
-  });
+// Whole local calendar days between a stored 'YYYY-MM-DD' entry_date and
+// today. Math.round absorbs the 23h/25h days a DST switch produces.
+function daysAgo(entryDate) {
+  const today = parseLocalDateString(localDateString(0));
+  return Math.round((today - parseLocalDateString(entryDate)) / 86400000);
 }
 
-function likeLabel(count) {
-  const n = count || 0;
-  return `${n} ${n === 1 ? 'like' : 'likes'}`;
+// Same calendar day N months back, or null when that day doesn't exist
+// (e.g. one month before Mar 31, or one year before Feb 29) -- setMonth
+// would silently roll over into a different day, which isn't really an
+// anniversary.
+function sameDayMonthsAgo(months) {
+  const now = new Date();
+  const d = new Date(now.getFullYear(), now.getMonth() - months, now.getDate());
+  return d.getDate() === now.getDate() ? toLocalDateString(d) : null;
+}
+
+// "Yesterday" / "5 days ago" / "3 weeks ago" / "4 months ago" / "2 years ago".
+function relativeDayLabel(days) {
+  if (days <= 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return `${days} days ago`;
+  if (days < 30) {
+    const w = Math.floor(days / 7);
+    return `${w} ${w === 1 ? 'week' : 'weeks'} ago`;
+  }
+  const months = Math.round(days / 30.44);
+  if (days < 365 && months < 12) return `${months} ${months === 1 ? 'month' : 'months'} ago`;
+  const y = Math.max(1, Math.floor(days / 365));
+  return `${y} ${y === 1 ? 'year' : 'years'} ago`;
+}
+
+// Small non-cryptographic string hash (djb2) -- only has to spread
+// consecutive dates across the candidate list, not resist anything.
+function hashString(str) {
+  let h = 5381;
+  for (let i = 0; i < str.length; i++) h = ((h * 33) ^ str.charCodeAt(i)) >>> 0;
+  return h;
+}
+
+// "Remember this?" pick: one of the user's own past Tickles, stable for
+// the whole local day, rotating the next. Pure function of the
+// already-loaded entries -- no query, no storage, no profile write.
+// Tiers are tried in order and the first non-empty one wins; within a
+// tier, candidates are sorted by id and indexed by a hash of
+// userId + today, so a refocus later the same day lands on the same
+// entry. My Day (day_journal) is left out -- it's long-form personal
+// writing that doesn't read well as a 4-line memory snippet.
+// Returns { entry, isFallback } or null.
+function pickRememberEntry(entries, userId) {
+  const today = localDateString(0);
+  const past = entries.filter((e) => e.entry_date < today && e.tickle_nature !== 'day_journal');
+
+  const yearAgo = sameDayMonthsAgo(12);
+  const monthAgo = sameDayMonthsAgo(1);
+  const weekAgo = localDateString(7);
+  const inBand = (lo, hi) => (e) => {
+    const d = daysAgo(e.entry_date);
+    return d >= lo && d <= hi;
+  };
+  const tiers = [
+    (e) => e.entry_date === yearAgo,
+    (e) => e.entry_date === monthAgo,
+    (e) => e.entry_date === weekAgo,
+    inBand(360, 370),
+    inBand(28, 32),
+    inBand(6, 8),
+    (e) => daysAgo(e.entry_date) >= 7,
+  ];
+
+  for (const matches of tiers) {
+    const candidates = past.filter(matches).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    if (candidates.length) {
+      return { entry: candidates[hashString(`${userId}${today}`) % candidates.length], isFallback: false };
+    }
+  }
+
+  // Thin history: the latest Tickle instead (today's included), still
+  // skipping My Day for the same reason as above.
+  const latest = entries.find((e) => e.tickle_nature !== 'day_journal');
+  return latest ? { entry: latest, isFallback: true } : null;
 }
 
 // "A" / "A and B" / "A, B, and C" -- for naming the specific lagging
@@ -150,15 +200,10 @@ export default function Home() {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [goals, setGoals] = useState([]);
-  const [pickerEntryId, setPickerEntryId] = useState(null);
-  const [shareEntryId, setShareEntryId] = useState(null);
   // Map<entryId, uri> -- resolved display image for every currently-
   // loaded entry that has one (photo_only, or a text entry with a
-  // Tickle-a-Photo link), see resolveLinkedPhotoUris above. Also reused
-  // as the share source in handlePhotoOnlyShare below, rather than
-  // re-resolving per share.
+  // Tickle-a-Photo link), see resolveLinkedPhotoUris above.
   const [linkedPhotoUris, setLinkedPhotoUris] = useState(new Map());
-  const { hiddenCard, captureCard } = useShareCard();
   const [madeMeSmileTotals, setMadeMeSmileTotals] = useState({ week: 0, month: 0, allTime: 0 });
   const [thoughtOfYouTotals, setThoughtOfYouTotals] = useState({ week: 0, month: 0, allTime: 0 });
   const [showGuide, setShowGuide] = useState(false);
@@ -462,251 +507,10 @@ export default function Home() {
     }, [loadOptInReminder])
   );
 
-  const goalsById = Object.fromEntries(goals.map((g) => [g.id, g]));
-  // Achieved goals are never offered as a new tag target in the picker
-  // — they only ever appear read-only, on entries already tagged before
-  // achievement (resolved via goalsById above, achieved or not). Same
-  // filtering feed.js/calendar.js already apply before their own
-  // GoalTagModal calls -- Home's own call was missing it.
+  // Achieved goals are left out of Home's "Your Goals" card -- they keep
+  // their row (and their color on already-tagged entries) but are no
+  // longer something being worked on.
   const activeGoals = goals.filter((g) => !g.achieved_at);
-
-  async function assignGoal(entryId, goalId) {
-    const currentGoalId = entries.find((e) => e.id === entryId)?.goal_id ?? null;
-    setPickerEntryId(null);
-    await assignEntryGoal({ entryId, goalId, currentGoalId, setEntries });
-  }
-
-  async function handleShare(entry, captionId) {
-    setShareEntryId(null);
-    const caption = SHARE_CAPTIONS.find((c) => c.id === captionId);
-    const photo = await getPhotoForEntry(session.user.id, entry.id);
-
-    let cardImageUri;
-    if (photo) {
-      try {
-        cardImageUri = await captureCard({
-          photo,
-          captionLabel: caption.label,
-          textContent: entry.text_content,
-          accentColor: accent.card,
-        });
-      } catch (err) {
-        // Falls back to the text-only share below rather than blocking
-        // the share outright — capture failure shouldn't cost the person
-        // their share.
-        console.error('handleShare: card capture failed, falling back to text share', err);
-      }
-    }
-
-    const result = await shareEntry({ profile, entry, captionId, cardImageUri, logCaptionShare: true });
-    if (result.blocked) alertCapBlocked(result, profile);
-  }
-
-  // Thin wrapper around lib/sharing.js's sharePhotoOnlyEntry (shared with
-  // feed.js/calendar.js's own Share buttons) -- this file's job is just
-  // resolving this screen's own already-loaded linkedPhotoUris into a uri
-  // and turning the returned status into the right Alert; the actual
-  // skip-ShareModal / bake-in-the-Vibe-label decision logic lives there
-  // once, not duplicated per screen. Only ever called for a photo_only
-  // entry (see this function's own call sites), so entry.id here always
-  // resolves via linkedPhotoUris' photo_only half, never its
-  // linked-text-entry half.
-  async function handlePhotoOnlyShare(entry) {
-    const result = await sharePhotoOnlyEntry({
-      profile,
-      entry,
-      photoUri: linkedPhotoUris.get(entry.id) || null,
-      captureCard,
-      accentColor: accent.card,
-    });
-
-    if (result.missingPhoto) {
-      showAlert(
-        "Can't share yet",
-        "This photo isn't available on this device right now — open it in Tickle Stash to relink it, then try sharing again."
-      );
-    } else if (result.blocked) {
-      alertCapBlocked(result, profile);
-    } else if (result.captureFailed) {
-      showAlert("Couldn't share", 'Something went wrong preparing this photo to share — try again.');
-    }
-  }
-
-  // Real DELETE, not a soft-hide — RLS already scopes it to entries you
-  // own, and every table referencing tickle_entries (likes, favorites,
-  // notifications, shares, etc.) cascades on delete (confirmed against
-  // the schema before building this). Home and Tickle Stash each reload their
-  // own entries on focus already, so a deletion made on one screen is
-  // picked up by the other the next time it's revisited — no separate
-  // cross-screen refresh mechanism needed.
-  function confirmDeleteEntry(entry) {
-    showAlert(
-      'Delete this tickle?',
-      "This can't be undone — it removes the entry everywhere, including any likes or shares.",
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => handleDeleteEntry(entry) },
-      ]
-    );
-  }
-
-  async function handleDeleteEntry(entry) {
-    const previous = entries;
-    setEntries((prev) => prev.filter((e) => e.id !== entry.id));
-
-    // Best-effort, never blocks the actual delete below -- see
-    // deletePhotoTickleMedia's own comment.
-    await deletePhotoTickleMedia(entry);
-
-    const { error } = await supabase.from('tickle_entries').delete().eq('id', entry.id);
-    if (error) setEntries(previous);
-  }
-
-  // Reversible, unlike delete, so no confirmation dialog — same
-  // no-confirm treatment as follow/favorite/like. Going private just
-  // means Everyone/Following's own visibility-filtered queries stop
-  // matching this row next time they reload; Home and Mine never filter
-  // on visibility, so they keep showing it either way.
-  async function handleToggleVisibility(entry) {
-    const newVisibility = entry.visibility === 'public' ? 'private' : 'public';
-
-    // Ripple soft cap (lib/freemiumCaps.js) -- every private -> public
-    // flip draws one from its bucket, re-Ripples included. Checked
-    // before any branch below so a blocked flip never uploads anything.
-    if (newVisibility === 'public') {
-      const rippleFeature = rippleFeatureFor(entry, linkedPhotoUris.get(entry.id) || null);
-      if (rippleFeature) {
-        const capResult = await checkAndConsumeWeeklyCap(profile, rippleFeature);
-        if (capResult.blocked) {
-          alertCapBlocked(capResult, profile);
-          return;
-        }
-      }
-    }
-
-    // Photo-only entries going private -> public need the actual image
-    // uploaded first (see lib/photoTickleStorage.js) -- not the plain
-    // single-field flip below. Not optimistic like the plain path: this
-    // is a real multi-step async operation (upload, then a combined DB
-    // write) with real failure modes, so nothing changes on screen until
-    // it's actually succeeded, rather than flashing "public" and then
-    // reverting it a moment later.
-    if (entry.entry_kind === 'photo_only' && newVisibility === 'public') {
-      const photoUri = linkedPhotoUris.get(entry.id) || null;
-      if (!photoUri) {
-        showAlert(
-          "Can't make this public yet",
-          "This photo isn't available on this device right now — open it in Tickle Stash to relink it, then try again."
-        );
-        return;
-      }
-      try {
-        const mediaUrl = await makePhotoTicklePublic(entry, photoUri);
-        setEntries((prev) =>
-          prev.map((e) => (e.id === entry.id ? { ...e, visibility: 'public', media_url: mediaUrl } : e))
-        );
-      } catch (err) {
-        console.error('handleToggleVisibility: photo upload failed', err);
-        // Real underlying message included, not just a generic line --
-        // this is a genuinely new, unproven code path (Storage bucket +
-        // RLS, no established pattern elsewhere in this app to lean on),
-        // so a failure here should be self-diagnosing on-device rather
-        // than requiring a Metro console dig every time.
-        showAlert(
-          "Couldn't make this public",
-          `Something went wrong uploading this photo — try again.\n\n${err.message || String(err)}`
-        );
-      }
-      return;
-    }
-
-    // Photo-only entries going public -> private genuinely remove the
-    // Storage object too (see lib/photoTickleStorage.js's own comment)
-    // -- the bucket is fully public-read, so leaving the object in
-    // place would mean "private" only hides it from this app's own UI,
-    // not a real access revocation. Same non-optimistic shape as the
-    // going-public branch above, for the same reason: a real async
-    // Storage operation with real failure modes, not an instant flip.
-    if (entry.entry_kind === 'photo_only' && newVisibility === 'private') {
-      try {
-        await makePhotoTicklePrivate(entry);
-        setEntries((prev) =>
-          prev.map((e) => (e.id === entry.id ? { ...e, visibility: 'private', media_url: null } : e))
-        );
-      } catch (err) {
-        console.error('handleToggleVisibility: photo removal failed', err);
-        showAlert(
-          "Couldn't make this private",
-          `Something went wrong removing this photo — try again.\n\n${err.message || String(err)}`
-        );
-      }
-      return;
-    }
-
-    // A text entry with a Tickle-a-Photo link gets the same upload
-    // treatment on Ripple as a photo-only entry -- same underlying
-    // mechanic (lib/photoTickleStorage.js). Unlike photo-only, a
-    // missing/unresolvable local photo does NOT block the share here:
-    // most text entries have no linked photo at all, and even one that
-    // does has real text content of its own, so an unresolvable bonus
-    // photo just falls through to the plain flip below and shares as
-    // text only, rather than blocking the whole Ripple the way
-    // photo-only's own no-photo case does above. Reuses the same
-    // pre-loaded linkedPhotoUris map the photo_only branch above and
-    // renderEntryBody's own linked-photo strip already read from --
-    // no separate on-demand lookup needed now that resolveLinkedPhotoUris
-    // resolves every entry, not just photo_only ones.
-    if (entry.entry_kind === 'text' && newVisibility === 'public') {
-      const photoUri = linkedPhotoUris.get(entry.id) || null;
-      if (photoUri) {
-        try {
-          const mediaUrl = await makePhotoTicklePublic(entry, photoUri);
-          setEntries((prev) =>
-            prev.map((e) => (e.id === entry.id ? { ...e, visibility: 'public', media_url: mediaUrl } : e))
-          );
-        } catch (err) {
-          console.error('handleToggleVisibility: linked-photo upload failed', err);
-          showAlert(
-            "Couldn't make this public",
-            `Something went wrong uploading this photo — try again.\n\n${err.message || String(err)}`
-          );
-        }
-        return;
-      }
-    }
-
-    // Symmetric to the block above -- an already-public text entry
-    // whose linked photo was actually uploaded (media_url set) gets the
-    // same Storage removal as a photo-only entry going private. Gated
-    // on media_url itself rather than a fresh local-link lookup, since
-    // only an entry that went through the upload branch above ever has
-    // media_url set for entry_kind='text'.
-    if (entry.entry_kind === 'text' && newVisibility === 'private' && entry.media_url) {
-      try {
-        await makePhotoTicklePrivate(entry);
-        setEntries((prev) =>
-          prev.map((e) => (e.id === entry.id ? { ...e, visibility: 'private', media_url: null } : e))
-        );
-      } catch (err) {
-        console.error('handleToggleVisibility: linked-photo removal failed', err);
-        showAlert(
-          "Couldn't make this private",
-          `Something went wrong removing this photo — try again.\n\n${err.message || String(err)}`
-        );
-      }
-      return;
-    }
-
-    const previous = entries;
-    setEntries((prev) => prev.map((e) => (e.id === entry.id ? { ...e, visibility: newVisibility } : e)));
-
-    const { error } = await supabase
-      .from('tickle_entries')
-      .update({ visibility: newVisibility })
-      .eq('id', entry.id);
-
-    if (error) setEntries(previous);
-  }
 
   // Same scroll-to-and-highlight mechanism notifications.js already
   // uses to jump into Tickle Stash's Mine tab at a specific entry.
@@ -881,173 +685,109 @@ export default function Home() {
     refreshProfile();
   }
 
-  // My Day is a regular Tickle now (can be Rippled public, gets likes/
-  // awards/etc. like any other entry) -- no longer excluded from the
-  // spotlight picks below. Kept as its own variable (rather than using
-  // `entries` directly at both call sites) in case a real exclusion
-  // reason ever comes back.
-  const spotlightEntries = entries;
+  // Both bottom cards below are pure derivations of the already-loaded
+  // entries/goals -- no query of their own (see
+  // home_bottom_redesign_audit.md). Goal counts are disjoint: goal_id is
+  // a single column, so an entry counts toward at most one Goal.
+  const remember = session ? pickRememberEntry(entries, session.user.id) : null;
+  const goalCounts = new Map();
+  for (const e of entries) {
+    if (e.goal_id) goalCounts.set(e.goal_id, (goalCounts.get(e.goal_id) || 0) + 1);
+  }
 
-  const pinnedCutoff = localDateString(PINNED_WINDOW_DAYS - 1);
-  const pinned = spotlightEntries
-    .filter((e) => e.entry_date >= pinnedCutoff && e.like_count > 0)
-    .reduce((best, e) => (!best || e.like_count > best.like_count ? e : best), null);
-
-  function renderEntryBody(entry) {
-    const taggedGoal = entry.goal_id ? goalsById[entry.goal_id] : null;
+  // Compact and read-only on purpose -- no goal dot/Share/Edit/Ripple/
+  // Delete row like the old spotlight cards had; tapping anywhere on the
+  // card jumps to the entry in Tickle Stash, where all of those actions
+  // live. "Open" is just the visible cue, plain text rather than a second
+  // touchable nested inside the card's own. Photo-only
+  // entries get a small thumbnail instead of the full Polaroid, which
+  // at Home's width was close to a screen tall on its own.
+  function renderRememberCard() {
+    const { entry, isFallback } = remember;
     const isPhotoOnly = entry.entry_kind === 'photo_only';
-    const photoUri = linkedPhotoUris.get(entry.id) || null;
+    const photoUri = isPhotoOnly ? linkedPhotoUris.get(entry.id) || null : null;
+    const natureLabel = NATURE_LABELS[entry.tickle_nature];
     return (
-      <View>
-        <View style={styles.entryRow}>
-          {/* The plain-grey NatureIcon that used to render in iconRow
-              below was removed -- it duplicated this colored vibe icon.
-              My Day entries can reach renderEntryBody now that
-              spotlightEntries no longer excludes them -- same
-              deliberately-not-a-Vibe sun icon as EntryCard.js's own
-              vibeIconSlot (see that file's comment for why day_journal
-              stays out of VIBE_COLORS/NATURE_ORDER itself). */}
-          <View
-            style={[
-              styles.vibeIconSlot,
-              {
-                width: SAVED_ENTRY_DOT_SIZE,
-                height: SAVED_ENTRY_DOT_SIZE,
-                alignItems: 'center',
-                justifyContent: 'center',
-              },
-            ]}
-          >
-            {!!VIBE_COLORS[entry.tickle_nature] && (
-              <NatureIcon
-                nature={entry.tickle_nature}
-                size={SAVED_ENTRY_DOT_SIZE}
-                color={vibeIconColor(entry.tickle_nature)}
-              />
-            )}
-            {entry.tickle_nature === 'day_journal' && (
-              <Ionicons name="sunny-outline" size={SAVED_ENTRY_DOT_SIZE} color={C.rust} />
-            )}
-          </View>
-          <View style={styles.entryBody}>
-            {isPhotoOnly ? (
-              // The Polaroid itself, same tilt+frame language as
-              // EntryCard.js's own photo-only render -- sized larger
-              // here since this is a single spotlight card, not one of
-              // many in a scrolling list. Deliberately still sits inside
-              // Home's normal bordered entryCard/pinnedCard treatment
-              // (unlike EntryCard.js, which drops that surface for
-              // photo-only entries) -- keeping it means the "Most smiled
-              // with you" amber highlight stays visible even when that
-              // pick happens to be a photo-only entry; revisit if this
-              // reads wrong in practice.
-              <View
-                style={[styles.polaroidPhotoCard, { transform: [{ rotate: rotationForId(entry.id) }] }]}
-              >
-                {photoUri ? (
-                  <Image source={{ uri: photoUri }} style={styles.polaroidPhoto} />
-                ) : (
-                  <View style={styles.polaroidMissingWrap}>
-                    <Ionicons name="image-outline" size={26} color={C.faint} />
-                    <Text style={styles.polaroidMissingText}>
-                      Photo not available here — open in Tickle Stash to relink
-                    </Text>
-                  </View>
-                )}
-                <View style={styles.polaroidCaptionStrip}>
-                  <Text style={styles.polaroidCaptionLabel}>{NATURE_LABELS[entry.tickle_nature]}</Text>
-                </View>
-              </View>
+      <TouchableOpacity
+        style={styles.entryCard}
+        activeOpacity={0.8}
+        onPress={() => goToEntryInFeed(entry.id)}
+      >
+        <View style={styles.cardHeaderRow}>
+          <Text style={styles.cardLabel}>{isFallback ? 'Your latest Tickle' : 'Remember this?'}</Text>
+          <Text style={styles.relativeTime}>{relativeDayLabel(daysAgo(entry.entry_date))}</Text>
+        </View>
+        {!isPhotoOnly && !!entry.text_content && (
+          <Text style={styles.entryText} numberOfLines={4}>{entry.text_content}</Text>
+        )}
+        <View style={styles.rememberFooter}>
+          {isPhotoOnly && (
+            photoUri ? (
+              <Image source={{ uri: photoUri }} style={styles.rememberThumb} />
             ) : (
-              <>
-                {/* Tickle-a-Photo display, mirroring EntryCard.js's own
-                    linkedPhotoStrip -- plain full-width strip, no
-                    Polaroid frame/rotation/caption (that treatment is
-                    photo_only-only, both here and in EntryCard.js).
-                    Deliberately a plain non-interactive Image, not its
-                    own TouchableOpacity/onOpenPhoto -- unlike Feed/
-                    Calendar, Home has no PhotoEnlargeModal at all; the
-                    entire spotlight card is already one tap target that
-                    navigates to Feed (goToEntryInFeed), same as the
-                    photo-only Polaroid above already behaves (plain
-                    View, no independent tap handler). Renders whenever
-                    photoUri resolves, kind-agnostic, same as
-                    EntryCard.js -- silently omitted otherwise, same as
-                    today's plain-text-only rendering when there's no
-                    link or it's unresolved on this device. */}
-                {!!photoUri && (
-                  <Image source={{ uri: photoUri }} style={styles.linkedPhotoStrip} />
-                )}
-                <Text style={styles.entryText} numberOfLines={1}>{entry.text_content}</Text>
-              </>
-            )}
-            <View style={styles.entryMetaRow}>
-              <Text style={styles.entryDate}>
-                {formatEntryDate(entry.entry_date)}
-                {entry.visibility === 'public' && entry.is_edited ? ' · (edited)' : ''}
-              </Text>
-              <Text style={styles.entryLikes}>{likeLabel(entry.like_count)}</Text>
-            </View>
-          </View>
-        </View>
-        <View style={styles.iconRow}>
-          <TouchableOpacity
-            onPress={() => setPickerEntryId(entry.id)}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <View
-              style={[
-                styles.goalDot,
-                taggedGoal ? { backgroundColor: taggedGoal.color } : styles.goalDotEmpty,
-              ]}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => (isPhotoOnly ? handlePhotoOnlyShare(entry) : setShareEntryId(entry.id))}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            style={styles.shareAction}
-          >
-            <Text style={styles.shareLink}>Share</Text>
-          </TouchableOpacity>
-          {/* No text to edit on a photo-only entry -- same omission as
-              EntryCard.js's own menu (re-picking the Vibe as a kind of
-              "edit" was raised there but never resolved either way). */}
-          {!isPhotoOnly && (
-            <TouchableOpacity
-              onPress={() => router.push({ pathname: '/create', params: { entryId: entry.id } })}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              style={styles.editAction}
-            >
-              <Ionicons name="pencil-outline" size={16} color={C.subtext} />
-            </TouchableOpacity>
+              <View style={[styles.rememberThumb, styles.rememberThumbMissing]}>
+                <Ionicons name="image-outline" size={22} color={C.faint} />
+              </View>
+            )
           )}
-          <TouchableOpacity
-            onPress={() => handleToggleVisibility(entry)}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            style={styles.visibilityAction}
-          >
-            <Ionicons
-              name={entry.visibility === 'public' ? 'eye-outline' : 'eye-off-outline'}
-              size={16}
-              color={C.subtext}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => confirmDeleteEntry(entry)}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            style={styles.deleteAction}
-          >
-            <Ionicons name="trash-outline" size={16} color={C.rust} />
-          </TouchableOpacity>
+          {!!natureLabel && (
+            <View style={styles.natureChip}>
+              {!!VIBE_COLORS[entry.tickle_nature] && (
+                <NatureIcon nature={entry.tickle_nature} size={14} color={vibeIconColor(entry.tickle_nature)} />
+              )}
+              <Text style={styles.natureChipText}>{natureLabel}</Text>
+            </View>
+          )}
+          <Text style={[styles.openLink, styles.openAction]}>Open</Text>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   }
 
-  const pickerEntry = entries.find((e) => e.id === pickerEntryId) || null;
-  const shareTargetEntry = entries.find((e) => e.id === shareEntryId) || null;
-  const shareStat = useShareStatus(profile, !!shareTargetEntry);
-  const shareBlocked = !!shareStat && !shareStat.unlimited && shareStat.remaining <= 0;
+  // One row per active Goal -> that Goal's own summary screen
+  // (app/goal.js). With no active Goals, a gentle prompt instead; the
+  // caller hides this card entirely until the first entry exists, so a
+  // brand-new account isn't shown two calls to action at once
+  // (QuickStartCard already covers that state).
+  function renderGoalsCard() {
+    return (
+      <View style={styles.entryCard}>
+        <Text style={[styles.cardLabel, styles.goalsCardLabel]}>Your Goals</Text>
+        {activeGoals.length === 0 ? (
+          <>
+            <Text style={styles.goalsPromptText}>
+              Working towards something? Add a Goal, then tag Tickles to it as you go.
+            </Text>
+            <Button title="Add a Goal" onPress={() => router.push('/goals')} variant="secondary" />
+          </>
+        ) : (
+          activeGoals.map((g, i) => (
+            <TouchableOpacity
+              key={g.id}
+              style={[styles.goalRow, i > 0 && styles.goalRowDivider]}
+              activeOpacity={0.7}
+              onPress={() => router.push({ pathname: '/goal', params: { id: g.id } })}
+            >
+              <View style={[styles.goalRowDot, { backgroundColor: g.color }]} />
+              <Text style={styles.goalRowLabel} numberOfLines={1}>{g.label}</Text>
+              {/* Hidden when the Tokens master switch is off, same
+                  "!== false" idiom as CornerNav's showTokens. */}
+              {g.earns_tokens && profile?.tokens_enabled !== false && (
+                <MaterialCommunityIcons
+                  name="circle-multiple-outline"
+                  size={15}
+                  color={C.subtext}
+                  style={styles.goalRowCoin}
+                />
+              )}
+              <Text style={styles.goalRowCount}>{goalCounts.get(g.id) || 0}</Text>
+              <Ionicons name="chevron-forward" size={16} color={C.faint} />
+            </TouchableOpacity>
+          ))
+        )}
+      </View>
+    );
+  }
 
   const STAT_PILLS = [
     { key: 'madeMeSmile', icon: 'happy-outline', value: `${madeMeSmileTotals.week} | ${madeMeSmileTotals.month} | ${madeMeSmileTotals.allTime}`, tooltip: "This made me smile today · week / month / all-time", label: 'Polaroid' },
@@ -1198,17 +938,6 @@ export default function Home() {
 
         <Button title="New Tickle" onPress={() => router.push('/create')} variant="secondary" style={styles.newTickleShadow} />
 
-        {pinned && (
-          <TouchableOpacity
-            style={[styles.entryCard, styles.pinnedCard]}
-            activeOpacity={0.8}
-            onPress={() => goToEntryInFeed(pinned.id)}
-          >
-            <Text style={styles.pinnedLabel}>Most liked the past 14 days</Text>
-            {renderEntryBody(pinned)}
-          </TouchableOpacity>
-        )}
-
         {loading && <ActivityIndicator color={C.rust} style={styles.loader} />}
 
         {!loading && entries.length === 0 && !profile?.quick_start_dismissed && (
@@ -1219,21 +948,11 @@ export default function Home() {
           <Text style={styles.emptyText}>No tickles yet — write about what made you smile today.</Text>
         )}
 
-        {/* Skip re-rendering the same entry twice -- pinned (highest
-            like_count in the last 14 days) and entries[0] (the single most
-            recent entry) frequently coincide, especially for newer/lower-
-            activity accounts. */}
-        {!loading && spotlightEntries.length > 0 && spotlightEntries[0].id !== pinned?.id && (
-          <>
-            <Text style={styles.sectionLabel}>Latest tickle</Text>
-            <TouchableOpacity
-              style={styles.entryCard}
-              activeOpacity={0.8}
-              onPress={() => goToEntryInFeed(spotlightEntries[0].id)}
-            >
-              {renderEntryBody(spotlightEntries[0])}
-            </TouchableOpacity>
-          </>
+        {!loading && entries.length > 0 && (
+          <View style={styles.bottomCards}>
+            {!!remember && renderRememberCard()}
+            {renderGoalsCard()}
+          </View>
         )}
 
         {!loading && entries.length > 0 && !profile?.quick_start_dismissed && (
@@ -1243,30 +962,11 @@ export default function Home() {
     </ScrollView>
     </WallpaperBackground>
 
-    <GoalTagModal
-      entry={pickerEntry}
-      goals={activeGoals}
-      taggedGoal={pickerEntry?.goal_id ? goalsById[pickerEntry.goal_id] : null}
-      onAssign={(goalId) => assignGoal(pickerEntry.id, goalId)}
-      onDismiss={() => setPickerEntryId(null)}
-    />
-
-    <ShareModal
-      visible={shareTargetEntry}
-      captions={SHARE_CAPTIONS}
-      blocked={shareBlocked}
-      cap={shareStat?.cap}
-      profile={profile}
-      onConfirm={(captionId) => handleShare(shareTargetEntry, captionId)}
-      onDismiss={() => setShareEntryId(null)}
-    />
-
     <AboutModal
       visible={showGuide}
       onClose={handleCloseAboutIntro}
       showGuideLink
     />
-    {hiddenCard}
     </>
   );
 }
@@ -1351,77 +1051,39 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15, shadowRadius: 4, elevation: 3,
   },
 
-  pinnedCard: {
-    marginTop: 12, borderWidth: 1.5, borderColor: C.amberDark, backgroundColor: withAlpha(C.amberDark, 0.16),
-  },
-  pinnedLabel: {
-    fontSize: 12, fontWeight: '600', color: C.sparkleText,
-    marginBottom: 8,
-  },
-
-  sectionLabel: { fontSize: 14, fontWeight: '600', color: C.subtext, marginTop: 6, marginBottom: 6 },
   loader: { marginTop: 12 },
   quickStartTopGap: { marginTop: 12 },
   emptyText: { color: C.subtext, textAlign: 'center', marginTop: 12 },
 
+  bottomCards: { marginTop: 12 },
   entryCard: {
-    backgroundColor: C.card, borderRadius: 16, padding: 10, marginBottom: 12,
+    backgroundColor: C.card, borderRadius: 16, padding: 12, marginBottom: 12,
   },
-  // Sized larger than EntryCard.js's own 75% -- this is a single
-  // spotlight card, not one of many stacked in a scrolling feed, so
-  // there's no crowding reason to keep it that small.
-  polaroidPhotoCard: {
-    width: '92%',
-    alignSelf: 'center',
-    backgroundColor: C.card,
-    borderRadius: 8,
-    padding: 8,
-    paddingBottom: 6,
-    marginTop: 4,
-    marginBottom: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
+  cardHeaderRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8,
   },
-  polaroidPhoto: { width: '100%', aspectRatio: 1, borderRadius: 4, backgroundColor: C.border },
-  polaroidMissingWrap: {
-    width: '100%', aspectRatio: 1, borderRadius: 4, backgroundColor: C.bg,
-    alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16,
-  },
-  polaroidMissingText: { fontSize: 12, color: C.subtext, textAlign: 'center' },
-  polaroidCaptionStrip: { paddingTop: 8, paddingHorizontal: 2 },
-  polaroidCaptionLabel: { fontSize: 13, fontWeight: '600', color: C.rustDark, textAlign: 'center' },
-  entryRow: { flexDirection: 'row', alignItems: 'flex-start' },
-  vibeIconSlot: { marginRight: 12, marginTop: 4 },
-  entryBody: { flex: 1 },
-  // Same values as EntryCard.js's own linkedPhotoStrip/linkedPhotoStripImage
-  // pair, collapsed into one style since this is a plain Image here, not a
-  // TouchableOpacity wrapping one -- see renderEntryBody's own comment.
-  linkedPhotoStrip: {
-    width: '100%', height: 100, borderRadius: 16, marginBottom: 8, backgroundColor: C.border,
-  },
+  cardLabel: { fontSize: 13, fontWeight: '700', color: C.rustDark },
+  relativeTime: { fontSize: 12, color: C.subtext },
   entryText: { fontSize: 15, color: C.text, lineHeight: 20 },
-  entryMetaRow: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    marginTop: 8,
-  },
-  entryDate: { fontSize: 12, color: C.subtext },
-  entryLikes: { fontSize: 12, color: C.teal, fontWeight: '600' },
-  shareLink: { fontSize: 12, color: C.subtext, fontWeight: '600' },
 
-  iconRow: {
-    flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginTop: 8,
+  rememberFooter: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 },
+  rememberThumb: { width: 72, height: 72, borderRadius: 8, backgroundColor: C.border },
+  rememberThumbMissing: { backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
+  natureChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingVertical: 3, paddingHorizontal: 8, borderRadius: 10,
+    borderWidth: 1, borderColor: C.border,
   },
-  natureIcon: { marginLeft: 12 },
-  goalDot: { width: 16, height: 16, borderRadius: 8, marginLeft: 12 },
-  shareAction: { marginLeft: 12 },
-  editAction: { marginLeft: 12 },
-  visibilityAction: { marginLeft: 12 },
-  deleteAction: { marginLeft: 12 },
-  goalDotEmpty: {
-    backgroundColor: 'transparent', borderWidth: 1.5,
-    borderStyle: 'dashed', borderColor: C.faint,
-  },
+  natureChipText: { fontSize: 11, fontWeight: '600', color: C.subtext },
+  openAction: { marginLeft: 'auto' },
+  openLink: { fontSize: 13, fontWeight: '700', color: C.rust },
+
+  goalsCardLabel: { marginBottom: 4 },
+  goalsPromptText: { fontSize: 14, color: C.subtext, lineHeight: 20, marginBottom: 10 },
+  goalRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },
+  goalRowDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.border },
+  goalRowDot: { width: 12, height: 12, borderRadius: 6, marginRight: 10 },
+  goalRowLabel: { flex: 1, fontSize: 15, color: C.text },
+  goalRowCoin: { marginLeft: 6 },
+  goalRowCount: { fontSize: 14, fontWeight: '700', color: C.text, marginLeft: 10, marginRight: 4 },
 });
