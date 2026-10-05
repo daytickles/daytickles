@@ -15,6 +15,7 @@ import {
 import { fetchFoundingMemberPaceStatus, fetchFoundingMemberOptInReminderStatus } from '../../lib/foundingMember';
 import { flagEmoji } from '../../lib/country';
 import { initPinBoardDb, getPhotosForEntries } from '../../lib/pinBoardDb';
+import { fetchTokenBalance, fetchWishlistItems } from '../../lib/tokens';
 import Button from '../../components/Button';
 import VibeCard from '../../components/VibeCard';
 import NatureIcon from '../../components/NatureIcon';
@@ -204,6 +205,8 @@ export default function Home() {
   // loaded entry that has one (photo_only, or a text entry with a
   // Tickle-a-Photo link), see resolveLinkedPhotoUris above.
   const [linkedPhotoUris, setLinkedPhotoUris] = useState(new Map());
+  const [tokenBalance, setTokenBalance] = useState(0);
+  const [rewardItems, setRewardItems] = useState([]);
   const [madeMeSmileTotals, setMadeMeSmileTotals] = useState({ week: 0, month: 0, allTime: 0 });
   const [thoughtOfYouTotals, setThoughtOfYouTotals] = useState({ week: 0, month: 0, allTime: 0 });
   const [showGuide, setShowGuide] = useState(false);
@@ -507,6 +510,37 @@ export default function Home() {
     }, [loadOptInReminder])
   );
 
+  // Balance + Reward List for the "You can redeem" strip. Deliberately its
+  // own two fetches rather than shared with CornerNav's header circle
+  // (which only fetches the cheapest cost, and keeps its state private to
+  // each tab's instance) -- +2 queries per Home focus, accepted for now;
+  // see home_bottom_redesign_audit.md section 3 for the zero-cost option.
+  // Skipped, and cleared, while Tokens & Rewards is off -- same
+  // "!== false" idiom as CornerNav's showTokens, and the same one-refresh
+  // lag right after the Settings switch flips.
+  const tokensEnabled = profile?.tokens_enabled !== false;
+  const loadRewards = useCallback(async () => {
+    if (!session || !tokensEnabled) {
+      setTokenBalance(0);
+      setRewardItems([]);
+      return;
+    }
+    try {
+      const [balance, items] = await Promise.all([fetchTokenBalance(), fetchWishlistItems()]);
+      setTokenBalance(balance);
+      setRewardItems(items || []);
+    } catch {
+      // Best-effort -- a failed fetch just hides the strip.
+      setRewardItems([]);
+    }
+  }, [session, tokensEnabled]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadRewards();
+    }, [loadRewards])
+  );
+
   // Achieved goals are left out of Home's "Your Goals" card -- they keep
   // their row (and their color on already-tagged entries) but are no
   // longer something being worked on.
@@ -744,6 +778,73 @@ export default function Home() {
     );
   }
 
+  // "You can redeem" strip: only ever lists rewards affordable right now
+  // -- never the ones still out of reach, and no "almost there" hint, so
+  // it can only ever read as good news. Rewards are repeatable (redeeming
+  // never removes one, see migration 0065), so a chip simply stays while
+  // it's still affordable. rewardItems is already sorted by cost
+  // ascending (fetchWishlistItems). Redeeming itself stays on the Reward
+  // List with its own confirmation -- the header row and every chip just
+  // open it, same target as CornerNav's header circle.
+  const affordableRewards = tokensEnabled ? rewardItems.filter((i) => i.cost <= tokenBalance) : [];
+
+  function joinNames(names) {
+    if (names.length <= 1) return names.join('');
+    return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+  }
+
+  // Header row and each chip are their own touchables rather than one
+  // TouchableOpacity around the whole card, so a sideways swipe on the
+  // chip row scrolls it without also firing a tap. No chip cap: every
+  // affordable reward gets a chip, and the card has no right padding so
+  // the last visible chip peeks at the edge as a scroll hint.
+  function renderRedeemCard() {
+    const headerA11y =
+      `${tokenBalance} token${tokenBalance === 1 ? '' : 's'}. ` +
+      `You can redeem ${joinNames(affordableRewards.map((i) => i.label))}. Opens Reward List.`;
+    return (
+      <View style={[styles.entryCard, styles.redeemCard]}>
+        <TouchableOpacity
+          style={styles.redeemHeaderRow}
+          activeOpacity={0.7}
+          onPress={() => router.push('/wishlist')}
+          accessibilityRole="button"
+          accessibilityLabel={headerA11y}
+        >
+          <View style={styles.redeemBalanceCircle}>
+            <Text style={styles.redeemBalanceText}>{tokenBalance}</Text>
+          </View>
+          <Text style={[styles.cardLabel, styles.redeemHeaderLabel]}>You can redeem</Text>
+          <Ionicons name="chevron-forward" size={16} color={C.faint} />
+        </TouchableOpacity>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.redeemChipsRow}
+        >
+          {affordableRewards.map((item) => (
+            // Name and cost in separate Texts so only the name truncates --
+            // a long (up to 60-char) label would otherwise push the cost
+            // off the end of a single truncated line.
+            <TouchableOpacity
+              key={item.id}
+              style={styles.redeemChip}
+              activeOpacity={0.7}
+              onPress={() => router.push('/wishlist')}
+              accessibilityRole="button"
+              accessibilityLabel={`${item.label}, ${item.cost} token${item.cost === 1 ? '' : 's'}. Opens Reward List.`}
+            >
+              <Text style={[styles.redeemChipText, styles.redeemChipLabel]} numberOfLines={1}>
+                {item.label}
+              </Text>
+              <Text style={[styles.redeemChipText, styles.redeemChipCost]}> · {item.cost}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+    );
+  }
+
   // One row per active Goal -> that Goal's own summary screen
   // (app/goal.js). With no active Goals, a gentle prompt instead; the
   // caller hides this card entirely until the first entry exists, so a
@@ -952,6 +1053,7 @@ export default function Home() {
           <View style={styles.bottomCards}>
             {!!remember && renderRememberCard()}
             {renderGoalsCard()}
+            {affordableRewards.length > 0 && renderRedeemCard()}
           </View>
         )}
 
@@ -1086,4 +1188,29 @@ const styles = StyleSheet.create({
   goalRowLabel: { flex: 1, fontSize: 15, color: C.text },
   goalRowCoin: { marginLeft: 6 },
   goalRowCount: { fontSize: 14, fontWeight: '700', color: C.text, marginLeft: 10, marginRight: 4 },
+
+  // No right padding -- the chip row runs to the card's edge so the last
+  // visible chip peeks out as a scroll hint; the header row and the
+  // scroll content put that padding back themselves.
+  redeemCard: { paddingVertical: 4, paddingRight: 0 },
+  redeemHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, paddingRight: 12 },
+  redeemHeaderLabel: { flex: 1 },
+  // Same look as CornerNav's tokenCircle + tokenCircleFilled.
+  redeemBalanceCircle: {
+    minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 4,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1.5, borderColor: C.subtext, backgroundColor: C.subtext,
+  },
+  redeemBalanceText: { fontSize: 11, fontWeight: '700', color: C.card },
+  redeemChipsRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingRight: 12, paddingBottom: 8 },
+  // minHeight 44 for a comfortable touch target; maxWidth caps a long
+  // (up to 60-char) name so it truncates instead of filling the row.
+  redeemChip: {
+    flexDirection: 'row', alignItems: 'center',
+    minHeight: 44, maxWidth: 240, paddingHorizontal: 14, borderRadius: 22,
+    borderWidth: 1, borderColor: C.border,
+  },
+  redeemChipText: { fontSize: 13, fontWeight: '600', color: C.text },
+  redeemChipLabel: { flexShrink: 1 },
+  redeemChipCost: { flexShrink: 0 },
 });
