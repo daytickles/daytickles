@@ -875,17 +875,20 @@ export default function Home() {
     return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
   }
 
-  // Header row and each chip are their own touchables rather than one
-  // TouchableOpacity around the whole card, so a sideways swipe on the
-  // chip row scrolls it without also firing a tap. No chip cap: every
-  // affordable reward gets a chip, and the card has no right padding so
-  // the last visible chip peeks at the edge as a scroll hint.
+  // Same transparent pill-row pattern as Your Goals and Multickles you
+  // follow: no white card, and the header row and each pill are their
+  // own touchables rather than one around the whole section, so a
+  // sideways swipe on the pill row scrolls it without also firing a tap.
+  // No pill cap: every affordable reward gets a pill, and the row runs
+  // to the content edge so the last visible pill peeks as a scroll hint.
+  // The label leads the header row so it lines up with the other two
+  // section labels; the balance circle follows it.
   function renderRedeemCard() {
     const headerA11y =
       `${tokenBalance} token${tokenBalance === 1 ? '' : 's'}. ` +
       `You can redeem ${joinNames(affordableRewards.map((i) => i.label))}. Opens Reward List.`;
     return (
-      <View style={[styles.entryCard, styles.redeemCard]}>
+      <View style={styles.goalsSection}>
         <TouchableOpacity
           style={styles.redeemHeaderRow}
           activeOpacity={0.7}
@@ -893,20 +896,20 @@ export default function Home() {
           accessibilityRole="button"
           accessibilityLabel={headerA11y}
         >
+          <Text style={styles.cardLabel}>You can redeem</Text>
           <View style={styles.redeemBalanceCircle}>
             <Text style={styles.redeemBalanceText}>{tokenBalance}</Text>
           </View>
-          <Text style={[styles.cardLabel, styles.redeemHeaderLabel]}>You can redeem</Text>
-          <Ionicons name="chevron-forward" size={16} color={C.faint} />
+          <Ionicons name="chevron-forward" size={16} color={C.subtext} style={styles.redeemHeaderChevron} />
         </TouchableOpacity>
         {/* Keyed by the affordable ids so the row remounts at the first
-            chip whenever that list changes (e.g. a redeem drops a chip),
+            pill whenever that list changes (e.g. a redeem drops a pill),
             rather than keeping a stale scroll offset into a shorter row. */}
         <ScrollView
           key={affordableRewards.map((i) => i.id).join(',')}
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.redeemChipsRow}
+          contentContainerStyle={styles.goalPillsRow}
         >
           {affordableRewards.map((item) => (
             // Name and cost in separate Texts so only the name truncates --
@@ -914,16 +917,15 @@ export default function Home() {
             // off the end of a single truncated line.
             <TouchableOpacity
               key={item.id}
-              style={styles.redeemChip}
+              style={[styles.goalPill, styles.redeemPill]}
               activeOpacity={0.7}
               onPress={() => router.push('/wishlist')}
               accessibilityRole="button"
               accessibilityLabel={`${item.label}, ${item.cost} token${item.cost === 1 ? '' : 's'}. Opens Reward List.`}
             >
-              <Text style={[styles.redeemChipText, styles.redeemChipLabel]} numberOfLines={1}>
-                {item.label}
-              </Text>
-              <Text style={[styles.redeemChipText, styles.redeemChipCost]}> · {item.cost}</Text>
+              <Text style={styles.redeemPillLabel} numberOfLines={1}>{item.label}</Text>
+              <MaterialCommunityIcons name="circle-multiple-outline" size={16} color={C.subtext} />
+              <Text style={styles.redeemPillCost}>{item.cost}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -1378,12 +1380,18 @@ const styles = StyleSheet.create({
   // still reads first at New Tickle's smaller 12px size.
   goalPillCount: { flexShrink: 0, fontSize: 12, fontWeight: '700', color: C.text },
 
-  // No right padding -- the chip row runs to the card's edge so the last
-  // visible chip peeks out as a scroll hint; the header row and the
-  // scroll content put that padding back themselves.
-  redeemCard: { paddingVertical: 4, paddingRight: 0 },
-  redeemHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, paddingRight: 12 },
-  redeemHeaderLabel: { flex: 1 },
+  // "You can redeem" sits in goalsSection like the other two pill rows.
+  // Its header is a 44px touch target with the label first, so the label
+  // keeps the same left edge as "Your Goals" and "Multickles you follow".
+  // The negative margins pull that taller row back so the label keeps the
+  // same ~12dp gap above and 6dp gap below as the other section labels;
+  // -12 stops the tap area exactly at the previous section's pills, and
+  // the pill row (rendered after it) wins the 7dp it overlaps below.
+  redeemHeaderRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44,
+    marginTop: -12, marginBottom: -7,
+  },
+  redeemHeaderChevron: { marginLeft: 'auto' },
   // Same look as CornerNav's tokenCircle + tokenCircleFilled.
   redeemBalanceCircle: {
     minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 4,
@@ -1391,17 +1399,12 @@ const styles = StyleSheet.create({
     borderWidth: 1.5, borderColor: C.subtext, backgroundColor: C.subtext,
   },
   redeemBalanceText: { fontSize: 11, fontWeight: '700', color: C.card },
-  redeemChipsRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingRight: 12, paddingBottom: 8 },
-  // minHeight 44 for a comfortable touch target; maxWidth caps a long
-  // (up to 60-char) name so it truncates instead of filling the row.
-  redeemChip: {
-    flexDirection: 'row', alignItems: 'center',
-    minHeight: 44, maxWidth: 240, paddingHorizontal: 14, borderRadius: 22,
-    borderWidth: 1, borderColor: C.border,
-  },
-  redeemChipText: { fontSize: 13, fontWeight: '600', color: C.text },
-  redeemChipLabel: { flexShrink: 1 },
-  redeemChipCost: { flexShrink: 0 },
+  // Reward pills reuse goalPill's shape; a soft amber tint with the full
+  // amber border so they read as good news. Name and cost use the Goal
+  // pill's type (12/600 label, 12/700 count), with the same coin icon.
+  redeemPill: { backgroundColor: withAlpha(C.amberBg, 0.25), borderColor: C.amberDark },
+  redeemPillLabel: { flexShrink: 1, fontSize: 12, fontWeight: '600', color: C.text },
+  redeemPillCost: { flexShrink: 0, fontSize: 12, fontWeight: '700', color: C.text },
 
   // "Multickles you follow" pills reuse goalPill's shape; only the fill,
   // border and label colour differ. A pill with a new Tic takes the
