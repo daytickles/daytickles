@@ -238,6 +238,8 @@ export default function Home() {
   // "Multickles you follow" pill was showing when tapped this session --
   // see loadFollowedTales.
   const tappedTaleNewAtRef = useRef(new Map());
+  // Lets the tester pill scroll its note box clear of the keyboard.
+  const scrollRef = useRef(null);
   const [paceReminder, setPaceReminder] = useState(null);
   const [optInReminder, setOptInReminder] = useState(null);
 
@@ -1078,6 +1080,8 @@ export default function Home() {
     <WallpaperBackground>
     <ScrollView
       style={styles.container}
+      ref={scrollRef}
+      keyboardShouldPersistTaps="handled"
       contentContainerStyle={[
         styles.content,
         { paddingTop: insets.top + 12, paddingBottom: styles.content.paddingBottom + tabBarHeight },
@@ -1215,7 +1219,7 @@ export default function Home() {
         <Text style={styles.statPillsCaption}>Mojo Shared</Text>
 
         <Button title="New Tickle" onPress={() => router.push('/create')} variant="secondary" style={styles.newTickleShadow} />
-        <TesterFeedbackPill />
+        <TesterFeedbackPill scrollRef={scrollRef} />
 
         {loading && <ActivityIndicator color={C.rust} style={styles.loader} />}
 
