@@ -26,6 +26,7 @@ import FoundingMemberBadge from '../../components/FoundingMemberBadge';
 import QuickStartCard from '../../components/QuickStartCard';
 import CornerNav from '../../components/CornerNav';
 import WallpaperBackground from '../../components/WallpaperBackground';
+import TesterFeedbackPill from '../../components/TesterFeedbackPill';
 import {
   requestReminderPermission,
   scheduleDailyReminder,
@@ -1214,6 +1215,7 @@ export default function Home() {
         <Text style={styles.statPillsCaption}>Mojo Shared</Text>
 
         <Button title="New Tickle" onPress={() => router.push('/create')} variant="secondary" style={styles.newTickleShadow} />
+        <TesterFeedbackPill />
 
         {loading && <ActivityIndicator color={C.rust} style={styles.loader} />}
 
