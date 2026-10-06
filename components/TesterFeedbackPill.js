@@ -17,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { fetchTodayTasks, saveAnswer } from '../lib/testerFeedback';
-import { C } from '../lib/theme';
+import { C, withAlpha } from '../lib/theme';
 
 // Deliberately not a theme token -- this pill should read as "not part
 // of the app" and go away with it.
@@ -171,25 +171,48 @@ export default function TesterFeedbackPill({ scrollRef }) {
   if (tasks.length === 0) return null;
 
   const count = tasks.length;
+  // Derived, never stored: every one of today's tasks has an answer (a
+  // Problem with no note still counts -- the note is optional). Resets on
+  // its own tomorrow (new, unanswered dated rows) and drops back to
+  // partial if a task is added later today. The panel deliberately does
+  // NOT collapse when this flips, so a last-moment Problem still gets
+  // its note box.
+  const complete = tasks.every((t) => !!t.answer);
   return (
     <View style={styles.wrap}>
       <TouchableOpacity
-        style={styles.pill}
+        style={[styles.pill, complete && styles.pillDone]}
         activeOpacity={0.8}
         onPress={() => setOpen((v) => !v)}
         accessibilityRole="button"
         accessibilityState={{ expanded: open }}
-        accessibilityLabel={`Test ideas for today, ${count} idea${count === 1 ? '' : 's'}.`}
+        accessibilityLabel={
+          complete
+            ? 'Test ideas for today, all answered. Thank you.'
+            : `Test ideas for today, ${count} idea${count === 1 ? '' : 's'}.`
+        }
       >
-        <Text style={styles.pillText}>Test ideas for today</Text>
-        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={18} color={C.amberText} />
+        <Text style={[styles.pillText, complete && styles.pillTextDone]}>
+          {complete ? 'Test ideas for today ✓' : 'Test ideas for today'}
+        </Text>
+        <Ionicons
+          name={open ? 'chevron-up' : 'chevron-down'}
+          size={18}
+          color={complete ? C.text : C.amberText}
+        />
       </TouchableOpacity>
 
       {/* In-flow, never absolute: opening it pushes Home's cards down
           instead of covering them (and catching their taps). */}
       {open && (
         <View style={styles.panel}>
-          <Text style={styles.helper}>Try these when you have a minute, then tap how it went.</Text>
+          {complete ? (
+            <Text style={styles.thanks}>
+              Thank you, that's everything for today. You can still change any answer below.
+            </Text>
+          ) : (
+            <Text style={styles.helper}>Try these when you have a minute, then tap how it went.</Text>
+          )}
           {tasks.map((t) => (
             <View key={t.id} style={styles.task}>
               <Text style={styles.taskTitle}>{t.title}</Text>
@@ -282,6 +305,13 @@ const styles = StyleSheet.create({
     borderRadius: 999, borderWidth: 1.5, borderColor: OUTLINE, backgroundColor: C.amberBg,
   },
   pillText: { fontSize: 15, fontWeight: '700', color: C.amberText },
+  // All answered: same shape and size, calm beige instead of the yellow.
+  pillDone: { backgroundColor: C.sparkleBg, borderColor: withAlpha(OUTLINE, 0.5) },
+  pillTextDone: { color: C.text },
+  thanks: {
+    fontSize: 13, color: C.text, lineHeight: 18, marginBottom: 4,
+    backgroundColor: C.sparkleBg, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 10,
+  },
   panel: {
     marginTop: 8, padding: 12, borderRadius: 16,
     backgroundColor: C.card, borderWidth: 1, borderColor: C.border,
