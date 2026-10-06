@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { File } from 'expo-file-system';
 import { useAuth } from '../contexts/AuthContext';
+import { useNotifications } from '../contexts/NotificationsContext';
 import { supabase } from '../lib/supabase';
 import { C, NATURE_LABELS, withAlpha } from '../lib/theme';
 import { showAlert } from '../lib/themedAlert';
@@ -42,6 +43,7 @@ function formatEntryDate(entryDate) {
 // unnumbered, since numbering only counts what others can actually see.
 export default function Tale() {
   const { session } = useAuth();
+  const { refreshUnreadCount } = useNotifications();
   const params = useLocalSearchParams();
   const taleId = Array.isArray(params.id) ? params.id[0] : params.id;
   const [tale, setTale] = useState(null);
@@ -89,8 +91,35 @@ export default function Tale() {
     const chapterRows = chaptersRes.error ? [] : [...(chaptersRes.data || [])].sort(compareChapters);
     setTale(taleData);
     setChapters(chapterRows);
-    setIsFollowing(!followRes.error && !!followRes.data);
+    const following = !followRes.error && !!followRes.data;
+    setIsFollowing(following);
     setFollowerCount(countRes.error ? 0 : countRes.count || 0);
+
+    // Opening a followed Multickle by any route (Home's "Multickles you
+    // follow" card, a Stash pill, an EntryCard chip, the bell list)
+    // marks its unread tale_chapter notifications read, so the Home card
+    // and the bell badge stop pointing at Tics already seen. Fire-and-
+    // forget and best-effort: never awaited, so it can't hold up the
+    // render, and it touches only notifications -- never profiles.
+    // Authors can't follow their own Multickle, so `following` already
+    // excludes them; the user_id check just makes that explicit.
+    if (following && taleData && taleData.user_id !== session.user.id) {
+      (async () => {
+        try {
+          const { data, error } = await supabase
+            .from('notifications')
+            .update({ is_read: true })
+            .eq('recipient_id', session.user.id)
+            .eq('type', 'tale_chapter')
+            .eq('tale_id', taleId)
+            .eq('is_read', false)
+            .select('id');
+          if (!error && data?.length) refreshUnreadCount();
+        } catch {
+          // Best-effort -- the rows just stay unread until next time.
+        }
+      })();
+    }
 
     // Photos: the public media_url for anyone, plus -- for the owner's
     // own chapters -- the local Pin Board file this device has, same
@@ -110,7 +139,7 @@ export default function Tale() {
     setPhotoUris(uris);
 
     setLoading(false);
-  }, [session, taleId]);
+  }, [session, taleId, refreshUnreadCount]);
 
   useFocusEffect(
     useCallback(() => {

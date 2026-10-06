@@ -16,6 +16,7 @@ import { fetchFoundingMemberPaceStatus, fetchFoundingMemberOptInReminderStatus }
 import { flagEmoji } from '../../lib/country';
 import { initPinBoardDb, getPhotosForEntries } from '../../lib/pinBoardDb';
 import { fetchTokenBalance, fetchWishlistItems } from '../../lib/tokens';
+import { fetchFollowedTales } from '../../lib/tales';
 import Button from '../../components/Button';
 import VibeCard from '../../components/VibeCard';
 import NatureIcon from '../../components/NatureIcon';
@@ -95,6 +96,19 @@ function relativeDayLabel(days) {
   if (days < 365 && months < 12) return `${months} ${months === 1 ? 'month' : 'months'} ago`;
   const y = Math.max(1, Math.floor(days / 365));
   return `${y} ${y === 1 ? 'year' : 'years'} ago`;
+}
+
+// "just now" / "5 minutes ago" / "3 hours ago" / "yesterday" / "4 days
+// ago", from an ISO timestamp. Elapsed time, not calendar days -- unlike
+// relativeDayLabel above, which works on a date-only entry_date.
+function relativeTimeLabel(iso) {
+  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} ${mins === 1 ? 'minute' : 'minutes'} ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} ${hours === 1 ? 'hour' : 'hours'} ago`;
+  const days = Math.floor(hours / 24);
+  return days === 1 ? 'yesterday' : `${days} days ago`;
 }
 
 // Small non-cryptographic string hash (djb2) -- only has to spread
@@ -207,6 +221,8 @@ export default function Home() {
   const [linkedPhotoUris, setLinkedPhotoUris] = useState(new Map());
   const [tokenBalance, setTokenBalance] = useState(0);
   const [rewardItems, setRewardItems] = useState([]);
+  const [followedTales, setFollowedTales] = useState([]);
+  const [followedTaleCount, setFollowedTaleCount] = useState(0);
   const [madeMeSmileTotals, setMadeMeSmileTotals] = useState({ week: 0, month: 0, allTime: 0 });
   const [thoughtOfYouTotals, setThoughtOfYouTotals] = useState({ week: 0, month: 0, allTime: 0 });
   const [showGuide, setShowGuide] = useState(false);
@@ -217,6 +233,10 @@ export default function Home() {
   const statTooltipTimerRef = useRef(null);
   const [activeVibeTooltip, setActiveVibeTooltip] = useState(null);
   const vibeTooltipTimerRef = useRef(null);
+  // Multickle id -> created_at of the newest unread Tic notification its
+  // "Multickles you follow" pill was showing when tapped this session --
+  // see loadFollowedTales.
+  const tappedTaleNewAtRef = useRef(new Map());
   const [paceReminder, setPaceReminder] = useState(null);
   const [optInReminder, setOptInReminder] = useState(null);
 
@@ -541,6 +561,68 @@ export default function Home() {
     }, [loadRewards])
   );
 
+  // "Multickles you follow": one pill per followed Multickle that's still
+  // Ongoing (not completed_at, the same field tale.js's Ongoing/Complete
+  // pill uses), with NEW on any that has an unread tale_chapter
+  // notification. Its own two fetches in parallel (see
+  // home_multickles_card_audit.md): the unread Tic notifications, and
+  // fetchFollowedTales -- which also drops Multickles since unfollowed
+  // (their notifications stay unread, users can't delete them) and gives
+  // the footer's (N), matching the Stash Following pills. Order: NEW
+  // first, newest unread first; then the rest in fetchFollowedTales'
+  // newest-follow-first order -- tales has no last-Tic/updated_at column,
+  // so there's no cheaper activity date to sort by. Read-only: tale.js
+  // marks the notifications read when the Multickle is opened, never
+  // Home. Best-effort -- any failure just clears the state and hides it.
+  const loadFollowedTales = useCallback(async () => {
+    if (!session) {
+      setFollowedTales([]);
+      setFollowedTaleCount(0);
+      return;
+    }
+    try {
+      const [notifRes, followed] = await Promise.all([
+        supabase
+          .from('notifications')
+          .select('tale_id, created_at')
+          .eq('recipient_id', session.user.id)
+          .eq('type', 'tale_chapter')
+          .eq('is_read', false)
+          .order('created_at', { ascending: false }),
+        fetchFollowedTales(session.user.id),
+      ]);
+      if (notifRes.error) throw notifRes.error;
+      // Already newest first, so the first row per Multickle is its newest.
+      const newestUnread = new Map();
+      for (const n of notifRes.data || []) {
+        if (!newestUnread.has(n.tale_id)) newestUnread.set(n.tale_id, n.created_at);
+      }
+      const pills = followed
+        .filter((t) => !t.completed)
+        .map((t) => {
+          let newAt = newestUnread.get(t.id) || null;
+          // Tapped this session and nothing newer since -- tale.js's
+          // mark-read may not have landed yet when the user comes straight
+          // back, so don't flash NEW back in. A newer Tic still shows it.
+          const tappedAt = tappedTaleNewAtRef.current.get(t.id);
+          if (newAt && tappedAt && new Date(newAt) <= new Date(tappedAt)) newAt = null;
+          return { id: t.id, title: t.title, newAt };
+        });
+      const withNews = pills.filter((t) => t.newAt).sort((a, b) => new Date(b.newAt) - new Date(a.newAt));
+      setFollowedTales([...withNews, ...pills.filter((t) => !t.newAt)]);
+      setFollowedTaleCount(followed.length);
+    } catch {
+      setFollowedTales([]);
+      setFollowedTaleCount(0);
+    }
+  }, [session]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadFollowedTales();
+    }, [loadFollowedTales])
+  );
+
   // Achieved goals are left out of Home's "Your Goals" card -- they keep
   // their row (and their color on already-tagged entries) but are no
   // longer something being worked on.
@@ -849,6 +931,73 @@ export default function Home() {
     );
   }
 
+  // Tapping a pill opens the Multickle and clears its NEW locally, in
+  // place -- no re-order or removal, so the row's key (and scroll
+  // position) stays put; tale.js marks the notifications read. The
+  // newest unread created_at it was showing is remembered, so a Home
+  // focus that beats that mark-read doesn't bring NEW back, while a newer
+  // Tic still does.
+  function openFollowedTale(tale) {
+    if (tale.newAt) {
+      tappedTaleNewAtRef.current.set(tale.id, tale.newAt);
+      setFollowedTales((prev) => prev.map((t) => (t.id === tale.id ? { ...t, newAt: null } : t)));
+    }
+    router.push({ pathname: '/tale', params: { id: tale.id } });
+  }
+
+  // Same pattern as the Your Goals section below: transparent, no white
+  // card, a sideways row of pills (reusing the Goal pill's shape and
+  // type), each its own touchable so a swipe on the row scrolls it
+  // without opening a Multickle. Then the footer link, also its own
+  // touchable.
+  function renderFollowedTalesCard() {
+    return (
+      <View style={styles.goalsSection}>
+        <Text style={[styles.cardLabel, styles.goalsCardLabel]}>Multickles you follow</Text>
+        {/* Keyed by the ordered ids so the row restarts at the first pill
+            when the list changes; a tap only clears NEW, so it keeps
+            the key. */}
+        <ScrollView
+          key={followedTales.map((t) => t.id).join(',')}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.goalPillsRow}
+        >
+          {followedTales.map((t) => (
+            <TouchableOpacity
+              key={t.id}
+              style={[styles.goalPill, t.newAt ? styles.followedPillNew : styles.followedPillPlain]}
+              activeOpacity={0.7}
+              onPress={() => openFollowedTale(t)}
+              accessibilityRole="button"
+              accessibilityLabel={
+                t.newAt
+                  ? `${t.title}, new Tic added ${relativeTimeLabel(t.newAt)}. Opens Multickle.`
+                  : `${t.title}. Opens Multickle.`
+              }
+            >
+              {!!t.newAt && (
+                <View style={styles.newPill}>
+                  <Text style={styles.newPillText}>NEW</Text>
+                </View>
+              )}
+              <Text style={styles.followedPillLabel} numberOfLines={1}>{t.title}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+        <TouchableOpacity
+          style={styles.followedTalesLink}
+          activeOpacity={0.7}
+          onPress={() => router.push({ pathname: '/feed', params: { tab: 'following' } })}
+          accessibilityRole="button"
+          accessibilityLabel={`All Multickles you follow, ${followedTaleCount}. Opens the Following tab.`}
+        >
+          <Text style={styles.openLink}>All Multickles you follow ({followedTaleCount})</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   // One pill per active Goal -> that Goal's own summary screen
   // (app/goal.js), in a sideways-scrolling row -- same pattern as the
   // "You can redeem" strip below: each pill is its own touchable, with no
@@ -1079,6 +1228,7 @@ export default function Home() {
             {!!remember && renderRememberCard()}
             {renderGoalsCard()}
             {affordableRewards.length > 0 && renderRedeemCard()}
+            {followedTales.length > 0 && renderFollowedTalesCard()}
           </View>
         )}
 
@@ -1252,4 +1402,21 @@ const styles = StyleSheet.create({
   redeemChipText: { fontSize: 13, fontWeight: '600', color: C.text },
   redeemChipLabel: { flexShrink: 1 },
   redeemChipCost: { flexShrink: 0 },
+
+  // "Multickles you follow" pills reuse goalPill's shape; only the fill,
+  // border and label colour differ. A pill with a new Tic takes the
+  // amber of the NEW tag so it stands out; the rest stay neutral.
+  followedPillPlain: { backgroundColor: C.card, borderColor: C.border },
+  followedPillNew: { backgroundColor: C.amberBg, borderColor: C.amberDark },
+  followedPillLabel: { flexShrink: 1, fontSize: 12, fontWeight: '600', color: C.text },
+  // Shape and type of tale.js's Ongoing pill (statusPill + statusPillText),
+  // as a dark chip with white text so it stands out on the amber pill
+  // around it. Never shrinks, so a long title truncates rather than
+  // squeezing NEW.
+  newPill: {
+    flexShrink: 0, paddingVertical: 3, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1,
+    backgroundColor: C.text, borderColor: C.text,
+  },
+  newPillText: { fontSize: 11, fontWeight: '700', color: C.card },
+  followedTalesLink: { minHeight: 44, justifyContent: 'center' },
 });
