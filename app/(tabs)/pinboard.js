@@ -28,6 +28,7 @@ import {
 import { hasSeenPinBoardNote, markPinBoardNoteSeen } from '../../lib/pinBoardNote';
 import { hasSeenPhotoTickleDisclosure, markPhotoTickleDisclosureSeen } from '../../lib/photoTickleDisclosure';
 import { useShareCard } from '../../lib/useShareCard';
+import { deletePhotoTickleMedia } from '../../lib/photoTickleStorage';
 import WallpaperBackground from '../../components/WallpaperBackground';
 
 export default function PinBoard() {
@@ -43,7 +44,7 @@ export default function PinBoard() {
   const [status, setStatus] = useState('');
   const [showAddPhoto, setShowAddPhoto] = useState(false);
   const [sharePhotoTarget, setSharePhotoTarget] = useState(null);
-  const [deleteInfo, setDeleteInfo] = useState(null); // { photo, scenario, photoOnlyEntryIds }
+  const [deleteInfo, setDeleteInfo] = useState(null); // { photo, scenario, photoOnlyEntryIds, photoOnlyEntries }
   const [pendingVibeTap, setPendingVibeTap] = useState(null); // { photo, vibeId } while the first-use disclosure is up
   const [showDisclosure, setShowDisclosure] = useState(false);
   const { hiddenCard, captureCard } = useShareCard();
@@ -122,15 +123,17 @@ export default function PinBoard() {
     const entryIds = await getEntryIdsForPhoto(session.user.id, photo.id);
     let scenario = 'plain';
     let photoOnlyEntryIds = [];
+    let photoOnlyEntries = [];
 
     if (entryIds.length) {
       const { data, error } = await supabase
         .from('tickle_entries')
-        .select('id, entry_kind')
+        .select('id, user_id, entry_kind, media_url')
         .in('id', entryIds);
 
       if (!error && data) {
-        photoOnlyEntryIds = data.filter((e) => e.entry_kind === 'photo_only').map((e) => e.id);
+        photoOnlyEntries = data.filter((e) => e.entry_kind === 'photo_only');
+        photoOnlyEntryIds = photoOnlyEntries.map((e) => e.id);
         const hasTextLink = data.some((e) => e.entry_kind === 'text');
         if (photoOnlyEntryIds.length && hasTextLink) scenario = 'both';
         else if (photoOnlyEntryIds.length) scenario = 'sole';
@@ -138,7 +141,7 @@ export default function PinBoard() {
       }
     }
 
-    setDeleteInfo({ photo, scenario, photoOnlyEntryIds });
+    setDeleteInfo({ photo, scenario, photoOnlyEntryIds, photoOnlyEntries });
   }
 
   function handleCancelDelete() {
@@ -154,10 +157,16 @@ export default function PinBoard() {
   // photo_entry_links rows, cloud or otherwise.
   async function handleConfirmDelete() {
     if (!deleteInfo) return;
-    const { photo, photoOnlyEntryIds } = deleteInfo;
+    const { photo, photoOnlyEntryIds, photoOnlyEntries } = deleteInfo;
     setDeleteInfo(null);
 
     if (photoOnlyEntryIds.length) {
+      // Best-effort, never blocks the delete below -- same as Tickle
+      // Stash's handleDeleteEntry. A no-op for any that were never
+      // Rippled (no media_url).
+      for (const entry of photoOnlyEntries) {
+        await deletePhotoTickleMedia(entry);
+      }
       const { error } = await supabase.from('tickle_entries').delete().in('id', photoOnlyEntryIds);
       if (error) {
         setStatus('Could not delete that Tickle — please try again.');
