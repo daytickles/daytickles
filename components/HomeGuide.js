@@ -30,7 +30,7 @@ const STEPS = [
   },
   {
     title: 'Tickle Pics',
-    body: 'Tickle Pics is where your meaningful photos live. Pin a photo to an entry, or share it instantly as a polaroid tagged as either "This made me smile today" or "I saw this and thought of you." Tap a Vibe icon on any photo to instantly create a private Tickle from it — no writing required.\n\nYour privacy comes first. Photos taken through the app are kept only on your device — they are never uploaded to or stored in our database. Use Backup & Restore Photos in Settings to keep a copy safe, or bring your photos along when you switch devices.',
+    body: 'Tickle Pics is where your meaningful photos live. Pin a photo to an entry, or share it instantly as a polaroid tagged as either "This made me smile today" or "I saw this and thought of you." Tap a Vibe icon on any photo to instantly create a private Tickle from it — no writing required.\n\nYour privacy comes first. Photos stay on your device unless you Ripple a Tickle that has one — then that photo is shared with it, and Un-Ripple or delete removes the shared copy. Use Backup & Restore Photos in Settings to keep a copy safe, or bring your photos along when you switch devices.',
   },
   {
     title: 'Goals',

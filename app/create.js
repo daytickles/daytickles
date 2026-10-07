@@ -11,9 +11,12 @@ import { C, accentFor, darken, textOn, VIBE_COLORS, vibeIconColor, withAlpha } f
 import Button from '../components/Button';
 import WallpaperBackground from '../components/WallpaperBackground';
 import NatureIcon from '../components/NatureIcon';
-import { linkPhotoToEntry } from '../lib/pinBoardDb';
+import { File } from 'expo-file-system';
+import { initPinBoardDb, linkPhotoToEntry, listPinnedPhotos, getPhotoForEntry } from '../lib/pinBoardDb';
 import { localDateString } from '../lib/week';
-import { alertCapBlocked, checkAndConsumeWeeklyCap } from '../lib/freemiumCaps';
+import { alertCapBlocked, checkAndConsumeWeeklyCap, rippleFeatureFor } from '../lib/freemiumCaps';
+import { makePhotoTicklePublic, makePhotoTicklePrivate } from '../lib/photoTickleStorage';
+import { showAlert } from '../lib/themedAlert';
 
 const MAX_LEN = 500;
 
@@ -40,6 +43,13 @@ export default function Create() {
   // change on save draws from the Ripple cap, not every save of an
   // already-public entry.
   const [wasPublic, setWasPublic] = useState(false);
+  // Edit mode: the row's media_url, set only while its linked photo is
+  // uploaded (lib/photoTickleStorage.js).
+  const [mediaUrl, setMediaUrl] = useState(null);
+  // Local file of the linked Pin Board photo (the pinnedPhotoId one on a
+  // new Tickle, or the entry's existing link in Edit), or null when there
+  // is none or the file is gone from this device.
+  const [linkedPhotoPath, setLinkedPhotoPath] = useState(null);
   const [status, setStatus] = useState('');
   const [saving, setSaving] = useState(false);
   const [loadingEntry, setLoadingEntry] = useState(!!entryId);
@@ -54,7 +64,7 @@ export default function Create() {
     (async () => {
       const { data, error } = await supabase
         .from('tickle_entries')
-        .select('text_content, tickle_nature, visibility')
+        .select('text_content, tickle_nature, visibility, media_url')
         .eq('id', entryId)
         .single();
 
@@ -63,10 +73,35 @@ export default function Create() {
         setTickleNature(data.tickle_nature);
         setShareToFeed(data.visibility === 'public');
         setWasPublic(data.visibility === 'public');
+        setMediaUrl(data.media_url);
       }
       setLoadingEntry(false);
     })();
   }, [entryId]);
+
+  // Finds the linked photo's local file, same existence check as
+  // feed.js's resolveLinkedPhotoUris. Local-only (lib/pinBoardDb.js), so
+  // it reads nothing from Supabase.
+  useEffect(() => {
+    if (!session || (!pinnedPhotoId && !entryId)) return undefined;
+    const userId = session.user.id;
+    let cancelled = false;
+    (async () => {
+      try {
+        await initPinBoardDb(userId);
+        const photo = pinnedPhotoId
+          ? (await listPinnedPhotos(userId)).find((p) => p.id === Number(pinnedPhotoId))
+          : await getPhotoForEntry(userId, entryId);
+        const path = photo && new File(photo.file_path).exists ? photo.file_path : null;
+        if (!cancelled) setLinkedPhotoPath(path);
+      } catch {
+        // No photo found: the Tickle saves and Ripples as text only.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [session, pinnedPhotoId, entryId]);
 
   async function handleSave() {
     const trimmed = text.trim();
@@ -77,18 +112,45 @@ export default function Create() {
     setSaving(true);
     setStatus('');
 
-    // Ripple soft cap (lib/freemiumCaps.js). Always the text bucket from
-    // here -- this screen never uploads a linked photo (only the Ripple
-    // toggles on Home/Tickle Stash/Calendar do), so even an entry saved
-    // with pinnedPhotoId goes up on Ripple as text only.
+    // Rippling a Tickle that has a linked photo (new, or Edit private ->
+    // public) uploads that photo too, the same as the Ripple toggles in
+    // Tickle Stash/Calendar (lib/photoTickleStorage.js). photoToShare is
+    // its local file, or null when there's no photo to send up.
+    const photoToShare = shareToFeed && !wasPublic ? linkedPhotoPath : null;
+
+    // Ripple soft cap (lib/freemiumCaps.js), same bucket choice as the
+    // Tickle Stash toggle: Ripples with a photo when one goes up too.
     if (shareToFeed && !wasPublic) {
-      const capResult = await checkAndConsumeWeeklyCap(profile, 'rippleTextTickle');
+      const capResult = await checkAndConsumeWeeklyCap(profile, rippleFeatureFor({ entry_kind: 'text' }, photoToShare));
       if (capResult.blocked) {
         setSaving(false);
         alertCapBlocked(capResult, profile);
         return;
       }
     }
+
+    // Edit, public -> private with an uploaded photo: remove the Storage
+    // object first (makePhotoTicklePrivate clears media_url and sets
+    // private in one write), so "private" really is private. If that
+    // fails nothing is saved and the Tickle stays public.
+    if (entryId && wasPublic && !shareToFeed && mediaUrl) {
+      try {
+        await makePhotoTicklePrivate({ id: entryId, user_id: session.user.id, media_url: mediaUrl });
+      } catch (err) {
+        console.error('handleSave: linked-photo removal failed', err);
+        setSaving(false);
+        showAlert(
+          "Couldn't make this private",
+          `Something went wrong removing this photo — try again.\n\n${err.message || String(err)}`
+        );
+        return;
+      }
+    }
+
+    // With a photo to share, the row is saved private first and only
+    // makePhotoTicklePublic below makes it public, together with
+    // media_url -- so a public Tickle without its photo never exists.
+    const visibility = shareToFeed && !photoToShare ? 'public' : 'private';
 
     let savedEntryId = entryId;
     let error;
@@ -105,7 +167,7 @@ export default function Create() {
         .update({
           text_content: trimmed,
           tickle_nature: tickleNature,
-          visibility: shareToFeed ? 'public' : 'private',
+          visibility,
           is_edited: true,
         })
         .eq('id', entryId));
@@ -117,7 +179,7 @@ export default function Create() {
           entry_date: localDateString(),
           text_content: trimmed,
           tickle_nature: tickleNature,
-          visibility: shareToFeed ? 'public' : 'private',
+          visibility,
         })
         .select('id')
         .single();
@@ -136,6 +198,25 @@ export default function Create() {
     // the save succeeds, rather than passed as part of the insert.
     if (pinnedPhotoId && savedEntryId) {
       await linkPhotoToEntry(session.user.id, Number(pinnedPhotoId), savedEntryId);
+    }
+
+    // Upload, then media_url + public in one write. On failure the
+    // Tickle stays saved as private (never Rippled as text only), with
+    // the same alert as Tickle Stash's toggle. Leaving the screen after
+    // the alert also keeps a second Save from inserting it twice.
+    if (photoToShare && savedEntryId) {
+      try {
+        await makePhotoTicklePublic({ id: savedEntryId, user_id: session.user.id, media_url: null }, photoToShare);
+      } catch (err) {
+        console.error('handleSave: linked-photo upload failed', err);
+        setSaving(false);
+        showAlert(
+          "Couldn't make this public",
+          `Something went wrong uploading this photo — try again.\n\n${err.message || String(err)}`,
+          [{ text: 'OK', onPress: () => router.back() }]
+        );
+        return;
+      }
     }
 
     setSaving(false);
@@ -247,6 +328,11 @@ export default function Create() {
           thumbColor={C.card}
         />
       </View>
+      {/* Not shown for an already-public Tickle whose photo was never
+          uploaded: saving it again doesn't share the photo. */}
+      {!!linkedPhotoPath && (!wasPublic || !!mediaUrl) && (
+        <Text style={styles.rippleHint}>Rippling shares this photo too.</Text>
+      )}
 
       {!!status && <Text style={styles.status}>{status}</Text>}
       <Button
@@ -297,6 +383,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     marginTop: 8, marginBottom: 28,
   },
+  // photoLinkHint's type, pulled up under shareRow's 28dp bottom margin.
+  rippleHint: { fontSize: 13, color: C.subtext, marginTop: -20, marginBottom: 20 },
   status: { marginBottom: 12, color: C.error, textAlign: 'center' },
   // Same shadow as Home's own New Tickle button (home.js's
   // newTickleShadow) -- identical values, this app's one deliberate
