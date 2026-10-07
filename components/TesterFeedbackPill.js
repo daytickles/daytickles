@@ -1,9 +1,10 @@
 // components/TesterFeedbackPill.js
 //
 // TEMPORARY (closed testing) -- the "Test ideas for today" pill under
-// Home's New Tickle button. Remove this file, lib/testerFeedback.js and
-// the home.js lines before public release (feedback_pill_audit.md
-// section 9; tables from migration 0070, dropped by a later migration).
+// Home's New Tickle button. Remove this file, lib/testerFeedback.js
+// (incl. fetchTodayMessage) and the home.js lines before public release
+// (feedback_pill_audit.md section 9; tables from migrations 0070 and
+// 0071 -- feedback_day_messages -- dropped by a later migration).
 //
 // Entirely self-contained: it loads on its own focus (nothing in Home
 // awaits it) and renders nothing at all when there are no tasks --
@@ -16,7 +17,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Keyboard } from 'r
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
-import { fetchTodayTasks, saveAnswer } from '../lib/testerFeedback';
+import { fetchTodayTasks, fetchTodayMessage, saveAnswer } from '../lib/testerFeedback';
 import { C, withAlpha } from '../lib/theme';
 
 // Deliberately not a theme token -- this pill should read as "not part
@@ -43,11 +44,14 @@ export default function TesterFeedbackPill({ scrollRef }) {
   // last note sent (or loaded), `draft` what's in the box right now.
   const [tasks, setTasks] = useState([]);
   const [open, setOpen] = useState(false);
+  // Today's message for the top of the open panel, or null for none.
+  const [message, setMessage] = useState(null);
   // Task id whose note box should take focus on mount: only when the
   // tester has just picked Problem, never for a note loaded from the DB.
   const [focusNoteFor, setFocusNoteFor] = useState(null);
 
   const loadSeq = useRef(0);
+  const messageSeq = useRef(0);
   // Per task: a promise chain, so one task's upserts reach the server in
   // tap order (quick taps always end on the last one) while every tap
   // still sends exactly one upsert; a request counter, so only the
@@ -89,8 +93,15 @@ export default function TesterFeedbackPill({ scrollRef }) {
     useCallback(() => {
       if (!userId) {
         setTasks([]);
+        setMessage(null);
         return undefined;
       }
+      // Loaded alongside the tasks, independently: a slow or failed
+      // message never holds them up.
+      const mSeq = ++messageSeq.current;
+      fetchTodayMessage().then((text) => {
+        if (mSeq === messageSeq.current) setMessage(text);
+      });
       const seq = ++loadSeq.current;
       fetchTodayTasks().then((rows) => {
         if (seq !== loadSeq.current) return;
@@ -206,6 +217,7 @@ export default function TesterFeedbackPill({ scrollRef }) {
           instead of covering them (and catching their taps). */}
       {open && (
         <View style={styles.panel}>
+          {!!message && <Text style={styles.message}>{message}</Text>}
           {complete ? (
             <Text style={styles.thanks}>
               Thank you, that's everything for today. You can still change any answer below.
@@ -316,6 +328,7 @@ const styles = StyleSheet.create({
     marginTop: 8, padding: 12, borderRadius: 16,
     backgroundColor: C.card, borderWidth: 1, borderColor: C.border,
   },
+  message: { fontSize: 13, fontWeight: '600', color: C.text, lineHeight: 18, marginBottom: 8 },
   helper: { fontSize: 13, color: C.subtext, lineHeight: 18, marginBottom: 4 },
   task: { paddingVertical: 8, borderTopWidth: 1, borderTopColor: C.border },
   taskTitle: { fontSize: 14, fontWeight: '600', color: C.text, lineHeight: 19 },
