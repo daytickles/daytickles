@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, Image, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, Image, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
@@ -40,6 +40,11 @@ import { isReviewAvailable, requestReview } from '../../lib/rateUs';
 // edge-to-edge -- wallpaper (painted by WallpaperBackground, behind
 // this content) still fills the full screen width either way.
 const HOME_CONTENT_MAX_WIDTH = 600;
+// styles.content's padding on each side; also used to work out the
+// content width for the Remember this? pills' maxWidth.
+const HOME_SIDE_PADDING = 20;
+// How many Tickles the Remember this? row offers at most.
+const REMEMBER_MAX = 3;
 
 // Same idea as feed.js's/calendar.js's own resolveLinkedPhotoUris --
 // resolves both photo_only entries and entry_kind='text' entries with a
@@ -84,24 +89,8 @@ function sameDayMonthsAgo(months) {
   return d.getDate() === now.getDate() ? toLocalDateString(d) : null;
 }
 
-// "Yesterday" / "5 days ago" / "3 weeks ago" / "4 months ago" / "2 years ago".
-function relativeDayLabel(days) {
-  if (days <= 0) return 'Today';
-  if (days === 1) return 'Yesterday';
-  if (days < 7) return `${days} days ago`;
-  if (days < 30) {
-    const w = Math.floor(days / 7);
-    return `${w} ${w === 1 ? 'week' : 'weeks'} ago`;
-  }
-  const months = Math.round(days / 30.44);
-  if (days < 365 && months < 12) return `${months} ${months === 1 ? 'month' : 'months'} ago`;
-  const y = Math.max(1, Math.floor(days / 365));
-  return `${y} ${y === 1 ? 'year' : 'years'} ago`;
-}
-
 // "just now" / "5 minutes ago" / "3 hours ago" / "yesterday" / "4 days
-// ago", from an ISO timestamp. Elapsed time, not calendar days -- unlike
-// relativeDayLabel above, which works on a date-only entry_date.
+// ago", from an ISO timestamp. Elapsed time, not calendar days.
 function relativeTimeLabel(iso) {
   const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
   if (mins < 1) return 'just now';
@@ -120,16 +109,17 @@ function hashString(str) {
   return h;
 }
 
-// "Remember this?" pick: one of the user's own past Tickles, stable for
-// the whole local day, rotating the next. Pure function of the
-// already-loaded entries -- no query, no storage, no profile write.
-// Tiers are tried in order and the first non-empty one wins; within a
-// tier, candidates are sorted by id and indexed by a hash of
-// userId + today, so a refocus later the same day lands on the same
-// entry. My Day (day_journal) is left out -- it's long-form personal
-// writing that doesn't read well as a 4-line memory snippet.
-// Returns { entry, isFallback } or null.
-function pickRememberEntry(entries, userId) {
+// "Remember this?" picks: up to REMEMBER_MAX distinct past Tickles of the
+// user's own, stable for the whole local day, rotating the next. Pure
+// function of the already-loaded entries -- no query, no storage, no
+// profile write. Tiers are tried in order and fill the picks until
+// there are enough; within a tier, candidates are sorted by id and
+// walked from an index set by a hash of userId + today, so a refocus
+// later the same day lands on the same entries (and the first pick is
+// the one the single-card version showed). My Day (day_journal) is left
+// out -- it's long-form personal writing that doesn't read well as a
+// short memory snippet. Returns { entries, isFallback } or null.
+function pickRememberEntries(entries, userId) {
   const today = localDateString(0);
   const past = entries.filter((e) => e.entry_date < today && e.tickle_nature !== 'day_journal');
 
@@ -150,17 +140,25 @@ function pickRememberEntry(entries, userId) {
     (e) => daysAgo(e.entry_date) >= 7,
   ];
 
+  const seed = hashString(`${userId}${today}`);
+  const picked = [];
   for (const matches of tiers) {
-    const candidates = past.filter(matches).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-    if (candidates.length) {
-      return { entry: candidates[hashString(`${userId}${today}`) % candidates.length], isFallback: false };
+    // Tiers overlap (the last one covers every week-old entry), so skip
+    // anything an earlier tier already picked.
+    const candidates = past
+      .filter((e) => matches(e) && !picked.includes(e))
+      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    for (let i = 0; i < candidates.length && picked.length < REMEMBER_MAX; i++) {
+      picked.push(candidates[(seed + i) % candidates.length]);
     }
+    if (picked.length === REMEMBER_MAX) break;
   }
+  if (picked.length) return { entries: picked, isFallback: false };
 
   // Thin history: the latest Tickle instead (today's included), still
   // skipping My Day for the same reason as above.
   const latest = entries.find((e) => e.tickle_nature !== 'day_journal');
-  return latest ? { entry: latest, isFallback: true } : null;
+  return latest ? { entries: [latest], isFallback: true } : null;
 }
 
 // "A" / "A and B" / "A, B, and C" -- for naming the specific lagging
@@ -203,6 +201,7 @@ export default function Home() {
   const accent = accentFor(profile?.accent_theme);
   const tabBarHeight = useBottomTabBarHeight();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
 
   // Reconciliation for Settings toggles that intentionally no longer call
   // setProfile()/refreshProfile() themselves (notify_on_likes,
@@ -808,58 +807,78 @@ export default function Home() {
   // entries/goals -- no query of their own (see
   // home_bottom_redesign_audit.md). Goal counts are disjoint: goal_id is
   // a single column, so an entry counts toward at most one Goal.
-  const remember = session ? pickRememberEntry(entries, session.user.id) : null;
+  const remember = session ? pickRememberEntries(entries, session.user.id) : null;
   const goalCounts = new Map();
   for (const e of entries) {
     if (e.goal_id) goalCounts.set(e.goal_id, (goalCounts.get(e.goal_id) || 0) + 1);
   }
 
-  // Compact and read-only on purpose -- no goal dot/Share/Edit/Ripple/
-  // Delete row like the old spotlight cards had; tapping anywhere on the
-  // card jumps to the entry in Tickle Stash, where all of those actions
-  // live. "Open" is just the visible cue, plain text rather than a second
-  // touchable nested inside the card's own. Photo-only
-  // entries get a small thumbnail instead of the full Polaroid, which
-  // at Home's width was close to a screen tall on its own.
+  // Same transparent pill-row pattern as Your Goals, You can redeem and
+  // Multickles you follow: each pill is its own touchable, so a swipe on
+  // the row scrolls it without opening a Tickle. A tap jumps to the entry
+  // in Tickle Stash, where Share/Edit/Ripple/Delete live. Each pill is
+  // capped at 78% of the content width, so the first shows in full and
+  // the next peeks as a scroll hint; the text gets two lines. Photo-only
+  // entries have no text, so they show a small thumbnail and the Vibe
+  // name instead. No age label: three pills can have three different
+  // ages, which don't fit the one header row.
+  const rememberPillMaxWidth = Math.round(
+    0.78 * Math.min(windowWidth - 2 * HOME_SIDE_PADDING, HOME_CONTENT_MAX_WIDTH)
+  );
+
   function renderRememberCard() {
-    const { entry, isFallback } = remember;
-    const isPhotoOnly = entry.entry_kind === 'photo_only';
-    const photoUri = isPhotoOnly ? linkedPhotoUris.get(entry.id) || null : null;
-    const natureLabel = NATURE_LABELS[entry.tickle_nature];
+    const { entries: picks, isFallback } = remember;
     return (
-      <TouchableOpacity
-        style={styles.entryCard}
-        activeOpacity={0.8}
-        onPress={() => goToEntryInFeed(entry.id)}
-      >
-        <View style={styles.cardHeaderRow}>
-          <Text style={styles.cardLabel}>{isFallback ? 'Your latest Tickle' : 'Remember this?'}</Text>
-          <Text style={styles.relativeTime}>{relativeDayLabel(daysAgo(entry.entry_date))}</Text>
-        </View>
-        {!isPhotoOnly && !!entry.text_content && (
-          <Text style={styles.entryText} numberOfLines={4}>{entry.text_content}</Text>
-        )}
-        <View style={styles.rememberFooter}>
-          {isPhotoOnly && (
-            photoUri ? (
-              <Image source={{ uri: photoUri }} style={styles.rememberThumb} />
-            ) : (
-              <View style={[styles.rememberThumb, styles.rememberThumbMissing]}>
-                <Ionicons name="image-outline" size={22} color={C.faint} />
-              </View>
-            )
-          )}
-          {!!natureLabel && (
-            <View style={styles.natureChip}>
-              {!!VIBE_COLORS[entry.tickle_nature] && (
-                <NatureIcon nature={entry.tickle_nature} size={14} color={vibeIconColor(entry.tickle_nature)} />
-              )}
-              <Text style={styles.natureChipText}>{natureLabel}</Text>
-            </View>
-          )}
-          <Text style={[styles.openLink, styles.openAction]}>Open</Text>
-        </View>
-      </TouchableOpacity>
+      <View style={styles.goalsSection}>
+        <Text style={[styles.cardLabel, styles.goalsCardLabel]}>
+          {isFallback ? 'Your latest Tickle' : 'Remember this?'}
+        </Text>
+        {/* Keyed by the picked ids so the row restarts at the first pill
+            when the picks change (e.g. the next day), like the others. */}
+        <ScrollView
+          key={picks.map((e) => e.id).join(',')}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.goalPillsRow}
+        >
+          {picks.map((entry) => {
+            const isPhotoOnly = entry.entry_kind === 'photo_only';
+            const photoUri = isPhotoOnly ? linkedPhotoUris.get(entry.id) || null : null;
+            const natureLabel = NATURE_LABELS[entry.tickle_nature] || 'Tickle';
+            // Newlines and runs of spaces collapsed, so the two lines
+            // start at the beginning of the entry text.
+            const text = (entry.text_content || '').replace(/\s+/g, ' ').trim();
+            const label = !isPhotoOnly && text ? text : natureLabel;
+            const short = isPhotoOnly || !text
+              ? 'a photo'
+              : text.length > 60 ? `${text.slice(0, 60).trimEnd()}…` : text;
+            return (
+              <TouchableOpacity
+                key={entry.id}
+                style={[styles.goalPill, styles.redeemPill, { maxWidth: rememberPillMaxWidth }]}
+                activeOpacity={0.7}
+                onPress={() => goToEntryInFeed(entry.id)}
+                accessibilityRole="button"
+                accessibilityLabel={`${natureLabel}, ${short}. Opens Tickle.`}
+              >
+                {!!VIBE_COLORS[entry.tickle_nature] && (
+                  <NatureIcon nature={entry.tickle_nature} size={16} color={vibeIconColor(entry.tickle_nature)} />
+                )}
+                {isPhotoOnly && (
+                  photoUri ? (
+                    <Image source={{ uri: photoUri }} style={styles.rememberThumb} />
+                  ) : (
+                    <View style={[styles.rememberThumb, styles.rememberThumbMissing]}>
+                      <Ionicons name="image-outline" size={14} color={C.faint} />
+                    </View>
+                  )
+                )}
+                <Text style={styles.rememberPillLabel} numberOfLines={2}>{label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
     );
   }
 
@@ -926,7 +945,7 @@ export default function Home() {
               accessibilityRole="button"
               accessibilityLabel={`${item.label}, ${item.cost} token${item.cost === 1 ? '' : 's'}. Opens Reward List.`}
             >
-              <Text style={styles.redeemPillLabel} numberOfLines={1}>{item.label}</Text>
+              <Text style={styles.goalPillLabel} numberOfLines={1}>{item.label}</Text>
               <MaterialCommunityIcons name="circle-multiple-outline" size={16} color={C.subtext} />
               <Text style={styles.redeemPillCost}>{item.cost}</Text>
             </TouchableOpacity>
@@ -971,7 +990,7 @@ export default function Home() {
           {followedTales.map((t) => (
             <TouchableOpacity
               key={t.id}
-              style={[styles.goalPill, t.newAt ? styles.followedPillNew : styles.followedPillPlain]}
+              style={[styles.goalPill, styles.redeemPill]}
               activeOpacity={0.7}
               onPress={() => openFollowedTale(t)}
               accessibilityRole="button"
@@ -986,7 +1005,7 @@ export default function Home() {
                   <Text style={styles.newPillText}>NEW</Text>
                 </View>
               )}
-              <Text style={styles.followedPillLabel} numberOfLines={1}>{t.title}</Text>
+              <Text style={styles.goalPillLabel} numberOfLines={1}>{t.title}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -1258,7 +1277,7 @@ export default function Home() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: 20, paddingBottom: 40, alignItems: 'center' },
+  content: { padding: HOME_SIDE_PADDING, paddingBottom: 40, alignItems: 'center' },
   contentInner: { width: '100%', maxWidth: HOME_CONTENT_MAX_WIDTH },
   titleRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6,
@@ -1341,31 +1360,12 @@ const styles = StyleSheet.create({
   emptyText: { color: C.subtext, textAlign: 'center', marginTop: 12 },
 
   bottomCards: { marginTop: 12 },
-  entryCard: {
-    backgroundColor: C.card, borderRadius: 16, padding: 12, marginBottom: 12,
-  },
-  cardHeaderRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8,
-  },
   cardLabel: { fontSize: 13, fontWeight: '700', color: C.rustDark },
-  relativeTime: { fontSize: 12, color: C.subtext },
-  entryText: { fontSize: 15, color: C.text, lineHeight: 20 },
-
-  rememberFooter: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 },
-  rememberThumb: { width: 72, height: 72, borderRadius: 8, backgroundColor: C.border },
-  rememberThumbMissing: { backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
-  natureChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingVertical: 3, paddingHorizontal: 8, borderRadius: 10,
-    borderWidth: 1, borderColor: C.border,
-  },
-  natureChipText: { fontSize: 11, fontWeight: '600', color: C.subtext },
-  openAction: { marginLeft: 'auto' },
   openLink: { fontSize: 13, fontWeight: '700', color: C.rust },
 
   // Transparent section -- same treatment as vibeCardsRow/statPillsRow:
-  // no background, border, shadow or padding, only the bottom margin
-  // that entryCard uses, so the gap to the next card is unchanged.
+  // no background, border, shadow or padding, only a 12dp bottom margin
+  // between sections.
   goalsSection: { marginBottom: 12 },
   goalsCardLabel: { marginBottom: 6 },
   goalsPromptText: { fontSize: 14, color: C.subtext, lineHeight: 20, marginBottom: 10 },
@@ -1381,7 +1381,8 @@ const styles = StyleSheet.create({
     minHeight: 44, maxWidth: 240, paddingVertical: 10, paddingHorizontal: 14,
     borderRadius: 20, borderWidth: 1,
   },
-  goalPillLabel: { flexShrink: 1, fontSize: 12, fontWeight: '600', color: C.subtext },
+  // Shared by the Goal, reward and Multickle pills.
+  goalPillLabel: { flexShrink: 1, fontSize: 12, fontWeight: '600', color: C.text },
   // Count stays a step bolder and darker than the label so the number
   // still reads first at New Tickle's smaller 12px size.
   goalPillCount: { flexShrink: 0, fontSize: 12, fontWeight: '700', color: C.text },
@@ -1405,22 +1406,25 @@ const styles = StyleSheet.create({
     borderWidth: 1.5, borderColor: C.subtext, backgroundColor: C.subtext,
   },
   redeemBalanceText: { fontSize: 11, fontWeight: '700', color: C.card },
-  // Reward pills reuse goalPill's shape; a soft amber tint with the full
-  // amber border so they read as good news. Name and cost use the Goal
-  // pill's type (12/600 label, 12/700 count), with the same coin icon.
+  // Reward, Multickle and Remember this? pills reuse goalPill's shape; a
+  // soft amber tint with the full amber border so they read as good news.
+  // Name and cost use the Goal pill's type (12/600 label, 12/700 count),
+  // with the same coin icon.
   redeemPill: { backgroundColor: withAlpha(C.amberBg, 0.25), borderColor: C.amberDark },
-  redeemPillLabel: { flexShrink: 1, fontSize: 12, fontWeight: '600', color: C.text },
   redeemPillCost: { flexShrink: 0, fontSize: 12, fontWeight: '700', color: C.text },
 
-  // "Multickles you follow" pills reuse goalPill's shape; only the fill,
-  // border and label colour differ. A pill with a new Tic takes the
-  // amber of the NEW tag so it stands out; the rest stay neutral.
-  followedPillPlain: { backgroundColor: C.card, borderColor: C.border },
-  followedPillNew: { backgroundColor: C.amberBg, borderColor: C.amberDark },
-  followedPillLabel: { flexShrink: 1, fontSize: 12, fontWeight: '600', color: C.text },
+  // goalPillLabel's type with a fixed line height, so a two-line pill is
+  // a predictable 1 + 10 + 2 x 16 + 10 + 1 = 54dp tall (one line stays
+  // at the 44dp minimum).
+  rememberPillLabel: { flexShrink: 1, fontSize: 12, fontWeight: '600', color: C.text, lineHeight: 16 },
+  // Photo-only Remember this? entries: a small thumbnail in place of
+  // text, sized to keep the pill at its 44dp minimum height.
+  rememberThumb: { width: 24, height: 24, borderRadius: 6, backgroundColor: C.border },
+  rememberThumbMissing: { backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
+
   // Shape and type of tale.js's Ongoing pill (statusPill + statusPillText),
-  // as a dark chip with white text so it stands out on the amber pill
-  // around it. Never shrinks, so a long title truncates rather than
+  // as a dark chip with white text, the unread indicator on a Multickles
+  // you follow pill. Never shrinks, so a long title truncates rather than
   // squeezing NEW.
   newPill: {
     flexShrink: 0, paddingVertical: 3, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1,
