@@ -7,8 +7,9 @@ import { C } from '../lib/theme';
 // 'sole': the photo IS a photo-only Tickle (its only content) -- deleting
 //   it deletes that Tickle too.
 // 'pinned': the photo is pinned to a separately-written Tickle via the
-//   Tickle button -- deleting it only removes the photo; that Tickle's
-//   text is untouched.
+//   Tickle button -- deleting it only removes the photo (and, if that
+//   Tickle is Rippled, its shared copy); that Tickle's text and
+//   visibility are untouched.
 // 'both': a photo can be both at once (the Tickle button still works on
 //   a photo-only Tickle's own photo) -- combined warning listing both
 //   consequences, rather than picking one arbitrarily.
@@ -23,11 +24,11 @@ const COPY = {
   },
   pinned: {
     title: 'Delete this photo?',
-    body: "This photo is attached to a Tickle you wrote. Deleting it removes the photo from this device and from that Tickle — the Tickle's own text stays exactly as it is. This can't be undone.",
+    body: "This photo is attached to a Tickle you wrote. Deleting it removes the photo from this device and from that Tickle — the Tickle's own text stays exactly as it is. If you Rippled that Tickle, the shared copy of the photo is removed too. This can't be undone.",
   },
   both: {
     title: 'Delete this photo?',
-    body: "This photo is both a Tickle on its own and attached to another Tickle you wrote. Deleting it will delete the photo-only Tickle entirely, and remove the photo from the other Tickle — that Tickle's own text stays exactly as it is. This can't be undone.",
+    body: "This photo is both a Tickle on its own and attached to another Tickle you wrote. Deleting it will delete the photo-only Tickle entirely, and remove the photo from the other Tickle — that Tickle's own text stays exactly as it is. If either Tickle was Rippled, its shared copy of the photo is removed too. This can't be undone.",
   },
 };
 

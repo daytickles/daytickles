@@ -28,7 +28,7 @@ import {
 import { hasSeenPinBoardNote, markPinBoardNoteSeen } from '../../lib/pinBoardNote';
 import { hasSeenPhotoTickleDisclosure, markPhotoTickleDisclosureSeen } from '../../lib/photoTickleDisclosure';
 import { useShareCard } from '../../lib/useShareCard';
-import { deletePhotoTickleMedia } from '../../lib/photoTickleStorage';
+import { deletePhotoTickleMedia, removeSharedPhotoCopy } from '../../lib/photoTickleStorage';
 import WallpaperBackground from '../../components/WallpaperBackground';
 
 export default function PinBoard() {
@@ -44,7 +44,7 @@ export default function PinBoard() {
   const [status, setStatus] = useState('');
   const [showAddPhoto, setShowAddPhoto] = useState(false);
   const [sharePhotoTarget, setSharePhotoTarget] = useState(null);
-  const [deleteInfo, setDeleteInfo] = useState(null); // { photo, scenario, photoOnlyEntryIds, photoOnlyEntries }
+  const [deleteInfo, setDeleteInfo] = useState(null); // { photo, scenario, photoOnlyEntryIds, photoOnlyEntries, textEntries }
   const [pendingVibeTap, setPendingVibeTap] = useState(null); // { photo, vibeId } while the first-use disclosure is up
   const [showDisclosure, setShowDisclosure] = useState(false);
   const { hiddenCard, captureCard } = useShareCard();
@@ -118,30 +118,34 @@ export default function PinBoard() {
   // created (its own entry_kind='photo_only' entry), a separate
   // written Tickle it's pinned to via the Tickle button, both at once,
   // or (the pre-existing case) neither. deleteInfo.photoOnlyEntryIds
-  // drives what handleConfirmDelete deletes alongside the photo itself.
+  // drives what handleConfirmDelete deletes alongside the photo itself;
+  // deleteInfo.textEntries are the written Tickles whose shared copy of
+  // this photo it removes.
   async function handleRequestDelete(photo) {
     const entryIds = await getEntryIdsForPhoto(session.user.id, photo.id);
     let scenario = 'plain';
     let photoOnlyEntryIds = [];
     let photoOnlyEntries = [];
+    let textEntries = [];
 
     if (entryIds.length) {
       const { data, error } = await supabase
         .from('tickle_entries')
-        .select('id, user_id, entry_kind, media_url')
+        .select('id, user_id, entry_kind, visibility, media_url')
         .in('id', entryIds);
 
       if (!error && data) {
         photoOnlyEntries = data.filter((e) => e.entry_kind === 'photo_only');
         photoOnlyEntryIds = photoOnlyEntries.map((e) => e.id);
-        const hasTextLink = data.some((e) => e.entry_kind === 'text');
+        textEntries = data.filter((e) => e.entry_kind === 'text');
+        const hasTextLink = textEntries.length > 0;
         if (photoOnlyEntryIds.length && hasTextLink) scenario = 'both';
         else if (photoOnlyEntryIds.length) scenario = 'sole';
         else if (hasTextLink) scenario = 'pinned';
       }
     }
 
-    setDeleteInfo({ photo, scenario, photoOnlyEntryIds, photoOnlyEntries });
+    setDeleteInfo({ photo, scenario, photoOnlyEntryIds, photoOnlyEntries, textEntries });
   }
 
   function handleCancelDelete() {
@@ -157,7 +161,7 @@ export default function PinBoard() {
   // photo_entry_links rows, cloud or otherwise.
   async function handleConfirmDelete() {
     if (!deleteInfo) return;
-    const { photo, photoOnlyEntryIds, photoOnlyEntries } = deleteInfo;
+    const { photo, photoOnlyEntryIds, photoOnlyEntries, textEntries } = deleteInfo;
     setDeleteInfo(null);
 
     if (photoOnlyEntryIds.length) {
@@ -172,6 +176,14 @@ export default function PinBoard() {
         setStatus('Could not delete that Tickle — please try again.');
         return;
       }
+    }
+
+    // A Rippled written Tickle keeps its text and stays public, but its
+    // shared copy of this photo goes too -- otherwise everyone, the
+    // author included (via the media_url fallback), would keep seeing a
+    // photo that was deleted. Best-effort like the cleanup above.
+    for (const entry of textEntries) {
+      if (entry.visibility === 'public' && entry.media_url) await removeSharedPhotoCopy(entry);
     }
 
     await deletePinnedPhoto(session.user.id, photo.id);
