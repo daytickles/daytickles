@@ -9,7 +9,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { C, NATURE_LABELS, withAlpha } from '../lib/theme';
 import { initPinBoardDb, getPhotosForEntries } from '../lib/pinBoardDb';
+import { isThisWeek, DEFAULT_WEEK_START_DAY } from '../lib/week';
 import PhotoEnlargeModal from '../components/PhotoEnlargeModal';
+import GoalTargetCircle from '../components/GoalTargetCircle';
 import WallpaperBackground from '../components/WallpaperBackground';
 
 function formatEntryDate(entryDate) {
@@ -52,7 +54,7 @@ export default function Goal() {
     const [goalRes, entriesRes] = await Promise.all([
       supabase
         .from('goals')
-        .select('id, label, color, earns_tokens, achieved_at')
+        .select('id, label, color, earns_tokens, achieved_at, weekly_target')
         .eq('id', goalId)
         .maybeSingle(),
       supabase
@@ -115,6 +117,14 @@ export default function Goal() {
   }
 
   const count = entries.length;
+  // This week's share of the already-loaded entries -- same entry_date +
+  // week_start_day boundary as Home's Goal pill and Weekly Summary.
+  const weekCount = entries.filter((e) =>
+    isThisWeek(e.entry_date, profile?.week_start_day ?? DEFAULT_WEEK_START_DAY)
+  ).length;
+  // No circle for an achieved Goal -- it's finished, and a hollow circle
+  // there would read as something left undone.
+  const showTarget = !!goal?.weekly_target && !goal?.achieved_at;
 
   return (
     <WallpaperBackground>
@@ -153,6 +163,12 @@ export default function Goal() {
               {goal.earns_tokens && profile?.tokens_enabled !== false && (
                 <MaterialCommunityIcons name="circle-multiple-outline" size={14} color={C.subtext} />
               )}
+              {showTarget && (
+                <View style={styles.targetGroup}>
+                  <GoalTargetCircle count={weekCount} target={goal.weekly_target} />
+                  <Text style={styles.statusMeta}>this week</Text>
+                </View>
+              )}
             </View>
 
             <View style={styles.listTopGap} />
@@ -189,6 +205,7 @@ const styles = StyleSheet.create({
   statusPillText: { fontSize: 11, fontWeight: '700', color: C.sparkleText },
   statusPillTextAchieved: { color: C.tealText },
   statusMeta: { fontSize: 12, color: C.subtext },
+  targetGroup: { flexDirection: 'row', alignItems: 'center', gap: 6 },
 
   listTopGap: { height: 18 },
 
