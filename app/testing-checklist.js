@@ -1,8 +1,9 @@
 // app/testing-checklist.js
 //
-// TEMPORARY -- internal-testing checklist, reached from Settings'
-// "Internal Testing" card. Remove this screen and that card before
-// public release.
+// TEMPORARY -- internal-testing checklist. No longer linked from
+// Settings (its "Internal Testing" card was removed 2026-10-09); reachable
+// only by the deep link daytickles://testing-checklist. Still TEMPORARY:
+// delete this screen before public release.
 //
 // Checked state and scratch notes live in AsyncStorage only, under one
 // key, per device -- throwaway tester state, never synced to Supabase.
