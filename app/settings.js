@@ -22,7 +22,6 @@ import {
   scheduleDailyReminder,
   cancelDailyReminder,
   sendAwarenessCueTestCue,
-  getScheduledAwarenessCueTimes,
 } from '../lib/reminders';
 import { isReviewAvailable, requestReview } from '../lib/rateUs';
 import { hasPinSet, clearPin } from '../lib/pinLock';
@@ -80,17 +79,6 @@ const AWARENESS_CUE_WINDOW_PRESETS = [
   { key: 'all_day', label: '6am - 11pm', startMinute: 6 * 60, endMinute: 23 * 60 },
 ];
 
-// Diagnostic-only formatting (see the batch-source diagnostic below) --
-// month/day included, not just time, since a batch can span more than
-// one calendar day (AWARENESS_CUE_BATCH_DAYS). Mirrors app/notifications.js's
-// own formatTimestamp convention.
-function formatCueTimes(dates) {
-  if (!dates.length) return 'none';
-  return dates
-    .map((d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))
-    .join(', ');
-}
-
 // Shared by both Daily and Weekly Vibe Targets -- handleAdjustGoal below
 // is already generic over the column name, so both goal concepts read
 // and write through this same local state object rather than needing
@@ -145,10 +133,6 @@ export default function Settings() {
   // pill row's disabled state can (later) read differently if needed,
   // and so this flow's own timing isn't tangled with the shared flag's.
   const [testingAwarenessCueSound, setTestingAwarenessCueSound] = useState(false);
-  // Diagnostic only (testing only) -- see the batch-source diagnostic
-  // below and the mount-effect that populates these.
-  const [scheduledClientCueTimes, setScheduledClientCueTimes] = useState([]);
-  const [scheduledServerCueTimes, setScheduledServerCueTimes] = useState([]);
   const [tokensEnabled, setTokensEnabled] = useState(profile?.tokens_enabled !== false);
   const [savingTokensEnabled, setSavingTokensEnabled] = useState(false);
   const [pinEnabled, setPinEnabled] = useState(false);
@@ -203,36 +187,6 @@ export default function Settings() {
     profile?.awareness_cue_count,
     profile?.awareness_cue_window_start_minute,
     profile?.awareness_cue_window_end_minute,
-  ]);
-
-  // Diagnostic only (testing only, see the batch-source diagnostic
-  // below) -- neither of these is part of `profile`: the client times
-  // live only in expo-notifications' own scheduler (nothing persists
-  // them, see lib/reminders.js), and the server times live in a table
-  // the client has no standing policy to read (see migration 0048).
-  // Re-fetched on every dependency that can actually change the
-  // schedule -- mirrors home.js's own regeneration effect's dependency
-  // list exactly (including awareness_cue_batch_valid_until, so a
-  // regeneration completing while Settings is still open updates this
-  // too), not just the enabled toggle. Still doesn't catch every
-  // instant home.js's async regeneration is mid-flight -- a change can
-  // briefly show pre-regeneration state until that effect finishes --
-  // but no longer freezes on whatever was true at mount.
-  useEffect(() => {
-    getScheduledAwarenessCueTimes().then(setScheduledClientCueTimes).catch(() => {});
-    supabase
-      .rpc('get_my_scheduled_awareness_cue_pushes')
-      .then(({ data }) => setScheduledServerCueTimes((data || []).map((r) => new Date(r.scheduled_at))))
-      .catch(() => {});
-  }, [
-    profile?.awareness_cue_enabled,
-    profile?.awareness_cue_type,
-    profile?.awareness_cue_frequency_mode,
-    profile?.awareness_cue_count,
-    profile?.awareness_cue_window_start_minute,
-    profile?.awareness_cue_window_end_minute,
-    profile?.awareness_cue_sound_confirmed,
-    profile?.awareness_cue_batch_valid_until,
   ]);
 
   async function signOut() {
@@ -948,22 +902,6 @@ export default function Settings() {
 
         {awarenessCue.enabled && (
           <>
-            {/* Diagnostic only, not a real feature -- surfaces which
-                path (client app open vs. server backstop) generated
-                the current batch, for verifying the multi-day batch
-                redesign on real devices. See migration 0047. */}
-            <Text style={styles.explainerText}>
-              Diagnostic (testing only) — batch source: {profile?.awareness_cue_batch_source || 'none'}, valid
-              until: {profile?.awareness_cue_batch_valid_until || 'none'}
-            </Text>
-            <Text style={styles.explainerText}>
-              Diagnostic (testing only) — on-device scheduled times: {formatCueTimes(scheduledClientCueTimes)}
-            </Text>
-            <Text style={styles.explainerText}>
-              Diagnostic (testing only) — server-queued times: {formatCueTimes(scheduledServerCueTimes)}
-            </Text>
-            <View style={{ height: 8 }} />
-
             <Text style={styles.label}>Cue type</Text>
             <View style={styles.optionPillRow}>
               {AWARENESS_CUE_TYPE_OPTIONS.map((option) => {
