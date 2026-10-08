@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { File } from 'expo-file-system';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { C, accentFor, darken, textOn, withAlpha, NATURE_ORDER } from '../../lib/theme';
+import { C, accentFor, darken, textOn, withAlpha, ALL_NATURES } from '../../lib/theme';
 import { shareEntry, useShareStatus, sharePhotoOnlyEntry, SHARE_CAPTIONS } from '../../lib/sharing';
 import { alertCapBlocked, checkAndConsumeWeeklyCap, rippleFeatureFor } from '../../lib/freemiumCaps';
 import { showAlert } from '../../lib/themedAlert';
@@ -180,10 +180,9 @@ export default function Calendar() {
       const goalIds = {};
       (data || []).forEach((e) => {
         counts[e.entry_date] = (counts[e.entry_date] || 0) + 1;
-        // Only the three Vibes earn a badge (null and day_journal don't).
-        // Explicit NATURE_ORDER test now that TICKLE_NATURE_ICONS also
-        // carries My Day's sun.
-        if (NATURE_ORDER.includes(e.tickle_nature)) {
+        // The three Vibes and My Day each earn a badge (ALL_NATURES);
+        // untagged (null) entries don't.
+        if (ALL_NATURES.includes(e.tickle_nature)) {
           if (!natureCategories[e.entry_date]) natureCategories[e.entry_date] = new Set();
           natureCategories[e.entry_date].add(e.tickle_nature);
         }
@@ -677,7 +676,7 @@ export default function Calendar() {
   // single day's entries are a small dataset.
   const visibleDayEntries =
     viewMode === 'vibes'
-      ? dayEntries.filter((e) => NATURE_ORDER.includes(e.tickle_nature))
+      ? dayEntries.filter((e) => ALL_NATURES.includes(e.tickle_nature))
       : viewMode === 'goals'
       ? dayEntries.filter((e) => e.goal_id)
       : dayEntries;
@@ -806,7 +805,7 @@ export default function Calendar() {
                     </Text>
                     {viewMode === 'vibes' ? (
                       <View style={styles.vibesIconRow}>
-                        {NATURE_ORDER.filter((nature) => natureCategoriesByDate[dateStr]?.has(nature)).map(
+                        {ALL_NATURES.filter((nature) => natureCategoriesByDate[dateStr]?.has(nature)).map(
                           (nature) => (
                             <NatureIcon
                               key={nature}
