@@ -916,22 +916,19 @@ export default function Home() {
   function renderRedeemCard() {
     const headerA11y =
       `${tokenBalance} token${tokenBalance === 1 ? '' : 's'}. ` +
-      `You can redeem ${joinNames(affordableRewards.map((i) => i.label))}. Opens Reward List.`;
+      `You can redeem ${joinNames(affordableRewards.map((i) => i.label))}.`;
     return (
       <View style={styles.goalsSection}>
-        <TouchableOpacity
-          style={styles.redeemHeaderRow}
-          activeOpacity={0.7}
-          onPress={() => router.push('/wishlist')}
-          accessibilityRole="button"
-          accessibilityLabel={headerA11y}
-        >
+        {/* Plain label like the other sections' -- the reward pills below
+            are what open the Reward List. accessible + label so a screen
+            reader reads the balance and the redeemable rewards as one
+            statement. */}
+        <View style={styles.redeemHeaderRow} accessible accessibilityLabel={headerA11y}>
           <Text style={styles.cardLabel}>You can redeem</Text>
           <View style={styles.redeemBalanceCircle}>
             <Text style={styles.redeemBalanceText}>{tokenBalance}</Text>
           </View>
-          <Ionicons name="chevron-forward" size={16} color={C.subtext} style={styles.redeemHeaderChevron} />
-        </TouchableOpacity>
+        </View>
         {/* Keyed by the affordable ids so the row remounts at the first
             pill whenever that list changes (e.g. a redeem drops a pill),
             rather than keeping a stale scroll offset into a shorter row. */}
@@ -1410,24 +1407,18 @@ const styles = StyleSheet.create({
   // still reads first at New Tickle's smaller 12px size.
   goalPillCount: { flexShrink: 0, fontSize: 12, fontWeight: '700', color: C.text },
 
-  // "You can redeem" sits in goalsSection like the other two pill rows.
-  // Its header is a 44px touch target with the label first, so the label
-  // keeps the same left edge as "Your Goals" and "Multickles you follow".
-  // The negative margins pull that taller row back so the label keeps the
-  // same ~10dp gap above and ~5dp gap below as the other section labels;
-  // -10 matches goalsSection.marginBottom (10), so the header's tap area
-  // stops exactly at the previous section's pills, and the pill row
-  // (rendered after it) wins the 9dp it overlaps below.
-  redeemHeaderRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44,
-    marginTop: -10, marginBottom: -9,
-  },
-  redeemHeaderChevron: { marginLeft: 'auto' },
+  // "You can redeem" sits in goalsSection like the other pill rows. Its
+  // header is a plain label (not tappable -- the reward pills open the
+  // Reward List) with the balance circle beside it, and the same 5dp gap
+  // to its pills as goalsCardLabel.
+  redeemHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 5 },
   // Same look as CornerNav's tokenCircle + tokenCircleFilled.
   redeemBalanceCircle: {
     minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 4,
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 1.5, borderColor: C.subtext, backgroundColor: C.subtext,
+    // Overhangs the ~15dp label row so this header keeps the other sections' label spacing (10 above / 5 below).
+    marginVertical: -3.5,
   },
   redeemBalanceText: { fontSize: 11, fontWeight: '700', color: C.card },
   // Reward, Multickle and Remember this? pills reuse goalPill's shape; a
