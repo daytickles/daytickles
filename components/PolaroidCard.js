@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { C, darken, lighten, NATURE_ORDER, vibeIconColor } from '../lib/theme';
 import NatureIcon from './NatureIcon';
 
@@ -129,8 +129,10 @@ export default function PolaroidCard({ photo, tickled, onPress, onTickle, onVibe
             onPress={onShare}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             style={styles.shareIconButton}
+            accessibilityRole="button"
+            accessibilityLabel="Share as a polaroid"
           >
-            <Ionicons name="share-outline" size={12} color={C.rust} />
+            <MaterialCommunityIcons name="polaroid" size={12} color={C.rust} />
           </TouchableOpacity>
         </View>
       </View>

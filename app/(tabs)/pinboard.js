@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -316,7 +316,7 @@ export default function PinBoard() {
         <Text style={styles.permanentCaptionBold}>
           Photos are stored only on this device — back them up anytime from Settings. Tap Tickle
           to write about one, a Vibe icon to instantly create a private Tickle from it,{' '}
-          <Ionicons name="share-outline" size={13} color={C.subtext} /> to share it, or{' '}
+          <MaterialCommunityIcons name="polaroid" size={13} color={C.subtext} /> to share it, or{' '}
           <Ionicons name="download-outline" size={13} color={C.subtext} /> to save a copy to your Photos app.
         </Text>
 
