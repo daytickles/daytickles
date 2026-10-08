@@ -27,6 +27,7 @@ import QuickStartCard from '../../components/QuickStartCard';
 import CornerNav from '../../components/CornerNav';
 import WallpaperBackground from '../../components/WallpaperBackground';
 import TesterFeedbackPill from '../../components/TesterFeedbackPill';
+import GoalTargetCircle from '../../components/GoalTargetCircle';
 import {
   requestReminderPermission,
   scheduleDailyReminder,
@@ -809,9 +810,18 @@ export default function Home() {
   // home_bottom_redesign_audit.md). Goal counts are disjoint: goal_id is
   // a single column, so an entry counts toward at most one Goal.
   const remember = session ? pickRememberEntries(entries, session.user.id) : null;
+  // goalWeekCounts feeds the weekly-target circle (goals.weekly_target):
+  // same entry_date + week_start_day boundary as Weekly Summary's
+  // per-Goal count and the weekly caps (lib/week.js), and the same
+  // no-filter semantics as goalCounts, just limited to this week.
   const goalCounts = new Map();
+  const goalWeekCounts = new Map();
   for (const e of entries) {
-    if (e.goal_id) goalCounts.set(e.goal_id, (goalCounts.get(e.goal_id) || 0) + 1);
+    if (!e.goal_id) continue;
+    goalCounts.set(e.goal_id, (goalCounts.get(e.goal_id) || 0) + 1);
+    if (isThisWeek(e.entry_date, rippleWeekStartDay)) {
+      goalWeekCounts.set(e.goal_id, (goalWeekCounts.get(e.goal_id) || 0) + 1);
+    }
   }
 
   // Same transparent pill-row pattern as Your Goals, You can redeem and
@@ -1062,6 +1072,17 @@ export default function Home() {
           >
             {activeGoals.map((g) => {
               const count = goalCounts.get(g.id) || 0;
+              // A Goal with a weekly target shows this week's count in a
+              // GoalTargetCircle instead of the all-time count; without
+              // one the pill is exactly as before. Only the a11y label
+              // says "of N" -- visually it's just the number (or a tick).
+              const target = g.weekly_target;
+              const weekCount = goalWeekCounts.get(g.id) || 0;
+              const countLabel = !target
+                ? `${count} Tickle${count === 1 ? '' : 's'}`
+                : weekCount >= target
+                  ? `${weekCount} Tickle${weekCount === 1 ? '' : 's'} this week, target reached`
+                  : `${weekCount} of ${target} Tickles this week`;
               // Hidden when the Tokens master switch is off, same
               // "!== false" idiom as CornerNav's showTokens.
               const showCoin = g.earns_tokens && profile?.tokens_enabled !== false;
@@ -1077,7 +1098,7 @@ export default function Home() {
                   onPress={() => router.push({ pathname: '/goal', params: { id: g.id } })}
                   accessibilityRole="button"
                   accessibilityLabel={
-                    `${g.label}, ${count} Tickle${count === 1 ? '' : 's'}` +
+                    `${g.label}, ${countLabel}` +
                     `${showCoin ? ', earns tokens' : ''}. Opens Goal summary.`
                   }
                 >
@@ -1085,7 +1106,11 @@ export default function Home() {
                   {showCoin && (
                     <MaterialCommunityIcons name="circle-multiple-outline" size={16} color={C.subtext} />
                   )}
-                  <Text style={styles.goalPillCount}>{count}</Text>
+                  {target ? (
+                    <GoalTargetCircle count={weekCount} target={target} accessible={false} />
+                  ) : (
+                    <Text style={styles.goalPillCount}>{count}</Text>
+                  )}
                 </TouchableOpacity>
               );
             })}
