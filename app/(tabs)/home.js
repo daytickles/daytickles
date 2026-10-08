@@ -223,7 +223,6 @@ export default function Home() {
   const [tokenBalance, setTokenBalance] = useState(0);
   const [rewardItems, setRewardItems] = useState([]);
   const [followedTales, setFollowedTales] = useState([]);
-  const [followedTaleCount, setFollowedTaleCount] = useState(0);
   const [madeMeSmileTotals, setMadeMeSmileTotals] = useState({ week: 0, month: 0, allTime: 0 });
   const [thoughtOfYouTotals, setThoughtOfYouTotals] = useState({ week: 0, month: 0, allTime: 0 });
   const [showGuide, setShowGuide] = useState(false);
@@ -570,8 +569,9 @@ export default function Home() {
   // notification. Its own two fetches in parallel (see
   // home_multickles_card_audit.md): the unread Tic notifications, and
   // fetchFollowedTales -- which also drops Multickles since unfollowed
-  // (their notifications stay unread, users can't delete them) and gives
-  // the footer's (N), matching the Stash Following pills. Order: new
+  // (their notifications stay unread, users can't delete them). The full
+  // followed list, completed ones included, lives on Tickle Stash's
+  // Following tab. Order: new
   // Tics first, newest unread first; then the rest in fetchFollowedTales'
   // newest-follow-first order -- tales has no last-Tic/updated_at column,
   // so there's no cheaper activity date to sort by. Read-only: tale.js
@@ -580,7 +580,6 @@ export default function Home() {
   const loadFollowedTales = useCallback(async () => {
     if (!session) {
       setFollowedTales([]);
-      setFollowedTaleCount(0);
       return;
     }
     try {
@@ -614,10 +613,8 @@ export default function Home() {
         });
       const withNews = pills.filter((t) => t.newAt).sort((a, b) => new Date(b.newAt) - new Date(a.newAt));
       setFollowedTales([...withNews, ...pills.filter((t) => !t.newAt)]);
-      setFollowedTaleCount(followed.length);
     } catch {
       setFollowedTales([]);
-      setFollowedTaleCount(0);
     }
   }, [session]);
 
@@ -1026,15 +1023,6 @@ export default function Home() {
             </TouchableOpacity>
           ))}
         </ScrollView>
-        <TouchableOpacity
-          style={styles.followedTalesLink}
-          activeOpacity={0.7}
-          onPress={() => router.push({ pathname: '/feed', params: { tab: 'following' } })}
-          accessibilityRole="button"
-          accessibilityLabel={`All Multickles you follow, ${followedTaleCount}. Opens the Following tab.`}
-        >
-          <Text style={styles.openLink}>All Multickles you follow ({followedTaleCount})</Text>
-        </TouchableOpacity>
       </View>
     );
   }
@@ -1393,7 +1381,6 @@ const styles = StyleSheet.create({
 
   bottomCards: { marginTop: 12 },
   cardLabel: { fontSize: 13, fontWeight: '700', color: C.rustDark },
-  openLink: { fontSize: 13, fontWeight: '700', color: C.rust },
 
   // Transparent section -- same treatment as vibeCardsRow/statPillsRow:
   // no background, border, shadow or padding, only a 12dp bottom margin
@@ -1458,6 +1445,4 @@ const styles = StyleSheet.create({
   // text, sized to keep the pill at its 40dp minimum height.
   rememberThumb: { width: 22, height: 22, borderRadius: 5.5, backgroundColor: C.border },
   rememberThumbMissing: { backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
-
-  followedTalesLink: { minHeight: 40, justifyContent: 'center' },
 });
