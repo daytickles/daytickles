@@ -1,7 +1,7 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import {
   View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform,
+  KeyboardAvoidingView, Platform, Keyboard,
 } from 'react-native';
 import { showAlert } from '../lib/themedAlert';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +15,9 @@ import {
 import { alertCapBlocked, capFor } from '../lib/freemiumCaps';
 import Button from '../components/Button';
 import WallpaperBackground from '../components/WallpaperBackground';
+
+// How far above the keyboard a focused input's bottom edge should sit.
+const INPUT_KEYBOARD_GAP = 24;
 
 // Manage Tales -- the TickleTale counterpart to goals.js (migration
 // 0067). Same create -> list -> complete/delete shape, minus the colour
@@ -35,6 +38,39 @@ export default function Tales() {
   // Same split as goals.js -- Complete/Delete share this, so completing
   // a Tale doesn't make the Start button read "Starting...".
   const [mutating, setMutating] = useState(false);
+
+  // Same reveal as TesterFeedbackPill's note box: this app runs
+  // edge-to-edge, so the KeyboardAvoidingView alone doesn't keep an input
+  // low on the page (under the ongoing list) above the keyboard. The
+  // focused input asks the ScrollView to scroll it clear instead.
+  const scrollRef = useRef(null);
+  const inputRefs = useRef({ title: null, blurb: null });
+  const focusedInput = useRef(null);
+  function revealInput(name) {
+    const input = inputRefs.current[name];
+    if (input) scrollRef.current?.scrollResponderScrollNativeHandleToKeyboard?.(input, INPUT_KEYBOARD_GAP, true);
+  }
+  // keyboardDidShow covers the first open (the keyboard height isn't
+  // known yet at focus time); onFocus below covers moving between the
+  // two inputs while it's already up.
+  useEffect(() => {
+    const sub = Keyboard.addListener('keyboardDidShow', () => {
+      if (focusedInput.current) revealInput(focusedInput.current);
+    });
+    return () => sub.remove();
+  }, []);
+  function inputFocusProps(name) {
+    return {
+      ref: (el) => { inputRefs.current[name] = el; },
+      onFocus: () => {
+        focusedInput.current = name;
+        if (Keyboard.isVisible()) revealInput(name);
+      },
+      onBlur: () => {
+        if (focusedInput.current === name) focusedInput.current = null;
+      },
+    };
+  }
 
   const loadTales = useCallback(async () => {
     if (!session) return;
@@ -194,7 +230,7 @@ export default function Tales() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-    <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <ScrollView ref={scrollRef} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <TouchableOpacity
         onPress={() => router.back()}
         disabled={saving || mutating}
@@ -226,6 +262,7 @@ export default function Tales() {
           value={title}
           onChangeText={setTitle}
           maxLength={TALE_TITLE_MAX}
+          {...inputFocusProps('title')}
         />
         <TextInput
           style={[styles.input, styles.inputMultiline]}
@@ -235,6 +272,7 @@ export default function Tales() {
           onChangeText={setBlurb}
           maxLength={TALE_BLURB_MAX}
           multiline
+          {...inputFocusProps('blurb')}
         />
         <View style={styles.iconRow}>
           {TALE_ICONS.map((opt) => {
@@ -310,7 +348,9 @@ const styles = StyleSheet.create({
     padding: 10, marginBottom: 12, fontSize: 16,
     backgroundColor: C.card, color: C.text,
   },
-  inputMultiline: { minHeight: 64, textAlignVertical: 'top' },
+  // maxHeight: past ~5 lines the blurb scrolls inside itself rather than
+  // growing down under the keyboard.
+  inputMultiline: { minHeight: 64, maxHeight: 120, textAlignVertical: 'top' },
   iconRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
   iconOption: {
     width: 44, height: 44, borderRadius: 22,
