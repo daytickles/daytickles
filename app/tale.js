@@ -29,8 +29,9 @@ function formatEntryDate(entryDate) {
 
 // The Tale view (migration 0067) -- reached by tapping a chapter's Tale
 // chip on EntryCard, a tale_chapter notification, or a row in Manage
-// Tales. Every chapter, oldest first by entry_date, with its computed
-// chapter number; Ongoing/Complete status; and "Follow this Tale", a
+// Tales. Every chapter, newest first by entry_date, with its computed
+// chapter number (counted oldest first, so each Tic keeps its number);
+// Ongoing/Complete status; and "Follow this Tale", a
 // relationship separate from following the author (tale_follows).
 //
 // Chapters render as a simple read-only list, not full EntryCards: the
@@ -303,7 +304,9 @@ export default function Tale() {
               </TouchableOpacity>
             )}
 
-            {numbered.map(renderChapter)}
+            {/* Newest first. Reversed only after numbering, so each Tic
+                keeps its number (Tic 1 ends up at the bottom). */}
+            {numbered.slice().reverse().map(renderChapter)}
 
             {!loading && numbered.length === 0 && (
               <Text style={styles.emptyText}>
