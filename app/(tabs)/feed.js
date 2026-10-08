@@ -41,12 +41,10 @@ const TABS = [
   { id: 'rippled', label: 'Rippled' },
 ];
 
-// Mine-only. 'all' is the default: everything, tagged or not, EXCEPT
-// My Day (day_journal) entries -- those only ever surface via their own
-// dedicated chip below, so they don't clutter the all-Vibes view (see
-// loadFeed's own entriesData filter below). Unrelated to My Day's own
-// privacy status -- a Rippled My Day entry is just as public as any
-// other Rippled Tickle, it's simply kept out of this particular chip.
+// Mine-only. 'all' is the default: everything, tagged or not --
+// including My Day (day_journal) entries, which count as a fourth Vibe
+// here. My Day also keeps its own dedicated chip below (with the Day
+// Dots card).
 const NATURE_FILTERS = [
   { id: 'received', label: 'Smiles' },
   { id: 'given', label: 'Given' },
@@ -666,18 +664,9 @@ export default function Feed() {
 
     const { data, error } = await query;
     if (!error) {
-      // "All" means "everything, tagged or not" (see NATURE_FILTERS'
-      // own comment), but never My Day -- that stays reachable only
-      // through its own dedicated chip. Plain JS !== rather than a
-      // query-level .neq('tickle_nature', 'day_journal') deliberately:
-      // tickle_nature can be null for untagged entries, and Postgres's
-      // <> excludes NULLs under three-valued logic, which would have
-      // silently dropped every untagged entry from "All" too (same
-      // pitfall already hit once in weekly-summary.js's Most Liked fix).
-      let entriesData = data || [];
-      if (tab === 'mine' && natureFilter === 'all' && !goalFilter) {
-        entriesData = entriesData.filter((e) => e.tickle_nature !== 'day_journal');
-      }
+      // "All" means everything, tagged or not, My Day included (see
+      // NATURE_FILTERS' own comment) -- no client-side filtering here.
+      const entriesData = data || [];
       const awardedTypesById = await fetchAwardedEntryTypes(entriesData.map((e) => e.id));
       setEntries(entriesData);
       setAwardedPublicTypes(awardedTypesById);
