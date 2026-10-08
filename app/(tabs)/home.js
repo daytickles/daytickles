@@ -565,13 +565,13 @@ export default function Home() {
 
   // "Multickles you follow": one pill per followed Multickle that's still
   // Ongoing (not completed_at, the same field tale.js's Ongoing/Complete
-  // pill uses), with NEW on any that has an unread tale_chapter
+  // pill uses), with a sparkle on any that has an unread tale_chapter
   // notification. Its own two fetches in parallel (see
   // home_multickles_card_audit.md): the unread Tic notifications, and
   // fetchFollowedTales -- which also drops Multickles since unfollowed
   // (their notifications stay unread, users can't delete them) and gives
-  // the footer's (N), matching the Stash Following pills. Order: NEW
-  // first, newest unread first; then the rest in fetchFollowedTales'
+  // the footer's (N), matching the Stash Following pills. Order: new
+  // Tics first, newest unread first; then the rest in fetchFollowedTales'
   // newest-follow-first order -- tales has no last-Tic/updated_at column,
   // so there's no cheaper activity date to sort by. Read-only: tale.js
   // marks the notifications read when the Multickle is opened, never
@@ -605,7 +605,8 @@ export default function Home() {
           let newAt = newestUnread.get(t.id) || null;
           // Tapped this session and nothing newer since -- tale.js's
           // mark-read may not have landed yet when the user comes straight
-          // back, so don't flash NEW back in. A newer Tic still shows it.
+          // back, so don't flash the sparkle back in. A newer Tic still
+          // shows it.
           const tappedAt = tappedTaleNewAtRef.current.get(t.id);
           if (newAt && tappedAt && new Date(newAt) <= new Date(tappedAt)) newAt = null;
           return { id: t.id, title: t.title, newAt };
@@ -955,12 +956,12 @@ export default function Home() {
     );
   }
 
-  // Tapping a pill opens the Multickle and clears its NEW locally, in
+  // Tapping a pill opens the Multickle and clears its sparkle locally, in
   // place -- no re-order or removal, so the row's key (and scroll
   // position) stays put; tale.js marks the notifications read. The
   // newest unread created_at it was showing is remembered, so a Home
-  // focus that beats that mark-read doesn't bring NEW back, while a newer
-  // Tic still does.
+  // focus that beats that mark-read doesn't bring the sparkle back, while
+  // a newer Tic still does.
   function openFollowedTale(tale) {
     if (tale.newAt) {
       tappedTaleNewAtRef.current.set(tale.id, tale.newAt);
@@ -979,7 +980,7 @@ export default function Home() {
       <View style={styles.goalsSection}>
         <Text style={[styles.cardLabel, styles.goalsCardLabel]}>Multickles you follow</Text>
         {/* Keyed by the ordered ids so the row restarts at the first pill
-            when the list changes; a tap only clears NEW, so it keeps
+            when the list changes; a tap only clears the sparkle, so it keeps
             the key. */}
         <ScrollView
           key={followedTales.map((t) => t.id).join(',')}
@@ -1000,10 +1001,16 @@ export default function Home() {
                   : `${t.title}. Opens Multickle.`
               }
             >
+              {/* Unread indicator. Hidden from screen readers -- the
+                  pill's label already says "new Tic added ...". */}
               {!!t.newAt && (
-                <View style={styles.newPill}>
-                  <Text style={styles.newPillText}>NEW</Text>
-                </View>
+                <Ionicons
+                  name="sparkles"
+                  size={13}
+                  color={C.sparkleText}
+                  importantForAccessibility="no"
+                  accessibilityElementsHidden
+                />
               )}
               <Text style={styles.goalPillLabel} numberOfLines={1}>{t.title}</Text>
             </TouchableOpacity>
@@ -1422,14 +1429,5 @@ const styles = StyleSheet.create({
   rememberThumb: { width: 24, height: 24, borderRadius: 6, backgroundColor: C.border },
   rememberThumbMissing: { backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
 
-  // Shape and type of tale.js's Ongoing pill (statusPill + statusPillText),
-  // as a dark chip with white text, the unread indicator on a Multickles
-  // you follow pill. Never shrinks, so a long title truncates rather than
-  // squeezing NEW.
-  newPill: {
-    flexShrink: 0, paddingVertical: 3, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1,
-    backgroundColor: C.text, borderColor: C.text,
-  },
-  newPillText: { fontSize: 11, fontWeight: '700', color: C.card },
   followedTalesLink: { minHeight: 44, justifyContent: 'center' },
 });
