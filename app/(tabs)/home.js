@@ -117,12 +117,11 @@ function hashString(str) {
 // there are enough; within a tier, candidates are sorted by id and
 // walked from an index set by a hash of userId + today, so a refocus
 // later the same day lands on the same entries (and the first pick is
-// the one the single-card version showed). My Day (day_journal) is left
-// out -- it's long-form personal writing that doesn't read well as a
-// short memory snippet. Returns { entries, isFallback } or null.
+// the one the single-card version showed). My Day (day_journal) entries
+// are eligible like any Vibe. Returns { entries, isFallback } or null.
 function pickRememberEntries(entries, userId) {
   const today = localDateString(0);
-  const past = entries.filter((e) => e.entry_date < today && e.tickle_nature !== 'day_journal');
+  const past = entries.filter((e) => e.entry_date < today);
 
   const yearAgo = sameDayMonthsAgo(12);
   const monthAgo = sameDayMonthsAgo(1);
@@ -156,9 +155,8 @@ function pickRememberEntries(entries, userId) {
   }
   if (picked.length) return { entries: picked, isFallback: false };
 
-  // Thin history: the latest Tickle instead (today's included), still
-  // skipping My Day for the same reason as above.
-  const latest = entries.find((e) => e.tickle_nature !== 'day_journal');
+  // Thin history: the latest Tickle instead (today's included).
+  const latest = entries[0];
   return latest ? { entries: [latest], isFallback: true } : null;
 }
 
@@ -869,7 +867,9 @@ export default function Home() {
                 accessibilityRole="button"
                 accessibilityLabel={`${natureLabel}, ${short}. Opens Tickle.`}
               >
-                {!!VIBE_COLORS[entry.tickle_nature] && (
+                {/* Any tagged nature, My Day's sun included -- NatureIcon
+                    and vibeIconColor cover all four (lib/theme.js). */}
+                {!!entry.tickle_nature && (
                   <NatureIcon nature={entry.tickle_nature} size={16} color={vibeIconColor(entry.tickle_nature)} />
                 )}
                 {isPhotoOnly && (
