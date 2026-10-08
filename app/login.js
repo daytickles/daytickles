@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Linking } from 'react-native';
-import { router } from 'expo-router';
+import { router, useNavigation } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
 import { supabase } from '../lib/supabase';
@@ -14,12 +14,19 @@ WebBrowser.maybeCompleteAuthSession();
 export default function Login() {
   const [status, setStatus] = useState('');
   const { session, profile } = useAuth();
+  const navigation = useNavigation();
 
+  // After a fresh sign-in a second, blurred Login can stay mounted under
+  // the tabs, and it used to send the user to Home whenever the profile
+  // object changed (e.g. from Settings' accent, week start and country
+  // pickers). The focus check and the narrowed deps stop that: only the
+  // focused Login redirects, and a new profile object alone doesn't
+  // re-run it.
   useEffect(() => {
-    if (session && profile) {
+    if (session && profile && navigation.isFocused()) {
       router.replace(profile.onboarded ? '/home' : '/onboarding');
     }
-  }, [session, profile]);
+  }, [session, !!profile, profile?.onboarded, navigation]);
 
   async function signInWithGoogle() {
     try {
