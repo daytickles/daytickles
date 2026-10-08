@@ -86,19 +86,17 @@ export default function PolaroidCard({ photo, tickled, onPress, onTickle, onVibe
               <NatureIcon nature={nature} size={11} color={vibeIconColor(nature)} />
             </TouchableOpacity>
           ))}
-          {/* My Day has no VIBE_COLORS/NATURE_ORDER entry of its own
-              (deliberately excluded there -- it's not a Vibe) so this
-              reuses C.rust instead, matching every other icon already on
-              this card's photo (pin/trash/download/share) rather than
-              introducing a new color for one glyph. Always shown now --
-              My Day is a permanent feature, no more day_journal_enabled
-              gate. */}
+          {/* My Day's sun, through the same NatureIcon/vibeIconColor
+              lookups as the three Vibes (C.rust, matching this card's
+              other photo icons). Kept as its own button rather than
+              mapped from ALL_NATURES only because the sun has always
+              been drawn 1dp larger (12 vs 11). */}
           <TouchableOpacity
             onPress={() => onVibeTap?.(photo, 'day_journal')}
             hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
             style={styles.vibeButton}
           >
-            <Ionicons name="sunny-outline" size={12} color={C.rust} />
+            <NatureIcon nature="day_journal" size={12} color={vibeIconColor('day_journal')} />
           </TouchableOpacity>
         </View>
 

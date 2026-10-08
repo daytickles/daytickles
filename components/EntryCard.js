@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { C, accentFor, darken, lighten, withAlpha, SAVED_ENTRY_DOT_SIZE, VIBE_COLORS, vibeIconColor, NATURE_LABELS, AWARD_TYPES, AWARD_BADGE_COLOR, AWARD_HAND_ICON, awardLabelFor } from '../lib/theme';
+import { C, accentFor, darken, lighten, withAlpha, SAVED_ENTRY_DOT_SIZE, vibeIconColor, NATURE_LABELS, AWARD_TYPES, AWARD_BADGE_COLOR, AWARD_HAND_ICON, awardLabelFor } from '../lib/theme';
 import { showAlert } from '../lib/themedAlert';
 import { flagEmoji } from '../lib/country';
 import InitialsAvatar from './InitialsAvatar';
@@ -72,9 +72,6 @@ export default function EntryCard({
   // never reveals who gave it, only which type(s)).
   const hasPublicAward = !!publicAwardTypes?.length;
   const isOwnEntry = item.user_id === currentUserId;
-  // Day Journal is just tickle_nature === 'day_journal' (see migration
-  // 0010) -- no new prop needed, item already carries it.
-  const isJournal = item.tickle_nature === 'day_journal';
   // A photo-only Tickle (migration 0055's entry_kind) has no text at
   // all -- its own photo IS the entry. photoUri is the caller's
   // already-resolved local file uri (or the entry's public media_url
@@ -169,30 +166,19 @@ export default function EntryCard({
             },
           ]}
         >
-          {!!VIBE_COLORS[item.tickle_nature] && (
+          {/* One icon for all four natures, My Day's sun included
+              (TICKLE_NATURE_ICONS / vibeIconColor in lib/theme.js).
+              NatureIcon renders nothing for an untagged (null) entry.
+              My Day is deliberately still NOT in NATURE_ORDER, which
+              drives the tracked-Vibe features (Vibe Targets, Home's
+              Vibe cards, the profile select). */}
+          {!!item.tickle_nature && (
             <NatureIcon
               nature={item.tickle_nature}
               size={SAVED_ENTRY_DOT_SIZE}
               color={vibeIconColor(item.tickle_nature)}
             />
           )}
-          {/* My Day gets a real icon in the same leading slot a Vibe
-              icon occupies, for visual parity now that it's a regular
-              Tickle in every other way -- but it's deliberately NOT
-              added to TICKLE_NATURE_ICONS/VIBE_COLORS/NATURE_ORDER
-              itself, rendered directly instead (same technique
-              PolaroidCard's own sun icon already uses). Those three are
-              iterated all over the app as "every real Vibe" with actual
-              tracking/aggregation behavior riding on it -- Settings'
-              daily/weekly Vibe Targets picker, Home's VibeCard stat row
-              + lightbulb goal indicators, AuthContext's dynamic
-              daily_goal_/weekly_goal_ field list, Weekly Summary's Vibe
-              breakdown/rhythm chart. Adding day_journal there would
-              silently turn My Day into a 4th taggable/trackable Vibe
-              everywhere at once, including goal-target columns that
-              don't exist for it -- none of that is wanted, so this
-              stays a parallel, independent condition instead. */}
-          {isJournal && <Ionicons name="sunny-outline" size={SAVED_ENTRY_DOT_SIZE} color={C.rust} />}
         </View>
         <View style={styles.entryBody}>
           <View style={styles.headerRow}>

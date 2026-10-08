@@ -4,10 +4,9 @@ import {
   KeyboardAvoidingView, ScrollView, Platform, Keyboard,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { C, accentFor, darken, textOn, VIBE_COLORS, vibeIconColor, withAlpha } from '../lib/theme';
+import { C, accentFor, darken, textOn, natureTintColor, vibeIconColor, withAlpha } from '../lib/theme';
 import Button from '../components/Button';
 import WallpaperBackground from '../components/WallpaperBackground';
 import NatureIcon from '../components/NatureIcon';
@@ -271,22 +270,17 @@ export default function Create() {
       <View style={styles.natureRow}>
         {natureOptions.map((opt) => {
           const selected = tickleNature === opt.id;
-          // My Day deliberately has no VIBE_COLORS entry (see EntryCard.js's
-          // vibeIconSlot comment for the full reasoning) -- reuses C.rust
-          // directly instead, the same color already established for it
-          // elsewhere (EntryCard's leading icon, PolaroidCard's sun icon),
-          // rather than adding it to VIBE_COLORS and turning it into a
-          // real, trackable Vibe everywhere else in the app.
-          const tintColor = opt.id === 'day_journal' ? C.rust : VIBE_COLORS[opt.id];
+          // natureTintColor: VIBE_COLORS for the three Vibes, C.rust for
+          // My Day (lib/theme.js) -- My Day still isn't in VIBE_COLORS or
+          // NATURE_ORDER, so it never becomes a tracked Vibe elsewhere.
+          const tintColor = natureTintColor(opt.id);
           // vibeIconColor, not the raw tintColor -- same reasoning as
           // EntryCard.js's own leading icon (Tickle Stash): at small
           // icon size on a light/near-white backing, several raw Vibe
           // colors fail WCAG's 3:1 minimum for graphical objects, so the
           // contrast-corrected variant is the actually-reused value, not
-          // just the swatch color. My Day still has no such helper (it's
-          // not in VIBE_COLORS), so it keeps the plain C.rust EntryCard/
-          // PolaroidCard already use for it directly.
-          const unselectedIconColor = opt.id === 'day_journal' ? C.rust : vibeIconColor(opt.id);
+          // just the swatch color. For My Day it returns plain C.rust.
+          const unselectedIconColor = vibeIconColor(opt.id);
           // Selected state keeps its own existing accentDark fill
           // untouched -- the per-Vibe tint only applies while unselected,
           // so the icon switches to accentDarkText on selection too
@@ -306,11 +300,7 @@ export default function Create() {
                 selected && { backgroundColor: accentDark, borderColor: accentDark },
               ]}
             >
-              {opt.id === 'day_journal' ? (
-                <Ionicons name="sunny-outline" size={16} color={iconColor} />
-              ) : (
-                <NatureIcon nature={opt.id} size={16} color={iconColor} />
-              )}
+              <NatureIcon nature={opt.id} size={16} color={iconColor} />
               <Text style={[styles.natureOptionLabel, selected && { color: accentDarkText }]}>
                 {opt.label}
               </Text>

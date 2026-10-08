@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { File } from 'expo-file-system';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { C, accentFor, darken, textOn, withAlpha, TICKLE_NATURE_ICONS, NATURE_ORDER } from '../../lib/theme';
+import { C, accentFor, darken, textOn, withAlpha, NATURE_ORDER } from '../../lib/theme';
 import { shareEntry, useShareStatus, sharePhotoOnlyEntry, SHARE_CAPTIONS } from '../../lib/sharing';
 import { alertCapBlocked, checkAndConsumeWeeklyCap, rippleFeatureFor } from '../../lib/freemiumCaps';
 import { showAlert } from '../../lib/themedAlert';
@@ -180,9 +180,10 @@ export default function Calendar() {
       const goalIds = {};
       (data || []).forEach((e) => {
         counts[e.entry_date] = (counts[e.entry_date] || 0) + 1;
-        // day_journal (and null) entries have no TICKLE_NATURE_ICONS
-        // entry -- only the three real nature categories earn a badge.
-        if (TICKLE_NATURE_ICONS[e.tickle_nature]) {
+        // Only the three Vibes earn a badge (null and day_journal don't).
+        // Explicit NATURE_ORDER test now that TICKLE_NATURE_ICONS also
+        // carries My Day's sun.
+        if (NATURE_ORDER.includes(e.tickle_nature)) {
           if (!natureCategories[e.entry_date]) natureCategories[e.entry_date] = new Set();
           natureCategories[e.entry_date].add(e.tickle_nature);
         }
@@ -676,7 +677,7 @@ export default function Calendar() {
   // single day's entries are a small dataset.
   const visibleDayEntries =
     viewMode === 'vibes'
-      ? dayEntries.filter((e) => TICKLE_NATURE_ICONS[e.tickle_nature])
+      ? dayEntries.filter((e) => NATURE_ORDER.includes(e.tickle_nature))
       : viewMode === 'goals'
       ? dayEntries.filter((e) => e.goal_id)
       : dayEntries;
