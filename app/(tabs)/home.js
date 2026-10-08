@@ -957,7 +957,7 @@ export default function Home() {
               accessibilityLabel={`${item.label}, ${item.cost} token${item.cost === 1 ? '' : 's'}. Opens Reward List.`}
             >
               <Text style={styles.goalPillLabel} numberOfLines={1}>{item.label}</Text>
-              <MaterialCommunityIcons name="circle-multiple-outline" size={16} color={C.subtext} />
+              <MaterialCommunityIcons name="circle-multiple-outline" size={14} color={C.subtext} />
               <Text style={styles.redeemPillCost}>{item.cost}</Text>
             </TouchableOpacity>
           ))}
@@ -1016,7 +1016,7 @@ export default function Home() {
               {!!t.newAt && (
                 <Ionicons
                   name="sparkles"
-                  size={13}
+                  size={12}
                   color={C.sparkleText}
                   importantForAccessibility="no"
                   accessibilityElementsHidden
@@ -1104,10 +1104,10 @@ export default function Home() {
                 >
                   <Text style={styles.goalPillLabel} numberOfLines={1}>{g.label}</Text>
                   {showCoin && (
-                    <MaterialCommunityIcons name="circle-multiple-outline" size={16} color={C.subtext} />
+                    <MaterialCommunityIcons name="circle-multiple-outline" size={14} color={C.subtext} />
                   )}
                   {target ? (
-                    <GoalTargetCircle count={weekCount} target={target} accessible={false} />
+                    <GoalTargetCircle count={weekCount} target={target} size={22} accessible={false} />
                   ) : (
                     <Text style={styles.goalPillCount}>{count}</Text>
                   )}
@@ -1398,19 +1398,23 @@ const styles = StyleSheet.create({
   // Transparent section -- same treatment as vibeCardsRow/statPillsRow:
   // no background, border, shadow or padding, only a 12dp bottom margin
   // between sections.
-  goalsSection: { marginBottom: 12 },
-  goalsCardLabel: { marginBottom: 6 },
+  goalsSection: { marginBottom: 10 },
+  goalsCardLabel: { marginBottom: 5 },
   goalsPromptText: { fontSize: 14, color: C.subtext, lineHeight: 20, marginBottom: 10 },
-  goalPillsRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  // Shape, border, gap, paddingVertical and label type copied from
-  // create.js's natureOption/natureOptionLabel (New Tickle's Vibe pills),
-  // which keep these values local rather than in a shared style; the
-  // per-Goal fill/border colour is applied inline. minHeight 44 (above
-  // natureOption's ~37 natural height) for a comfortable touch target;
-  // maxWidth caps a long (up to 60-char) Goal name so only it truncates.
+  goalPillsRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  // Shape, border and label type copied from create.js's
+  // natureOption/natureOptionLabel (New Tickle's Vibe pills), which keep
+  // these values local rather than in a shared style; the per-Goal
+  // fill/border colour is applied inline. Compact sizing (2026-10-09):
+  // minHeight 40 rather than the earlier 44, so more of each row fits on
+  // screen -- the pill is its own touch target, and a vertical hitSlop
+  // can't reach outside the horizontal ScrollView on Android, so 40 is
+  // the real tap height. minHeight (not height) so it still grows with
+  // font scaling. maxWidth caps a long (up to 60-char) Goal name so only
+  // it truncates.
   goalPill: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    minHeight: 44, maxWidth: 240, paddingVertical: 10, paddingHorizontal: 14,
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    minHeight: 40, maxWidth: 240, paddingVertical: 8, paddingHorizontal: 12,
     borderRadius: 20, borderWidth: 1,
   },
   // Shared by the Goal, reward and Multickle pills.
@@ -1423,12 +1427,13 @@ const styles = StyleSheet.create({
   // Its header is a 44px touch target with the label first, so the label
   // keeps the same left edge as "Your Goals" and "Multickles you follow".
   // The negative margins pull that taller row back so the label keeps the
-  // same ~12dp gap above and 6dp gap below as the other section labels;
-  // -12 stops the tap area exactly at the previous section's pills, and
-  // the pill row (rendered after it) wins the 7dp it overlaps below.
+  // same ~10dp gap above and ~5dp gap below as the other section labels;
+  // -10 matches goalsSection.marginBottom (10), so the header's tap area
+  // stops exactly at the previous section's pills, and the pill row
+  // (rendered after it) wins the 9dp it overlaps below.
   redeemHeaderRow: {
     flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44,
-    marginTop: -12, marginBottom: -7,
+    marginTop: -10, marginBottom: -9,
   },
   redeemHeaderChevron: { marginLeft: 'auto' },
   // Same look as CornerNav's tokenCircle + tokenCircleFilled.
@@ -1446,13 +1451,13 @@ const styles = StyleSheet.create({
   redeemPillCost: { flexShrink: 0, fontSize: 12, fontWeight: '700', color: C.text },
 
   // goalPillLabel's type with a fixed line height, so a two-line pill is
-  // a predictable 1 + 10 + 2 x 16 + 10 + 1 = 54dp tall (one line stays
-  // at the 44dp minimum).
+  // a predictable 1 + 8 + 2 x 16 + 8 + 1 = 50dp tall (one line stays
+  // at the 40dp minimum).
   rememberPillLabel: { flexShrink: 1, fontSize: 12, fontWeight: '600', color: C.text, lineHeight: 16 },
   // Photo-only Remember this? entries: a small thumbnail in place of
-  // text, sized to keep the pill at its 44dp minimum height.
-  rememberThumb: { width: 24, height: 24, borderRadius: 6, backgroundColor: C.border },
+  // text, sized to keep the pill at its 40dp minimum height.
+  rememberThumb: { width: 22, height: 22, borderRadius: 5.5, backgroundColor: C.border },
   rememberThumbMissing: { backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
 
-  followedTalesLink: { minHeight: 44, justifyContent: 'center' },
+  followedTalesLink: { minHeight: 40, justifyContent: 'center' },
 });

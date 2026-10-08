@@ -35,7 +35,7 @@ export default function GoalTargetCircle({ count, target, size = 24, accessible 
       {reached ? (
         <Ionicons name="checkmark" size={Math.round(size * 0.6)} color={C.card} />
       ) : (
-        <Text style={styles.count}>{count}</Text>
+        <Text style={styles.count} maxFontSizeMultiplier={1.2}>{count}</Text>
       )}
     </View>
   );
