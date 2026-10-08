@@ -278,8 +278,10 @@ export default function WeeklySummary() {
   // in the app.
   const weekDates = currentWeekDates(weekStartDay);
   const dayTotals = Object.fromEntries(weekDates.map((d) => [d, { received: 0, given: 0, self: 0 }]));
+  // Only the three Vibes have a row in this grid -- a My Day entry would
+  // otherwise create a stray NaN `day_journal` key on its day.
   for (const e of weekEntries) {
-    if (e.tickle_nature && dayTotals[e.entry_date]) {
+    if (NATURE_ORDER.includes(e.tickle_nature) && dayTotals[e.entry_date]) {
       dayTotals[e.entry_date][e.tickle_nature]++;
     }
   }
