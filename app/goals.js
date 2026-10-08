@@ -13,6 +13,11 @@ import { capFor } from '../lib/freemiumCaps';
 import Button from '../components/Button';
 import WallpaperBackground from '../components/WallpaperBackground';
 
+// goals.weekly_target (migration 0072): the value the Switch turns on
+// with, and a client-side ceiling (the DB only checks >= 1).
+const DEFAULT_WEEKLY_TARGET = 3;
+const MAX_WEEKLY_TARGET = 99;
+
 export default function Goals() {
   const { session, profile } = useAuth();
   const accentDark = darken(accentFor(profile?.accent_theme).card, 0.35);
@@ -21,11 +26,16 @@ export default function Goals() {
   const [label, setLabel] = useState('');
   const [color, setColor] = useState(GOAL_COLORS[0]);
   const [earnsTokens, setEarnsTokens] = useState(false);
+  // null = no weekly target (the Switch is off), else 1..MAX_WEEKLY_TARGET.
+  const [weeklyTarget, setWeeklyTarget] = useState(null);
   const [status, setStatus] = useState('');
   const [saving, setSaving] = useState(false);
   // Keyed per-goal so toggling one goal's earns_tokens Switch doesn't
   // disable every other row's Switch while its own write is in flight.
   const [savingEarnsTokensId, setSavingEarnsTokensId] = useState(null);
+  // Same per-goal keying for the weekly target row -- disables that row's
+  // Switch and stepper together, so fast taps can't race two writes.
+  const [savingWeeklyTargetId, setSavingWeeklyTargetId] = useState(null);
   // Separate from `saving` (which is specifically the Add Goal button's
   // own state, unchanged below) -- shared between Achieve and Delete
   // only, so achieving one goal doesn't make the Add Goal button
@@ -88,11 +98,14 @@ export default function Goals() {
     setSaving(true);
     setStatus('');
 
+    // weekly_target is only sent when set, so Add Goal keeps working
+    // even against a database that doesn't have migration 0072 yet.
     const { error } = await supabase.from('goals').insert({
       user_id: session.user.id,
       label: label.trim(),
       color,
       earns_tokens: earnsTokens,
+      ...(weeklyTarget != null && { weekly_target: weeklyTarget }),
     });
 
     setSaving(false);
@@ -105,6 +118,7 @@ export default function Goals() {
     setLabel('');
     setColor(GOAL_COLORS[0]);
     setEarnsTokens(false);
+    setWeeklyTarget(null);
     await loadGoals();
   }
 
@@ -122,6 +136,67 @@ export default function Goals() {
       setGoals((prev) => prev.map((g) => (g.id === goal.id ? { ...g, earns_tokens: !value } : g)));
       setStatus(`Error: ${error.message}`);
     }
+  }
+
+  // Same optimistic shape as handleToggleEarnsTokens, but rolls back to
+  // the goal's previous value rather than a negation, since this isn't a
+  // boolean. null = Switch off. Only goals.weekly_target is written --
+  // reaching the target is derived on Home/goal.js, never stored, and
+  // has nothing to do with tokens.
+  async function handleSetWeeklyTarget(goal, value) {
+    const previous = goal.weekly_target ?? null;
+    setGoals((prev) => prev.map((g) => (g.id === goal.id ? { ...g, weekly_target: value } : g)));
+    setSavingWeeklyTargetId(goal.id);
+    const { error } = await supabase.from('goals').update({ weekly_target: value }).eq('id', goal.id);
+    setSavingWeeklyTargetId(null);
+    if (error) {
+      setGoals((prev) => prev.map((g) => (g.id === goal.id ? { ...g, weekly_target: previous } : g)));
+      setStatus(`Error: ${error.message}`);
+    }
+  }
+
+  // Shared by the new-goal form and each active Goal card. The stepper
+  // (markup copied from Settings' Weekly Vibe Targets) only appears while
+  // the Switch is on, never goes below 1, and is clamped at
+  // MAX_WEEKLY_TARGET -- only the Switch turns the target off.
+  function renderWeeklyTargetRow(value, onChange, disabled) {
+    return (
+      <View style={styles.goalTokenRow}>
+        <Text style={styles.goalTokenLabel}>Weekly target</Text>
+        <View style={styles.weeklyTargetControls}>
+          {value != null && (
+            <View style={styles.stepper}>
+              <TouchableOpacity
+                onPress={() => onChange(Math.max(1, value - 1))}
+                disabled={disabled || value <= 1}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="remove-circle-outline" size={20} color={value > 1 ? C.text : C.faint} />
+              </TouchableOpacity>
+              <Text style={styles.stepperValue}>{value}</Text>
+              <TouchableOpacity
+                onPress={() => onChange(Math.min(MAX_WEEKLY_TARGET, value + 1))}
+                disabled={disabled || value >= MAX_WEEKLY_TARGET}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons
+                  name="add-circle-outline"
+                  size={20}
+                  color={value < MAX_WEEKLY_TARGET ? C.text : C.faint}
+                />
+              </TouchableOpacity>
+            </View>
+          )}
+          <Switch
+            value={value != null}
+            onValueChange={(on) => onChange(on ? DEFAULT_WEEKLY_TARGET : null)}
+            disabled={disabled}
+            trackColor={{ false: C.border, true: accentDark }}
+            thumbColor={C.card}
+          />
+        </View>
+      </View>
+    );
   }
 
   function confirmAchieve(goal) {
@@ -231,6 +306,11 @@ export default function Goals() {
               thumbColor={C.card}
             />
           </View>
+          {renderWeeklyTargetRow(
+            item.weekly_target ?? null,
+            (value) => handleSetWeeklyTarget(item, value),
+            savingWeeklyTargetId === item.id
+          )}
         </View>
       ))}
 
@@ -292,6 +372,8 @@ export default function Goals() {
             />
           </View>
 
+          {renderWeeklyTargetRow(weeklyTarget, setWeeklyTarget, false)}
+
           <Button
             title={saving ? 'Adding...' : 'Add Goal'}
             onPress={handleAdd}
@@ -347,6 +429,10 @@ const styles = StyleSheet.create({
     marginTop: 8, marginBottom: 12, paddingTop: 8, borderTopWidth: 1, borderTopColor: C.border,
   },
   goalTokenLabel: { fontSize: 13, color: C.subtext },
+  weeklyTargetControls: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  // Copied from app/settings.js's stepper/stepperValue.
+  stepper: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  stepperValue: { fontSize: 15, fontWeight: '600', color: C.text, minWidth: 28, textAlign: 'center' },
   dot: { width: 14, height: 14, borderRadius: 7, marginRight: 10 },
   dotAchieved: { alignItems: 'center', justifyContent: 'center' },
   goalLabel: { flex: 1, fontSize: 16, color: C.text },
