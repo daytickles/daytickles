@@ -191,6 +191,7 @@ export default function Goals() {
             value={value != null}
             onValueChange={(on) => onChange(on ? DEFAULT_WEEKLY_TARGET : null)}
             disabled={disabled}
+            accessibilityLabel="Weekly target"
             trackColor={{ false: C.border, true: accentDark }}
             thumbColor={C.card}
           />
@@ -297,11 +298,12 @@ export default function Goals() {
             </View>
           </View>
           <View style={styles.goalTokenRow}>
-            <Text style={styles.goalTokenLabel}>Earns tokens</Text>
+            <Text style={styles.goalTokenLabel}>Earn tokens</Text>
             <Switch
               value={!!item.earns_tokens}
               onValueChange={(value) => handleToggleEarnsTokens(item, value)}
               disabled={savingEarnsTokensId === item.id}
+              accessibilityLabel="Earn tokens"
               trackColor={{ false: C.border, true: accentDark }}
               thumbColor={C.card}
             />
@@ -363,10 +365,11 @@ export default function Goals() {
           </View>
 
           <View style={styles.goalTokenRow}>
-            <Text style={styles.goalTokenLabel}>Earns tokens</Text>
+            <Text style={styles.goalTokenLabel}>Earn tokens</Text>
             <Switch
               value={earnsTokens}
               onValueChange={setEarnsTokens}
+              accessibilityLabel="Earn tokens"
               trackColor={{ false: C.border, true: accentDark }}
               thumbColor={C.card}
             />
