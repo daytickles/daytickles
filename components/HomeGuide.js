@@ -1,16 +1,20 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { C, accentFor, darken } from '../lib/theme';
 import { useAuth } from '../contexts/AuthContext';
 import Button from './Button';
 
 // Content lives here (not passed as props) since both callers — the
 // auto-shown first-run guide on Home and the on-demand "How DayTickles
-// works" link in Settings — show the exact same ten steps.
+// works" link in Settings — show the exact same steps.
 const STEPS = [
   {
     title: 'Home & Your Vibes',
-    body: "With every Tickle you write, you can add one of three Vibes — Made me smile, Paying forward, or For me — or make it a My Day Tickle, the fourth kind, for anything else from your day.\n\nThe three Vibe cards on Home show your activity by week, month, and all-time. You can also set daily and weekly targets for any Vibe in Settings — each has its own lightbulb on the Vibe card, lighting up once you hit that target for the day or the week. It is completely optional — a little extra motivation if you like having something to aim for.\n\nBelow the Vibe cards, the Mojo Shared pills track your polaroid shares and Ripples the same way — this week, this month, and all-time. Tap a pill to see exactly what it's counting.\n\nFurther down, Remember this? shows up to three older Tickles to revisit — tap one to open it. Your Goals shows how many Tickles you've tagged to each active Goal — tap one to see them all. When you have enough tokens for a reward, You can redeem shows which ones — tap a reward to open your Reward List. Multickles you follow lists the ones that are still going, with a small sparkle on any that have a Tic you haven't seen yet.",
+    body: "With every Tickle you write, you can add one of three Vibes — Made me smile, Paying forward, or For me — or make it a My Day Tickle, the fourth kind, for anything else from your day.\n\nThe three Vibe cards on Home show your activity by week, month, and all-time. You can also set daily and weekly targets for any Vibe in Settings — each has its own lightbulb on the Vibe card, lighting up once you hit that target for the day or the week. It is completely optional — a little extra motivation if you like having something to aim for.",
+  },
+  {
+    title: 'More on Home',
+    body: "Below the Vibe cards, the Mojo Shared pills track your polaroid shares and Ripples the same way — this week, this month, and all-time. Tap a pill to see exactly what it's counting.\n\nFurther down, Remember this? shows up to three older Tickles to revisit — tap one to open it. Your Goals shows how many Tickles you've tagged to each active Goal — tap one to see them all. When you have enough tokens for a reward, You can redeem shows which ones — tap a reward to open your Reward List. Multickles you follow lists the ones that are still going, with a small sparkle on any that have a Tic you haven't seen yet.",
   },
   {
     title: 'New Tickle',
@@ -75,14 +79,28 @@ export default function HomeGuide({ visible, onClose }) {
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose}>
-        <TouchableOpacity activeOpacity={1} style={styles.sheet} onPress={() => {}}>
+      {/* Same structure as AboutModal: the tap-outside-to-close layer is a
+          sibling behind the sheet, not its parent, so nothing touchable
+          wraps the ScrollView and a vertical drag on the text scrolls. The
+          sheet is capped at 85% and only the title + body scroll; Skip,
+          the dots and Back/Next stay fixed and always visible. */}
+      <View style={styles.backdrop}>
+        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
+        <View style={styles.sheet}>
           <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={styles.skip}>
             <Text style={styles.skipText}>Skip</Text>
           </TouchableOpacity>
 
-          <Text style={styles.stepTitle}>{step.title}</Text>
-          <Text style={styles.stepBody}>{step.body}</Text>
+          {/* key={index}: each step starts scrolled to its top. */}
+          <ScrollView
+            key={index}
+            style={styles.scroll}
+            contentContainerStyle={styles.scrollContent}
+            persistentScrollbar
+          >
+            <Text style={styles.stepTitle}>{step.title}</Text>
+            <Text style={styles.stepBody}>{step.body}</Text>
+          </ScrollView>
 
           <View style={styles.dotsRow}>
             {STEPS.map((_, i) => (
@@ -101,8 +119,8 @@ export default function HomeGuide({ visible, onClose }) {
             )}
             <Button title={isLast ? 'Done' : 'Next'} variant="primary" onPress={handleNext} />
           </View>
-        </TouchableOpacity>
-      </TouchableOpacity>
+        </View>
+      </View>
     </Modal>
   );
 }
@@ -113,13 +131,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center', padding: 32,
   },
   sheet: {
-    width: '100%', backgroundColor: C.card, borderRadius: 18, padding: 20,
+    width: '100%', maxHeight: '85%', backgroundColor: C.card, borderRadius: 18, padding: 20,
   },
   skip: { alignSelf: 'flex-end', marginBottom: 8 },
   skipText: { fontSize: 14, fontWeight: '600', color: C.subtext },
 
+  // flexShrink lets the scroll area give way inside the 85% sheet, so the
+  // fixed parts below never get pushed off. Its marginBottom is the body's
+  // old 20dp gap above the dots.
+  scroll: { flexShrink: 1, marginBottom: 20 },
+  scrollContent: { paddingBottom: 4 },
   stepTitle: { fontSize: 18, fontWeight: '700', color: C.rustDark, marginBottom: 10 },
-  stepBody: { fontSize: 15, color: C.text, lineHeight: 21, marginBottom: 20 },
+  stepBody: { fontSize: 15, color: C.text, lineHeight: 21 },
 
   dotsRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 20 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.faint },
