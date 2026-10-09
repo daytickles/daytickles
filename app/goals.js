@@ -281,6 +281,10 @@ export default function Goals() {
       <Text style={styles.description}>
         Add a goal and choose a colour to represent it. That colour will mark all Tickles linked to this goal.
       </Text>
+      <Text style={styles.description}>
+        Give a Goal a weekly target if you like. Its pill on Home then shows this week's count in a small circle,
+        which fills with a tick once you get there. Without a target, the pill just shows your total.
+      </Text>
       <Text style={styles.subtitle}>{activeGoals.length}/{goalCap} used</Text>
 
       {activeGoals.map((item) => (
