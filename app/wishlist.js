@@ -150,7 +150,7 @@ export default function Wishlist() {
         <Text style={[styles.backLink, (saving || mutating) && styles.linkDisabled]}>‹ Back</Text>
       </TouchableOpacity>
 
-      <Text style={styles.title}>Manage Reward List</Text>
+      <Text style={styles.title}>My Reward List</Text>
       <Text style={styles.description}>
         Rewards you set for yourself. Earn tokens by tagging Tickles to a token-enabled Goal, then
         redeem them here.

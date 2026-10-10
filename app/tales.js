@@ -239,7 +239,7 @@ export default function Tales() {
         <Text style={[styles.backLink, (saving || mutating) && styles.linkDisabled]}>‹ Back</Text>
       </TouchableOpacity>
 
-      <Text style={styles.title}>Manage Multickles</Text>
+      <Text style={styles.title}>Multickle Moments</Text>
       <Text style={styles.description}>
         A Multickle is an experience that's bigger than a single Tickle — a string of moments, a weekend
         away, a special occasion, an adventure, or simply a collection of moments that belong together. Give

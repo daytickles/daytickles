@@ -277,7 +277,7 @@ export default function Goals() {
         <Text style={[styles.backLink, (saving || mutating) && styles.linkDisabled]}>‹ Back</Text>
       </TouchableOpacity>
 
-      <Text style={styles.title}>Manage Goals</Text>
+      <Text style={styles.title}>My Goals</Text>
       <Text style={styles.description}>
         Add a Goal and choose a colour to represent it. That colour will mark all Tickles linked to this Goal.
       </Text>
