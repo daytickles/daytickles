@@ -1,12 +1,13 @@
 import { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Image } from 'react-native';
+import { File } from 'expo-file-system';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { C, accentFor, SAVED_ENTRY_DOT_SIZE, textOn, withAlpha, darken, lighten, NATURE_ORDER, NATURE_LABELS, VIBE_COLORS, vibeIconColor, AWARD_TYPES, AWARD_HAND_ICON, awardLabelFor } from '../lib/theme';
 import { currentWeekStartDate, currentWeekStartISO, currentWeekDates, localDateString, DEFAULT_WEEK_START_DAY } from '../lib/week';
-import { initPinBoardDb, getPinnedPhotoCountSince, getPhotoShareCountSince } from '../lib/pinBoardDb';
+import { initPinBoardDb, getPinnedPhotoCountSince, getPhotoShareCountSince, getPhotosForEntries } from '../lib/pinBoardDb';
 import { flagEmoji } from '../lib/country';
 import WallpaperBackground from '../components/WallpaperBackground';
 import NatureIcon from '../components/NatureIcon';
@@ -66,6 +67,10 @@ export default function WeeklySummary() {
   const [loading, setLoading] = useState(true);
   const [weekEntries, setWeekEntries] = useState([]);
   const [mostLiked, setMostLiked] = useState(null);
+  // The winner's photo, if it has one: its local Tickle Pics file when that
+  // still exists on this device, else its Rippled copy (media_url). Same
+  // order as Home's resolveLinkedPhotoUris. null = no thumbnail.
+  const [mostLikedPhotoUri, setMostLikedPhotoUri] = useState(null);
   const [goals, setGoals] = useState([]);
   // "Given" reads straight from awards (RLS already lets the giver read
   // their own rows). "Received" can't -- awards RLS is private to the
@@ -124,7 +129,8 @@ export default function WeeklySummary() {
       supabase
         .from('tickle_entries')
         // entry_kind: a photo-only winner has no text, see mostLikedText.
-        .select('id, text_content, like_count, tickle_nature, entry_kind')
+        // media_url: the Rippled photo copy, for the thumbnail.
+        .select('id, text_content, like_count, tickle_nature, entry_kind, media_url')
         .eq('user_id', session.user.id)
         .gte('entry_date', trailingCutoff),
       supabase.from('goals').select('*').order('created_at', { ascending: false }),
@@ -205,6 +211,17 @@ export default function WeeklySummary() {
         .filter((e) => e.like_count > 0)
         .reduce((b, e) => (!b || e.like_count > b.like_count ? e : b), null);
       setMostLiked(best);
+
+      let photoUri = null;
+      if (best) {
+        try {
+          const local = (await getPhotosForEntries(session.user.id, [best.id])).get(best.id);
+          photoUri = local && new File(local.file_path).exists ? local.file_path : best.media_url || null;
+        } catch {
+          photoUri = best.media_url || null;
+        }
+      }
+      setMostLikedPhotoUri(photoUri);
     }
 
     if (!goalsResult.error) setGoals(goalsResult.data || []);
@@ -393,6 +410,15 @@ export default function WeeklySummary() {
                         {mostLiked.like_count} {mostLiked.like_count === 1 ? 'like' : 'likes'}
                       </Text>
                     </View>
+                    {/* A file or link that won't load just drops the
+                        thumbnail, leaving today's text-only card. */}
+                    {!!mostLikedPhotoUri && (
+                      <Image
+                        source={{ uri: mostLikedPhotoUri }}
+                        style={styles.mostLikedThumb}
+                        onError={() => setMostLikedPhotoUri(null)}
+                      />
+                    )}
                   </View>
                 </TouchableOpacity>
               </>
@@ -678,6 +704,7 @@ const styles = StyleSheet.create({
   entryBody: { flex: 1 },
   entryText: { fontSize: 15, color: C.text, lineHeight: 20 },
   entryLikes: { fontSize: 12, color: C.teal, fontWeight: '600', marginTop: 6 },
+  mostLikedThumb: { width: 48, height: 48, borderRadius: 8, marginLeft: 12, backgroundColor: C.border },
 
   // Small color-coded pill per vibe -- pill shape (borderRadius 999,
   // same as Home's stat pills) but the light-wash + border treatment
