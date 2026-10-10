@@ -687,7 +687,7 @@ export default function Home() {
     const nature = e.tickle_nature;
     if (!nature || !(nature in vibeAllTimeCounts)) continue;
     vibeAllTimeCounts[nature]++;
-    if (isThisWeek(e.entry_date, profile?.week_start_day ?? DEFAULT_WEEK_START_DAY)) vibeWeekCounts[nature]++;
+    if (isThisWeek(e.entry_date, rippleWeekStartDay)) vibeWeekCounts[nature]++;
     if (isThisMonth(e.entry_date)) vibeMonthCounts[nature]++;
     if (e.entry_date === todayDateForVibes) vibeTodayCounts[nature]++;
   }

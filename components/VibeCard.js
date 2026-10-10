@@ -42,12 +42,12 @@ export default function VibeCard({
         <Ionicons
           name={lit ? 'bulb' : 'bulb-outline'}
           size={20}
-          color={lit ? accentColor : '#B4B2A9'}
+          color={lit ? accentColor : C.faint}
         />
         <Ionicons
           name={litWeekly ? 'bulb' : 'bulb-outline'}
           size={20}
-          color={litWeekly ? accentColor : '#B4B2A9'}
+          color={litWeekly ? accentColor : C.faint}
         />
       </View>
       <View style={[styles.card, { backgroundColor: color }]}>

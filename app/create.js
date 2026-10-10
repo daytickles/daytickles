@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, Switch, StyleSheet, ActivityIndicator,
   KeyboardAvoidingView, ScrollView, Platform, Keyboard,
@@ -349,11 +349,6 @@ const styles = StyleSheet.create({
   },
   counter: { alignSelf: 'flex-end', color: C.subtext, fontSize: 12, marginTop: 4, marginBottom: 20 },
   label: { fontSize: 14, color: C.subtext },
-  moodRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 8, marginTop: 12, marginBottom: 28, height: 50,
-  },
-  moodOption: { alignItems: 'center', justifyContent: 'center', width: 50, height: 50 },
   // 2x2 grid (was a single row of 4) -- width:'48%' + space-between
   // rather than flex:1 + gap, so the row math stays simple regardless
   // of how many options ever end up in this array.

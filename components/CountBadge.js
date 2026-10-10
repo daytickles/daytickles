@@ -7,10 +7,10 @@ import { C } from '../lib/theme';
 // re-declaring the same styling and risking the two drifting apart.
 // Renders nothing for a falsy count (0, null, undefined) -- callers don't
 // need their own conditional.
-export default function CountBadge({ count, style }) {
+export default function CountBadge({ count }) {
   if (!count) return null;
   return (
-    <View style={[styles.badge, style]}>
+    <View style={styles.badge}>
       <Text style={styles.text}>{count > 9 ? '9+' : count}</Text>
     </View>
   );

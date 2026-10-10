@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { C, accentFor, darken, lighten, withAlpha, SAVED_ENTRY_DOT_SIZE, vibeIconColor, NATURE_LABELS, AWARD_TYPES, AWARD_BADGE_COLOR, AWARD_HAND_ICON, awardLabelFor } from '../lib/theme';
+import { C, darken, lighten, withAlpha, SAVED_ENTRY_DOT_SIZE, vibeIconColor, NATURE_LABELS, AWARD_TYPES, AWARD_BADGE_COLOR, AWARD_HAND_ICON, awardLabelFor } from '../lib/theme';
 import { showAlert } from '../lib/themedAlert';
 import { flagEmoji } from '../lib/country';
 import InitialsAvatar from './InitialsAvatar';
@@ -66,7 +66,6 @@ export default function EntryCard({
   onRelinkPhoto,
   onGiveAward,
 }) {
-  const accent = accentFor(item.profiles?.accent_theme);
   // Distinct award types this entry has actually received, from any
   // giver -- see migration 0054's awarded_entries view (public, but
   // never reveals who gave it, only which type(s)).

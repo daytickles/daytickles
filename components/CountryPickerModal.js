@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, FlatList } from 'react-native';
+import { Text, StyleSheet, TouchableOpacity, Modal, TextInput, FlatList } from 'react-native';
 import { C, accentFor, darken } from '../lib/theme';
 import { useAuth } from '../contexts/AuthContext';
 import { COUNTRIES, flagEmoji } from '../lib/country';

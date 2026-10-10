@@ -10,7 +10,7 @@
 
 import { useState } from 'react';
 import {
-  View, Text, TextInput, StyleSheet, Modal, TouchableOpacity, ActivityIndicator,
+  Text, TextInput, StyleSheet, Modal, TouchableOpacity, ActivityIndicator,
 } from 'react-native';
 import { C } from '../lib/theme';
 

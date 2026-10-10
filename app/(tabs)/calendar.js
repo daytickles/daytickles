@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router, useFocusEffect } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { File } from 'expo-file-system';
@@ -15,7 +15,6 @@ import { assignEntryGoal } from '../../lib/goalTagging';
 import GoalTagModal from '../../components/GoalTagModal';
 import { assignEntryTale, fetchMyTales, fetchTaleBadges } from '../../lib/tales';
 import TaleTagModal from '../../components/TaleTagModal';
-import AwardPickerModal from '../../components/AwardPickerModal';
 import NatureIcon from '../../components/NatureIcon';
 import ShareModal from '../../components/ShareModal';
 import PhotoEnlargeModal from '../../components/PhotoEnlargeModal';
@@ -117,7 +116,6 @@ export default function Calendar() {
   const [taleBadges, setTaleBadges] = useState(new Map());
   const [talePickerEntryId, setTalePickerEntryId] = useState(null);
   const [shareEntryId, setShareEntryId] = useState(null);
-  const [awardEntryId, setAwardEntryId] = useState(null);
   const [favoritedIds, setFavoritedIds] = useState(new Set());
   // Map<entryId, awardType> -- same shape/reasoning as feed.js's own
   // awardedTypes (private-to-giver RLS, loaded once per session below).
@@ -239,8 +237,8 @@ export default function Calendar() {
     }
   }, [session, viewYear, viewMonth]);
 
-  // Same reasoning as feed.js's own loadAwards -- only this screen's
-  // handleGiveAward (or feed.js's) can ever create an award row, and
+  // Same reasoning as feed.js's own loadAwards -- only feed.js's
+  // handleGiveAward can ever create an award row, and
   // awards are permanent once given, so this loads once per session
   // rather than refetching on every focus like the loaders above.
   const loadAwards = useCallback(async () => {
@@ -393,50 +391,6 @@ export default function Calendar() {
       : await supabase.from('favorites').insert({ user_id: session.user.id, entry_id: entryId });
 
     if (error) setFavoritedIds(previous);
-  }
-
-  // No revert-to-previous-award-then-retry, unlike the toggle above -- an
-  // award is a one-shot insert, not a toggle, so a failure just means it
-  // never happened; rolling awardedTypes back to "no award" is the
-  // correct/only recovery. Same shape as feed.js's own handleGiveAward.
-  async function handleGiveAward(entryId, awardType) {
-    setAwardEntryId(null);
-
-    // High Five soft cap (lib/freemiumCaps.js) -- every award row counts
-    // as one, so two types on the same entry cost two.
-    const capResult = await checkAndConsumeWeeklyCap(profile, 'highFivesGiven');
-    if (capResult.blocked) {
-      alertCapBlocked(capResult, profile);
-      return;
-    }
-
-    setAwardedTypes((prev) => new Map(prev).set(entryId, awardType));
-    setAwardedPublicTypes((prev) => {
-      const next = new Map(prev);
-      const existing = next.get(entryId) || [];
-      if (!existing.includes(awardType)) next.set(entryId, [...existing, awardType]);
-      return next;
-    });
-
-    const { error } = await supabase
-      .from('awards')
-      .insert({ entry_id: entryId, user_id: session.user.id, award_type: awardType });
-
-    if (error) {
-      setAwardedTypes((prev) => {
-        const next = new Map(prev);
-        next.delete(entryId);
-        return next;
-      });
-      setAwardedPublicTypes((prev) => {
-        const next = new Map(prev);
-        const remaining = (next.get(entryId) || []).filter((t) => t !== awardType);
-        if (remaining.length) next.set(entryId, remaining);
-        else next.delete(entryId);
-        return next;
-      });
-      console.error('handleGiveAward failed', error);
-    }
   }
 
   async function handleToggleVisibility(entry) {
@@ -712,10 +666,6 @@ export default function Calendar() {
   const pickerEntry = dayEntries.find((e) => e.id === pickerEntryId) || null;
   const talePickerEntry = dayEntries.find((e) => e.id === talePickerEntryId) || null;
   const shareTargetEntry = dayEntries.find((e) => e.id === shareEntryId) || null;
-  // Passed to AwardPickerModal as entryKind -- no longer changes any
-  // label (the six High Five presets read the same on a photo-only
-  // Tickle), kept only so the picker's call site stays unchanged.
-  const awardTargetEntry = dayEntries.find((e) => e.id === awardEntryId) || null;
   const shareStat = useShareStatus(profile, !!shareTargetEntry);
   const shareBlocked = !!shareStat && !shareStat.unlimited && shareStat.remaining <= 0;
 
@@ -955,7 +905,6 @@ export default function Calendar() {
                   onToggleFavorite={handleToggleFavorite}
                   onToggleVisibility={handleToggleVisibility}
                   onDelete={handleDeleteEntry}
-                  onGiveAward={setAwardEntryId}
                 />
               ))
             )}
@@ -977,13 +926,6 @@ export default function Calendar() {
         tales={myTales}
         onAssign={(taleId) => assignTale(talePickerEntry.id, taleId)}
         onDismiss={() => setTalePickerEntryId(null)}
-      />
-
-      <AwardPickerModal
-        entryId={awardEntryId}
-        entryKind={awardTargetEntry?.entry_kind}
-        onGive={(awardType) => handleGiveAward(awardEntryId, awardType)}
-        onDismiss={() => setAwardEntryId(null)}
       />
 
       <ShareModal

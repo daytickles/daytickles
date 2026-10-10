@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, Keyboard,
   KeyboardAvoidingView, Platform, Switch,
@@ -92,10 +92,6 @@ export default function Goals() {
   async function handleAdd() {
     if (!label.trim()) {
       setStatus('Enter a Goal name.');
-      return;
-    }
-    if (activeGoals.length >= goalCap) {
-      setStatus(`Limit reached (${goalCap} max).`);
       return;
     }
 

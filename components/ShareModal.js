@@ -48,6 +48,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12, paddingHorizontal: 14, marginBottom: 8,
     backgroundColor: C.bg, borderRadius: 12, borderWidth: 1, borderColor: C.border,
   },
-  pickerRowLabel: { fontSize: 15, color: C.text, marginLeft: 12 },
+  pickerRowLabel: { fontSize: 15, color: C.text },
   shareBlockedText: { fontSize: 14, color: C.subtext, lineHeight: 20 },
 });

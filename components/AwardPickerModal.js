@@ -10,8 +10,7 @@ import { C, AWARD_TYPES, AWARD_ORDER, AWARD_HAND_ICON, awardLabelFor } from '../
 // null).
 //
 // Always the same six fixed presets in AWARD_ORDER (lib/theme.js), on any
-// kind of entry. feed.js/calendar.js still pass entryKind; it's ignored
-// now that the old photo-only label override is gone.
+// kind of entry.
 export default function AwardPickerModal({ entryId, onGive, onDismiss }) {
   return (
     <Modal visible={!!entryId} transparent animationType="fade" onRequestClose={onDismiss}>

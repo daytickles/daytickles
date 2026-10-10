@@ -1217,10 +1217,6 @@ export default function Feed() {
   const pickerEntry = entries.find((e) => e.id === pickerEntryId) || null;
   const talePickerEntry = entries.find((e) => e.id === talePickerEntryId) || null;
   const shareTargetEntry = entries.find((e) => e.id === shareEntryId) || null;
-  // Passed to AwardPickerModal as entryKind -- no longer changes any
-  // label (the six High Five presets read the same on a photo-only
-  // Tickle), kept only so the picker's call site stays unchanged.
-  const awardTargetEntry = entries.find((e) => e.id === awardEntryId) || null;
   const shareStat = useShareStatus(profile, !!shareTargetEntry);
   const shareBlocked = !!shareStat && !shareStat.unlimited && shareStat.remaining <= 0;
 
@@ -1475,7 +1471,6 @@ export default function Feed() {
 
     <AwardPickerModal
       entryId={awardEntryId}
-      entryKind={awardTargetEntry?.entry_kind}
       onGive={(awardType) => handleGiveAward(awardEntryId, awardType)}
       onDismiss={() => setAwardEntryId(null)}
     />

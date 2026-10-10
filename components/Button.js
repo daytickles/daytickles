@@ -1,4 +1,3 @@
-import React from 'react';
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { C, accentFor, darken, textOn } from '../lib/theme';
 import { useAuth } from '../contexts/AuthContext';
@@ -6,13 +5,13 @@ import { useAuth } from '../contexts/AuthContext';
 // No accent_theme yet (e.g. pre-auth on login) falls through
 // accentFor(undefined) to the rust theme — same shade this defaulted to
 // before accent-awareness existed here, so nothing changes for that case.
-export default function Button({ title, onPress, variant = 'primary', disabled = false, color, textColor, style }) {
+export default function Button({ title, onPress, variant = 'primary', disabled = false, color, style }) {
   const isPrimary = variant === 'primary';
   const { profile } = useAuth();
   const accentDark = darken(accentFor(profile?.accent_theme).card, 0.35);
 
   const resolvedColor = color || accentDark;
-  const resolvedTextColor = textColor || (isPrimary ? textOn(resolvedColor) : resolvedColor);
+  const resolvedTextColor = isPrimary ? textOn(resolvedColor) : resolvedColor;
 
   return (
     <TouchableOpacity

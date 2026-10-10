@@ -13,12 +13,12 @@ import { FOUNDING_MEMBER_BADGE_COLOR, textOn } from '../lib/theme';
 // menu already share one line and the full "MOJI25" pill squeezed the
 // username down to "…" on 360dp screens. Home's own name row has room
 // for the full text, so it keeps the default.
-export default function FoundingMemberBadge({ number, compact = false, style = undefined }) {
+export default function FoundingMemberBadge({ number, compact = false }) {
   if (!number) return null;
   const textColor = textOn(FOUNDING_MEMBER_BADGE_COLOR);
 
   return (
-    <View style={[styles.badge, compact && styles.badgeCompact, { backgroundColor: FOUNDING_MEMBER_BADGE_COLOR }, style]}>
+    <View style={[styles.badge, compact && styles.badgeCompact, { backgroundColor: FOUNDING_MEMBER_BADGE_COLOR }]}>
       <MaterialCommunityIcons name="crown" size={11} color={textColor} />
       <Text style={[styles.text, { color: textColor }]}>{compact ? `${number}` : `MOJI${number}`}</Text>
     </View>

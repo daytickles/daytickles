@@ -42,7 +42,7 @@ const EVENING_TIME_LABEL = (() => {
 // visual mechanic, not a cosmetic choice.
 const DOT_SIZES = [14, 18, 22, 26];
 
-export default function DayDotsCard({ accentColor, phase, selectedDotIndex, onSelectDot, onSkip, style }) {
+export default function DayDotsCard({ accentColor, phase, selectedDotIndex, onSelectDot, onSkip }) {
   const dotBorder = darken(accentColor, 0.15);
   const interactive = phase === 'active';
   // 'before': neutral/faint outline -- reads as "nothing to do here
@@ -64,7 +64,6 @@ export default function DayDotsCard({ accentColor, phase, selectedDotIndex, onSe
       style={[
         styles.card,
         { backgroundColor: withAlpha(accentColor, 0.14), borderColor: accentColor },
-        style,
       ]}
     >
       <Text style={styles.heading}>Dot your day</Text>

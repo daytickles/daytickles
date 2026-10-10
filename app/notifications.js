@@ -19,9 +19,9 @@ function formatTimestamp(createdAt) {
 
 // The type column is a Postgres check constraint ('like' | 'comment' |
 // 'streak_milestone' | 'favorite' | 'award' | 'tale_chapter', see
-// migration 0020 for favorite/award and 0067 for tale_chapter), but 'comment' has no real UI built on top of it yet —
-// that row type is handled defensively so it never crashes this screen,
-// just degrades to a generic line.
+// migration 0020 for favorite/award and 0067 for tale_chapter). Nothing
+// creates 'comment' or 'streak_milestone' rows (no comments UI; the
+// streak feature is retired), so they fall through to the generic line.
 function notificationText(n) {
   const flag = n.profiles?.country ? ` ${flagEmoji(n.profiles.country)}` : '';
   const actorName = n.profiles?.username ? `${n.profiles.username}${flag}` : 'Someone';
@@ -41,24 +41,19 @@ function notificationText(n) {
         ? `${actorName} gave you ${highFive}: ${entryText}`
         : `${actorName} gave you ${highFive}`;
     }
-    case 'comment':
-      return entryText ? `${actorName} commented on your tickle: ${entryText}` : `${actorName} commented on your tickle`;
     // Migration 0067 -- one row per follower of a Tale, written by the
     // handle_tale_chapter_visible trigger when a chapter goes live.
     case 'tale_chapter':
       return n.tales?.title
         ? `${actorName} added a new Tic to "${n.tales.title}"`
         : `${actorName} added a new Tic to a Multickle you follow`;
-    case 'streak_milestone':
-      return 'You hit a streak milestone! 🔥';
     default:
       return 'New notification';
   }
 }
 
-// Left-border accent, distinct per type -- only favorite/award get one;
-// like/comment/streak_milestone keep the plain unaccented row they've
-// always had. Award reuses that specific award's own hue-verified color
+// Left-border accent, distinct per type -- favorite/award/tale_chapter
+// get one; like keeps the plain unaccented row it's always had. Award reuses that specific award's own hue-verified color
 // (lib/theme.js's AWARD_TYPES) rather than inventing a fourth, since the
 // notification and the on-card icon should read as the same thing.
 function notificationAccent(n) {
