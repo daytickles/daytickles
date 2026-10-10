@@ -400,7 +400,8 @@ export default function EntryCard({
                   <Ionicons name="image-outline" size={26} color={C.faint} />
                   {isOwnEntry ? (
                     <>
-                      <Text style={styles.polaroidMissingText} numberOfLines={1}>
+                      {/* Long-press to copy the filename (used to find the auto-saved gallery copy before Relinking). */}
+                      <Text style={styles.polaroidMissingText} numberOfLines={1} selectable>
                         {item.local_photo_filename || 'Photo missing'}
                       </Text>
                       <TouchableOpacity
