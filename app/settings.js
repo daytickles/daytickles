@@ -21,6 +21,7 @@ import {
   requestReminderPermission,
   scheduleDailyReminder,
   cancelDailyReminder,
+  cancelAwarenessCueSchedule,
   sendAwarenessCueTestCue,
 } from '../lib/reminders';
 import { isReviewAvailable, requestReview } from '../lib/rateUs';
@@ -189,7 +190,30 @@ export default function Settings() {
     profile?.awareness_cue_window_end_minute,
   ]);
 
+  // Clears what this device keeps for the signed-in person -- the daily
+  // reminder, the Awareness Cue schedule and the PIN -- so the next
+  // person to sign in (or a deleted account) doesn't inherit them. Each
+  // step is best-effort: a failure is logged and never blocks leaving.
+  async function clearLocalDeviceState() {
+    try {
+      await cancelDailyReminder();
+    } catch (err) {
+      console.warn('cancelDailyReminder failed', err);
+    }
+    try {
+      await cancelAwarenessCueSchedule();
+    } catch (err) {
+      console.warn('cancelAwarenessCueSchedule failed', err);
+    }
+    try {
+      await clearPin();
+    } catch (err) {
+      console.warn('clearPin failed', err);
+    }
+  }
+
   async function signOut() {
+    await clearLocalDeviceState();
     await supabase.auth.signOut();
     // replace() alone only swaps the current top-of-stack entry — since
     // Settings is reached via router.push from Home, that would leave
@@ -229,6 +253,7 @@ export default function Settings() {
     }
 
     setShowDeleteConfirm(false);
+    await clearLocalDeviceState();
     await supabase.auth.signOut().catch(() => {});
     router.dismissAll();
     router.replace('/login');

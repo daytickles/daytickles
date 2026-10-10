@@ -89,28 +89,36 @@ export default function PinBoard() {
     setShowAddPhoto(false);
     setAdding(true);
     setStatus('');
-    const result = await pickFromCamera(session.user.id);
-    if (result.error) {
-      setStatus(result.error);
-    } else if (!result.canceled) {
-      await addPinnedPhoto(session.user.id, result.uri);
-      await loadBoard();
+    // finally: a throw anywhere here must never leave the button stuck
+    // on "Adding...".
+    try {
+      const result = await pickFromCamera(session.user.id);
+      if (result.error) {
+        setStatus(result.error);
+      } else if (!result.canceled) {
+        await addPinnedPhoto(session.user.id, result.uri);
+        await loadBoard();
+      }
+    } finally {
+      setAdding(false);
     }
-    setAdding(false);
   }
 
   async function handleChooseFromLibrary() {
     setShowAddPhoto(false);
     setAdding(true);
     setStatus('');
-    const result = await pickFromLibrary(session.user.id);
-    if (result.error) {
-      setStatus(result.error);
-    } else if (!result.canceled) {
-      await addPinnedPhoto(session.user.id, result.uri);
-      await loadBoard();
+    try {
+      const result = await pickFromLibrary(session.user.id);
+      if (result.error) {
+        setStatus(result.error);
+      } else if (!result.canceled) {
+        await addPinnedPhoto(session.user.id, result.uri);
+        await loadBoard();
+      }
+    } finally {
+      setAdding(false);
     }
-    setAdding(false);
   }
 
   // Looks up what deleting this photo would actually do before showing

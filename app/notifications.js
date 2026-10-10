@@ -73,6 +73,7 @@ export default function Notifications() {
   const { refreshUnreadCount } = useNotifications();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   const loadNotifications = useCallback(async () => {
     if (!session) return;
@@ -86,6 +87,7 @@ export default function Notifications() {
       .eq('recipient_id', session.user.id)
       .order('created_at', { ascending: false });
 
+    setLoadError(!!error);
     if (!error) setNotifications(data || []);
     setLoading(false);
   }, [session]);
@@ -161,7 +163,11 @@ export default function Notifications() {
           renderItem={renderNotification}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
-            !loading && <Text style={styles.emptyText}>No notifications yet.</Text>
+            !loading && (
+              <Text style={styles.emptyText}>
+                {loadError ? "Couldn't load your notifications — please try again later." : 'No notifications yet.'}
+              </Text>
+            )
           }
         />
       </View>

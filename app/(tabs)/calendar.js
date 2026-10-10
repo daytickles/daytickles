@@ -590,13 +590,33 @@ export default function Calendar() {
       return;
     }
 
-    // Keep the month grid's dot/count in sync without a full reload.
+    // Keep the month grid's count, Vibe icons and Goal dots in sync
+    // without a full reload. The icon/dot sets are rebuilt from the day's
+    // remaining entries, with the same tests loadMonth uses.
     setCountsByDate((prev) => {
       if (!selectedDate || !prev[selectedDate]) return prev;
       const next = { ...prev };
       const remaining = next[selectedDate] - 1;
       if (remaining <= 0) delete next[selectedDate];
       else next[selectedDate] = remaining;
+      return next;
+    });
+    if (!selectedDate) return;
+    const remainingEntries = previous.filter((e) => e.id !== entry.id);
+    const natures = new Set(
+      remainingEntries.filter((e) => ALL_NATURES.includes(e.tickle_nature)).map((e) => e.tickle_nature)
+    );
+    const goalIds = new Set(remainingEntries.filter((e) => e.goal_id).map((e) => e.goal_id));
+    setNatureCategoriesByDate((prev) => {
+      const next = { ...prev };
+      if (natures.size) next[selectedDate] = natures;
+      else delete next[selectedDate];
+      return next;
+    });
+    setGoalIdsByDate((prev) => {
+      const next = { ...prev };
+      if (goalIds.size) next[selectedDate] = goalIds;
+      else delete next[selectedDate];
       return next;
     });
   }

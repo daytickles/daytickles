@@ -14,13 +14,10 @@ const AuthContext = createContext(null);
 const RENDER_RELEVANT_FIELDS = [
   'accent_theme',
   'home_guide_seen',
-  'avatar_emoji',
   'username',
   'onboarded',
   'subscription_plan',
   'subscription_expires_at',
-  'share_period_start',
-  'share_count_this_period',
   'trial_started_at',
   'week_start_day',
   'is_founding_member',
@@ -41,6 +38,10 @@ const RENDER_RELEVANT_FIELDS = [
   'awareness_cue_batch_valid_until',
   'awareness_cue_batch_source',
   'tokens_enabled',
+  'daily_reminder',
+  'notify_on_likes',
+  'country',
+  'rate_prompt_seen',
   // Generated, not hand-enumerated -- dynamic per-nature columns
   // (daily_goal_<nature>, weekly_goal_<nature>) were previously missing
   // from this list entirely, a real bug: loadProfile's profilesEqual

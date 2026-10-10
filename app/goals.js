@@ -69,6 +69,10 @@ export default function Goals() {
   // month 1, then 4/2/1. Only active goals count; an account already
   // over a lower tier keeps its goals, it just can't add more.
   const goalCap = profile ? capFor(profile, 'activeGoals') : 0;
+  // Settings' Tokens & Rewards master switch hides tokens everywhere, so
+  // the per-Goal "Earn tokens" switches go too (same "!== false" idiom
+  // as CornerNav's showTokens). Each Goal keeps its stored setting.
+  const showTokens = profile?.tokens_enabled !== false;
   const achievedGoals = useMemo(() => goals.filter((g) => g.achieved_at), [goals]);
 
   // Only active goals reserve a swatch — achieving a goal frees its
@@ -301,17 +305,19 @@ export default function Goals() {
               </TouchableOpacity>
             </View>
           </View>
-          <View style={styles.goalTokenRow}>
-            <Text style={styles.goalTokenLabel}>Earn tokens</Text>
-            <Switch
-              value={!!item.earns_tokens}
-              onValueChange={(value) => handleToggleEarnsTokens(item, value)}
-              disabled={savingEarnsTokensId === item.id}
-              accessibilityLabel="Earn tokens"
-              trackColor={{ false: C.border, true: accentDark }}
-              thumbColor={C.card}
-            />
-          </View>
+          {showTokens && (
+            <View style={styles.goalTokenRow}>
+              <Text style={styles.goalTokenLabel}>Earn tokens</Text>
+              <Switch
+                value={!!item.earns_tokens}
+                onValueChange={(value) => handleToggleEarnsTokens(item, value)}
+                disabled={savingEarnsTokensId === item.id}
+                accessibilityLabel="Earn tokens"
+                trackColor={{ false: C.border, true: accentDark }}
+                thumbColor={C.card}
+              />
+            </View>
+          )}
           {renderWeeklyTargetRow(
             item.weekly_target ?? null,
             (value) => handleSetWeeklyTarget(item, value),
@@ -368,16 +374,18 @@ export default function Goals() {
             })}
           </View>
 
-          <View style={styles.goalTokenRow}>
-            <Text style={styles.goalTokenLabel}>Earn tokens</Text>
-            <Switch
-              value={earnsTokens}
-              onValueChange={setEarnsTokens}
-              accessibilityLabel="Earn tokens"
-              trackColor={{ false: C.border, true: accentDark }}
-              thumbColor={C.card}
-            />
-          </View>
+          {showTokens && (
+            <View style={styles.goalTokenRow}>
+              <Text style={styles.goalTokenLabel}>Earn tokens</Text>
+              <Switch
+                value={earnsTokens}
+                onValueChange={setEarnsTokens}
+                accessibilityLabel="Earn tokens"
+                trackColor={{ false: C.border, true: accentDark }}
+                thumbColor={C.card}
+              />
+            </View>
+          )}
 
           {renderWeeklyTargetRow(weeklyTarget, setWeeklyTarget, false)}
 

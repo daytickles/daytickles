@@ -11,6 +11,7 @@ import Button from '../components/Button';
 import WallpaperBackground from '../components/WallpaperBackground';
 import { redeemFoundingMemberReferralCode } from '../lib/foundingMember';
 import { localDateString } from '../lib/week';
+import { showAlert } from '../lib/themedAlert';
 
 // Short and human, not trying to defeat collisions on its own -- the
 // self-correcting fallback (tapping the suggestion re-runs handleSave,
@@ -72,13 +73,27 @@ export default function Onboarding() {
 
     // Optional, and never blocks onboarding -- a typo'd, invalid, or
     // missing code just means no referral gets credited, not a failed
-    // signup. Navigation happens immediately either way, so there's no
-    // useful moment to surface a redemption error here.
+    // signup. Navigation still happens straight away; the themed alert
+    // host lives in the root layout, so the message shows over Home.
     if (referralCode.trim()) {
+      let referralProblem = null;
       try {
-        await redeemFoundingMemberReferralCode(referralCode.trim());
+        const result = await redeemFoundingMemberReferralCode(referralCode.trim());
+        if (!result?.redeemed) {
+          referralProblem =
+            result?.reason === 'invalid_code'
+              ? "That referral code wasn't found."
+              : result?.reason === 'self_referral'
+              ? "You can't use your own referral code."
+              : result?.reason === 'already_redeemed'
+              ? 'A referral code has already been applied to this account.'
+              : "Something went wrong applying it.";
+        }
       } catch {
-        // Swallowed for the same reason.
+        referralProblem = 'Something went wrong applying it.';
+      }
+      if (referralProblem) {
+        showAlert('Referral code not applied', `${referralProblem} Your account is set up as normal.`);
       }
     }
 

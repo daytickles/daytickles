@@ -213,6 +213,9 @@ export default function Home() {
 
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
+  // A failed load shows its own message instead of the new-user empty
+  // state (and Quick start), which would wrongly read as "no Tickles".
+  const [loadError, setLoadError] = useState(false);
   const [goals, setGoals] = useState([]);
   // Map<entryId, uri> -- resolved display image for every currently-
   // loaded entry that has one (photo_only, or a text entry with a
@@ -400,6 +403,7 @@ export default function Home() {
       .order('entry_date', { ascending: false })
       .order('created_at', { ascending: false });
 
+    setLoadError(!!error);
     if (!error) {
       setEntries(data || []);
       // initPinBoardDb first -- Home can be the very first screen a
@@ -1259,12 +1263,16 @@ export default function Home() {
 
         {loading && <ActivityIndicator color={C.rust} style={styles.loader} />}
 
-        {!loading && entries.length === 0 && !profile?.quick_start_dismissed && (
+        {!loading && !loadError && entries.length === 0 && !profile?.quick_start_dismissed && (
           <QuickStartCard onDismiss={handleDismissQuickStart} style={styles.quickStartTopGap} />
         )}
 
         {!loading && entries.length === 0 && (
-          <Text style={styles.emptyText}>No Tickles yet — write about what made you smile today.</Text>
+          <Text style={styles.emptyText}>
+            {loadError
+              ? "Couldn't load your Tickles — please try again later."
+              : 'No Tickles yet — write about what made you smile today.'}
+          </Text>
         )}
 
         {!loading && entries.length > 0 && (

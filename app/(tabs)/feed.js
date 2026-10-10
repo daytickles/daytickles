@@ -459,20 +459,33 @@ export default function Feed() {
     }, [checkDayDots])
   );
 
+  // Optimistic, like the rest of this screen: a failed save puts the
+  // card back the way it was and says so, rather than showing a Day Dot
+  // that was never stored.
   async function handleDayDotsSelect(dotIndex) {
     const today = localDateString(0);
+    const previous = dayDots;
     setDayDots({ phase: 'answered', dotIndex });
-    await supabase
+    const { error } = await supabase
       .from('day_dots')
       .insert({ user_id: session.user.id, prompt_date: today, status: 'answered', dot_index: dotIndex });
+    if (error) {
+      setDayDots(previous);
+      showAlert("Couldn't save your Day Dot", 'Please try again.');
+    }
   }
 
   async function handleDayDotsSkip() {
     const today = localDateString(0);
+    const previous = dayDots;
     setDayDots({ phase: 'skipped' });
-    await supabase
+    const { error } = await supabase
       .from('day_dots')
       .insert({ user_id: session.user.id, prompt_date: today, status: 'skipped' });
+    if (error) {
+      setDayDots(previous);
+      showAlert("Couldn't save your Day Dot", 'Please try again.');
+    }
   }
 
   // Same reasoning as loadFollowed/loadLiked above -- only this screen's
@@ -879,6 +892,7 @@ export default function Feed() {
         return next;
       });
       console.error('handleGiveAward failed', error);
+      showAlert("Couldn't give that High Five", 'Please try again.');
     }
   }
 
