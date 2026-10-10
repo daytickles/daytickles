@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, RefreshControl } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationsContext';
@@ -69,10 +69,13 @@ export default function Notifications() {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  // Pull-down refresh has its own spinner (RefreshControl), separate from
+  // the first-load one, so the list never blanks while it reloads.
+  const [refreshing, setRefreshing] = useState(false);
 
-  const loadNotifications = useCallback(async () => {
+  const loadNotifications = useCallback(async ({ silent = false } = {}) => {
     if (!session) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
 
     const { data, error } = await supabase
       .from('notifications')
@@ -92,6 +95,17 @@ export default function Notifications() {
       loadNotifications();
     }, [loadNotifications])
   );
+
+  // Read-only, like the focus load: nothing is marked read here (only
+  // tapping a row does that, in handlePress).
+  async function handleRefresh() {
+    setRefreshing(true);
+    try {
+      await Promise.allSettled([loadNotifications({ silent: true }), refreshUnreadCount()]);
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   async function handlePress(n) {
     if (!n.is_read) {
@@ -157,6 +171,9 @@ export default function Notifications() {
           keyExtractor={(item) => String(item.id)}
           renderItem={renderNotification}
           contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[C.rust]} tintColor={C.rust} />
+          }
           ListEmptyComponent={
             !loading && (
               <Text style={styles.emptyText}>

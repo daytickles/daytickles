@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, ScrollView, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
@@ -211,6 +211,8 @@ export default function Feed() {
   const [dayDots, setDayDots] = useState(null);
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
+  // Pull-down refresh spinner, separate from `loading` (see handleRefresh).
+  const [refreshing, setRefreshing] = useState(false);
   const [goals, setGoals] = useState([]);
   const [pickerEntryId, setPickerEntryId] = useState(null);
   // TickleTales (lib/tales.js) -- myTales is the viewer's own Tales for
@@ -690,6 +692,20 @@ export default function Feed() {
       loadFeed();
     }, [loadFeed])
   );
+
+  // Pull-down refresh: the same loaders a focus runs for the list and its
+  // chips. loadFeed only shows its own spinner on a tab/filter switch or
+  // an empty list, so the current list stays on screen meanwhile.
+  // followed/favourited/liked sets are left alone: changing them re-runs
+  // loadFeed a second time, and this device already keeps them in sync.
+  async function handleRefresh() {
+    setRefreshing(true);
+    try {
+      await Promise.allSettled([loadFeed(), loadPhotoLinks(), loadGoals(), loadFollowedTales(), loadMyTales()]);
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   // "New since you were here" for Following/Rippled -- see
   // lib/feedLastOpened.js for why this is AsyncStorage, not a profiles
@@ -1429,6 +1445,9 @@ export default function Feed() {
         keyExtractor={(item) => (item.__divider ? item.id : String(item.id))}
         renderItem={renderListItem}
         contentContainerStyle={[styles.listContent, { paddingBottom: styles.listContent.paddingBottom + tabBarHeight }]}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[C.rust]} tintColor={C.rust} />
+        }
         getItemLayout={(data, index) => {
           let offset = 0;
           for (let i = 0; i < index; i++) {

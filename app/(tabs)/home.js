@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, Image, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, useWindowDimensions } from 'react-native';
+import { View, Text, Image, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, RefreshControl, useWindowDimensions } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
@@ -213,6 +213,8 @@ export default function Home() {
 
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
+  // Pull-down refresh spinner, separate from `loading` (see handleRefresh).
+  const [refreshing, setRefreshing] = useState(false);
   // A failed load shows its own message instead of the new-user empty
   // state (and Quick start), which would wrongly read as "no Tickles".
   const [loadError, setLoadError] = useState(false);
@@ -625,6 +627,29 @@ export default function Home() {
       loadFollowedTales();
     }, [loadFollowedTales])
   );
+
+  // Pull-down refresh: re-runs Home's own focus loaders. Entries feed the
+  // Vibe cards, Ripples pill, Remember this? and Goal pill counts; the
+  // caption totals feed the two Mojo Shared pills. loadEntries never sets
+  // `loading`, so the page stays put, and a failure shows its existing
+  // "Couldn't load your Tickles" text.
+  async function handleRefresh() {
+    setRefreshing(true);
+    try {
+      await Promise.allSettled([
+        refreshProfile(),
+        loadEntries(),
+        loadGoals(),
+        loadCaptionShareTotals(),
+        loadRewards(),
+        loadFollowedTales(),
+        loadPaceReminder(),
+        loadOptInReminder(),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   // Achieved goals are left out of Home's "Your Goals" card -- they keep
   // their row (and their color on already-tagged entries) but are no
@@ -1122,6 +1147,9 @@ export default function Home() {
       style={styles.container}
       ref={scrollRef}
       keyboardShouldPersistTaps="handled"
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[C.rust]} tintColor={C.rust} />
+      }
       contentContainerStyle={[
         styles.content,
         { paddingTop: insets.top + 12, paddingBottom: styles.content.paddingBottom + tabBarHeight },
