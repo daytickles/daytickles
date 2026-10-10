@@ -9,13 +9,10 @@ import { C, AWARD_TYPES, AWARD_ORDER, AWARD_HAND_ICON, awardLabelFor } from '../
 // again (EntryCard only wires onGiveAward up while awardType is still
 // null).
 //
-// entryKind (the target entry's own entry_kind) decides whether
-// wordweaver's row shows its default text-specific phrase or the
-// photo-only override -- see awardLabelFor/AWARD_LABEL_PHOTO_ONLY_OVERRIDE
-// in lib/theme.js. Color/icon/order are unaffected -- this is display
-// text only on the same three types, never a 4th option.
-export default function AwardPickerModal({ entryId, entryKind, onGive, onDismiss }) {
-  const isPhotoOnly = entryKind === 'photo_only';
+// Always the same six fixed presets in AWARD_ORDER (lib/theme.js), on any
+// kind of entry. feed.js/calendar.js still pass entryKind; it's ignored
+// now that the old photo-only label override is gone.
+export default function AwardPickerModal({ entryId, onGive, onDismiss }) {
   return (
     <Modal visible={!!entryId} transparent animationType="fade" onRequestClose={onDismiss}>
       <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={onDismiss}>
@@ -25,15 +22,18 @@ export default function AwardPickerModal({ entryId, entryKind, onGive, onDismiss
 
           {AWARD_ORDER.map((key) => {
             const award = AWARD_TYPES[key];
+            const label = awardLabelFor(key);
             return (
               <TouchableOpacity
                 key={key}
                 style={styles.pickerRow}
                 onPress={() => onGive(key)}
+                accessibilityRole="button"
+                accessibilityLabel={`Give a high five: ${label}`}
               >
                 <Ionicons name={AWARD_HAND_ICON} size={20} color={award.color} />
                 <View style={styles.pickerRowText}>
-                  <Text style={styles.pickerRowLabel}>{awardLabelFor(key, isPhotoOnly)}</Text>
+                  <Text style={styles.pickerRowLabel}>{label}</Text>
                 </View>
               </TouchableOpacity>
             );

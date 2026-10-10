@@ -96,7 +96,7 @@ const SECTIONS = [
     items: [
       { id: 'social-like', label: 'Like a Tickle' },
       { id: 'social-favourite', label: 'Favourite a Tickle (star)' },
-      { id: 'social-high-five', label: 'Give a High Five' },
+      { id: 'social-high-five', label: 'Give each of the 6 High Five types' },
       { id: 'social-follow', label: 'Follow another user' },
       { id: 'social-view-profile', label: "View someone's profile" },
       { id: 'social-share', label: 'Share a Tickle (share sheet / Polaroid)' },

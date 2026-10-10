@@ -248,19 +248,23 @@ export default function EntryCard({
                   type's phrase, never a combined list, and never who
                   gave it (awarded_entries -- migration 0054 -- never
                   exposes giver identity, same privacy boundary here). */}
+              {/* Unknown types (one added by a newer build) are skipped
+                  rather than crashing the whole list on .color. */}
               {hasPublicAward && (
                 <View style={styles.publicAwardBadge}>
-                  {publicAwardTypes.map((type) => (
+                  {publicAwardTypes.filter((type) => AWARD_TYPES[type]).map((type) => (
                     <View key={type} style={styles.awardBadgeIconWrap}>
                       <TouchableOpacity
                         onPress={() => showAwardTooltip(type)}
                         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        accessibilityRole="button"
+                        accessibilityLabel={`High five: ${awardLabelFor(type)}`}
                       >
-                        <Ionicons name={AWARD_HAND_ICON} size={16} color={AWARD_TYPES[type].color} />
+                        <Ionicons name={AWARD_HAND_ICON} size={16} color={AWARD_TYPES[type]?.color} />
                       </TouchableOpacity>
                       {openAwardType === type && (
                         <View style={styles.awardTooltip} pointerEvents="none">
-                          <Text style={styles.awardTooltipText}>{awardLabelFor(type, isPhotoOnly)}</Text>
+                          <Text style={styles.awardTooltipText}>{awardLabelFor(type)}</Text>
                         </View>
                       )}
                     </View>
@@ -329,6 +333,8 @@ export default function EntryCard({
                   onPress={() => onGiveAward?.(item.id)}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   style={styles.awardAction}
+                  accessibilityRole="button"
+                  accessibilityLabel="Give a high five"
                 >
                   <Ionicons name="hand-right-outline" size={16} color={C.faint} />
                 </TouchableOpacity>

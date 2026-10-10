@@ -31,22 +31,6 @@ const NATURE_LABELS = {
   self: 'For me',
 };
 
-// For embedding an awardLabelFor() phrase mid-sentence ("a {phrase} high
-// five") -- the phrases are written capitalized for standalone display
-// (the picker, the badge tooltip), but read wrong capitalized here.
-// Plain first-character lowercasing handles every sentence-case label
-// (e.g. "Beautifully expressed" -> "beautifully expressed"), but an
-// all-caps acronym label (e.g. "LOL") needs to pass through untouched --
-// lowercasing just its first letter produced "lOL", which reads as
-// "IOL" at a glance (lowercase l vs. capital I are near-identical in
-// most UI fonts) -- a real bug, not just a look. Detecting "is this
-// whole label already uppercase" keeps this general for any future
-// acronym label, rather than a one-off 'lol' special case.
-function decapitalize(s) {
-  if (s === s.toUpperCase()) return s; // acronym (e.g. "LOL") -- don't touch case at all
-  return s.charAt(0).toLowerCase() + s.slice(1);
-}
-
 // Bubble grid sizing -- a filled bubble's diameter scales between these
 // two values based on that cell's count relative to the grid's single
 // largest cell (so relative sizing is meaningful across the whole
@@ -263,6 +247,12 @@ export default function WeeklySummary() {
   );
 
   const weeklyTickles = weekEntries.length;
+
+  // Skip High Fives of a type this build doesn't know (one added by a
+  // newer build) rather than crashing on AWARD_TYPES[...].color.
+  const knownAwardsReceived = awardsReceived.filter((n) => AWARD_TYPES[n.award_type]);
+  const knownAwardsGiven = awardsGiven.filter((a) => AWARD_TYPES[a.award_type]);
+
   // Same formula as VibeCard's own corner dot -- also the exact formula
   // Home's old (pre-redesign) streak-card sunburst used, tinted from
   // the user's accent color rather than a fixed vibe color. One shared
@@ -552,12 +542,12 @@ export default function WeeklySummary() {
               </>
             )}
 
-            {(awardsReceived.length > 0 || awardsGiven.length > 0) && (
+            {(knownAwardsReceived.length > 0 || knownAwardsGiven.length > 0) && (
               <>
                 <Text style={styles.sectionLabel}>High Fives</Text>
-                {awardsReceived.map((n) => {
+                {knownAwardsReceived.map((n) => {
                   const award = AWARD_TYPES[n.award_type];
-                  const label = awardLabelFor(n.award_type, n.tickle_entries?.entry_kind === 'photo_only');
+                  const label = awardLabelFor(n.award_type);
                   const flag = n.profiles?.country ? ` ${flagEmoji(n.profiles.country)}` : '';
                   const actorName = n.profiles?.username ? `${n.profiles.username}${flag}` : 'Someone';
                   return (
@@ -567,15 +557,15 @@ export default function WeeklySummary() {
                     >
                       <Ionicons name={AWARD_HAND_ICON} size={16} color={award.color} />
                       <Text style={styles.awardText} numberOfLines={2}>
-                        {actorName} gave you a {decapitalize(label)} high five
-                        {n.tickle_entries?.text_content ? `: ${n.tickle_entries.text_content}` : ''}
+                        {actorName} high-fived you: "{label}"
+                        {n.tickle_entries?.text_content ? `\n${n.tickle_entries.text_content}` : ''}
                       </Text>
                     </View>
                   );
                 })}
-                {awardsGiven.map((a) => {
+                {knownAwardsGiven.map((a) => {
                   const award = AWARD_TYPES[a.award_type];
-                  const label = awardLabelFor(a.award_type, a.tickle_entries?.entry_kind === 'photo_only');
+                  const label = awardLabelFor(a.award_type);
                   return (
                     <View
                       key={a.id}
@@ -583,8 +573,8 @@ export default function WeeklySummary() {
                     >
                       <Ionicons name={AWARD_HAND_ICON} size={16} color={award.color} />
                       <Text style={styles.awardText} numberOfLines={2}>
-                        You gave a {decapitalize(label)} high five
-                        {a.tickle_entries?.text_content ? `: ${a.tickle_entries.text_content}` : ''}
+                        You high-fived: "{label}"
+                        {a.tickle_entries?.text_content ? `\n${a.tickle_entries.text_content}` : ''}
                       </Text>
                     </View>
                   );
