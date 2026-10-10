@@ -37,18 +37,14 @@ export default function PhotoTickleDisclosureModal({ visible, onDismiss, isDayJo
               <Text style={styles.heading}>Creating a Tickle from this photo</Text>
               <Text style={styles.body}>
                 Tapping a Vibe icon instantly turns this photo into a new Tickle — no writing
-                required. It's created as private, just for you; you can make it public any time
+                required. It's created as private, just for you; you can Ripple it any time
                 from the Tickle itself.
               </Text>
             </>
           )}
           <Text style={styles.body}>
-            Your photo is also automatically saved to your device's Photos app, for
-            safekeeping — this happens every time, so there's always a backup outside
-            DayTickles.
-          </Text>
-          <Text style={styles.body}>
-            This happens automatically every time — you won't be asked again.
+            Your photo is also saved to your device's Photos app every time, so there's always
+            a backup outside DayTickles. This happens automatically — you won't be asked again.
           </Text>
           <View style={styles.navRow}>
             <Button title="Got it" variant="primary" onPress={onDismiss} />

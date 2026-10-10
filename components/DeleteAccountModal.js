@@ -32,8 +32,9 @@ export default function DeleteAccountModal({ visible, deleting, error, onConfirm
         <TouchableOpacity activeOpacity={1} style={styles.sheet} onPress={() => {}}>
           <Text style={styles.title}>Delete your account</Text>
           <Text style={styles.body}>
-            This permanently deletes your account and everything in it — every Tickle, like,
-            follow, goal, and share. There is no recovery. Type DELETE to confirm.
+            This permanently deletes your account and everything in it — your Tickles, likes,
+            follows, Goals, Multickles, rewards and tokens, High Fives, shared photos and Day Dots.
+            There is no recovery. Type DELETE to confirm.
           </Text>
 
           <TextInput

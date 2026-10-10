@@ -18,8 +18,8 @@ export default function MojicianInfoModal({ visible, onDismiss }) {
             Mojician <Text style={styles.partOfSpeech}>(noun)</Text>
           </Text>
           <Text style={styles.body}>
-            Also called a Moji, is a person with a knack for finding, making and spreading mojo in
-            everyday life.
+            A Mojician, also called a Moji, is a person with a knack for finding, making and
+            spreading mojo in everyday life.
           </Text>
           <View style={styles.navRow}>
             <Button title="Got it" variant="primary" onPress={onDismiss} />

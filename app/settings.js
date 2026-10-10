@@ -205,7 +205,7 @@ export default function Settings() {
   function confirmDeleteAccount() {
     showAlert(
       'Delete your account?',
-      "This permanently deletes your account and everything in it — tickles, likes, follows, goals, and shares. There's no way to undo this.",
+      "This permanently deletes your account and everything in it — your Tickles, likes, follows, Goals, Multickles, rewards and tokens, High Fives, shared photos and Day Dots. There's no way to undo this.",
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Continue', style: 'destructive', onPress: () => setShowDeleteConfirm(true) },
@@ -837,6 +837,9 @@ export default function Settings() {
             thumbColor={C.card}
           />
         </View>
+        <Text style={styles.explainerText}>
+          Two gentle nudges a day: one at 08:00 and a "How was your day?" at 20:00.
+        </Text>
         {reminderPermissionDenied && (
           <Text style={styles.explainerText}>
             Notifications permission was denied — enable it for DayTickles in your device settings
@@ -889,8 +892,9 @@ export default function Settings() {
           />
         </View>
         <Text style={styles.explainerText}>
-          A private, contentless vibration or sound burst a few times a day, at random moments —
-          a personal nudge to notice what's happening right now. No message, no response expected.
+          A private vibration or sound burst a few times a day, at random moments — a personal
+          nudge to notice what's happening right now. It shows only the app name: no message, no
+          response expected.
         </Text>
         {reminderPermissionDenied && (
           <Text style={styles.explainerText}>

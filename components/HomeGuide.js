@@ -4,9 +4,9 @@ import { C, accentFor, darken } from '../lib/theme';
 import { useAuth } from '../contexts/AuthContext';
 import Button from './Button';
 
-// Content lives here (not passed as props) since both callers — the
-// auto-shown first-run guide on Home and the on-demand "How DayTickles
-// works" link in Settings — show the exact same steps.
+// Content lives here (not passed as props). The only caller is the
+// on-demand "How DayTickles works" button in Settings; Home's first-run
+// welcome is AboutModal, not this guide.
 const STEPS = [
   {
     title: 'Home & Your Vibes',
@@ -18,39 +18,43 @@ const STEPS = [
   },
   {
     title: 'New Tickle',
-    body: "Tap New Tickle to capture something from your day. Write what's on your mind, then pick a Vibe — Made me smile, Paying forward, or For me — or choose My Day, its sun icon, for anything else from your day. Its icon becomes that entry's identifier everywhere it shows up: Tickle Stash, Calendar, and Home.\n\nYou decide whether your Tickle stays private or is a post on Rippled.\n\nMy Day entries live under 'Mine' on the Tickle Stash — in All with everything else, or on their own under My Day.",
+    body: "Tap New Tickle to capture something from your day. Write what's on your mind, then pick a Vibe — Made me smile, Paying forward, or For me — or choose My Day, its sun icon, for anything else from your day. Its icon becomes that entry's identifier everywhere it shows up: Tickle Stash, Calendar, and Home.\n\nYou decide whether your Tickle stays private or is Rippled for others to see.\n\nMy Day entries live under 'Mine' on the Tickle Stash — in All with everything else, or on their own under My Day.",
   },
   {
     title: 'Tickle Stash',
-    body: "The Tickle Stash has four tabs: Mine, Favs, Following, and Rippled. Under Mine, a row of Goal Pills lets you filter at a glance — tap one to see every entry tagged to that Goal.\n\nLike a Tickle with the thumbs-up, or save it to your favourites with the star.\n\nOnce you've favourited a Tickle, you can give it recognition with a High Five: LOL, Well said!, Awesome!, Feeling it!, Made my day! or Epic!\n\nUse the three-dot menu on your own Tickles for Edit, Share or Delete, and — once a Tickle is Rippled — to add it to a Multickle. To make a Tickle public, use the Ripple / Un-Ripple label on the card instead.",
+    body: "The Tickle Stash has four tabs: Mine, Favs, Following, and Rippled. Under Mine, a row of Goal pills lets you filter at a glance — tap one to see every entry tagged to that Goal.\n\nLike a Tickle with the thumbs-up, or save it to your favourites with the star.\n\nOnce you've favourited a Tickle, you can give it recognition with a High Five: LOL, Well said!, Awesome!, Feeling it!, Made my day! or Epic!\n\nUse the three-dot menu on your own Tickles for Share, Delete or Edit (not on photo-only Tickles), and — once a Tickle is Rippled — to add it to a Multickle. To make a Tickle public, use the Ripple / Un-Ripple label on the card instead.",
   },
   {
     title: 'Multickles',
-    body: "Turn a string of Rippled Tickles into a Multickle — a named, ongoing story other users can recognise and follow as it unfolds. Start one from Manage Multickles in Settings, then add Tics by tagging any Rippled Tickle to it from its three-dot menu.\n\nEach Tic carries a small Multickle chip, on Tickle Stash and Calendar, showing its place in the story. Tap it to open the Multickle and see every Tic in order, plus a Follow button of its own — separate from following the author.\n\nMark a Multickle Complete once its story is finished. No new Tics can be added after that, but everything already there stays exactly as it is.",
+    body: "Turn a string of Rippled Tickles into a Multickle — a named, ongoing story other users can recognise and follow as it unfolds. Start one from Manage Multickles in Settings, then add Tics by tagging any Rippled Tickle to it from its three-dot menu.\n\nEach Tic carries a small Multickle chip, on Tickle Stash and Calendar, showing its place in the story. Tap it to open the Multickle and see every Tic in order, plus a Follow button of its own — separate from following the author.\n\nMark a Multickle as complete once its story is finished. No new Tics can be added after that, but everything already there stays exactly as it is.",
   },
   {
     title: 'Calendar',
-    body: "Calendar marks every day you've written a Tickle with its Vibe icon, so you can see your rhythm at a glance. Days with a Goal-tagged entry also show a colored dot for that Goal. Tap any day to see what you wrote.\n\nSwitch to the Day Dots tab to see your daily check-ins over time — how was your day, at a glance, going back through your history.",
+    body: "Calendar has four tabs. Tickles shows how many you wrote each day, Vibes shows each day's Vibe icons, Goals shows a coloured dot for each Goal you tagged, and Day Dots shows how each day went. Tap any day to see what you wrote.\n\nDot your day on the Tickle Stash, under Mine › My Day.",
   },
   {
     title: 'Tickle Pics',
-    body: 'Tickle Pics is where your meaningful photos live. Pin a photo to an entry, or share it instantly as a polaroid tagged as either "This made me smile today" or "I saw this and thought of you." Tap a Vibe icon on any photo to instantly create a private Tickle from it — no writing required.\n\nYour privacy comes first. Photos stay on your device unless you Ripple a Tickle that has one — then that photo is shared with it, and Un-Ripple or delete removes the shared copy. Use Backup & Restore Photos in Settings to keep a copy safe, or bring your photos along when you switch devices.',
+    body: 'Tickle Pics is where your meaningful photos live. Add a photo, then tap Tickle to write about it, or share it as a polaroid tagged "This made me smile today" or "I saw this and thought of you." Tap a Vibe icon or the sun to create a private Tickle from it instantly; a copy is also saved to your Photos app.\n\nYour privacy comes first. Photos stay on your device unless you Ripple a Tickle that has one — then that photo is shared with it, and Un-Ripple or delete removes the shared copy. Use Backup & Restore Photos in Settings to keep a copy safe, or bring your photos along when you switch devices.',
   },
   {
     title: 'Goals',
-    body: "Manage your Goals from Settings. Use them for anything you're focusing on, then tag Tickles to a Goal by tapping the empty circle on the entry. This is an easy, private way to record your progress. Mark a Goal as Achieved or delete it whenever you like.\n\nIf you like, give a Goal a weekly target. Its pill on Home then shows this week's count in a small circle, which fills with a tick once you get there — and if you don't, that's fine too.\n\nToggle on 'Earn tokens' for any Goal to collect a token each time you tag a Tickle to it. Spend tokens on rewards you set up yourself, from Manage Reward List in Settings.",
+    body: "Manage your Goals from Settings. Use them for anything you're focusing on, then tag Tickles to a Goal by tapping the empty circle on the entry — an easy, private way to record your progress. Mark a Goal as Achieved or delete it whenever you like.\n\nIf you like, give a Goal a weekly target. Its pill on Home then shows this week's count in a small circle, which fills with a tick once you get there — and if you don't, that's fine too.\n\nToggle on 'Earn tokens' for any Goal to collect a token each time you tag a Tickle to it. Your balance shows in the top bar; spend tokens on rewards you set up yourself, from Manage Reward List in Settings. Turn Tokens & Rewards off in Settings to hide all of this.",
   },
   {
     title: 'Awareness Cue',
-    body: "Awareness Cue is a private, contentless vibration or sound burst that fires a few times a day, at random moments — a personal nudge to notice what's happening right now. No message, no response expected.\n\nTurn it on in Settings, then choose Vibrate or Sound, how often (Surprise me, or an exact count from 1 to 10 a day), and the hours it's allowed to fire in.",
+    body: "Awareness Cue is a private vibration or sound burst that fires a few times a day, at random moments — a personal nudge to notice what's happening right now. It shows only the app name: no message, no response expected.\n\nTurn it on in Settings, then choose Vibrate or Sound, how often (Surprise me, or an exact count from 1 to 10 a day), and the hours it's allowed to fire in.",
   },
   {
     title: 'Moji Quest',
-    body: "Tap the crown — in the top bar on any tab — to see your Moji Quest invite. Opting in starts your 6-month Quest — the clock doesn't start until you do, and missing the opt-in window closes the opportunity for good. Complete the Quest and you'll become a Mojician: lifetime membership and your own unique Moji ID.",
+    body: "Tap the crown — in the top bar on any tab — to see your Moji Quest invite. Opting in starts your 6-month Quest — the clock doesn't start until you do, and missing the opt-in window closes the opportunity for good. Complete the Quest and you'll become a Mojician: lifetime membership and a unique Moji ID while they last.",
   },
   {
     title: 'Weekly Summary',
-    body: "Tap the chart icon — in the top bar on any tab — to open your Weekly Summary: a look back at your week, including your most-liked Tickle, Weekly Vibes, Goals you've achieved, connections you've made, High Fives given and received, and your Tickle Pics activity.",
+    body: "Tap the chart icon — in the top bar on any tab — to open your Weekly Summary: your week's Tickles, likes and shares, your most-liked Tickle of the last 7 days, Weekly Vibes and My Day, Day Dots, Goal targets reached and Goals achieved, connections, High Fives, and your Tickle Pics activity.",
+  },
+  {
+    title: 'Settings',
+    body: "Make DayTickles yours in Settings: pick an Accent colour, your Country, and the day your week starts on. Turn on PIN lock to keep the app private, or the Daily reminder for a nudge at 08:00 and 20:00.\n\nThe bell in the top bar lists your likes, favourites, High Fives and new Tics.",
   },
 ];
 
