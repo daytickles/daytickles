@@ -68,11 +68,11 @@
 <body>
 <main>
   <h1>Privacy Policy</h1>
-  <p class="intro">Last updated: 6 August 2026</p>
+  <p class="intro">Last updated: 11 October 2026</p>
 
   <h2>Introduction</h2>
   <p>This Privacy Policy explains what information DayTickles ("DayTickles", "we", "our", or "us") collects, how we use it, how your information may be shared, and the choices available to you.</p>
-  <p>DayTickles is a daily micro-journaling app designed to help you capture and remember the small positive moments ("tickles") that brighten your day.</p>
+  <p>DayTickles is a daily micro-journaling app designed to help you capture and remember the small positive moments ("Tickles") that brighten your day.</p>
   <p>By using DayTickles, you agree to the collection and use of your information as described in this Privacy Policy.</p>
 
   <h2>Information We Collect</h2>
@@ -85,38 +85,53 @@
     <li>Your name</li>
     <li>Your profile picture</li>
   </ul>
-  <p>We never receive or store your Google password.</p>
+  <p>We never receive or store your Google password. DayTickles does not copy your Google name or profile picture into your DayTickles profile and does not show them to other users.</p>
   <p>Within DayTickles, we also store information you choose or generate, including:</p>
   <ul>
-    <li>Your chosen username</li>
-    <li>Your avatar (currently an emoji selected during setup)</li>
+    <li>Your chosen username (your avatar is simply the first letter of your username)</li>
     <li>Your country (optional)</li>
-    <li>Your preferred accent colour and other display preferences</li>
+    <li>Your preferred accent colour and the day your week starts on</li>
+    <li>Optional daily and weekly Vibe targets</li>
+    <li>Your notification preferences (the daily reminder and notifications about likes)</li>
+    <li>Your Awareness Cue settings (whether it's on, vibration or sound, how often, and the hours it may fire in) and the times of the cues scheduled for you</li>
+    <li>Your device's time zone, which the app saves automatically so Awareness Cues arrive at the right local times</li>
+    <li>Whether Tokens &amp; Rewards is switched on</li>
     <li>App settings and usage preferences, such as whether you've completed onboarding or viewed certain in-app guides</li>
   </ul>
 
   <h3>Content You Create</h3>
   <p>We store the content you create while using DayTickles, including:</p>
   <ul>
-    <li>Tickle entries, including their text, mood, date, visibility (public or private), and any goal assigned to them</li>
-    <li>Personal goals, including their names and colours</li>
-    <li>Likes, follows and favourites</li>
-    <li>Shareable links that you choose to generate for individual entries</li>
+    <li>Tickles, including their text, Vibe (or My Day), date, visibility (Rippled or private), whether they were edited, and any Goal or Multickle they're tagged to. For a Tickle made from a photo, we store the photo's file name; the photo itself stays on your device unless you Ripple the Tickle (see Tickle Pics below)</li>
+    <li>Goals, including their names, colours, optional weekly targets, whether they earn tokens, and when you retire them with Achieve</li>
+    <li>Multickles, including their titles, descriptions, icons and whether they're complete</li>
+    <li>Likes, follows (of people and of Multickles), favourites and High Fives</li>
+    <li>Day Dots — your daily check-in, or the fact that you skipped it</li>
+    <li>Your Reward List and your token balance and history</li>
+    <li>A record each time you share a Tickle or a photo, including which caption you chose (but not who you shared it with)</li>
+    <li>Weekly counts of how often you've used certain features, used to apply the free plan's limits</li>
+    <li>Moji Quest information: your referral code, any referral code you entered, your enrolment and monthly progress, and your Moji ID number if you receive one</li>
   </ul>
 
   <h3>Tickle Pics</h3>
-  <p>DayTickles includes an optional Tickle Pics feature, which lets you attach your own photos to Tickle entries for your personal reference. To support this, the app requests access to your device's camera and photo library, used solely so you can take or choose a photo to pin.</p>
-  <p><strong>These photos are stored only in the app's private storage on your device and are never uploaded, transmitted, or otherwise accessible to our servers.</strong> They are not backed up, are not visible to other users, and do not leave your device unless you choose to remove the app or lose your device.</p>
+  <p>DayTickles includes an optional Tickle Pics feature, which lets you keep your own photos in the app and attach them to Tickles. To support this, the app requests access to your device's camera and photo library, used solely so you can take or choose a photo.</p>
+  <p><strong>Photos you add to Tickle Pics are stored in the app's private storage on your device. They are not uploaded to our servers unless you Ripple a Tickle that has a photo.</strong></p>
+  <p>When you Ripple a Tickle that has a photo, a resized copy of that photo is uploaded to our storage provider (Supabase Storage) so other signed-in users can see it with the Tickle. Unlike the rest of your information, an uploaded photo is not limited to signed-in users: anyone who has the exact link to that image can open it. When you Un-Ripple or delete the Tickle, or delete the photo from Tickle Pics, the uploaded copy is removed. Deleting your account removes all of your uploaded photos.</p>
   <p>When you share a photo, it's sent directly through your device's built-in sharing options (like Messages or WhatsApp). It never passes through our servers.</p>
-  <p>You can also choose to save a copy of a pinned photo to your device's regular Photos app. Doing so requests a separate, save-only permission — DayTickles cannot read or browse your existing photos through this permission, only add the one photo you explicitly choose to save.</p>
+  <p>You can also choose to save a copy of a photo to your device's regular Photos app. When you create a Tickle from a photo by tapping a Vibe or the sun, a copy is saved to your Photos app automatically. Saving requests a separate, save-only permission — DayTickles cannot read or browse your existing photos through this permission, only add photos to it.</p>
+  <p>Backup &amp; Restore Photos (in Settings) creates a backup file on your device, which you then send wherever you choose through your device's sharing options. It does not pass through our servers.</p>
 
   <h3>Push Notifications</h3>
-  <p>If you enable notifications, we store a push notification token provided through Expo's push notification service.</p>
-  <p>This token allows us to send reminders, notifications about likes, and other app-related notifications. The token is associated with your DayTickles account but does not personally identify you outside the app.</p>
+  <p>If you allow notifications, we store a push notification token provided through Expo's push notification service.</p>
+  <p>Our servers use this token to send notifications about likes (if you have them switched on) and some of your Awareness Cues; other Awareness Cues and the daily reminder are scheduled on your device itself.</p>
+
+  <h3>Crash Reports</h3>
+  <p>DayTickles uses Firebase Crashlytics, a Google service, to receive a report if the app crashes. A crash report contains technical information about the crash and your device, such as the device model, operating system version and app version. We do not attach your account, username or any of your content to crash reports.</p>
 
   <h3>Information Stored Only on Your Device</h3>
   <p>If you choose to secure DayTickles with a PIN, Face ID, or fingerprint authentication, that information never leaves your device.</p>
   <p>Your PIN and any biometric information remain securely stored by your device's operating system. DayTickles does not receive, store, or have access to this information.</p>
+  <p>Your Tickle Pics photos, and the on-device list that links them to your Tickles, are also kept only on your device (apart from Rippled photos, described above).</p>
 
   <h2>Information We Do Not Collect</h2>
   <p>DayTickles does not collect or access your:</p>
@@ -125,49 +140,58 @@
     <li>Contacts</li>
     <li>Microphone</li>
   </ul>
-  <p>We also do not use analytics platforms, advertising networks, tracking technologies, or crash-reporting services. We do not include any third-party tracking within the app.</p>
+  <p>We do not use analytics platforms, advertising networks or tracking technologies, and we do not include any third-party tracking within the app. The only crash-reporting service we use is Firebase Crashlytics, described above.</p>
 
   <h2>How Your Content Is Shared</h2>
-  <p>DayTickles includes social features, so some information is intentionally visible to other users.</p>
+  <p>DayTickles includes social features, so some information is intentionally visible to other signed-in users. Apart from Rippled photos (see Tickle Pics above), none of your information is visible to people who aren't signed in.</p>
 
   <h3>Always Visible</h3>
-  <p>The following information may be visible to other users:</p>
+  <p>The following information may be visible to other signed-in users:</p>
   <ul>
-    <li>Your username</li>
-    <li>Your avatar</li>
+    <li>Your username and avatar (the first letter of your username)</li>
+    <li>Your accent colour</li>
     <li>Your country (if you choose to provide it)</li>
+    <li>Your Moji ID number, if you have one</li>
     <li>Who you follow</li>
     <li>Who follows you</li>
-    <li>Which entries you have liked</li>
+    <li>Which Tickles you have liked</li>
+    <li>Your Multickles, and which Multickles you follow</li>
   </ul>
 
   <h3>Visible When You Choose</h3>
-  <p>Every Tickle entry has its own visibility setting.</p>
+  <p>Every Tickle has its own visibility setting.</p>
   <ul>
-    <li>Public entries are visible to other users.</li>
-    <li>Private entries are visible only to you.</li>
+    <li>Rippled Tickles, including any photo on them, are visible to other signed-in users. A Rippled photo can also be opened by anyone who has its exact link.</li>
+    <li>Private Tickles are visible only to you.</li>
   </ul>
 
-  <h3>Shared Links</h3>
-  <p>If you generate a shareable link for one of your entries, anyone with that link can view that entry, regardless of its normal visibility setting.</p>
-  <p>Shared links display only the shared entry itself. They do not expose your account, profile, or other personal information.</p>
+  <h3>High Fives</h3>
+  <p>When you give a High Five, its type (for example "Epic!") is shown on that Tickle to everyone who can see it. The person who wrote the Tickle sees in their notifications that the High Five came from you. Other users can't see who gave it.</p>
+
+  <h3>Sharing Outside the App</h3>
+  <p>When you share a Tickle or a photo, the app creates an image (or a short text) and hands it to the app you pick through your device's sharing options. DayTickles records that a share happened and which caption you chose, but not where it was sent.</p>
 
   <h3>Never Shared</h3>
   <p>The following information is never visible to other users:</p>
   <ul>
-    <li>Your personal goals</li>
+    <li>Your private Tickles</li>
+    <li>Your Goals</li>
     <li>Your favourites list</li>
-    <li>Your hidden-posts list</li>
     <li>Your notifications</li>
-    <li>Any reports or moderation requests you submit</li>
+    <li>Your Day Dots</li>
+    <li>Your Reward List and tokens</li>
+    <li>Your Moji Quest progress and referrals</li>
+    <li>Tickle Pics photos that aren't on a Rippled Tickle</li>
   </ul>
 
   <h2>Third-Party Services</h2>
   <p>DayTickles relies on a small number of trusted service providers to operate the app:</p>
   <ul>
-    <li>Supabase — authentication, database, storage, and backend services</li>
+    <li>Supabase — authentication, database, storage (including Rippled photos), and backend services</li>
     <li>Google Sign-In — user authentication</li>
     <li>Expo Push Notifications and Firebase Cloud Messaging (FCM) — delivery of push notifications</li>
+    <li>Firebase Crashlytics — crash reports</li>
+    <li>Google Play In-App Review — if you choose to rate DayTickles from within the app, the rating screen is provided by Google Play</li>
   </ul>
   <p>We do not use any other third-party services.</p>
   <p>We never sell, rent, or share your personal information with advertisers, data brokers, or any other third party for their own marketing or commercial purposes.</p>
@@ -183,29 +207,33 @@
     <p><strong>Settings → Delete Account</strong></p>
     <p class="note">You will be asked to confirm the deletion and type DELETE before the account is permanently removed.</p>
   </div>
-  <p>Account deletion is immediate and permanent. Once deleted, your account and its data cannot be recovered.</p>
-  <p>If you're unable to access the app, you can request deletion by visiting <a href="https://daytickles.app/delete-account">daytickles.app/delete-account</a> or by emailing <a href="mailto:deleteaccount@daytickles.com">deleteaccount@daytickles.com</a>.</p>
+  <p>Account deletion is immediate and permanent. Once deleted, your account and its data cannot be recovered. Your data is deleted immediately from our live systems; routine backups and logs kept by our infrastructure providers may hold it briefly before they expire.</p>
+  <p>If you're unable to access the app, you can request deletion by visiting <a href="https://daytickles.app/delete-account">daytickles.app/delete-account</a> or by emailing <a href="mailto:support@daytickles.com">support@daytickles.com</a>.</p>
   <p>Deleting your account permanently removes your:</p>
   <ul>
-    <li>Profile</li>
-    <li>Tickle entries</li>
-    <li>Goals</li>
-    <li>Likes</li>
-    <li>Follows</li>
-    <li>Favourites</li>
-    <li>Shared links</li>
+    <li>Profile and settings</li>
+    <li>Tickles, including any Rippled photos stored on our servers</li>
+    <li>Goals and Multickles</li>
+    <li>Likes, follows, favourites and High Fives</li>
+    <li>Day Dots</li>
+    <li>Reward List and tokens</li>
+    <li>Share records and feature-usage counts</li>
     <li>Notifications</li>
+    <li>Moji Quest information</li>
     <li>All other information associated with your DayTickles account</li>
   </ul>
+  <p>Notifications you caused in other people's lists (for example, a like you gave) stay in their list but no longer show who they came from.</p>
+  <p>Your Tickle Pics photos and their on-device list are not removed from the device by account deletion; you can delete them in Tickle Pics or by uninstalling the app.</p>
+  <p>Crash reports held by Firebase Crashlytics are not linked to your account, so they are not affected by account deletion.</p>
 
   <h2>Your Choices and Rights</h2>
   <p>You remain in control of your information.</p>
   <p>Within the app, you can:</p>
   <ul>
     <li>Edit your profile information</li>
-    <li>Change the visibility of your entries</li>
-    <li>Manage your goals</li>
-    <li>Update your notification preferences</li>
+    <li>Ripple or Un-Ripple your Tickles at any time</li>
+    <li>Manage your Goals, Multickles and Reward List</li>
+    <li>Update your notification preferences, and switch the daily reminder and Awareness Cue on or off</li>
   </ul>
   <p>You may also:</p>
   <ul>
