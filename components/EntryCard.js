@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, Modal } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity, Modal, Share } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { C, darken, lighten, withAlpha, SAVED_ENTRY_DOT_SIZE, vibeIconColor, NATURE_LABELS, AWARD_TYPES, AWARD_BADGE_COLOR, AWARD_HAND_ICON, awardLabelFor } from '../lib/theme';
@@ -80,6 +80,8 @@ export default function EntryCard({
   // response (owner: Relink; non-owner: unavailable) is the same either
   // way. See feed.js/calendar.js for how photoUri gets resolved.
   const isPhotoOnly = item.entry_kind === 'photo_only';
+  // The Polaroid is only tappable (to enlarge) when there's a photo.
+  const PolaroidFrame = photoUri ? TouchableOpacity : View;
   // Local to this card, not lifted to feed.js/calendar.js -- each menu
   // only ever acts on its own item via props already passed down
   // (onToggleVisibility/onDelete/router push for edit), so there's
@@ -393,9 +395,11 @@ export default function EntryCard({
             // reusing headerRow's already-working icons wholesale
             // instead of duplicating them. Revisit if it reads wrong in
             // practice.
-            <TouchableOpacity
-              activeOpacity={photoUri ? 0.85 : 1}
-              onPress={() => photoUri && onOpenPhoto?.(item.id, photoUri)}
+            // A plain View when the photo is missing: a selectable Text
+            // nested under a touchable never gets the long-press on
+            // Android (the touchable takes the touch first).
+            <PolaroidFrame
+              {...(photoUri ? { activeOpacity: 0.85, onPress: () => onOpenPhoto?.(item.id, photoUri) } : {})}
               style={[styles.polaroidPhotoCard, { transform: [{ rotate: rotationForId(item.id) }] }]}
             >
               {photoUri ? (
@@ -405,17 +409,31 @@ export default function EntryCard({
                   <Ionicons name="image-outline" size={26} color={C.faint} />
                   {isOwnEntry ? (
                     <>
-                      {/* Long-press to copy the filename (used to find the auto-saved gallery copy before Relinking). */}
+                      {/* The filename finds the auto-saved gallery copy before
+                          Relinking. Long-press selects it; "Copy name" opens the
+                          share sheet (which has Copy) as the dependable route,
+                          since there's no clipboard module in this build. */}
                       <Text style={styles.polaroidMissingText} numberOfLines={1} selectable>
                         {item.local_photo_filename || 'Photo missing'}
                       </Text>
-                      <TouchableOpacity
-                        onPress={() => onRelinkPhoto?.(item)}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        style={styles.relinkButton}
-                      >
-                        <Text style={styles.relinkButtonText}>Relink photo</Text>
-                      </TouchableOpacity>
+                      <View style={styles.missingActionsRow}>
+                        {!!item.local_photo_filename && (
+                          <TouchableOpacity
+                            onPress={() => Share.share({ message: item.local_photo_filename }).catch(() => {})}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            style={styles.relinkButton}
+                          >
+                            <Text style={styles.relinkButtonText}>Copy name</Text>
+                          </TouchableOpacity>
+                        )}
+                        <TouchableOpacity
+                          onPress={() => onRelinkPhoto?.(item)}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          style={styles.relinkButton}
+                        >
+                          <Text style={styles.relinkButtonText}>Relink photo</Text>
+                        </TouchableOpacity>
+                      </View>
                     </>
                   ) : (
                     <Text style={styles.polaroidMissingText}>Photo not available</Text>
@@ -427,7 +445,7 @@ export default function EntryCard({
               <View style={styles.polaroidCaptionStrip}>
                 <Text style={styles.polaroidCaptionLabel}>{NATURE_LABELS[item.tickle_nature]}</Text>
               </View>
-            </TouchableOpacity>
+            </PolaroidFrame>
           ) : (
             <>
               {/* Tickle-a-Photo display change -- a linked photo that
@@ -604,6 +622,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16,
   },
   polaroidMissingText: { fontSize: 12, color: C.subtext, textAlign: 'center' },
+  missingActionsRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8 },
   relinkButton: {
     paddingVertical: 6, paddingHorizontal: 14, borderRadius: 14, backgroundColor: C.sparkleBg,
   },
