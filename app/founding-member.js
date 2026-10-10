@@ -196,7 +196,7 @@ export default function FoundingMember() {
   function confirmOptOut() {
     showAlert(
       'Stop taking part in Moji Quest?',
-      "This can't be undone. If you'd like another shot at becoming a Mojician later, you'd need to delete your account and start fresh, which means losing all your tickles and data.",
+      "This can't be undone. If you'd like another shot at becoming a Mojician later, you'd need to delete your account and start fresh, which means losing all your Tickles and data.",
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Continue', style: 'destructive', onPress: confirmOptOutFinal },
@@ -236,7 +236,7 @@ export default function FoundingMember() {
       // consistency.
       showAlert(
         'This opportunity has closed for now.',
-        "You're on the regular free plan. This can't be undone. If you'd like another shot at becoming a Mojician later, you'd need to delete your account and start fresh — which means losing all your tickles and data, so it's here but we don't recommend it lightly. A lighter option: a subscription unlocks more functionality without starting over, and it's inexpensive."
+        "You're on the regular free plan. This can't be undone. If you'd like another shot at becoming a Mojician later, you'd need to delete your account and start fresh — which means losing all your Tickles and data, so it's here but we don't recommend it lightly."
       );
 
       await refreshProfile();
@@ -327,9 +327,8 @@ export default function FoundingMember() {
             </Text>
             <Text style={styles.cardSubtext}>
               This can't be undone. If you'd like another shot at becoming a Mojician later, you'd
-              need to delete your account and start fresh — which means losing all your tickles and data,
-              so it's here but we don't recommend it lightly. A lighter option: a subscription unlocks more
-              functionality without starting over, and it's inexpensive.
+              need to delete your account and start fresh — which means losing all your Tickles and data,
+              so it's here but we don't recommend it lightly.
             </Text>
             <Text style={styles.cardSubtext}>
               You shared DayTickles and connected with others along the way — that's the part that mattered.
@@ -351,14 +350,14 @@ export default function FoundingMember() {
         ) : enrollment?.status === 'pending_opt_in' ? (
           <>
             <Text style={styles.subheading}>
-              Finish your Moji Quest and receive Free Lifetime Membership and a unique Moji ID number.
+              Finish your Moji Quest and receive free lifetime membership and a unique Moji ID number.
             </Text>
             <View style={[styles.card, { backgroundColor: C.amberBg, borderColor: C.amberBg }]}>
               <Text style={[styles.cardHeading, { color: textOn(C.amberBg) }]}>
                 {daysRemainingToOptIn(enrollment.created_at)} left to join
               </Text>
               <Text style={[styles.cardSubtext, { color: textOn(C.amberBg) }]}>
-                Opt in now to start your 6-month quest — the clock doesn't start until you do. If you don't
+                Opt in now to start your 6-month Moji Quest — the clock doesn't start until you do. If you don't
                 opt in within the window, this opportunity closes for good.
               </Text>
             </View>
@@ -382,7 +381,7 @@ export default function FoundingMember() {
               </Text>
             </View>
 
-            <Text style={styles.sectionLabel}>Your quest.</Text>
+            <Text style={styles.sectionLabel}>Your Moji Quest</Text>
             <View style={[styles.card, { backgroundColor: withAlpha(C.subtext, 0.1), borderColor: accentDark }]}>
               <Text style={styles.cardHeading}>Each month, aim for:</Text>
               {MONTHLY_REQUIREMENTS.map((r) => (
@@ -403,7 +402,7 @@ export default function FoundingMember() {
           </>
         ) : (
           <>
-            <Text style={styles.subheading}>Finish your Moji Quest and receive Free Lifetime Membership and a unique Moji ID number.</Text>
+            <Text style={styles.subheading}>Finish your Moji Quest and receive free lifetime membership and a unique Moji ID number.</Text>
 
             {/* C.amberBg -- the bright yellow already used for Home's
                 vibe cards, deliberately not FOUNDING_MEMBER_HERO_COLOR
@@ -450,7 +449,7 @@ export default function FoundingMember() {
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.sectionLabel}>Your quest.</Text>
+            <Text style={styles.sectionLabel}>Your Moji Quest</Text>
             {/* Border only, not width -- already borderWidth: 1 via the
                 shared `card` style, matching Weekly Summary's goalCard
                 exactly, so no width change was needed. accentDark (not

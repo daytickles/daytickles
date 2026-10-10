@@ -14,7 +14,7 @@ const STEPS = [
   },
   {
     title: 'More on Home',
-    body: "Below the Vibe cards, the Mojo Shared pills track your polaroid shares and Ripples the same way — this week, this month, and all-time. Tap a pill to see exactly what it's counting.\n\nFurther down, Remember this? shows up to three older Tickles to revisit — tap one to open it. Your Goals shows how many Tickles you've tagged to each active Goal — tap one to see them all. When you have enough tokens for a reward, You can redeem shows which ones — tap a reward to open your Reward List. Multickles you follow lists the ones that are still going, with a small sparkle on any that have a Tic you haven't seen yet.",
+    body: "Below the Vibe cards, the Mojo Shared pills track your Polaroid shares and Ripples the same way — this week, this month, and all-time. Tap a pill to see exactly what it's counting.\n\nFurther down, Remember this? shows up to three older Tickles to revisit — tap one to open it. Your Goals shows how many Tickles you've tagged to each active Goal — tap one to see them all. When you have enough tokens for a reward, You can redeem shows which ones — tap a reward to open your Reward List. Multickles you follow lists the ones that are still going, with a small sparkle on any that have a Tic you haven't seen yet.",
   },
   {
     title: 'New Tickle',
@@ -22,7 +22,7 @@ const STEPS = [
   },
   {
     title: 'Tickle Stash',
-    body: "The Tickle Stash has four tabs: Mine, Fav's, Following, and Rippled. Under Mine, a row of Goal Pills lets you filter at a glance — tap one to see every entry tagged to that Goal.\n\nLike a Tickle with the thumbs-up, or save it to your favourites with the star.\n\nOnce you've favourited a Tickle, you can give it recognition with a High Five: LOL, Well said!, Awesome!, Feeling it!, Made my day! or Epic!\n\nUse the three-dot menu on your own Tickles for Edit, Share or Delete, and — once a Tickle is Rippled — to add it to a Multickle. To make a Tickle public, use the Ripple / Un-Ripple label on the card instead.",
+    body: "The Tickle Stash has four tabs: Mine, Favs, Following, and Rippled. Under Mine, a row of Goal Pills lets you filter at a glance — tap one to see every entry tagged to that Goal.\n\nLike a Tickle with the thumbs-up, or save it to your favourites with the star.\n\nOnce you've favourited a Tickle, you can give it recognition with a High Five: LOL, Well said!, Awesome!, Feeling it!, Made my day! or Epic!\n\nUse the three-dot menu on your own Tickles for Edit, Share or Delete, and — once a Tickle is Rippled — to add it to a Multickle. To make a Tickle public, use the Ripple / Un-Ripple label on the card instead.",
   },
   {
     title: 'Multickles',

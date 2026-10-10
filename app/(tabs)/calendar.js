@@ -680,19 +680,14 @@ export default function Calendar() {
       : viewMode === 'goals'
       ? dayEntries.filter((e) => e.goal_id)
       : dayEntries;
-  // Distinguishes a genuinely empty day from one where entries exist but
-  // none match the active tab's tag -- "No tickles logged" would be
-  // misleading in that case, since the person did log something that day.
+  // Vibes / Goals name their own tag, so a day with Tickles that just
+  // don't match the active tab never reads as "No Tickles this day".
   const emptyDayText =
-    dayEntries.length > 0 && visibleDayEntries.length === 0
-      ? viewMode === 'vibes'
-        ? 'No Vibes entries this day.'
-        : 'No goal-tagged entries this day.'
-      : viewMode === 'vibes'
-      ? 'No Vibes entries this day.'
+    viewMode === 'vibes'
+      ? 'No Tickles with a Vibe this day.'
       : viewMode === 'goals'
-      ? 'No goal-tagged entries this day.'
-      : 'No tickles logged this day.';
+      ? 'No Goal-tagged Tickles this day.'
+      : 'No Tickles this day.';
 
   const pickerEntry = dayEntries.find((e) => e.id === pickerEntryId) || null;
   const talePickerEntry = dayEntries.find((e) => e.id === talePickerEntryId) || null;

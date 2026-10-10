@@ -113,7 +113,7 @@ export default function EntryCard({
       "This can't be undone — it removes the entry everywhere, including any likes or shares. The photo itself isn't deleted by this — it stays in your device gallery, and in Tickle Pics if it's still pinned there." +
       (item.visibility === 'public' ? ' The shared copy is removed too.' : '');
     showAlert(
-      'Delete this tickle?',
+      'Delete this Tickle?',
       isPhotoOnly
         ? photoOnlyMessage
         : "This can't be undone — it removes the entry everywhere, including any likes or shares.",

@@ -1067,7 +1067,7 @@ export default function Home() {
                 ? `${count} Tickle${count === 1 ? '' : 's'}`
                 : weekCount >= target
                   ? `${weekCount} Tickle${weekCount === 1 ? '' : 's'} this week, target reached`
-                  : `${weekCount} of ${target} Tickles this week`;
+                  : `${weekCount} of ${target} Tickle${target === 1 ? '' : 's'} this week`;
               // Hidden when the Tokens master switch is off, same
               // "!== false" idiom as CornerNav's showTokens.
               const showCoin = g.earns_tokens && profile?.tokens_enabled !== false;
@@ -1106,8 +1106,8 @@ export default function Home() {
   }
 
   const STAT_PILLS = [
-    { key: 'madeMeSmile', icon: 'happy-outline', value: `${madeMeSmileTotals.week} | ${madeMeSmileTotals.month} | ${madeMeSmileTotals.allTime}`, tooltip: "This made me smile today · week / month / all-time", label: 'Polaroid' },
-    { key: 'thoughtOfYou', icon: 'heart-outline', value: `${thoughtOfYouTotals.week} | ${thoughtOfYouTotals.month} | ${thoughtOfYouTotals.allTime}`, tooltip: "I saw this and thought of you · week / month / all-time", label: 'Polaroid' },
+    { key: 'madeMeSmile', icon: 'happy-outline', value: `${madeMeSmileTotals.week} | ${madeMeSmileTotals.month} | ${madeMeSmileTotals.allTime}`, tooltip: "This made me smile today · week / month / all-time", label: 'Made me smile shares' },
+    { key: 'thoughtOfYou', icon: 'heart-outline', value: `${thoughtOfYouTotals.week} | ${thoughtOfYouTotals.month} | ${thoughtOfYouTotals.allTime}`, tooltip: "I saw this and thought of you · week / month / all-time", label: 'Thought of you shares' },
     { key: 'ripples', icon: 'eye-outline', value: `${weekRipples} | ${monthRipples} | ${totalRipples}`, tooltip: "Ripples · week / month / all-time", label: 'Ripples' },
   ];
 
@@ -1264,7 +1264,7 @@ export default function Home() {
         )}
 
         {!loading && entries.length === 0 && (
-          <Text style={styles.emptyText}>No tickles yet — write about what made you smile today.</Text>
+          <Text style={styles.emptyText}>No Tickles yet — write about what made you smile today.</Text>
         )}
 
         {!loading && entries.length > 0 && (

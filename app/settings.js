@@ -650,7 +650,7 @@ export default function Settings() {
       <Text style={styles.title}>Settings</Text>
 
       <View style={styles.card}>
-        <Text style={styles.label}>Accent color</Text>
+        <Text style={styles.label}>Accent colour</Text>
         <View style={styles.swatchRow}>
           {ACCENT_THEMES.map((theme) => {
             const selected = profile?.accent_theme === theme.id;
@@ -755,7 +755,7 @@ export default function Settings() {
       <View style={styles.card}>
         <Text style={styles.label}>Daily Vibe Targets</Text>
         <Text style={styles.explainerText}>
-          Optional — set a daily target for any vibe and its daily lightbulb lights up on Home once you hit it
+          Optional — set a daily target for any Vibe and its daily lightbulb lights up on Home once you hit it
           that day.
         </Text>
         <View style={{ height: 8 }} />
@@ -792,7 +792,7 @@ export default function Settings() {
       <View style={styles.card}>
         <Text style={styles.label}>Weekly Vibe Targets</Text>
         <Text style={styles.explainerText}>
-          Optional — set a weekly target for any vibe and its weekly lightbulb lights up on Home once
+          Optional — set a weekly target for any Vibe and its weekly lightbulb lights up on Home once
           you hit it that week.
         </Text>
         <View style={{ height: 8 }} />

@@ -67,7 +67,7 @@ export default function DayDotsCard({ accentColor, phase, selectedDotIndex, onSe
         style,
       ]}
     >
-      <Text style={styles.heading}>Dot your Day</Text>
+      <Text style={styles.heading}>Dot your day</Text>
 
       <View style={styles.dotRow}>
         {DOT_SIZES.map((size, i) => {

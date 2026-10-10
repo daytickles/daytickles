@@ -51,7 +51,7 @@ export default function PhotoBackup() {
         setExportStatus(
           plan.skippedPublicCount > 0
             ? "Nothing to back up — every local photo is already public and safely stored in the cloud."
-            : 'Nothing to back up yet — no Pin Board photos found.'
+            : 'Nothing to back up yet — no Tickle Pics found.'
         );
         setExporting(false);
         return;
@@ -100,7 +100,7 @@ export default function PhotoBackup() {
     const photoCount = pickedManifest.photos.length;
     showAlert(
       'Import this backup?',
-      `This will add ${photoCount} photo${photoCount === 1 ? '' : 's'} to your Pin Board. If you've already restored this backup before, importing it again will create duplicate photos — there's no automatic duplicate detection.`,
+      `This will add ${photoCount} photo${photoCount === 1 ? '' : 's'} to your Tickle Pics. If you've already restored this backup before, importing it again will create duplicate photos — there's no automatic duplicate detection.`,
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Import', onPress: handleImport },
@@ -140,7 +140,7 @@ export default function PhotoBackup() {
         <View style={styles.card}>
           <Text style={styles.label}>Export</Text>
           <Text style={styles.explainerText}>
-            Creates a single file with every Pin Board photo and private Photo-Only Tickle photo
+            Creates a single file with every Tickle Pic and private photo-only Tickle photo
             you haven't made public — these live only on this device and are never uploaded
             anywhere else. Already-public Photo-Only Tickles are skipped, since their photo is
             already safely stored in the cloud.

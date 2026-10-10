@@ -312,9 +312,9 @@ export default function PinBoard() {
           <Text style={styles.title} numberOfLines={1}>Tickle Pics</Text>
           <CornerNav style={styles.cornerNavInline} />
         </View>
-        <Text style={styles.subheading}>Share it, Save it, Tickle it</Text>
+        <Text style={styles.subheading}>Share it, save it, Tickle it.</Text>
         <Text style={styles.permanentCaptionBold}>
-          Photos are stored only on this device — back them up anytime from Settings. Tap Tickle
+          Photos are stored on this device unless you Ripple a Tickle with one. Back them up anytime from Settings. Tap Tickle
           to write about one, a Vibe icon to instantly create a private Tickle from it,{' '}
           <MaterialCommunityIcons name="polaroid" size={13} color={C.subtext} /> to share it, or{' '}
           <Ionicons name="download-outline" size={13} color={C.subtext} /> to save a copy to your Photos app.
@@ -355,7 +355,7 @@ export default function PinBoard() {
         {loading && <ActivityIndicator color={C.rust} style={styles.loader} />}
 
         {!loading && photos.length === 0 && (
-          <Text style={styles.empty}>No pinned photos yet — add one above.</Text>
+          <Text style={styles.empty}>No Tickle Pics yet — add one above.</Text>
         )}
 
         <View style={styles.grid}>

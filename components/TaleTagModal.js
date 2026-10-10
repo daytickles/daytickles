@@ -37,7 +37,7 @@ export default function TaleTagModal({ entry, tales, onAssign, onDismiss }) {
     <Modal visible={!!entry} transparent animationType="fade" onRequestClose={onDismiss}>
       <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={onDismiss}>
         <TouchableOpacity activeOpacity={1} style={styles.pickerSheet} onPress={() => {}}>
-          <Text style={styles.pickerTitle}>Add to a Multickle</Text>
+          <Text style={styles.pickerTitle}>{entry?.tale_id ? 'Change Multickle' : 'Add to a Multickle'}</Text>
 
           {taggedTale?.completed_at && (
             <View style={[styles.pickerRow, styles.pickerRowReadOnly]}>

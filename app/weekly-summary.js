@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { C, accentFor, SAVED_ENTRY_DOT_SIZE, textOn, withAlpha, darken, lighten, NATURE_ORDER, VIBE_COLORS, vibeIconColor, AWARD_TYPES, AWARD_HAND_ICON, awardLabelFor } from '../lib/theme';
+import { C, accentFor, SAVED_ENTRY_DOT_SIZE, textOn, withAlpha, darken, lighten, NATURE_ORDER, NATURE_LABELS, VIBE_COLORS, vibeIconColor, AWARD_TYPES, AWARD_HAND_ICON, awardLabelFor } from '../lib/theme';
 import { currentWeekStartDate, currentWeekStartISO, currentWeekDates, localDateString, DEFAULT_WEEK_START_DAY } from '../lib/week';
 import { initPinBoardDb, getPinnedPhotoCountSince, getPhotoShareCountSince } from '../lib/pinBoardDb';
 import { flagEmoji } from '../lib/country';
@@ -24,14 +24,6 @@ const DAY_DOTS_SIZES = [9, 12, 15, 18];
 // just scoped to 7 instead. Its heading says "last 7 days", not "this
 // week", for that reason.
 const TRAILING_WINDOW_DAYS = 7;
-
-// Mirrors lib/theme.js's/settings.js's own NATURE_LABELS -- received/
-// given/self, in that order.
-const NATURE_LABELS = {
-  received: 'Made me smile',
-  given: 'Paying forward',
-  self: 'For me',
-};
 
 // Bubble grid sizing -- a filled bubble's diameter scales between these
 // two values based on that cell's count relative to the grid's single

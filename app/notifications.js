@@ -4,7 +4,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationsContext';
 import { supabase } from '../lib/supabase';
-import { C, AWARD_TYPES } from '../lib/theme';
+import { C, AWARD_TYPES, awardLabelFor } from '../lib/theme';
 import { flagEmoji } from '../lib/country';
 import WallpaperBackground from '../components/WallpaperBackground';
 
@@ -29,26 +29,25 @@ function notificationText(n) {
 
   switch (n.type) {
     case 'like':
-      return entryText ? `${actorName} liked your tickle: ${entryText}` : `${actorName} liked your tickle`;
+      return entryText ? `${actorName} liked your Tickle: ${entryText}` : `${actorName} liked your Tickle`;
     case 'favorite':
-      return entryText ? `${actorName} fav'ed your tickle: ${entryText}` : `${actorName} fav'ed your tickle`;
-    // Deliberately doesn't name the specific type -- the descriptive
-    // phrases (see lib/theme.js's AWARD_TYPES) read awkwardly baked into
-    // this sentence, unlike the old "-weaver" proper nouns. The type is
-    // still visible via notificationAccent()'s per-type border color and,
-    // once given, via the recipient's public badge (EntryCard) -- this
-    // line just no longer repeats it in words.
-    case 'award':
+      return entryText ? `${actorName} favourited your Tickle: ${entryText}` : `${actorName} favourited your Tickle`;
+    // Names the preset (— "Epic!") via awardLabelFor; an unknown type
+    // (e.g. one added by a newer build) just reads "a High Five".
+    case 'award': {
+      const awardLabel = awardLabelFor(n.award_type);
+      const highFive = awardLabel ? `a High Five — "${awardLabel}"` : 'a High Five';
       return entryText
-        ? `${actorName} gave you a high five: ${entryText}`
-        : `${actorName} gave you a high five`;
+        ? `${actorName} gave you ${highFive}: ${entryText}`
+        : `${actorName} gave you ${highFive}`;
+    }
     case 'comment':
       return entryText ? `${actorName} commented on your tickle: ${entryText}` : `${actorName} commented on your tickle`;
     // Migration 0067 -- one row per follower of a Tale, written by the
     // handle_tale_chapter_visible trigger when a chapter goes live.
     case 'tale_chapter':
       return n.tales?.title
-        ? `${actorName} added a new Tic to ${n.tales.title}`
+        ? `${actorName} added a new Tic to "${n.tales.title}"`
         : `${actorName} added a new Tic to a Multickle you follow`;
     case 'streak_milestone':
       return 'You hit a streak milestone! 🔥';

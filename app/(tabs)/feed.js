@@ -6,7 +6,7 @@ import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { C, accentFor, darken, lighten, textOn } from '../../lib/theme';
+import { C, accentFor, darken, lighten, textOn, NATURE_ORDER, NATURE_LABELS } from '../../lib/theme';
 import { shareEntry, useShareStatus, sharePhotoOnlyEntry, SHARE_CAPTIONS } from '../../lib/sharing';
 import { alertCapBlocked, capFor, checkAndConsumeWeeklyCap, rippleFeatureFor } from '../../lib/freemiumCaps';
 import { showAlert } from '../../lib/themedAlert';
@@ -36,7 +36,7 @@ import { makePhotoTicklePublic, makePhotoTicklePrivate, deletePhotoTickleMedia }
 
 const TABS = [
   { id: 'mine', label: 'Mine' },
-  { id: 'favorites', label: "Fav's" },
+  { id: 'favorites', label: 'Favs' },
   { id: 'following', label: 'Following' },
   { id: 'rippled', label: 'Rippled' },
 ];
@@ -44,29 +44,24 @@ const TABS = [
 // Mine-only. 'all' is the default: everything, tagged or not --
 // including My Day (day_journal) entries, which count as a fourth Vibe
 // here. My Day also keeps its own dedicated chip below (with the Day
-// Dots card).
-const NATURE_FILTERS = [
-  { id: 'received', label: 'Smiles' },
-  { id: 'given', label: 'Given' },
-  { id: 'self', label: 'For me' },
-];
+// Dots card). Labels come from lib/theme.js's NATURE_LABELS, so the chips
+// use the same Vibe names as everywhere else.
+const NATURE_FILTERS = NATURE_ORDER.map((id) => ({ id, label: NATURE_LABELS[id] }));
 
 // My Day is a permanent chip now, same as the three Vibe filters above
 // -- id stays 'day_journal' (matches tickle_entries.tickle_nature),
 // only the user-facing label reads "My Day".
-const DAY_JOURNAL_FILTER = { id: 'day_journal', label: 'My Day' };
+const DAY_JOURNAL_FILTER = { id: 'day_journal', label: NATURE_LABELS.day_journal };
 
 const EMPTY_TEXT = {
-  mine: "You haven't shared any tickles to the feed yet.",
-  favorites: 'Tap the star on a tickle to save it here.',
-  following: 'Follow people to see their tickles here.',
-  rippled: 'No public tickles yet.',
+  mine: 'No Tickles here yet.',
+  favorites: 'Tap the star on a Tickle to save it here.',
+  following: 'Follow people to see their Tickles here.',
+  rippled: 'No Rippled Tickles yet.',
 };
 
 // Mine's My Day filter needs its own empty message rather than the
-// generic `mine` one above -- that message talks about sharing to the
-// feed, which is wrong here since My Day entries are private by design
-// and Mine shows entries regardless of sharing status anyway.
+// generic `mine` one above, so it can invite a first My Day entry.
 function getEmptyText(tab, natureFilter, goalFilter, taleFilter) {
   if (tab === 'following' && taleFilter) {
     return 'No Tics in this Multickle yet.';
@@ -174,8 +169,7 @@ async function countNewSince(tabId, since, followeeIds) {
 }
 
 function dividerLabel(tabId, count) {
-  const noun = tabId === 'rippled' ? 'ripple' : 'post';
-  return `${count} new ${noun}${count === 1 ? '' : 's'}`;
+  return `${count} new Tickle${count === 1 ? '' : 's'}`;
 }
 
 export default function Feed() {
@@ -735,9 +729,9 @@ export default function Feed() {
     listRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
   }, [tab, highlightedEntryId, entries]);
 
-  // Scroll back to the top on every tab switch (Mine/Fav's/Following/
-  // Rippled), Mine's nature-filter chip switch (All/Smiles/
-  // Given/Boost/Journal), or Mine's Goal-filter chip switch, so a newly-
+  // Scroll back to the top on every tab switch (Mine/Favs/Following/
+  // Rippled), Mine's nature-filter chip switch (All/the three Vibes/
+  // My Day), or Mine's Goal-filter chip switch, so a newly-
   // selected tab or filter doesn't inherit whatever scroll position the
   // previous one was left at. Skipped when a highlightEntry deep link
   // just set the tab -- that case scrolls to the specific highlighted
@@ -1511,7 +1505,7 @@ const styles = StyleSheet.create({
   // smaller padding/radius/font, content-sized chips rather than
   // flex:1 — so this reads as a secondary refinement of Mine, not a
   // second peer tab row.
-  natureFilterRow: { flexDirection: 'row', gap: 6, marginBottom: 16 },
+  natureFilterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 16 },
   natureFilterChip: {
     paddingVertical: 5, paddingHorizontal: 12, borderRadius: 12,
     backgroundColor: C.bg, borderWidth: 1, borderColor: C.border,

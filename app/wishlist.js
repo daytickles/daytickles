@@ -48,7 +48,7 @@ export default function Wishlist() {
       setItems(freshItems);
       setBalance(freshBalance);
     } catch (err) {
-      setStatus(`Error loading reward list: ${err.message}`);
+      setStatus(`Error loading Reward List: ${err.message}`);
     }
     setLoading(false);
   }, []);
@@ -87,7 +87,7 @@ export default function Wishlist() {
   function confirmRedeem(item) {
     showAlert(
       `Redeem "${item.label}"?`,
-      `This uses ${item.cost} token${item.cost === 1 ? '' : 's'}. It stays on your reward list afterward.`,
+      `This uses ${item.cost} token${item.cost === 1 ? '' : 's'}. It stays on your Reward List afterwards.`,
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Redeem', onPress: () => handleRedeem(item) },
@@ -114,7 +114,7 @@ export default function Wishlist() {
 
   function confirmDeleteItem(item) {
     showAlert(
-      'Remove from reward list?',
+      'Remove from Reward List?',
       `"${item.label}" will be removed.`,
       [
         { text: 'Cancel', style: 'cancel' },
@@ -150,7 +150,7 @@ export default function Wishlist() {
         <Text style={[styles.backLink, (saving || mutating) && styles.linkDisabled]}>‹ Back</Text>
       </TouchableOpacity>
 
-      <Text style={styles.title}>My Reward List</Text>
+      <Text style={styles.title}>Manage Reward List</Text>
       <Text style={styles.description}>
         Rewards you set for yourself. Earn tokens by tagging Tickles to a token-enabled Goal, then
         redeem them here.
@@ -168,7 +168,7 @@ export default function Wishlist() {
                 <Text style={styles.itemCost}>{item.cost} token{item.cost === 1 ? '' : 's'}</Text>
               </View>
               <TouchableOpacity onPress={() => confirmDeleteItem(item)} disabled={mutating}>
-                <Text style={[styles.deleteText, mutating && styles.linkDisabled]}>Delete</Text>
+                <Text style={[styles.deleteText, mutating && styles.linkDisabled]}>Remove</Text>
               </TouchableOpacity>
             </View>
             <Button

@@ -51,7 +51,7 @@ export default function Goals() {
       .order('created_at', { ascending: false });
 
     if (error) {
-      setStatus(`Error loading goals: ${error.message}`);
+      setStatus(`Error loading Goals: ${error.message}`);
     } else {
       setGoals(data);
     }
@@ -87,7 +87,7 @@ export default function Goals() {
 
   async function handleAdd() {
     if (!label.trim()) {
-      setStatus('Enter a goal name.');
+      setStatus('Enter a Goal name.');
       return;
     }
     if (activeGoals.length >= goalCap) {
@@ -203,7 +203,7 @@ export default function Goals() {
   function confirmAchieve(goal) {
     showAlert(
       'Mark as achieved?',
-      `"${goal.label}" moves to your achieved goals. Entries already tagged with it keep the tag (shown faded with a check), and the slot frees up for a new goal.`,
+      `"${goal.label}" moves to your achieved Goals. Entries already tagged with it keep the tag (shown faded with a check), and the slot frees up for a new Goal.`,
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Achieve', onPress: () => handleAchieve(goal.id) },
@@ -234,7 +234,7 @@ export default function Goals() {
 
   function confirmDelete(goal) {
     showAlert(
-      'Delete goal?',
+      'Delete Goal?',
       `"${goal.label}" will be removed. Entries tagged with it will just lose the tag.`,
       [
         { text: 'Cancel', style: 'cancel' },
@@ -277,9 +277,9 @@ export default function Goals() {
         <Text style={[styles.backLink, (saving || mutating) && styles.linkDisabled]}>‹ Back</Text>
       </TouchableOpacity>
 
-      <Text style={styles.title}>My Goals</Text>
+      <Text style={styles.title}>Manage Goals</Text>
       <Text style={styles.description}>
-        Add a goal and choose a colour to represent it. That colour will mark all Tickles linked to this goal.
+        Add a Goal and choose a colour to represent it. That colour will mark all Tickles linked to this Goal.
       </Text>
       <Text style={styles.description}>
         Give a Goal a weekly target if you like. Its pill on Home then shows this week's count in a small circle,
@@ -321,7 +321,7 @@ export default function Goals() {
       ))}
 
         {!loading && activeGoals.length === 0 && achievedGoals.length === 0 && (
-          <Text style={styles.empty}>No goals yet — add one below.</Text>
+          <Text style={styles.empty}>No Goals yet — add one below.</Text>
         )}
 
       {/* The form is hidden at the cap, so handleAdd's own "Limit
@@ -331,7 +331,7 @@ export default function Goals() {
           flashes "(0 max)". */}
       {!loading && !!profile && activeGoals.length >= goalCap && (
         <Text style={styles.status}>
-          Limit reached ({goalCap} max). Achieve or delete a goal to add a new one.
+          Limit reached ({goalCap} max). Achieve or delete a Goal to add a new one.
         </Text>
       )}
 

@@ -16,7 +16,7 @@ export default function ShareModal({ visible, captions, blocked, cap, profile, o
             </>
           ) : (
             <>
-              <Text style={styles.pickerTitle}>Share this tickle</Text>
+              <Text style={styles.pickerTitle}>Share this Tickle</Text>
               {captions.map((c) => (
                 <TouchableOpacity
                   key={c.id}

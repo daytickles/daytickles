@@ -6,7 +6,7 @@ import {
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { C, accentFor, darken, textOn, natureTintColor, vibeIconColor, withAlpha } from '../lib/theme';
+import { C, accentFor, darken, textOn, natureTintColor, vibeIconColor, withAlpha, NATURE_ORDER, NATURE_LABELS } from '../lib/theme';
 import Button from '../components/Button';
 import WallpaperBackground from '../components/WallpaperBackground';
 import NatureIcon from '../components/NatureIcon';
@@ -19,14 +19,11 @@ import { showAlert } from '../lib/themedAlert';
 
 const MAX_LEN = 500;
 
-// Presentation only — not shared elsewhere.
-const TICKLE_NATURE_OPTIONS = [
-  { id: 'received', label: 'Made me Smile' },
-  { id: 'given', label: 'Paying forward' },
-  { id: 'self', label: 'For me' },
-];
+// Labels come from lib/theme.js's NATURE_LABELS, so the picker always
+// matches the Vibe names used everywhere else.
+const TICKLE_NATURE_OPTIONS = NATURE_ORDER.map((id) => ({ id, label: NATURE_LABELS[id] }));
 
-const DAY_JOURNAL_OPTION = { id: 'day_journal', label: 'My Day' };
+const DAY_JOURNAL_OPTION = { id: 'day_journal', label: NATURE_LABELS.day_journal };
 
 export default function Create() {
   const { session, profile } = useAuth();
@@ -105,7 +102,7 @@ export default function Create() {
   async function handleSave() {
     const trimmed = text.trim();
     if (!trimmed) {
-      setStatus('Write a little about what made you smile.');
+      setStatus('Write a little first.');
       return;
     }
     setSaving(true);
@@ -232,7 +229,7 @@ export default function Create() {
     );
   }
 
-  // The nature picker (Made me Smile / Paying forward / For me / My Day)
+  // The nature picker (Made me smile / Paying forward / For me / My Day)
   // always shows now -- tickle_nature_enabled's gating was removed
   // earlier, and day_journal_enabled's gating is removed here too. My
   // Day is a permanent 4th option in the same row, contributing into
@@ -253,8 +250,8 @@ export default function Create() {
         <Text style={styles.backLink}>‹ Back</Text>
       </TouchableOpacity>
 
-      <Text style={styles.title}>{entryId ? 'Edit your tickle' : 'Tickle it.'}</Text>
-      {!!pinnedPhotoId && <Text style={styles.photoLinkHint}>📌 Linking to your pinned photo</Text>}
+      <Text style={styles.title}>{entryId ? 'Edit your Tickle' : 'Tickle it.'}</Text>
+      {!!pinnedPhotoId && <Text style={styles.photoLinkHint}>📌 Linking your Tickle Pic</Text>}
 
       <TextInput
         style={styles.input}

@@ -56,6 +56,7 @@ export default function Login() {
           <Text style={styles.disclosureLink} onPress={() => Linking.openURL('https://daytickles.app/privacy')}>
             Privacy Policy
           </Text>
+          .
         </Text>
         <Text style={styles.status}>{status}</Text>
       </View>

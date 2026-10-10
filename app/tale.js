@@ -282,7 +282,7 @@ export default function Tale() {
                   onPress={confirmComplete}
                   disabled={mutating}
                 >
-                  <Text style={styles.actionButtonText}>Mark as Complete</Text>
+                  <Text style={styles.actionButtonText}>Mark as complete</Text>
                 </TouchableOpacity>
               )
             ) : (

@@ -16,18 +16,22 @@ import { C } from '../lib/theme';
 const COPY = {
   plain: {
     title: 'Delete this photo?',
+    button: 'Delete photo',
     body: "This removes it from your Tickle Pics and deletes the photo from this device. This can't be undone.",
   },
   sole: {
     title: 'Delete this Tickle?',
+    button: 'Delete Tickle',
     body: "This photo is the whole Tickle — there's no text or anything else attached to it. Deleting it removes the photo from this device and deletes the Tickle itself. This can't be undone.",
   },
   pinned: {
     title: 'Delete this photo?',
+    button: 'Delete photo',
     body: "This photo is attached to a Tickle you wrote. Deleting it removes the photo from this device and from that Tickle — the Tickle's own text stays exactly as it is. If you Rippled that Tickle, the shared copy of the photo is removed too. This can't be undone.",
   },
   both: {
     title: 'Delete this photo?',
+    button: 'Delete photo',
     body: "This photo is both a Tickle on its own and attached to another Tickle you wrote. Deleting it will delete the photo-only Tickle entirely, and remove the photo from the other Tickle — that Tickle's own text stays exactly as it is. If either Tickle was Rippled, its shared copy of the photo is removed too. This can't be undone.",
   },
 };
@@ -38,7 +42,7 @@ const COPY = {
 // case. A single photo just needs the themed equivalent of a destructive
 // Alert.alert, not a harder-to-hit-by-accident gate.
 export default function DeletePhotoModal({ visible, scenario = 'plain', onConfirm, onCancel }) {
-  const { title, body } = COPY[scenario] ?? COPY.plain;
+  const { title, button, body } = COPY[scenario] ?? COPY.plain;
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
       <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onCancel}>
@@ -47,7 +51,7 @@ export default function DeletePhotoModal({ visible, scenario = 'plain', onConfir
           <Text style={styles.body}>{body}</Text>
 
           <TouchableOpacity style={styles.deleteButton} onPress={onConfirm}>
-            <Text style={styles.deleteButtonText}>Delete Photo</Text>
+            <Text style={styles.deleteButtonText}>{button}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity onPress={onCancel} style={styles.cancel}>
