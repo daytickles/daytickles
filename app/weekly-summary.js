@@ -10,6 +10,7 @@ import { initPinBoardDb, getPinnedPhotoCountSince, getPhotoShareCountSince } fro
 import { flagEmoji } from '../lib/country';
 import WallpaperBackground from '../components/WallpaperBackground';
 import NatureIcon from '../components/NatureIcon';
+import GoalTargetCircle from '../components/GoalTargetCircle';
 
 // Same relative progression as DayDotsCard.js's own DOT_SIZES
 // (22/30/38/46 there), scaled down for this row-of-7's tighter,
@@ -20,7 +21,8 @@ const DAY_DOTS_SIZES = [9, 12, 15, 18];
 // "Most liked" below is a distinct concept from the calendar-week stats
 // above it -- a trailing window from today, not tied to week_start_day,
 // same shape as Home's own 14-day pinned card (PINNED_WINDOW_DAYS)
-// just scoped to 7 instead.
+// just scoped to 7 instead. Its heading says "last 7 days", not "this
+// week", for that reason.
 const TRAILING_WINDOW_DAYS = 7;
 
 // Mirrors lib/theme.js's/settings.js's own NATURE_LABELS -- received/
@@ -129,22 +131,20 @@ export default function WeeklySummary() {
         .gte('entry_date', weekStartDate),
       supabase
         .from('tickle_entries')
-        .select('id, text_content, like_count, tickle_nature')
+        // entry_kind: a photo-only winner has no text, see mostLikedText.
+        .select('id, text_content, like_count, tickle_nature, entry_kind')
         .eq('user_id', session.user.id)
         .gte('entry_date', trailingCutoff),
       supabase.from('goals').select('*').order('created_at', { ascending: false }),
       supabase
         .from('awards')
-        // entry_kind alongside text_content -- awardLabelFor needs it
-        // below to show the same photo-only-aware phrase the giver
-        // actually picked, not always the default text-entry wording.
-        .select('id, award_type, created_at, tickle_entries(text_content, entry_kind)')
+        .select('id, award_type, created_at, tickle_entries(text_content)')
         .eq('user_id', session.user.id)
         .gte('created_at', weekStartISO),
       supabase
         .from('notifications')
         .select(
-          'id, award_type, created_at, tickle_entries(text_content, entry_kind), profiles!notifications_actor_id_fkey(username, avatar_emoji, country)'
+          'id, award_type, created_at, tickle_entries(text_content), profiles!notifications_actor_id_fkey(username, avatar_emoji, country)'
         )
         .eq('recipient_id', session.user.id)
         .eq('type', 'award')
@@ -283,7 +283,11 @@ export default function WeeklySummary() {
     }),
     { received: 0, given: 0, self: 0 }
   );
-  const hasVibes = natureCounts.received > 0 || natureCounts.given > 0 || natureCounts.self > 0;
+  // My Day isn't a Vibe row (NATURE_ORDER stays the three Vibes), but it
+  // does count in the Tickles total above -- this note under the pills
+  // explains the difference, and keeps the section on a My-Day-only week.
+  const myDayCount = weekEntries.filter((e) => e.tickle_nature === 'day_journal').length;
+  const hasVibes = natureCounts.received > 0 || natureCounts.given > 0 || natureCounts.self > 0 || myDayCount > 0;
 
   // Single largest cell across the whole grid (all 7 days x 3 vibes) --
   // avoids a div-by-zero on a vibe-free week. daily_total_goal isn't
@@ -293,9 +297,25 @@ export default function WeeklySummary() {
 
   const activeGoals = goals.filter((g) => !g.achieved_at);
   const achievedThisWeek = goals.filter((g) => g.achieved_at && g.achieved_at >= currentWeekStartISO(weekStartDay));
+  // Only Goals with at least one Tickle this week -- a 0 is never listed.
+  // A Goal with a weekly target (goals.weekly_target, migration 0072)
+  // gets the same GoalTargetCircle as Home/goal.js, same week boundary;
+  // target-reached Goals sort first (stable, so the rest keep their order).
   const goalProgress = activeGoals
-    .map((goal) => ({ goal, count: weekEntries.filter((e) => e.goal_id === goal.id).length }))
-    .filter(({ count }) => count > 0);
+    .map((goal) => {
+      const count = weekEntries.filter((e) => e.goal_id === goal.id).length;
+      const target = goal.weekly_target;
+      return { goal, count, target, reached: !!target && count >= target };
+    })
+    .filter(({ count }) => count > 0)
+    .sort((a, b) => Number(b.reached) - Number(a.reached));
+
+  // A photo-only Tickle has no text, so it shows its Vibe's name instead
+  // of an empty line (no thumbnail here, same as Home's text fallback).
+  const mostLikedText =
+    mostLiked?.entry_kind === 'photo_only'
+      ? NATURE_LABELS[mostLiked.tickle_nature] || 'Photo Tickle'
+      : mostLiked?.text_content;
 
   const hasConnection = likesGiven > 0 || newFollowers > 0 || thoughtOfYouSends > 0 || madeMeSmileSends > 0;
   const hasDayDots = weekDates.some((d) => dayDotsPicks[d] !== undefined);
@@ -340,7 +360,7 @@ export default function WeeklySummary() {
 
             {mostLiked && (
               <>
-                <Text style={[styles.sectionLabel, styles.pinnedSectionLabel]}>Most liked this week</Text>
+                <Text style={[styles.sectionLabel, styles.pinnedSectionLabel]}>Most liked, last 7 days</Text>
                 <TouchableOpacity
                   style={styles.entryCard}
                   activeOpacity={0.8}
@@ -376,7 +396,7 @@ export default function WeeklySummary() {
                       )}
                     </View>
                     <View style={styles.entryBody}>
-                      <Text style={styles.entryText} numberOfLines={2}>{mostLiked.text_content}</Text>
+                      <Text style={styles.entryText} numberOfLines={2}>{mostLikedText}</Text>
                       <Text style={styles.entryLikes}>
                         {mostLiked.like_count} {mostLiked.like_count === 1 ? 'like' : 'likes'}
                       </Text>
@@ -403,6 +423,16 @@ export default function WeeklySummary() {
                     </View>
                   ))}
                 </View>
+                {myDayCount > 0 && (
+                  <View
+                    style={styles.myDayNoteRow}
+                    accessible
+                    accessibilityLabel={`${myDayCount} My Day ${myDayCount === 1 ? 'Tickle' : 'Tickles'} this week, not counted in the three Vibes above`}
+                  >
+                    <Ionicons name="sunny-outline" size={13} color={vibeIconColor('day_journal')} />
+                    <Text style={styles.myDayNoteText}>+ {myDayCount} My Day</Text>
+                  </View>
+                )}
                 <View style={styles.rhythmGridWrap}>
                   <View style={styles.rhythmHeaderRow}>
                     <View style={styles.rhythmRowLabelSpacer} />
@@ -528,17 +558,34 @@ export default function WeeklySummary() {
                     <Text style={styles.goalText}>🎉 Achieved "{g.label}" this week</Text>
                   </View>
                 ))}
-                {goalProgress.map(({ goal, count }) => (
-                  <View
-                    key={goal.id}
-                    style={[styles.goalCard, { backgroundColor: withAlpha(goal.color, 0.14), borderColor: goal.color }]}
-                  >
-                    <View style={[styles.goalDot, { backgroundColor: goal.color }]} />
-                    <Text style={styles.goalText}>
-                      {count} {count === 1 ? 'tickle' : 'tickles'} toward "{goal.label}"
-                    </Text>
-                  </View>
-                ))}
+                {goalProgress.map(({ goal, count, target, reached }) => {
+                  const tickles = count === 1 ? 'tickle' : 'tickles';
+                  // count < target only when target >= 2, so "tickles" is
+                  // always right in the "N of T" form.
+                  const sentence = !target
+                    ? `${count} ${tickles} toward "${goal.label}"`
+                    : reached
+                      ? `Weekly target reached for "${goal.label}" (${count} ${tickles})`
+                      : `${count} of ${target} tickles toward "${goal.label}"`;
+                  return (
+                    // With a target, the circle is accessible={false} and
+                    // the card speaks the whole sentence -- same pattern as
+                    // Home's Goal pill.
+                    <View
+                      key={goal.id}
+                      style={[styles.goalCard, { backgroundColor: withAlpha(goal.color, 0.14), borderColor: goal.color }]}
+                      accessible={!!target}
+                      accessibilityLabel={target ? sentence : undefined}
+                    >
+                      {target ? (
+                        <GoalTargetCircle count={count} target={target} size={20} accessible={false} />
+                      ) : (
+                        <View style={[styles.goalDot, { backgroundColor: goal.color }]} />
+                      )}
+                      <Text style={styles.goalText}>{sentence}</Text>
+                    </View>
+                  );
+                })}
               </>
             )}
 
@@ -656,6 +703,13 @@ const styles = StyleSheet.create({
     borderRadius: 999, borderWidth: 1, paddingVertical: 5, paddingHorizontal: 12,
   },
   rhythmTotalText: { fontSize: 13, fontWeight: '700', color: C.text },
+  // Pulled up under rhythmTotalsRow (its marginBottom is 14) so the note
+  // reads as part of the totals, not a section of its own.
+  myDayNoteRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
+    marginTop: -6, marginBottom: 14,
+  },
+  myDayNoteText: { fontSize: 12, color: C.subtext },
 
   rhythmGridWrap: {
     backgroundColor: C.card, borderRadius: 14, borderWidth: 1, borderColor: C.border,
