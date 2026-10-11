@@ -29,7 +29,7 @@ import { File } from 'expo-file-system';
 import {
   initPinBoardDb, getAllLinkedEntryIds, getPhotoForEntry, getPhotosForEntries, relinkPhotoToEntry,
 } from '../../lib/pinBoardDb';
-import { pickFromLibrary } from '../../lib/pinBoardPhotos';
+import { pickFromLibrary, pickImageFileByName } from '../../lib/pinBoardPhotos';
 import { useShareCard } from '../../lib/useShareCard';
 import { getLastOpened, setLastOpened } from '../../lib/feedLastOpened';
 import { makePhotoTicklePublic, makePhotoTicklePrivate, deletePhotoTickleMedia } from '../../lib/photoTickleStorage';
@@ -529,8 +529,13 @@ export default function Feed() {
   // Photo sheet) -- matches the spec's "opening the device's photo
   // picker" wording exactly. lib/pinBoardDb's relinkPhotoToEntry handles
   // dropping the old (missing-file) link and creating the new one.
-  async function handleRelinkPhoto(entry) {
-    const picked = await pickFromLibrary(session.user.id);
+  // source 'byName': the file picker, so the missing photo's name can
+  // be searched for (EntryCard's "Find by name").
+  async function handleRelinkPhoto(entry, source) {
+    const picked =
+      source === 'byName'
+        ? await pickImageFileByName(session.user.id)
+        : await pickFromLibrary(session.user.id);
     if (picked.canceled) return;
     if (picked.error) {
       showAlert('Could not relink that photo', picked.error);

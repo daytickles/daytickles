@@ -25,7 +25,7 @@ import {
   initPinBoardDb, getAllLinkedEntryIds, getPhotoForEntry, getPinnedPhotoDatesInRange,
   getPhotosForEntries, relinkPhotoToEntry,
 } from '../../lib/pinBoardDb';
-import { pickFromLibrary } from '../../lib/pinBoardPhotos';
+import { pickFromLibrary, pickImageFileByName } from '../../lib/pinBoardPhotos';
 import { DEFAULT_WEEK_START_DAY } from '../../lib/week';
 import { useShareCard } from '../../lib/useShareCard';
 import { makePhotoTicklePublic, makePhotoTicklePrivate, deletePhotoTickleMedia } from '../../lib/photoTickleStorage';
@@ -304,8 +304,13 @@ export default function Calendar() {
   // Same reasoning as feed.js's own handleRelinkPhoto -- only reachable
   // from EntryCard's own owner-only placeholder, and every day entry
   // here already belongs to this account.
-  async function handleRelinkPhoto(entry) {
-    const picked = await pickFromLibrary(session.user.id);
+  // source 'byName': the file picker, so the missing photo's name can
+  // be searched for (EntryCard's "Find by name").
+  async function handleRelinkPhoto(entry, source) {
+    const picked =
+      source === 'byName'
+        ? await pickImageFileByName(session.user.id)
+        : await pickFromLibrary(session.user.id);
     if (picked.canceled) return;
     if (picked.error) {
       showAlert('Could not relink that photo', picked.error);

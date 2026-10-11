@@ -22,6 +22,24 @@ function formatEntryDate(entryDate) {
 // same idea as PolaroidCard's own rotationFor, but string-safe since
 // item.id here is a cloud tickle_entries uuid, not pinned_photos' numeric
 // autoincrement id.
+// "Added to Tickle Pics around 12:29 pm on 18 Sep 2026" from a Tickle
+// Pics filename. The number it starts with is Date.now() at the moment the
+// photo was added to Tickle Pics (lib/pinBoardPhotos.js
+// saveAssetToPinBoard), not when its gallery copy was made. Device locale
+// for the time and date. null when the name doesn't start that way or the
+// date is implausible (before 2020 or in the future).
+function savedAroundText(filename) {
+  const match = /^(\d{13})-/.exec(filename || '');
+  if (!match) return null;
+  const ms = Number(match[1]);
+  if (ms < Date.UTC(2020, 0, 1) || ms > Date.now()) return null;
+  // Nearest minute, so 12:28:59.8 reads 12:29.
+  const saved = new Date(Math.round(ms / 60000) * 60000);
+  const time = saved.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  const date = saved.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  return `Added to Tickle Pics around ${time} on ${date}`;
+}
+
 function rotationForId(id) {
   const str = String(id);
   let sum = 0;
@@ -416,6 +434,11 @@ export default function EntryCard({
                       <Text style={styles.polaroidMissingText} numberOfLines={1} selectable>
                         {item.local_photo_filename || 'Photo missing'}
                       </Text>
+                      {!!savedAroundText(item.local_photo_filename) && (
+                        <Text style={styles.polaroidMissingHint} numberOfLines={1}>
+                          {savedAroundText(item.local_photo_filename)}
+                        </Text>
+                      )}
                       <View style={styles.missingActionsRow}>
                         {!!item.local_photo_filename && (
                           <TouchableOpacity
@@ -433,6 +456,17 @@ export default function EntryCard({
                         >
                           <Text style={styles.relinkButtonText}>Relink photo</Text>
                         </TouchableOpacity>
+                        {/* The file picker can search by name; the photo
+                            picker behind "Relink photo" can't. */}
+                        {!!item.local_photo_filename && (
+                          <TouchableOpacity
+                            onPress={() => onRelinkPhoto?.(item, 'byName')}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            style={styles.relinkButton}
+                          >
+                            <Text style={styles.relinkButtonText}>Find by name</Text>
+                          </TouchableOpacity>
+                        )}
                       </View>
                     </>
                   ) : (
@@ -622,6 +656,8 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16,
   },
   polaroidMissingText: { fontSize: 12, color: C.subtext, textAlign: 'center' },
+  // Sits close under the filename (the wrap's gap is 8).
+  polaroidMissingHint: { fontSize: 11, color: C.subtext, textAlign: 'center', marginTop: -6 },
   missingActionsRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8 },
   relinkButton: {
     paddingVertical: 6, paddingHorizontal: 14, borderRadius: 14, backgroundColor: C.sparkleBg,
