@@ -22,6 +22,13 @@ function formatEntryDate(entryDate) {
 // same idea as PolaroidCard's own rotationFor, but string-safe since
 // item.id here is a cloud tickle_entries uuid, not pinned_photos' numeric
 // autoincrement id.
+function rotationForId(id) {
+  const str = String(id);
+  let sum = 0;
+  for (let i = 0; i < str.length; i++) sum += str.charCodeAt(i);
+  return `${((sum % 5) - 2) * 1.5}deg`;
+}
+
 // "Added to Tickle Pics around 12:29 pm on 18 Sep 2026" from a Tickle
 // Pics filename. The number it starts with is Date.now() at the moment the
 // photo was added to Tickle Pics (lib/pinBoardPhotos.js
@@ -38,13 +45,6 @@ function savedAroundText(filename) {
   const time = saved.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
   const date = saved.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
   return `Added to Tickle Pics around ${time} on ${date}`;
-}
-
-function rotationForId(id) {
-  const str = String(id);
-  let sum = 0;
-  for (let i = 0; i < str.length; i++) sum += str.charCodeAt(i);
-  return `${((sum % 5) - 2) * 1.5}deg`;
 }
 
 // Must match this file's own entryCard.marginBottom below — exported so
