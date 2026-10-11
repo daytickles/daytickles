@@ -53,6 +53,8 @@ export default function Tale() {
   const [isFollowing, setIsFollowing] = useState(false);
   const [followerCount, setFollowerCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  // A failed load reads differently from a Multickle that's really gone.
+  const [loadError, setLoadError] = useState(false);
   const [mutating, setMutating] = useState(false);
   const [enlargeUri, setEnlargeUri] = useState(null);
 
@@ -88,6 +90,8 @@ export default function Tale() {
         .eq('tale_id', taleId),
     ]);
 
+    if (taleRes.error) console.warn('Multickle load failed', taleRes.error);
+    setLoadError(!!taleRes.error);
     const taleData = taleRes.error ? null : taleRes.data;
     const chapterRows = chaptersRes.error ? [] : [...(chaptersRes.data || [])].sort(compareChapters);
     setTale(taleData);
@@ -245,7 +249,9 @@ export default function Tale() {
         {loading && !tale && <ActivityIndicator color={C.rust} style={styles.loader} />}
 
         {!loading && !tale && (
-          <Text style={styles.emptyText}>This Multickle isn't available anymore.</Text>
+          <Text style={styles.emptyText}>
+            {loadError ? "Couldn't load this Multickle — please try again later." : "This Multickle isn't available anymore."}
+          </Text>
         )}
 
         {!!tale && (

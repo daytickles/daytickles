@@ -142,15 +142,19 @@ export default function PinBoard() {
         .select('id, user_id, entry_kind, visibility, media_url')
         .in('id', entryIds);
 
-      if (!error && data) {
-        photoOnlyEntries = data.filter((e) => e.entry_kind === 'photo_only');
-        photoOnlyEntryIds = photoOnlyEntries.map((e) => e.id);
-        textEntries = data.filter((e) => e.entry_kind === 'text');
-        const hasTextLink = textEntries.length > 0;
-        if (photoOnlyEntryIds.length && hasTextLink) scenario = 'both';
-        else if (photoOnlyEntryIds.length) scenario = 'sole';
-        else if (hasTextLink) scenario = 'pinned';
+      // A failed lookup would otherwise fall through to 'plain' and could
+      // delete a photo-only Tickle's only photo without the right warning.
+      if (error || !data) {
+        setStatus('Could not check this photo — please try again.');
+        return;
       }
+      photoOnlyEntries = data.filter((e) => e.entry_kind === 'photo_only');
+      photoOnlyEntryIds = photoOnlyEntries.map((e) => e.id);
+      textEntries = data.filter((e) => e.entry_kind === 'text');
+      const hasTextLink = textEntries.length > 0;
+      if (photoOnlyEntryIds.length && hasTextLink) scenario = 'both';
+      else if (photoOnlyEntryIds.length) scenario = 'sole';
+      else if (hasTextLink) scenario = 'pinned';
     }
 
     setDeleteInfo({ photo, scenario, photoOnlyEntryIds, photoOnlyEntries, textEntries });

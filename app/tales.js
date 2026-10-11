@@ -30,6 +30,7 @@ export default function Tales() {
   const { session, profile } = useAuth();
   const [tales, setTales] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [title, setTitle] = useState('');
   const [blurb, setBlurb] = useState('');
   const [icon, setIcon] = useState(DEFAULT_TALE_ICON);
@@ -75,7 +76,13 @@ export default function Tales() {
   const loadTales = useCallback(async () => {
     if (!session) return;
     setLoading(true);
-    setTales(await fetchMyTales(session.user.id));
+    try {
+      setTales(await fetchMyTales(session.user.id, { throwOnError: true }));
+      setLoadError(false);
+    } catch (err) {
+      console.warn('Multickles load failed', err);
+      setLoadError(true);
+    }
     setLoading(false);
   }, [session]);
 
@@ -255,7 +262,9 @@ export default function Tales() {
       {ongoingTales.map((item) => renderTale(item, false))}
 
       {!loading && tales.length === 0 && (
-        <Text style={styles.empty}>No Multickles yet — start one below.</Text>
+        <Text style={styles.empty}>
+          {loadError ? "Couldn't load your Multickles — please try again later." : 'No Multickles yet — start one below.'}
+        </Text>
       )}
 
       <View style={styles.form}>

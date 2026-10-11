@@ -16,7 +16,7 @@ export default function AwardPickerModal({ entryId, onGive, onDismiss }) {
     <Modal visible={!!entryId} transparent animationType="fade" onRequestClose={onDismiss}>
       <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={onDismiss}>
         <TouchableOpacity activeOpacity={1} style={styles.pickerSheet} onPress={() => {}}>
-          <Text style={styles.pickerTitle}>Give a high five</Text>
+          <Text style={styles.pickerTitle}>Give a High Five</Text>
           <Text style={styles.pickerSubtitle}>This can't be changed once given.</Text>
 
           {AWARD_ORDER.map((key) => {
@@ -28,7 +28,7 @@ export default function AwardPickerModal({ entryId, onGive, onDismiss }) {
                 style={styles.pickerRow}
                 onPress={() => onGive(key)}
                 accessibilityRole="button"
-                accessibilityLabel={`Give a high five: ${label}`}
+                accessibilityLabel={`Give a High Five: ${label}`}
               >
                 <Ionicons name={AWARD_HAND_ICON} size={20} color={award.color} />
                 <View style={styles.pickerRowText}>

@@ -39,6 +39,8 @@ export default function Goal() {
   const [entries, setEntries] = useState([]);
   const [photoUris, setPhotoUris] = useState(new Map());
   const [loading, setLoading] = useState(true);
+  // A failed load reads differently from a Goal that's really gone.
+  const [loadError, setLoadError] = useState(false);
   const [enlargeUri, setEnlargeUri] = useState(null);
 
   const loadGoal = useCallback(async () => {
@@ -67,6 +69,8 @@ export default function Goal() {
     ]);
 
     const rows = entriesRes.error ? [] : entriesRes.data || [];
+    if (goalRes.error) console.warn('Goal load failed', goalRes.error);
+    setLoadError(!!goalRes.error);
     setGoal(goalRes.error ? null : goalRes.data);
     setEntries(rows);
 
@@ -139,7 +143,9 @@ export default function Goal() {
         {loading && !goal && <ActivityIndicator color={C.rust} style={styles.loader} />}
 
         {!loading && !goal && (
-          <Text style={styles.emptyText}>This Goal isn't available anymore.</Text>
+          <Text style={styles.emptyText}>
+            {loadError ? "Couldn't load this Goal — please try again later." : "This Goal isn't available anymore."}
+          </Text>
         )}
 
         {!!goal && (

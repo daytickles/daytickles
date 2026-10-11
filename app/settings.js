@@ -112,6 +112,9 @@ export default function Settings() {
   const [goalValues, setGoalValues] = useState(() => buildGoalValues(profile));
   const [savingGoal, setSavingGoal] = useState(null);
   const [reminderPermissionDenied, setReminderPermissionDenied] = useState(false);
+  // Separate from the reminder's flag so a denial only warns under the
+  // card where it happened.
+  const [cuePermissionDenied, setCuePermissionDenied] = useState(false);
   const [savingAwarenessCue, setSavingAwarenessCue] = useState(false);
   const [awarenessCue, setAwarenessCue] = useState(() => ({
     enabled: !!profile?.awareness_cue_enabled,
@@ -400,8 +403,8 @@ export default function Settings() {
   }
 
   // Reuses the exact same OS permission as the daily reminder (both are
-  // just local expo-notifications scheduling) -- denial state is shared
-  // with reminderPermissionDenied above rather than duplicated. Unlike
+  // just local expo-notifications scheduling), but keeps its own denial
+  // flag (cuePermissionDenied) so the warning shows under this card. Unlike
   // handleToggleDailyReminder, this never calls the scheduler itself --
   // Home's own awareness_cue_*-gated effect is the only place that
   // does, to avoid the known duplicate-native-call race documented
@@ -411,11 +414,11 @@ export default function Settings() {
     if (value) {
       const granted = await requestReminderPermission();
       if (!granted) {
-        setReminderPermissionDenied(true);
+        setCuePermissionDenied(true);
         return;
       }
     }
-    setReminderPermissionDenied(false);
+    setCuePermissionDenied(false);
 
     const previous = awarenessCue.enabled;
     setAwarenessCue((prev) => ({ ...prev, enabled: value }));
@@ -941,7 +944,7 @@ export default function Settings() {
           nudge to notice what's happening right now. It shows only the app name: no message, no
           response expected.
         </Text>
-        {reminderPermissionDenied && (
+        {cuePermissionDenied && (
           <Text style={styles.explainerText}>
             Notifications permission was denied — enable it for DayTickles in your device settings
             to get Awareness Cue.

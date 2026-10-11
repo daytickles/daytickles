@@ -65,6 +65,9 @@ export default function WeeklySummary() {
   const weekStartDay = profile?.week_start_day ?? DEFAULT_WEEK_START_DAY;
 
   const [loading, setLoading] = useState(true);
+  // Any cloud query failing: the sections still render (failed ones fall
+  // back to zeros), with one line saying the numbers may be incomplete.
+  const [loadError, setLoadError] = useState(false);
   const [weekEntries, setWeekEntries] = useState([]);
   const [mostLiked, setMostLiked] = useState(null);
   // The winner's photo, if it has one: its local Tickle Pics file when that
@@ -197,6 +200,23 @@ export default function WeeklySummary() {
         .eq('status', 'answered')
         .gte('prompt_date', weekStartDate),
     ]);
+
+    const failed = [
+      weekEntriesResult,
+      trailingEntriesResult,
+      goalsResult,
+      awardsGivenResult,
+      awardsReceivedResult,
+      likesGivenResult,
+      followersResult,
+      thoughtOfYouSharesResult,
+      madeMeSmileSharesResult,
+      weeklyTickleSharesResult,
+      weeklyPhotoShareEventsResult,
+      dayDotsResult,
+    ].filter((r) => r?.error);
+    if (failed.length) console.warn('Weekly Summary: some queries failed', failed.map((r) => r.error));
+    setLoadError(failed.length > 0);
 
     if (!weekEntriesResult.error) setWeekEntries(weekEntriesResult.data || []);
 
@@ -339,6 +359,9 @@ export default function WeeklySummary() {
 
         <Text style={styles.title}>Weekly Summary</Text>
         <Text style={styles.weekRange}>{formatWeekRange(weekStartDate)}</Text>
+        {!loading && loadError && (
+          <Text style={styles.loadErrorText}>Some of this week's numbers couldn't load — please try again later.</Text>
+        )}
 
         {loading ? (
           <ActivityIndicator color={C.rust} style={styles.loader} />
@@ -672,6 +695,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 22, fontWeight: 'bold', color: C.rustDark },
   weekRange: { fontSize: 13, color: C.subtext, marginTop: 2, marginBottom: 20 },
   loader: { marginTop: 40 },
+  loadErrorText: { fontSize: 13, color: C.error, marginTop: -12, marginBottom: 16 },
 
   weeklyStatsRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
   // Card shape and corner-dot sizing both reused from VibeCard as-is
