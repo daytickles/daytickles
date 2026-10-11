@@ -42,8 +42,8 @@ export default function Login() {
 
       await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
     } catch (err) {
-      console.error(err);
-      setStatus(`Error: ${err.message}`);
+      console.warn('signInWithGoogle failed', err);
+      setStatus("Couldn't sign you in — please try again.");
     }
   }
 

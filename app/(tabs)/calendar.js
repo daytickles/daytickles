@@ -440,14 +440,11 @@ export default function Calendar() {
         );
       } catch (err) {
         console.error('handleToggleVisibility: photo upload failed', err);
-        // Real underlying message included, not just a generic line --
-        // this is a genuinely new, unproven code path (Storage bucket +
-        // RLS, no established pattern elsewhere in this app to lean on),
-        // so a failure here should be self-diagnosing on-device rather
-        // than requiring a Metro console dig every time.
+        // The raw error goes to the log above only; people see the
+        // friendly sentence, never database or Storage wording.
         showAlert(
           "Couldn't make this public",
-          `Something went wrong uploading this photo — try again.\n\n${err.message || String(err)}`
+          'Something went wrong uploading this photo — try again.'
         );
       }
       return;
@@ -470,7 +467,7 @@ export default function Calendar() {
         console.error('handleToggleVisibility: photo removal failed', err);
         showAlert(
           "Couldn't make this private",
-          `Something went wrong removing this photo — try again.\n\n${err.message || String(err)}`
+          'Something went wrong removing this photo — try again.'
         );
       }
       return;
@@ -497,7 +494,7 @@ export default function Calendar() {
           console.error('handleToggleVisibility: linked-photo upload failed', err);
           showAlert(
             "Couldn't make this public",
-            `Something went wrong uploading this photo — try again.\n\n${err.message || String(err)}`
+            'Something went wrong uploading this photo — try again.'
           );
         }
         return;
@@ -520,7 +517,7 @@ export default function Calendar() {
         console.error('handleToggleVisibility: linked-photo removal failed', err);
         showAlert(
           "Couldn't make this private",
-          `Something went wrong removing this photo — try again.\n\n${err.message || String(err)}`
+          'Something went wrong removing this photo — try again.'
         );
       }
       return;

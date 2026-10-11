@@ -137,7 +137,7 @@ export default function Create() {
         setSaving(false);
         showAlert(
           "Couldn't make this private",
-          `Something went wrong removing this photo — try again.\n\n${err.message || String(err)}`
+          'Something went wrong removing this photo — try again.'
         );
         return;
       }
@@ -185,7 +185,8 @@ export default function Create() {
 
     if (error) {
       setSaving(false);
-      setStatus(`Error: ${error.message}`);
+      console.warn('handleSave: save failed', error);
+      setStatus("Couldn't save that — please try again.");
       return;
     }
 
@@ -208,7 +209,7 @@ export default function Create() {
         setSaving(false);
         showAlert(
           "Couldn't make this public",
-          `Something went wrong uploading this photo — try again.\n\n${err.message || String(err)}`,
+          'Something went wrong uploading this photo — try again.',
           [{ text: 'OK', onPress: () => router.back() }]
         );
         return;

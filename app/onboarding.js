@@ -66,7 +66,8 @@ export default function Onboarding() {
         setStatus('That username is already taken.');
         setUsernameSuggestion(suggestUsername(trimmedUsername));
       } else {
-        setStatus(`Error: ${error.message}`);
+        console.warn('onboarding: profile save failed', error);
+        setStatus("Couldn't save that — please try again.");
       }
       return;
     }

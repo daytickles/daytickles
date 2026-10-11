@@ -164,7 +164,8 @@ export default function FoundingMember() {
         available: availableCountResult.error ? 0 : (availableCountResult.count ?? 0),
       });
     } catch (err) {
-      setLoadError(err.message || 'Something went wrong loading this page.');
+      console.warn('Moji Quest load failed', err);
+      setLoadError('Something went wrong loading this page.');
     } finally {
       setLoading(false);
       loadInFlightRef.current = false;
@@ -242,7 +243,8 @@ export default function FoundingMember() {
       await refreshProfile();
       await load();
     } catch (err) {
-      setLoadError(err.message || 'Something went wrong ending your enrollment. Please try again.');
+      console.warn('Moji Quest opt-out failed', err);
+      setLoadError('Something went wrong ending your enrolment. Please try again.');
     } finally {
       setSavingTakingPart(false);
     }
@@ -269,7 +271,8 @@ export default function FoundingMember() {
       await optInToFoundingMember(session.user.id);
       await load();
     } catch (err) {
-      setLoadError(err.message || 'Something went wrong. Please try again.');
+      console.warn('Moji Quest opt-in failed', err);
+      setLoadError('Something went wrong. Please try again.');
     } finally {
       setSavingOptIn(false);
     }
