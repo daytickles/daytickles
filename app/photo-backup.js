@@ -91,8 +91,14 @@ export default function PhotoBackup() {
       setPickedFile(localFile);
       setPickedManifest(manifest);
     } catch (err) {
-      console.error('handlePickFile: failed', err);
-      setPickError(err.message || "That file couldn't be read as a DayTickles backup.");
+      // Backing out of the system file picker rejects (Android:
+      // PickerCancelledException) rather than resolving empty -- not an
+      // error, so nothing is shown.
+      if (err?.code === 'ERR_PICKER_CANCELLED') return;
+      console.warn('handlePickFile: failed', err);
+      // Only our own wording (lib/photoBackup.js friendlyError) is shown
+      // as-is; file system or runtime text gets the fixed sentence.
+      setPickError(err?.friendly ? err.message : "That file couldn't be read as a DayTickles backup.");
     }
   }
 
