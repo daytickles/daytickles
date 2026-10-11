@@ -32,11 +32,17 @@ import LockScreen from './LockScreen';
 
 export default function AppLockGate({ children }) {
   const { session } = useAuth();
+  // Keyed on the signed-in user, not the session object: Supabase hands
+  // out a new session object on every token refresh, and re-running this
+  // effect then re-locked an already-unlocked app mid-use (and opened a
+  // biometric prompt). Sign-in, sign-out and switching account still
+  // re-run it.
+  const userId = session?.user?.id ?? null;
   const [ready, setReady] = useState(false);
   const [locked, setLocked] = useState(false);
 
   useEffect(() => {
-    if (!session) {
+    if (!userId) {
       // Not signed in — login screen, mid-OAuth round-trip, or a cold
       // start that hasn't resolved a persisted session yet. The PIN gate
       // doesn't apply pre-session, so stay a pure passthrough.
@@ -69,7 +75,7 @@ export default function AppLockGate({ children }) {
       mounted = false;
       subscription.remove();
     };
-  }, [session]);
+  }, [userId]);
 
   if (!ready) return null;
   if (locked) return <LockScreen onUnlock={() => setLocked(false)} />;
