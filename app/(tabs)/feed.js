@@ -944,7 +944,10 @@ export default function Feed() {
     const currentTaleId = entries.find((e) => e.id === entryId)?.tale_id ?? null;
     setTalePickerEntryId(null);
     const { error } = await assignEntryTale({ entryId, taleId, currentTaleId, setEntries });
-    if (error) showAlert("Couldn't update the Multickle", error.message);
+    if (error) {
+      console.warn('Multickle tag failed', error);
+      showAlert("Couldn't update the Multickle", 'Please try again.');
+    }
   }
 
   async function handleShare(entry, captionId) {

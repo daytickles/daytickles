@@ -111,7 +111,8 @@ export default function Tales() {
       .is('completed_at', null);
     if (countError) {
       setSaving(false);
-      setStatus(`Error: ${countError.message}`);
+      console.warn('Multickle count check failed', countError);
+      setStatus("Couldn't save that — please try again.");
       return;
     }
     if ((count ?? 0) >= cap) {
@@ -130,7 +131,8 @@ export default function Tales() {
     setSaving(false);
 
     if (error) {
-      setStatus(`Error: ${error.message}`);
+      console.warn('Multickle save failed', error);
+      setStatus("Couldn't save that — please try again.");
       return;
     }
 
@@ -161,7 +163,8 @@ export default function Tales() {
       .eq('id', id);
     setMutating(false);
     if (error) {
-      setStatus(`Error: ${error.message}`);
+      console.warn('Multickle save failed', error);
+      setStatus("Couldn't save that — please try again.");
     } else {
       await loadTales();
     }
@@ -183,7 +186,8 @@ export default function Tales() {
     const { error } = await supabase.from('tales').delete().eq('id', id);
     setMutating(false);
     if (error) {
-      setStatus(`Error: ${error.message}`);
+      console.warn('Multickle save failed', error);
+      setStatus("Couldn't save that — please try again.");
     } else {
       await loadTales();
     }

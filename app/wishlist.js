@@ -48,7 +48,8 @@ export default function Wishlist() {
       setItems(freshItems);
       setBalance(freshBalance);
     } catch (err) {
-      setStatus(`Error loading Reward List: ${err.message}`);
+      console.warn('Reward List load failed', err);
+      setStatus("Couldn't load your Reward List — please try again later.");
     }
     setLoading(false);
   }, []);
@@ -79,7 +80,8 @@ export default function Wishlist() {
       setIcon(null);
       await loadAll();
     } catch (err) {
-      setStatus(`Error: ${err.message}`);
+      console.warn('Reward List save failed', err);
+      setStatus("Couldn't save that — please try again.");
     }
     setSaving(false);
   }
@@ -107,7 +109,8 @@ export default function Wishlist() {
         setStatus(result.reason === 'insufficient_balance' ? 'Not enough tokens.' : 'Could not redeem — try again.');
       }
     } catch (err) {
-      setStatus(`Error: ${err.message}`);
+      console.warn('Reward List save failed', err);
+      setStatus("Couldn't save that — please try again.");
     }
     setMutating(false);
   }
@@ -130,7 +133,8 @@ export default function Wishlist() {
       await deleteWishlistItem(id);
       await loadAll();
     } catch (err) {
-      setStatus(`Error: ${err.message}`);
+      console.warn('Reward List save failed', err);
+      setStatus("Couldn't save that — please try again.");
     }
     setMutating(false);
   }

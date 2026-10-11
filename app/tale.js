@@ -9,7 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationsContext';
 import { supabase } from '../lib/supabase';
 import { C, NATURE_LABELS, withAlpha } from '../lib/theme';
-import { showAlert } from '../lib/themedAlert';
+import { showAlert, showSaveFailed } from '../lib/themedAlert';
 import { flagEmoji } from '../lib/country';
 import { compareChapters, taleIconName } from '../lib/tales';
 import { initPinBoardDb, getPhotosForEntries } from '../lib/pinBoardDb';
@@ -163,6 +163,7 @@ export default function Tale() {
     if (error) {
       setIsFollowing(wasFollowing);
       setFollowerCount((n) => n + (wasFollowing ? 1 : -1));
+      showSaveFailed();
     }
   }
 
@@ -184,8 +185,12 @@ export default function Tale() {
       .update({ completed_at: new Date().toISOString() })
       .eq('id', taleId);
     setMutating(false);
-    if (error) showAlert("Couldn't complete this Multickle", error.message);
-    else await loadTale();
+    if (error) {
+      console.warn('Multickle complete failed', error);
+      showAlert("Couldn't complete this Multickle", 'Please try again.');
+    } else {
+      await loadTale();
+    }
   }
 
   // Numbered over public chapters only (see lib/tales.js's own header).

@@ -51,7 +51,8 @@ export default function Goals() {
       .order('created_at', { ascending: false });
 
     if (error) {
-      setStatus(`Error loading Goals: ${error.message}`);
+      console.warn('Goals load failed', error);
+      setStatus("Couldn't load your Goals — please try again later.");
     } else {
       setGoals(data);
     }
@@ -111,7 +112,8 @@ export default function Goals() {
     setSaving(false);
 
     if (error) {
-      setStatus(`Error: ${error.message}`);
+      console.warn('Goal save failed', error);
+      setStatus("Couldn't save that — please try again.");
       return;
     }
 
@@ -134,7 +136,8 @@ export default function Goals() {
     setSavingEarnsTokensId(null);
     if (error) {
       setGoals((prev) => prev.map((g) => (g.id === goal.id ? { ...g, earns_tokens: !value } : g)));
-      setStatus(`Error: ${error.message}`);
+      console.warn('Goal save failed', error);
+      setStatus("Couldn't save that — please try again.");
     }
   }
 
@@ -151,7 +154,8 @@ export default function Goals() {
     setSavingWeeklyTargetId(null);
     if (error) {
       setGoals((prev) => prev.map((g) => (g.id === goal.id ? { ...g, weekly_target: previous } : g)));
-      setStatus(`Error: ${error.message}`);
+      console.warn('Goal save failed', error);
+      setStatus("Couldn't save that — please try again.");
     }
   }
 
@@ -226,7 +230,8 @@ export default function Goals() {
       .eq('id', id);
     setMutating(false);
     if (error) {
-      setStatus(`Error: ${error.message}`);
+      console.warn('Goal save failed', error);
+      setStatus("Couldn't save that — please try again.");
     } else {
       await loadGoals();
     }
@@ -251,7 +256,8 @@ export default function Goals() {
     const { error } = await supabase.from('goals').delete().eq('id', id);
     setMutating(false);
     if (error) {
-      setStatus(`Error: ${error.message}`);
+      console.warn('Goal save failed', error);
+      setStatus("Couldn't save that — please try again.");
     } else {
       await loadGoals();
     }

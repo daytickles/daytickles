@@ -596,7 +596,10 @@ export default function Calendar() {
     const currentTaleId = dayEntries.find((e) => e.id === entryId)?.tale_id ?? null;
     setTalePickerEntryId(null);
     const { error } = await assignEntryTale({ entryId, taleId, currentTaleId, setEntries: setDayEntries });
-    if (error) showAlert("Couldn't update the Multickle", error.message);
+    if (error) {
+      console.warn('Multickle tag failed', error);
+      showAlert("Couldn't update the Multickle", 'Please try again.');
+    }
   }
 
   async function handleShare(entry, captionId) {
