@@ -12,6 +12,8 @@ import { flagEmoji } from '../lib/country';
 import WallpaperBackground from '../components/WallpaperBackground';
 import NatureIcon from '../components/NatureIcon';
 import GoalTargetCircle from '../components/GoalTargetCircle';
+import AwardBadges from '../components/AwardBadges';
+import { fetchAwardedEntryTypes } from '../lib/awards';
 
 // Same relative progression as DayDotsCard.js's own DOT_SIZES
 // (22/30/38/46 there), scaled down for this row-of-7's tighter,
@@ -74,6 +76,8 @@ export default function WeeklySummary() {
   // still exists on this device, else its Rippled copy (media_url). Same
   // order as Home's resolveLinkedPhotoUris. null = no thumbnail.
   const [mostLikedPhotoUri, setMostLikedPhotoUri] = useState(null);
+  // Distinct High Five types the winner has received (awarded_entries).
+  const [mostLikedAwardTypes, setMostLikedAwardTypes] = useState([]);
   const [goals, setGoals] = useState([]);
   // "Given" reads straight from awards (RLS already lets the giver read
   // their own rows). "Received" can't -- awards RLS is private to the
@@ -242,6 +246,18 @@ export default function WeeklySummary() {
         }
       }
       setMostLikedPhotoUri(photoUri);
+
+      // High Five types on the winner, for the badge on its likes line.
+      // Not part of `failed` above: a failed read just shows no badge.
+      let awardTypes = [];
+      if (best) {
+        try {
+          awardTypes = (await fetchAwardedEntryTypes([best.id])).get(best.id) || [];
+        } catch {
+          awardTypes = [];
+        }
+      }
+      setMostLikedAwardTypes(awardTypes);
     }
 
     if (!goalsResult.error) setGoals(goalsResult.data || []);
@@ -429,9 +445,14 @@ export default function WeeklySummary() {
                     </View>
                     <View style={styles.entryBody}>
                       <Text style={styles.entryText} numberOfLines={2}>{mostLikedText}</Text>
-                      <Text style={styles.entryLikes}>
-                        {mostLiked.like_count} {mostLiked.like_count === 1 ? 'like' : 'likes'}
-                      </Text>
+                      <View style={styles.entryLikesRow}>
+                        <Text style={styles.entryLikes}>
+                          {mostLiked.like_count} {mostLiked.like_count === 1 ? 'like' : 'likes'}
+                        </Text>
+                        {/* Each icon is its own touchable, so tapping it
+                            shows its label without opening the Tickle. */}
+                        <AwardBadges types={mostLikedAwardTypes} tooltipAlign="left" style={styles.mostLikedBadges} />
+                      </View>
                     </View>
                     {/* A file or link that won't load just drops the
                         thumbnail, leaving today's text-only card. */}
@@ -727,7 +748,9 @@ const styles = StyleSheet.create({
   vibeIconSlot: { marginRight: 12, marginTop: 4 },
   entryBody: { flex: 1 },
   entryText: { fontSize: 15, color: C.text, lineHeight: 20 },
-  entryLikes: { fontSize: 12, color: C.tealText, fontWeight: '600', marginTop: 6 },
+  entryLikesRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6 },
+  entryLikes: { fontSize: 12, color: C.tealText, fontWeight: '600' },
+  mostLikedBadges: { marginLeft: 8 },
   mostLikedThumb: { width: 48, height: 48, borderRadius: 8, marginLeft: 12, backgroundColor: C.border },
 
   // Small color-coded pill per vibe -- pill shape (borderRadius 999,

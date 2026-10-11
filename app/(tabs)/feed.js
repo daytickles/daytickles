@@ -6,6 +6,7 @@ import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
+import { fetchAwardedEntryTypes } from '../../lib/awards';
 import { C, accentFor, darken, lighten, textOn, NATURE_ORDER, NATURE_LABELS } from '../../lib/theme';
 import { shareEntry, useShareStatus, sharePhotoOnlyEntry, SHARE_CAPTIONS } from '../../lib/sharing';
 import { alertCapBlocked, capFor, checkAndConsumeWeeklyCap, rippleFeatureFor } from '../../lib/freemiumCaps';
@@ -85,32 +86,6 @@ const ENTRY_SELECT =
 // typical single-line size (102.33px measured + CARD_SPACING, imported
 // from EntryCard.js so the two can't silently drift apart).
 const DEFAULT_ITEM_HEIGHT = 114;
-
-// Public award flag (entry_id only, see migration 0021) for a given
-// page of entries. Called from inside loadFeed itself, right alongside
-// setEntries, rather than as a separate effect reacting to `entries` --
-// that shape used to fire a second render right after every content
-// refresh (setEntries, then the effect noticing entries changed,
-// querying, then setAwardedPublicTypes); calling it here lets both land
-// in the same batch instead.
-//
-// Map<entryId, string[]> -- distinct award types (from ANY giver) each
-// entry has actually received (see migration 0054's awarded_entries
-// view: public, but never reveals who gave it, only which type(s)).
-async function fetchAwardedEntryTypes(entryIds) {
-  if (entryIds.length === 0) return new Map();
-  const { data, error } = await supabase
-    .from('awarded_entries')
-    .select('entry_id, award_type')
-    .in('entry_id', entryIds);
-  if (error) return new Map();
-  const map = new Map();
-  for (const row of data || []) {
-    if (!map.has(row.entry_id)) map.set(row.entry_id, []);
-    map.get(row.entry_id).push(row.award_type);
-  }
-  return map;
-}
 
 // Resolves the actual displayable image for every currently-loaded
 // entry that has one -- local file if this device has (and still has)
@@ -243,7 +218,7 @@ export default function Feed() {
   // awarded_entries, now entry_id + award_type -- see migration 0054),
   // unlike awardedTypes above which is private/viewer-scoped. Loaded
   // inside loadFeed itself, alongside setEntries (see
-  // fetchAwardedEntryTypes above), not per-session like the other Sets,
+  // fetchAwardedEntryTypes in lib/awards.js), not per-session like the other Sets,
   // since it needs to cover every entry on screen, not just ones this
   // viewer has personally interacted with.
   const [awardedPublicTypes, setAwardedPublicTypes] = useState(new Map());

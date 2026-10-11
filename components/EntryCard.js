@@ -1,13 +1,14 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity, Modal, Share } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { C, darken, lighten, withAlpha, SAVED_ENTRY_DOT_SIZE, vibeIconColor, NATURE_LABELS, AWARD_TYPES, AWARD_BADGE_COLOR, AWARD_HAND_ICON, awardLabelFor } from '../lib/theme';
+import { C, darken, lighten, withAlpha, SAVED_ENTRY_DOT_SIZE, vibeIconColor, NATURE_LABELS, AWARD_BADGE_COLOR } from '../lib/theme';
 import { showAlert } from '../lib/themedAlert';
 import { flagEmoji } from '../lib/country';
 import InitialsAvatar from './InitialsAvatar';
 import FoundingMemberBadge from './FoundingMemberBadge';
 import NatureIcon from './NatureIcon';
+import AwardBadges from './AwardBadges';
 
 function formatEntryDate(entryDate) {
   return new Date(`${entryDate}T00:00:00Z`).toLocaleDateString('en-US', {
@@ -105,23 +106,6 @@ export default function EntryCard({
   // (onToggleVisibility/onDelete/router push for edit), so there's
   // nothing a parent screen needs to coordinate across cards.
   const [menuOpen, setMenuOpen] = useState(false);
-  // Tap-to-reveal on the public award badge below -- which distinct
-  // award TYPE's popup is open (or null), not an index, since
-  // publicAwardTypes is already deduped to distinct types. Same tap-to-
-  // show/tap-again-to-dismiss/auto-hide-after-2s shape as Home's own
-  // stat-pill tooltips (showStatTooltip).
-  const [openAwardType, setOpenAwardType] = useState(null);
-  const awardTooltipTimerRef = useRef(null);
-
-  function showAwardTooltip(type) {
-    if (awardTooltipTimerRef.current) clearTimeout(awardTooltipTimerRef.current);
-    if (openAwardType === type) {
-      setOpenAwardType(null);
-      return;
-    }
-    setOpenAwardType(type);
-    awardTooltipTimerRef.current = setTimeout(() => setOpenAwardType(null), 2000);
-  }
 
   function confirmDelete() {
     // The public-copy sentence only applies once there's actually a
@@ -254,42 +238,10 @@ export default function EntryCard({
                   <Ionicons name="image-outline" size={16} color={C.subtext} />
                 </TouchableOpacity>
               )}
-              {/* Public "this post received recognition" badge -- one
-                  hand icon per distinct award type the entry has
-                  actually received, from any giver, each colored per
-                  that type. Shown to everyone, on any awarded post,
-                  including the owner's own. Deliberately reveals which
-                  type(s) were given (2026-08-29 product decision) --
-                  see AWARD_BADGE_COLOR in lib/theme.js for why the
-                  card's stripe/wash stays generic while this icon
-                  doesn't. Each icon is independently tappable -- for a
-                  multi-type badge, tapping one icon reveals only THAT
-                  type's phrase, never a combined list, and never who
-                  gave it (awarded_entries -- migration 0054 -- never
-                  exposes giver identity, same privacy boundary here). */}
-              {/* Unknown types (one added by a newer build) are skipped
-                  rather than crashing the whole list on .color. */}
-              {hasPublicAward && (
-                <View style={styles.publicAwardBadge}>
-                  {publicAwardTypes.filter((type) => AWARD_TYPES[type]).map((type) => (
-                    <View key={type} style={styles.awardBadgeIconWrap}>
-                      <TouchableOpacity
-                        onPress={() => showAwardTooltip(type)}
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                        accessibilityRole="button"
-                        accessibilityLabel={`High five: ${awardLabelFor(type)}`}
-                      >
-                        <Ionicons name={AWARD_HAND_ICON} size={16} color={AWARD_TYPES[type]?.color} />
-                      </TouchableOpacity>
-                      {openAwardType === type && (
-                        <View style={styles.awardTooltip} pointerEvents="none">
-                          <Text style={styles.awardTooltipText}>{awardLabelFor(type)}</Text>
-                        </View>
-                      )}
-                    </View>
-                  ))}
-                </View>
-              )}
+              {/* Public "this post received recognition" badge -- see
+                  components/AwardBadges.js (privacy, tap-to-reveal,
+                  unknown types skipped). */}
+              {hasPublicAward && <AwardBadges types={publicAwardTypes} style={styles.publicAwardBadge} />}
               {showMineActions && (
                 <TouchableOpacity
                   onPress={() => onPickGoal?.(item.id)}
@@ -690,24 +642,8 @@ const styles = StyleSheet.create({
   followAction: { marginLeft: 10 },
   iconGroup: { flexDirection: 'row', alignItems: 'center' },
   photoAction: { marginLeft: 8 },
-  publicAwardBadge: { flexDirection: 'row', alignItems: 'center', marginLeft: 8, gap: 4 },
-  awardBadgeIconWrap: { position: 'relative' },
-  // Pops upward from the icon (same direction as Home's own stat-pill
-  // tooltip) and is nudged left via the negative `right` offset so it
-  // has a better chance of staying on-card for the rightmost icon in a
-  // multi-type badge, which sits closest to the card's own right edge --
-  // a first-pass placement with no real viewport-edge measurement behind
-  // it, same tradeoff EntryCard's own Polaroid width comment already
-  // accepted; retune if it clips on a real device.
-  awardTooltip: {
-    position: 'absolute', bottom: '100%', marginBottom: 6, right: -20,
-    width: 170, alignItems: 'center',
-  },
-  awardTooltipText: {
-    fontSize: 11, fontWeight: '600', color: C.bg, textAlign: 'center',
-    backgroundColor: C.rustDark, borderRadius: 8, overflow: 'hidden',
-    paddingVertical: 4, paddingHorizontal: 10,
-  },
+  // Row layout and gap live in AwardBadges; the card only adds its spacing.
+  publicAwardBadge: { marginLeft: 8 },
   goalDot: {
     width: 16, height: 16, borderRadius: 8, marginLeft: 8,
     alignItems: 'center', justifyContent: 'center',
