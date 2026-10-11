@@ -26,9 +26,13 @@ import {
   getPhotosForEntries, relinkPhotoToEntry,
 } from '../../lib/pinBoardDb';
 import { pickFromLibrary } from '../../lib/pinBoardPhotos';
+import { DEFAULT_WEEK_START_DAY } from '../../lib/week';
 import { useShareCard } from '../../lib/useShareCard';
 import { makePhotoTicklePublic, makePhotoTicklePrivate, deletePhotoTickleMedia } from '../../lib/photoTickleStorage';
 
+// Indexed like Date.getDay() (0 = Sunday). The header is rotated to the
+// person's "Week starts on" setting (profiles.week_start_day, same 0-6
+// numbering -- see migration 0019), like Home, Goals and Weekly Summary.
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 // Same relative progression as DayDotsCard.js's own DOT_SIZES (22/30/38/46
@@ -669,10 +673,14 @@ export default function Calendar() {
   const shareStat = useShareStatus(profile, !!shareTargetEntry);
   const shareBlocked = !!shareStat && !shareStat.unlimited && shareStat.remaining <= 0;
 
-  const firstWeekday = new Date(viewYear, viewMonth, 1).getDay();
+  const weekStartDay = profile?.week_start_day ?? DEFAULT_WEEK_START_DAY;
+  const weekdayLabels = [...WEEKDAY_LABELS.slice(weekStartDay), ...WEEKDAY_LABELS.slice(0, weekStartDay)];
+  // Blank cells before the 1st: how many columns it sits after the
+  // week's first day.
+  const leadingBlanks = (new Date(viewYear, viewMonth, 1).getDay() - weekStartDay + 7) % 7;
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
   const cells = [
-    ...Array(firstWeekday).fill(null),
+    ...Array(leadingBlanks).fill(null),
     ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
   ];
   const monthLabel = new Date(viewYear, viewMonth, 1).toLocaleDateString('en-US', {
@@ -728,7 +736,7 @@ export default function Calendar() {
 
         <View style={styles.calendarCard}>
           <View style={styles.weekdayRow}>
-            {WEEKDAY_LABELS.map((label, i) => (
+            {weekdayLabels.map((label, i) => (
               <Text key={i} style={styles.weekdayLabel}>{label}</Text>
             ))}
           </View>
