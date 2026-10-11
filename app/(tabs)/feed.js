@@ -9,7 +9,7 @@ import { supabase } from '../../lib/supabase';
 import { C, accentFor, darken, lighten, textOn, NATURE_ORDER, NATURE_LABELS } from '../../lib/theme';
 import { shareEntry, useShareStatus, sharePhotoOnlyEntry, SHARE_CAPTIONS } from '../../lib/sharing';
 import { alertCapBlocked, capFor, checkAndConsumeWeeklyCap, rippleFeatureFor } from '../../lib/freemiumCaps';
-import { showAlert } from '../../lib/themedAlert';
+import { showAlert, showSaveFailed } from '../../lib/themedAlert';
 import { notifyLikeReceived } from '../../lib/likeNotify';
 import { localDateString } from '../../lib/week';
 import { EVENING_HOUR, EVENING_MINUTE } from '../../lib/reminders';
@@ -808,7 +808,10 @@ export default function Feed() {
       ? await supabase.from('follows').delete().eq('follower_id', session.user.id).eq('followee_id', followeeId)
       : await supabase.from('follows').insert({ follower_id: session.user.id, followee_id: followeeId });
 
-    if (error) setFollowedIds(previous);
+    if (error) {
+      setFollowedIds(previous);
+      showSaveFailed();
+    }
   }
 
   async function handleToggleFavorite(entryId) {
@@ -826,7 +829,10 @@ export default function Feed() {
       ? await supabase.from('favorites').delete().eq('user_id', session.user.id).eq('entry_id', entryId)
       : await supabase.from('favorites').insert({ user_id: session.user.id, entry_id: entryId });
 
-    if (error) setFavoritedIds(previous);
+    if (error) {
+      setFavoritedIds(previous);
+      showSaveFailed();
+    }
   }
 
   async function handleToggleLike(entryId) {
@@ -859,6 +865,7 @@ export default function Feed() {
 
     if (error) {
       setLikedIds(previous);
+      showSaveFailed();
       return;
     }
 
@@ -1010,7 +1017,10 @@ export default function Feed() {
     await deletePhotoTickleMedia(entry);
 
     const { error } = await supabase.from('tickle_entries').delete().eq('id', entry.id);
-    if (error) setEntries(previous);
+    if (error) {
+      setEntries(previous);
+      showSaveFailed();
+    }
   }
 
   // Reversible, unlike delete, so no confirmation dialog — same
@@ -1153,7 +1163,10 @@ export default function Feed() {
       .update({ visibility: newVisibility })
       .eq('id', entry.id);
 
-    if (error) setEntries(previous);
+    if (error) {
+      setEntries(previous);
+      showSaveFailed();
+    }
   }
 
   function renderEntry({ item }) {

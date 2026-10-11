@@ -10,7 +10,7 @@ import { supabase } from '../../lib/supabase';
 import { C, accentFor, darken, textOn, withAlpha, ALL_NATURES } from '../../lib/theme';
 import { shareEntry, useShareStatus, sharePhotoOnlyEntry, SHARE_CAPTIONS } from '../../lib/sharing';
 import { alertCapBlocked, checkAndConsumeWeeklyCap, rippleFeatureFor } from '../../lib/freemiumCaps';
-import { showAlert } from '../../lib/themedAlert';
+import { showAlert, showSaveFailed } from '../../lib/themedAlert';
 import { assignEntryGoal } from '../../lib/goalTagging';
 import GoalTagModal from '../../components/GoalTagModal';
 import { assignEntryTale, fetchMyTales, fetchTaleBadges } from '../../lib/tales';
@@ -394,7 +394,10 @@ export default function Calendar() {
       ? await supabase.from('favorites').delete().eq('user_id', session.user.id).eq('entry_id', entryId)
       : await supabase.from('favorites').insert({ user_id: session.user.id, entry_id: entryId });
 
-    if (error) setFavoritedIds(previous);
+    if (error) {
+      setFavoritedIds(previous);
+      showSaveFailed();
+    }
   }
 
   async function handleToggleVisibility(entry) {
@@ -531,7 +534,10 @@ export default function Calendar() {
       .update({ visibility: newVisibility })
       .eq('id', entry.id);
 
-    if (error) setDayEntries(previous);
+    if (error) {
+      setDayEntries(previous);
+      showSaveFailed();
+    }
   }
 
   async function handleDeleteEntry(entry) {
@@ -545,6 +551,7 @@ export default function Calendar() {
     const { error } = await supabase.from('tickle_entries').delete().eq('id', entry.id);
     if (error) {
       setDayEntries(previous);
+      showSaveFailed();
       return;
     }
 

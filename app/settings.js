@@ -5,7 +5,7 @@ import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { C, ACCENT_THEMES, accentFor, darken, textOn, withAlpha, NATURE_ORDER } from '../lib/theme';
-import { showAlert } from '../lib/themedAlert';
+import { showAlert, showSaveFailed } from '../lib/themedAlert';
 import { DEFAULT_WEEK_START_DAY } from '../lib/week';
 import { allowedAccentThemeIds, alertCapBlocked, capFor } from '../lib/freemiumCaps';
 import { flagEmoji, countryNameFor } from '../lib/country';
@@ -275,6 +275,7 @@ export default function Settings() {
 
     if (error) {
       setProfile(previous);
+      showSaveFailed();
     } else {
       refreshProfile();
     }
@@ -293,6 +294,7 @@ export default function Settings() {
 
     if (error) {
       setProfile(previous);
+      showSaveFailed();
     } else {
       refreshProfile();
     }
@@ -317,6 +319,7 @@ export default function Settings() {
 
     if (error) {
       setNotifyOnLikes(previous);
+      showSaveFailed();
     }
   }
 
@@ -342,6 +345,7 @@ export default function Settings() {
 
     if (error) {
       setTokensEnabled(previous);
+      showSaveFailed();
     }
   }
 
@@ -379,6 +383,7 @@ export default function Settings() {
 
     if (error) {
       setDailyReminderEnabled(previous);
+      showSaveFailed();
       return;
     }
 
@@ -421,6 +426,7 @@ export default function Settings() {
 
     if (error) {
       setAwarenessCue((prev) => ({ ...prev, enabled: previous }));
+      showSaveFailed();
     }
   }
 
@@ -504,7 +510,10 @@ export default function Settings() {
     const { error } = await supabase.from('profiles').update(updates).eq('id', profile.id);
     setSavingAwarenessCueOption(false);
 
-    if (error) setAwarenessCue((prev) => ({ ...prev, ...previous }));
+    if (error) {
+      setAwarenessCue((prev) => ({ ...prev, ...previous }));
+      showSaveFailed();
+    }
   }
 
   // Switching into 'exact' mode backfills a real count immediately if
@@ -530,7 +539,10 @@ export default function Settings() {
     const { error } = await supabase.from('profiles').update(update).eq('id', profile.id);
     setSavingAwarenessCueOption(false);
 
-    if (error) setAwarenessCue((prev) => ({ ...prev, ...previous }));
+    if (error) {
+      setAwarenessCue((prev) => ({ ...prev, ...previous }));
+      showSaveFailed();
+    }
   }
 
   async function handleAdjustAwarenessCueCount(delta) {
@@ -548,7 +560,10 @@ export default function Settings() {
     const { error } = await supabase.from('profiles').update({ awareness_cue_count: next }).eq('id', profile.id);
     setSavingAwarenessCueOption(false);
 
-    if (error) setAwarenessCue((prev) => ({ ...prev, count: previous }));
+    if (error) {
+      setAwarenessCue((prev) => ({ ...prev, count: previous }));
+      showSaveFailed();
+    }
   }
 
   async function handlePickAwarenessCueWindow(preset) {
@@ -572,7 +587,10 @@ export default function Settings() {
     const { error } = await supabase.from('profiles').update(update).eq('id', profile.id);
     setSavingAwarenessCueOption(false);
 
-    if (error) setAwarenessCue((prev) => ({ ...prev, ...previous }));
+    if (error) {
+      setAwarenessCue((prev) => ({ ...prev, ...previous }));
+      showSaveFailed();
+    }
   }
 
   // Stepper, not a free-text field -- clamps at 0 (stored as null, "off")
@@ -605,6 +623,7 @@ export default function Settings() {
 
     if (error) {
       setGoalValues((prev) => ({ ...prev, [column]: previous }));
+      showSaveFailed();
     }
   }
 
@@ -657,6 +676,7 @@ export default function Settings() {
 
     if (error) {
       setProfile(previous);
+      showSaveFailed();
     } else {
       refreshProfile();
     }
