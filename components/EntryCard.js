@@ -728,8 +728,8 @@ const styles = StyleSheet.create({
   followLinkActive: { color: C.subtext },
   shareLink: { fontSize: 12, color: C.subtext, fontWeight: '600' },
   likeButton: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  likeCount: { fontSize: 12, fontWeight: '600', color: C.faint },
+  likeCount: { fontSize: 12, fontWeight: '600', color: C.subtext },
   likeCountActive: { color: C.sparkleText },
-  starIcon: { fontSize: 18, color: C.faint },
+  starIcon: { fontSize: 18, color: C.subtext },
   starIconActive: { color: C.amberDark },
 });

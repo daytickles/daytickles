@@ -727,7 +727,7 @@ const styles = StyleSheet.create({
   vibeIconSlot: { marginRight: 12, marginTop: 4 },
   entryBody: { flex: 1 },
   entryText: { fontSize: 15, color: C.text, lineHeight: 20 },
-  entryLikes: { fontSize: 12, color: C.teal, fontWeight: '600', marginTop: 6 },
+  entryLikes: { fontSize: 12, color: C.tealText, fontWeight: '600', marginTop: 6 },
   mostLikedThumb: { width: 48, height: 48, borderRadius: 8, marginLeft: 12, backgroundColor: C.border },
 
   // Small color-coded pill per vibe -- pill shape (borderRadius 999,

@@ -1367,20 +1367,12 @@ export default function Feed() {
                 <Text
                   style={[
                     styles.goalFilterLabel,
-                    // Muted to echo goals.js's own goalLabelAchieved
-                    // (color: C.subtext there) -- but this label's own
-                    // unselected baseline (goalFilterLabel) is ALREADY
-                    // C.subtext, same as every other filter chip in this
-                    // row, so setting achieved to that same value would
-                    // be invisible. C.faint is one step fainter still,
-                    // the actual visible mute goals.js's default->
-                    // subtext step achieves relative to ITS OWN default
-                    // (C.text). Applied before the selected-state
-                    // override below so a selected-AND-achieved chip
-                    // still gets accentDarkText for contrast against
-                    // accentDark, rather than staying faint on a dark
-                    // background.
-                    !!g.achieved_at && { color: C.faint },
+                    // A retired Goal gets the italic mute
+                    // (goalFilterLabelMuted), since the label is already
+                    // C.subtext like every chip here. Applied before the
+                    // selected-state override below so a selected retired
+                    // Goal still gets accentDarkText against accentDark.
+                    !!g.achieved_at && styles.goalFilterLabelMuted,
                     goalFilter === g.id && { color: accentDarkText },
                   ]}
                   numberOfLines={1}
@@ -1424,7 +1416,7 @@ export default function Feed() {
                       styles.goalFilterLabel,
                       // Same completed mute + selected override order as
                       // the Goal chips' achieved state.
-                      t.completed && { color: C.faint },
+                      t.completed && styles.goalFilterLabelMuted,
                       isSelected && { color: accentDarkText },
                     ]}
                     numberOfLines={1}
@@ -1595,6 +1587,9 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   goalFilterLabel: { fontSize: 11, fontWeight: '600', color: C.subtext, flexShrink: 1 },
+  // Retired Goal / completed Multickle chips. Was C.faint (1.9:1); now
+  // the same readable C.subtext as other chips, with italics as the mute.
+  goalFilterLabelMuted: { color: C.subtext, fontStyle: 'italic' },
 
   // "New since you were here" divider -- plain text label, deliberately
   // no icon (would overlap with the High Five hand icon's existing

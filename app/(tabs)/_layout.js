@@ -8,6 +8,10 @@ import { C, lighten, withAlpha } from '../../lib/theme';
 // the inactive icons' C.subtext to still show which tab is selected,
 // without the much heavier/darker contrast plain C.text had.
 const tabBarActiveColor = lighten(C.text, 0.35);
+// Inactive tab icons keep the old, lighter secondary grey: C.subtext is
+// now darker than tabBarActiveColor, which would flip the selected-tab
+// cue. Icons only need 3:1 (this is 3.3:1 on cream).
+const tabBarInactiveColor = '#888780';
 
 const TAB_BAR_BACKING = withAlpha(C.bg, 0.85);
 
@@ -17,7 +21,7 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: tabBarActiveColor,
-        tabBarInactiveTintColor: C.subtext,
+        tabBarInactiveTintColor: tabBarInactiveColor,
         tabBarShowLabel: false,
         tabBarStyle: {
           position: 'absolute',
