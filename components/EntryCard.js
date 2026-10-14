@@ -390,11 +390,11 @@ export default function EntryCard({
                             Relinking. Long-press selects it; "Copy name" opens the
                             share sheet (which has Copy) as the dependable route,
                             since there's no clipboard module in this build. */}
-                        <Text style={styles.polaroidMissingText} numberOfLines={1} selectable>
+                        <Text style={styles.polaroidMissingText} selectable>
                           {item.local_photo_filename || 'Photo missing'}
                         </Text>
                         {!!savedAroundText(item.local_photo_filename) && (
-                          <Text style={styles.polaroidMissingHint} numberOfLines={1}>
+                          <Text style={styles.polaroidMissingHint}>
                             {savedAroundText(item.local_photo_filename)}
                           </Text>
                         )}
@@ -630,9 +630,16 @@ const styles = StyleSheet.create({
   polaroidMissingContent: {
     flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16,
   },
-  polaroidMissingText: { fontSize: 12, color: C.subtext, textAlign: 'center' },
+  // Full width of the holder (less a little padding) so a long filename
+  // or "Added to Tickle Pics around…" line wraps, centred, rather than
+  // being cut off.
+  polaroidMissingText: {
+    alignSelf: 'stretch', paddingHorizontal: 4, fontSize: 12, color: C.subtext, textAlign: 'center',
+  },
   // Sits close under the filename (the content's gap is 8).
-  polaroidMissingHint: { fontSize: 11, color: C.subtext, textAlign: 'center', marginTop: -6 },
+  polaroidMissingHint: {
+    alignSelf: 'stretch', paddingHorizontal: 4, fontSize: 11, color: C.subtext, textAlign: 'center', marginTop: -6,
+  },
   missingActionsStack: { alignItems: 'center', gap: 4 },
   missingStepText: { fontSize: 11, color: C.subtext, textAlign: 'center' },
   // Tucked under Find by name, the step it explains.
