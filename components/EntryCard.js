@@ -375,55 +375,75 @@ export default function EntryCard({
               {photoUri ? (
                 <Image source={{ uri: photoUri }} style={styles.polaroidPhoto} />
               ) : (
+                // Square at minimum, taller only when the stack below needs
+                // it: the zero-width sizer's percentage padding is a share
+                // of the wrap's width, so it holds the row at least that
+                // tall, and the content beside it can still push past it
+                // (aspectRatio alone would let the stack overflow).
                 <View style={styles.polaroidMissingWrap}>
-                  <Ionicons name="image-outline" size={26} color={C.faint} />
-                  {isOwnEntry ? (
-                    <>
-                      {/* The filename finds the auto-saved gallery copy before
-                          Relinking. Long-press selects it; "Copy name" opens the
-                          share sheet (which has Copy) as the dependable route,
-                          since there's no clipboard module in this build. */}
-                      <Text style={styles.polaroidMissingText} numberOfLines={1} selectable>
-                        {item.local_photo_filename || 'Photo missing'}
-                      </Text>
-                      {!!savedAroundText(item.local_photo_filename) && (
-                        <Text style={styles.polaroidMissingHint} numberOfLines={1}>
-                          {savedAroundText(item.local_photo_filename)}
+                  <View style={styles.polaroidMissingSizer} />
+                  <View style={styles.polaroidMissingContent}>
+                    <Ionicons name="image-outline" size={26} color={C.faint} />
+                    {isOwnEntry ? (
+                      <>
+                        {/* The filename finds the auto-saved gallery copy before
+                            Relinking. Long-press selects it; "Copy name" opens the
+                            share sheet (which has Copy) as the dependable route,
+                            since there's no clipboard module in this build. */}
+                        <Text style={styles.polaroidMissingText} numberOfLines={1} selectable>
+                          {item.local_photo_filename || 'Photo missing'}
                         </Text>
-                      )}
-                      <View style={styles.missingActionsRow}>
-                        {!!item.local_photo_filename && (
+                        {!!savedAroundText(item.local_photo_filename) && (
+                          <Text style={styles.polaroidMissingHint} numberOfLines={1}>
+                            {savedAroundText(item.local_photo_filename)}
+                          </Text>
+                        )}
+                        {/* With a name: copy it, then search for it in the
+                            file picker (which has a search box), or else
+                            browse the photo grid (which doesn't). */}
+                        <View style={styles.missingActionsStack}>
+                          {!!item.local_photo_filename && (
+                            <>
+                              <TouchableOpacity
+                                onPress={() => Share.share({ message: item.local_photo_filename }).catch(() => {})}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                style={styles.relinkButton}
+                                accessibilityRole="button"
+                                accessibilityLabel="Copy file name"
+                              >
+                                <Text style={styles.relinkButtonText}>Copy name</Text>
+                              </TouchableOpacity>
+                              <Text style={styles.missingStepText}>then</Text>
+                              <TouchableOpacity
+                                onPress={() => onRelinkPhoto?.(item, 'byName')}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                style={styles.relinkButton}
+                                accessibilityRole="button"
+                                accessibilityLabel="Find photo by name"
+                              >
+                                <Text style={styles.relinkButtonText}>Find by name</Text>
+                              </TouchableOpacity>
+                              <Text style={styles.missingSearchHint}>
+                                Paste the name into the search box at the top.
+                              </Text>
+                              <Text style={styles.missingStepText}>or</Text>
+                            </>
+                          )}
                           <TouchableOpacity
-                            onPress={() => Share.share({ message: item.local_photo_filename }).catch(() => {})}
+                            onPress={() => onRelinkPhoto?.(item)}
                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                             style={styles.relinkButton}
+                            accessibilityRole="button"
+                            accessibilityLabel="Find photo visually"
                           >
-                            <Text style={styles.relinkButtonText}>Copy name</Text>
+                            <Text style={styles.relinkButtonText}>Visual find</Text>
                           </TouchableOpacity>
-                        )}
-                        <TouchableOpacity
-                          onPress={() => onRelinkPhoto?.(item)}
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                          style={styles.relinkButton}
-                        >
-                          <Text style={styles.relinkButtonText}>Relink photo</Text>
-                        </TouchableOpacity>
-                        {/* The file picker can search by name; the photo
-                            picker behind "Relink photo" can't. */}
-                        {!!item.local_photo_filename && (
-                          <TouchableOpacity
-                            onPress={() => onRelinkPhoto?.(item, 'byName')}
-                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            style={styles.relinkButton}
-                          >
-                            <Text style={styles.relinkButtonText}>Find by name</Text>
-                          </TouchableOpacity>
-                        )}
-                      </View>
-                    </>
-                  ) : (
-                    <Text style={styles.polaroidMissingText}>Photo not available</Text>
-                  )}
+                        </View>
+                      </>
+                    ) : (
+                      <Text style={styles.polaroidMissingText}>Photo not available</Text>
+                    )}
+                  </View>
                 </View>
               )}
               {/* Caption shows the chosen Vibe's label instead of a
@@ -604,13 +624,19 @@ const styles = StyleSheet.create({
   },
   polaroidPhoto: { width: '100%', aspectRatio: 1, borderRadius: 4, backgroundColor: C.border },
   polaroidMissingWrap: {
-    width: '100%', aspectRatio: 1, borderRadius: 4, backgroundColor: C.bg,
-    alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16,
+    width: '100%', flexDirection: 'row', borderRadius: 4, backgroundColor: C.bg,
+  },
+  polaroidMissingSizer: { width: 0, paddingTop: '100%' },
+  polaroidMissingContent: {
+    flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16,
   },
   polaroidMissingText: { fontSize: 12, color: C.subtext, textAlign: 'center' },
-  // Sits close under the filename (the wrap's gap is 8).
+  // Sits close under the filename (the content's gap is 8).
   polaroidMissingHint: { fontSize: 11, color: C.subtext, textAlign: 'center', marginTop: -6 },
-  missingActionsRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8 },
+  missingActionsStack: { alignItems: 'center', gap: 4 },
+  missingStepText: { fontSize: 11, color: C.subtext, textAlign: 'center' },
+  // Tucked under Find by name, the step it explains.
+  missingSearchHint: { fontSize: 11, color: C.subtext, textAlign: 'center', marginTop: -2 },
   relinkButton: {
     paddingVertical: 6, paddingHorizontal: 14, borderRadius: 14, backgroundColor: C.sparkleBg,
   },

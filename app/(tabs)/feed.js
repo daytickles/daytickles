@@ -499,8 +499,9 @@ export default function Feed() {
 
   // Relink -- only ever reachable from EntryCard's own placeholder,
   // which only renders it for the entry's owner (see EntryCard.js), so
-  // this never runs against someone else's entry. Opens the device
-  // photo picker directly (no camera option, unlike Pin Board's Add
+  // this never runs against someone else's entry. With no source
+  // (EntryCard's "Visual find"), opens the device photo picker
+  // directly (no camera option, unlike Pin Board's Add
   // Photo sheet) -- matches the spec's "opening the device's photo
   // picker" wording exactly. lib/pinBoardDb's relinkPhotoToEntry handles
   // dropping the old (missing-file) link and creating the new one.

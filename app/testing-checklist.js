@@ -43,7 +43,7 @@ const SECTIONS = [
       { id: 'photo-open-other-polaroid', label: 'Open a photo-only Polaroid from someone else' },
       { id: 'photo-take-new', label: 'Take a new photo (camera)' },
       { id: 'photo-pick-gallery', label: 'Pick from gallery' },
-      { id: 'photo-relink', label: 'Use Relink (reconnect an orphaned local photo)' },
+      { id: 'photo-relink', label: 'Relink a missing photo (Find by name or Visual find)' },
       { id: 'photo-share-external', label: 'Share a photo externally (share sheet / Polaroid, e.g. WhatsApp)' },
       { id: 'photo-save-to-photos', label: 'Save a photo to device' },
     ],

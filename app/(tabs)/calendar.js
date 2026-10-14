@@ -303,7 +303,8 @@ export default function Calendar() {
 
   // Same reasoning as feed.js's own handleRelinkPhoto -- only reachable
   // from EntryCard's own owner-only placeholder, and every day entry
-  // here already belongs to this account.
+  // here already belongs to this account. No source: the photo grid
+  // (EntryCard's "Visual find").
   // source 'byName': the file picker, so the missing photo's name can
   // be searched for (EntryCard's "Find by name").
   async function handleRelinkPhoto(entry, source) {
