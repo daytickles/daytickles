@@ -1134,10 +1134,12 @@ export default function Home() {
     );
   }
 
+  // label is the short text under each pill; a11yName is what a screen
+  // reader says, so the two "Polaroid" pills can still be told apart.
   const STAT_PILLS = [
-    { key: 'madeMeSmile', icon: 'happy-outline', value: `${madeMeSmileTotals.week} | ${madeMeSmileTotals.month} | ${madeMeSmileTotals.allTime}`, tooltip: "This made me smile today · week / month / all-time", label: 'Made me smile shares' },
-    { key: 'thoughtOfYou', icon: 'heart-outline', value: `${thoughtOfYouTotals.week} | ${thoughtOfYouTotals.month} | ${thoughtOfYouTotals.allTime}`, tooltip: "I saw this and thought of you · week / month / all-time", label: 'Thought of you shares' },
-    { key: 'ripples', icon: 'eye-outline', value: `${weekRipples} | ${monthRipples} | ${totalRipples}`, tooltip: "Ripples · week / month / all-time", label: 'Ripples' },
+    { key: 'madeMeSmile', icon: 'happy-outline', value: `${madeMeSmileTotals.week} | ${madeMeSmileTotals.month} | ${madeMeSmileTotals.allTime}`, tooltip: "This made me smile today · week / month / all-time", label: 'Polaroid', a11yName: 'Made me smile Polaroids shared' },
+    { key: 'thoughtOfYou', icon: 'heart-outline', value: `${thoughtOfYouTotals.week} | ${thoughtOfYouTotals.month} | ${thoughtOfYouTotals.allTime}`, tooltip: "I saw this and thought of you · week / month / all-time", label: 'Polaroid', a11yName: 'Thought of you Polaroids shared' },
+    { key: 'ripples', icon: 'eye-outline', value: `${weekRipples} | ${monthRipples} | ${totalRipples}`, tooltip: "Ripples · week / month / all-time", label: 'Ripples', a11yName: 'Ripples' },
   ];
 
   return (
@@ -1266,7 +1268,10 @@ export default function Home() {
               style={[styles.statPill, { borderColor: accent.card }]}
               activeOpacity={0.7}
               onPress={() => showStatTooltip(pill.key)}
+              accessibilityRole="button"
+              accessibilityLabel={`${pill.a11yName}: ${pill.value.split(' | ').join(', ')} (week, month, all-time)`}
             >
+              <Ionicons name={pill.icon} size={13} color={C.subtext} />
               <Text style={styles.statPillNumber}>{pill.value}</Text>
               {activeStatTooltip === pill.key && (
                 <View style={styles.statTooltip} pointerEvents="none">
@@ -1278,10 +1283,7 @@ export default function Home() {
         </View>
         <View style={styles.statPillLabelsRow}>
           {STAT_PILLS.map((pill) => (
-            <View key={pill.key} style={styles.statPillLabelItem}>
-              <Ionicons name={pill.icon} size={11} color={C.subtext} />
-              <Text style={styles.statPillLabel} numberOfLines={1}>{pill.label}</Text>
-            </View>
+            <Text key={pill.key} style={styles.statPillLabel} numberOfLines={1}>{pill.label}</Text>
           ))}
         </View>
         <Text style={styles.statPillsCaption}>Mojo Shared</Text>
@@ -1373,11 +1375,8 @@ const styles = StyleSheet.create({
 
   statPillsRow: { flexDirection: 'row', gap: 10, marginBottom: 6 },
   statPillLabelsRow: { flexDirection: 'row', gap: 10, marginBottom: 2 },
-  statPillLabelItem: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3,
-  },
   statPillLabel: {
-    fontSize: 11, fontWeight: '600', color: C.subtext, textAlign: 'center',
+    flex: 1, fontSize: 11, fontWeight: '600', color: C.subtext, textAlign: 'center',
   },
   statPill: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,

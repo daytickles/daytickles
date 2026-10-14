@@ -37,7 +37,7 @@ import { makePhotoTicklePublic, makePhotoTicklePrivate, deletePhotoTickleMedia }
 
 const TABS = [
   { id: 'mine', label: 'Mine' },
-  { id: 'favorites', label: 'Favs' },
+  { id: 'favorites', label: "Fav's" },
   { id: 'following', label: 'Following' },
   { id: 'rippled', label: 'Rippled' },
 ];
@@ -45,9 +45,14 @@ const TABS = [
 // Mine-only. 'all' is the default: everything, tagged or not --
 // including My Day (day_journal) entries, which count as a fourth Vibe
 // here. My Day also keeps its own dedicated chip below (with the Day
-// Dots card). Labels come from lib/theme.js's NATURE_LABELS, so the chips
-// use the same Vibe names as everywhere else.
-const NATURE_FILTERS = NATURE_ORDER.map((id) => ({ id, label: NATURE_LABELS[id] }));
+// Dots card). The chips show short names; a11yLabel carries the full
+// Vibe name from lib/theme.js's NATURE_LABELS for screen readers (and is
+// the visible fallback for any id without a short name). The ids, and so
+// the filtering, are NATURE_ORDER's.
+const NATURE_CHIP_LABELS = { received: 'Smiles', given: 'Given', self: 'For me' };
+const NATURE_FILTERS = NATURE_ORDER.map((id) => ({
+  id, label: NATURE_CHIP_LABELS[id] ?? NATURE_LABELS[id], a11yLabel: NATURE_LABELS[id],
+}));
 
 // My Day is a permanent chip now, same as the three Vibe filters above
 // -- id stays 'day_journal' (matches tickle_entries.tickle_nature),
@@ -739,7 +744,7 @@ export default function Feed() {
     listRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
   }, [tab, highlightedEntryId, entries]);
 
-  // Scroll back to the top on every tab switch (Mine/Favs/Following/
+  // Scroll back to the top on every tab switch (Mine/Fav's/Following/
   // Rippled), Mine's nature-filter chip switch (All/the three Vibes/
   // My Day), or Mine's Goal-filter chip switch, so a newly-
   // selected tab or filter doesn't inherit whatever scroll position the
@@ -1283,6 +1288,9 @@ export default function Feed() {
                 styles.natureFilterChip,
                 !goalFilter && natureFilter === f.id && { backgroundColor: accentDark, borderColor: accentDark },
               ]}
+              accessibilityRole="button"
+              accessibilityLabel={f.a11yLabel ?? f.label}
+              accessibilityState={{ selected: !goalFilter && natureFilter === f.id }}
             >
               <Text
                 style={[
