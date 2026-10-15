@@ -145,6 +145,11 @@ export default function Settings() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  // TEMP previewer yes/no - remove before production.
+  // null = not answered (or not loaded); 'yes' / 'no' = saved answer.
+  const [previewerInterest, setPreviewerInterest] = useState(null);
+  const [changingPreviewerAnswer, setChangingPreviewerAnswer] = useState(false);
+  const [savingPreviewerInterest, setSavingPreviewerInterest] = useState(false);
 
   // PIN lock is local-only (SecureStore, see lib/pinLock.js) — not part
   // of profile, so its current state has to be read on mount rather than
@@ -152,6 +157,27 @@ export default function Settings() {
   useEffect(() => {
     hasPinSet().then(setPinEnabled);
   }, []);
+
+  // TEMP previewer yes/no - remove before production.
+  // Read straight from the row on open rather than from AuthContext's
+  // profile: previewer_interest isn't in RENDER_RELEVANT_FIELDS, so a
+  // refreshProfile() would never pass a changed answer through. If the
+  // column doesn't exist yet the select just errors and the question
+  // shows unanswered.
+  useEffect(() => {
+    if (!profile?.id) return;
+    supabase
+      .from('profiles')
+      .select('previewer_interest')
+      .eq('id', profile.id)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (error) return;
+        const value = data?.previewer_interest;
+        setPreviewerInterest(value === 'yes' || value === 'no' ? value : null);
+      })
+      .catch(() => {});
+  }, [profile?.id]);
 
   // notify_on_likes and daily_reminder are intentionally local-state-only
   // (see project memory: tickle-nature-toggle-bug) -- these effects keep
@@ -630,6 +656,34 @@ export default function Settings() {
     }
   }
 
+  // TEMP previewer yes/no - remove before production.
+  // Writes only previewer_interest on the signed-in user's own row. Any
+  // error (including the column not existing yet) keeps the previous
+  // answer on screen and shows the usual "Couldn't save that" alert.
+  async function handlePickPreviewerInterest(answer) {
+    if (!profile || savingPreviewerInterest) return;
+    setSavingPreviewerInterest(true);
+
+    let failed = false;
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ previewer_interest: answer })
+        .eq('id', profile.id);
+      failed = !!error;
+    } catch {
+      failed = true;
+    }
+    setSavingPreviewerInterest(false);
+
+    if (failed) {
+      showSaveFailed();
+      return;
+    }
+    setPreviewerInterest(answer);
+    setChangingPreviewerAnswer(false);
+  }
+
   // Enabling only flips the Switch once PinSetupModal's enter-twice flow
   // actually saves a PIN (handlePinSetupComplete) — the toggle stays off
   // while the modal is open. Disabling has no confirmation step, matching
@@ -1045,6 +1099,63 @@ export default function Settings() {
               })}
             </View>
           </>
+        )}
+      </View>
+
+      {/* TEMP previewer yes/no - remove before production. */}
+      <View style={styles.card}>
+        <Text style={styles.label}>Closed testing preview</Text>
+        <Text style={styles.explainerText}>
+          Would you be willing to take part in the 14-day closed test?
+        </Text>
+        <View style={{ height: 8 }} />
+        {previewerInterest && !changingPreviewerAnswer ? (
+          <>
+            <Text
+              style={styles.countryValue}
+              accessibilityLabel={`Closed testing preview: you answered ${previewerInterest === 'yes' ? 'Yes' : 'No'}`}
+              accessibilityLiveRegion="polite"
+            >
+              {`Thanks - you answered ${previewerInterest === 'yes' ? 'Yes' : 'No'}.`}
+            </Text>
+            <View style={{ height: 8 }} />
+            <View style={styles.optionPillRow}>
+              <TouchableOpacity
+                onPress={() => setChangingPreviewerAnswer(true)}
+                accessibilityRole="button"
+                accessibilityLabel="Change your closed testing preview answer"
+              >
+                <View style={styles.optionPill}>
+                  <Text style={styles.optionPillText}>Change answer</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+          </>
+        ) : (
+          <View style={styles.optionPillRow}>
+            {[
+              { value: 'yes', label: "Yes, I'm in", a11y: "Yes, I'm in the 14-day closed test" },
+              { value: 'no', label: 'No thanks', a11y: 'No thanks to the 14-day closed test' },
+            ].map((option) => {
+              const selected = previewerInterest === option.value;
+              return (
+                <TouchableOpacity
+                  key={option.value}
+                  onPress={() => handlePickPreviewerInterest(option.value)}
+                  disabled={savingPreviewerInterest}
+                  accessibilityRole="button"
+                  accessibilityLabel={option.a11y}
+                  accessibilityState={{ selected, disabled: savingPreviewerInterest }}
+                >
+                  <View style={[styles.optionPill, selected && { backgroundColor: accentDark, borderColor: accentDark }]}>
+                    <Text style={[styles.optionPillText, selected && { color: textOn(accentDark) }]}>
+                      {option.label}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         )}
       </View>
 
