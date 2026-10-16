@@ -4,6 +4,7 @@ import {
   KeyboardAvoidingView, ScrollView, Platform, Keyboard,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { C, accentFor, darken, textOn, natureTintColor, vibeIconColor, withAlpha, NATURE_ORDER, NATURE_LABELS } from '../lib/theme';
@@ -16,6 +17,7 @@ import { localDateString } from '../lib/week';
 import { alertCapBlocked, checkAndConsumeWeeklyCap, rippleFeatureFor } from '../lib/freemiumCaps';
 import { makePhotoTicklePublic, makePhotoTicklePrivate } from '../lib/photoTickleStorage';
 import { showAlert } from '../lib/themedAlert';
+import { assignEntryTale, fetchMyTales, taleIconName } from '../lib/tales';
 
 const MAX_LEN = 500;
 
@@ -46,6 +48,13 @@ export default function Create() {
   // new Tickle, or the entry's existing link in Edit), or null when there
   // is none or the file is gone from this device.
   const [linkedPhotoPath, setLinkedPhotoPath] = useState(null);
+  // "Connect to a Multickle" (shown only while Ripple is on). myTales is
+  // the owner's list from fetchMyTales -- [] on any load error, which
+  // simply hides the section. originalTaleId is the row's tale_id in
+  // Edit (null on a new Tickle); selectedTaleId is the pick on screen.
+  const [myTales, setMyTales] = useState([]);
+  const [originalTaleId, setOriginalTaleId] = useState(null);
+  const [selectedTaleId, setSelectedTaleId] = useState(null);
   const [status, setStatus] = useState('');
   const [saving, setSaving] = useState(false);
   const [loadingEntry, setLoadingEntry] = useState(!!entryId);
@@ -60,7 +69,7 @@ export default function Create() {
     (async () => {
       const { data, error } = await supabase
         .from('tickle_entries')
-        .select('text_content, tickle_nature, visibility, media_url')
+        .select('text_content, tickle_nature, visibility, media_url, tale_id')
         .eq('id', entryId)
         .single();
 
@@ -70,10 +79,27 @@ export default function Create() {
         setShareToFeed(data.visibility === 'public');
         setWasPublic(data.visibility === 'public');
         setMediaUrl(data.media_url);
+        setOriginalTaleId(data.tale_id ?? null);
+        setSelectedTaleId(data.tale_id ?? null);
       }
       setLoadingEntry(false);
     })();
   }, [entryId]);
+
+  // Never blocks anything: a failed load leaves myTales empty and the
+  // Multickle section simply doesn't show.
+  useEffect(() => {
+    if (!session) return undefined;
+    let cancelled = false;
+    fetchMyTales(session.user.id)
+      .then((tales) => {
+        if (!cancelled) setMyTales(tales);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [session]);
 
   // Finds the linked photo's local file, same existence check as
   // feed.js's resolveLinkedPhotoUris. Local-only (lib/pinBoardDb.js), so
@@ -216,6 +242,39 @@ export default function Create() {
       }
     }
 
+    // Multickle connection, only once the row is public (the guard
+    // trigger enforce_tale_chapter_rules refuses a private one, and a
+    // photo Tickle only turns public in makePhotoTicklePublic above).
+    // Same write as "Add to a Multickle…"/"Change Multickle…", so the
+    // follower "Tic" notification fires exactly as it does there. No-op
+    // when the pick didn't change. With Ripple off nothing is written:
+    // an existing tag stays across Un-Ripple, same as Tickle Stash's
+    // toggle. The Tickle is already saved, so a failure here only says so.
+    if (shareToFeed && savedEntryId) {
+      let taleError = null;
+      try {
+        ({ error: taleError } = await assignEntryTale({
+          entryId: savedEntryId,
+          taleId: selectedTaleId,
+          currentTaleId: originalTaleId,
+          // No loaded list on this screen to update optimistically.
+          setEntries: () => {},
+        }));
+      } catch (err) {
+        taleError = err;
+      }
+      if (taleError) {
+        console.warn('handleSave: Multickle tag failed', taleError);
+        setSaving(false);
+        showAlert(
+          "Couldn't update the Multickle",
+          'Your Tickle was saved. You can try again from its ⋯ menu.',
+          [{ text: 'OK', onPress: () => router.back() }]
+        );
+        return;
+      }
+    }
+
     setSaving(false);
     router.back();
   }
@@ -236,6 +295,11 @@ export default function Create() {
   // Day is a permanent 4th option in the same row, contributing into
   // the same single-select tickle_nature field as the three Vibes.
   const natureOptions = [...TICKLE_NATURE_OPTIONS, DAY_JOURNAL_OPTION];
+
+  // Ongoing Multickles only (a Completed one takes no new Tics), plus the
+  // entry's own current one in Edit even if it's since Completed, so it
+  // shows as selected and can be removed -- same as TaleTagModal.
+  const taleOptions = myTales.filter((t) => !t.completed_at || t.id === originalTaleId);
 
   return (
     <WallpaperBackground>
@@ -311,7 +375,12 @@ export default function Create() {
         <Text style={styles.label}>Good Vibe? – Let it Ripple.</Text>
         <Switch
           value={shareToFeed}
-          onValueChange={setShareToFeed}
+          onValueChange={(on) => {
+            setShareToFeed(on);
+            // Off clears the pick (back to the row's stored tag in Edit,
+            // which nothing below touches while Ripple is off).
+            if (!on) setSelectedTaleId(originalTaleId);
+          }}
           trackColor={{ false: C.border, true: accentDark }}
           thumbColor={C.card}
         />
@@ -320,6 +389,36 @@ export default function Create() {
           uploaded: saving it again doesn't share the photo. */}
       {!!linkedPhotoPath && (!wasPublic || !!mediaUrl) && (
         <Text style={styles.rippleHint}>Rippling shares this photo too.</Text>
+      )}
+
+      {shareToFeed && taleOptions.length > 0 && (
+        <View style={styles.taleSection} accessibilityRole="radiogroup" accessibilityLabel="Connect to a Multickle">
+          <Text style={styles.label}>Connect to a Multickle</Text>
+          {taleOptions.map((t) => {
+            const selected = t.id === selectedTaleId;
+            const icon = taleIconName(t.icon);
+            const title = t.completed_at ? `${t.title} (complete)` : t.title;
+            return (
+              <TouchableOpacity
+                key={t.id}
+                style={[styles.taleRow, selected && styles.taleRowSelected]}
+                onPress={() => {
+                  Keyboard.dismiss();
+                  setSelectedTaleId(selected ? null : t.id);
+                }}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: selected }}
+                accessibilityLabel={title}
+                accessibilityHint={selected ? 'Tap again to not connect it' : undefined}
+              >
+                {/* Filled icon marks the pick, same as TaleTagModal. */}
+                <Ionicons name={selected ? icon.replace(/-outline$/, '') : icon} size={16} color={C.rust} />
+                <Text style={styles.taleRowLabel} numberOfLines={1}>{title}</Text>
+                {selected && <Ionicons name="checkmark" size={18} color={C.rust} style={styles.taleRowCheck} />}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       )}
 
       {!!status && <Text style={styles.status}>{status}</Text>}
@@ -368,6 +467,17 @@ const styles = StyleSheet.create({
   },
   // photoLinkHint's type, pulled up under shareRow's 28dp bottom margin.
   rippleHint: { fontSize: 13, color: C.subtext, marginTop: -20, marginBottom: 20 },
+  // Pulled up under shareRow's 28dp (or rippleHint's 20dp) bottom margin.
+  // Rows are TaleTagModal's pickerRow, on C.card to match the text input.
+  taleSection: { marginTop: -12, marginBottom: 24 },
+  taleRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: 12, paddingHorizontal: 14, marginTop: 8,
+    backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border,
+  },
+  taleRowSelected: { borderColor: C.rust },
+  taleRowLabel: { fontSize: 15, color: C.text, marginLeft: 12, flexShrink: 1, flex: 1 },
+  taleRowCheck: { marginLeft: 8 },
   status: { marginBottom: 12, color: C.error, textAlign: 'center' },
   // Same shadow as Home's own New Tickle button (home.js's
   // newTickleShadow) -- identical values, this app's one deliberate
