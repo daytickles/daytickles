@@ -17,7 +17,7 @@ import { localDateString } from '../lib/week';
 import { alertCapBlocked, checkAndConsumeWeeklyCap, rippleFeatureFor } from '../lib/freemiumCaps';
 import { makePhotoTicklePublic, makePhotoTicklePrivate } from '../lib/photoTickleStorage';
 import { showAlert } from '../lib/themedAlert';
-import { assignEntryTale, fetchMyTales, taleIconName } from '../lib/tales';
+import { assignEntryTale, fetchMyTales } from '../lib/tales';
 
 const MAX_LEN = 500;
 
@@ -394,30 +394,29 @@ export default function Create() {
       {shareToFeed && taleOptions.length > 0 && (
         <View style={styles.taleSection} accessibilityRole="radiogroup" accessibilityLabel="Connect to a Multickle">
           <Text style={styles.label}>Connect to a Multickle</Text>
-          {taleOptions.map((t) => {
-            const selected = t.id === selectedTaleId;
-            const icon = taleIconName(t.icon);
-            const title = t.completed_at ? `${t.title} (complete)` : t.title;
-            return (
-              <TouchableOpacity
-                key={t.id}
-                style={[styles.taleRow, selected && styles.taleRowSelected]}
-                onPress={() => {
-                  Keyboard.dismiss();
-                  setSelectedTaleId(selected ? null : t.id);
-                }}
-                accessibilityRole="radio"
-                accessibilityState={{ checked: selected }}
-                accessibilityLabel={title}
-                accessibilityHint={selected ? 'Tap again to not connect it' : undefined}
-              >
-                {/* Filled icon marks the pick, same as TaleTagModal. */}
-                <Ionicons name={selected ? icon.replace(/-outline$/, '') : icon} size={16} color={C.rust} />
-                <Text style={styles.taleRowLabel} numberOfLines={1}>{title}</Text>
-                {selected && <Ionicons name="checkmark" size={18} color={C.rust} style={styles.taleRowCheck} />}
-              </TouchableOpacity>
-            );
-          })}
+          <View style={styles.talePillsWrap}>
+            {taleOptions.map((t) => {
+              const selected = t.id === selectedTaleId;
+              const title = t.completed_at ? `${t.title} (complete)` : t.title;
+              return (
+                <TouchableOpacity
+                  key={t.id}
+                  style={[styles.taleRow, selected && styles.taleRowSelected]}
+                  onPress={() => {
+                    Keyboard.dismiss();
+                    setSelectedTaleId(selected ? null : t.id);
+                  }}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: selected }}
+                  accessibilityLabel={title}
+                  accessibilityHint={selected ? 'Tap again to not connect it' : undefined}
+                >
+                  <Text style={styles.taleRowLabel} numberOfLines={1}>{title}</Text>
+                  {selected && <Ionicons name="checkmark" size={18} color={C.rust} />}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
       )}
 
@@ -468,16 +467,23 @@ const styles = StyleSheet.create({
   // photoLinkHint's type, pulled up under shareRow's 28dp bottom margin.
   rippleHint: { fontSize: 13, color: C.subtext, marginTop: -20, marginBottom: 20 },
   // Pulled up under shareRow's 28dp (or rippleHint's 20dp) bottom margin.
-  // Rows are TaleTagModal's pickerRow, on C.card to match the text input.
+  // Choices look like Home's "Multickles you follow" pills: values copied
+  // from home.js's goalPill + redeemPill + goalPillLabel (kept local, as
+  // home.js does with create.js's natureOption), wrapping rather than
+  // scrolling so every choice is visible. maxWidth caps a long title so
+  // only it truncates.
   taleSection: { marginTop: -12, marginBottom: 24 },
+  talePillsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
   taleRow: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingVertical: 12, paddingHorizontal: 14, marginTop: 8,
-    backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border,
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    minHeight: 40, maxWidth: 240, paddingVertical: 8, paddingHorizontal: 12,
+    borderRadius: 20, borderWidth: 1,
+    backgroundColor: withAlpha(C.amberBg, 0.25), borderColor: C.amberDark,
   },
-  taleRowSelected: { borderColor: C.rust },
-  taleRowLabel: { fontSize: 15, color: C.text, marginLeft: 12, flexShrink: 1, flex: 1 },
-  taleRowCheck: { marginLeft: 8 },
+  // A 2dp C.rust border marks the pick (with the checkmark); padding
+  // drops by the extra 1dp so the pill doesn't grow.
+  taleRowSelected: { borderWidth: 2, borderColor: C.rust, paddingVertical: 7, paddingHorizontal: 11 },
+  taleRowLabel: { flexShrink: 1, fontSize: 12, fontWeight: '600', color: C.text },
   status: { marginBottom: 12, color: C.error, textAlign: 'center' },
   // Same shadow as Home's own New Tickle button (home.js's
   // newTickleShadow) -- identical values, this app's one deliberate
