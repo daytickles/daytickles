@@ -1061,9 +1061,13 @@ export default function Home() {
   // Mojo Shared pill rows above, it sits straight on the wallpaper as a
   // plain View with no fill/border/padding, so the pills run to the
   // content edge and the last one peeks there. With no active Goals, a
-  // gentle prompt instead; the caller hides this section entirely until
-  // the first entry exists, so a brand-new account isn't shown two calls
-  // to action at once (QuickStartCard already covers that state).
+  // gentle prompt instead; before the first entry the caller shows this
+  // section only once a Goal exists, so a brand-new account isn't shown
+  // two calls to action at once (QuickStartCard already covers that
+  // state). Not after a failed entries load either, where every pill's
+  // count would wrongly read 0.
+  const showGoalsCard = entries.length > 0 || (!loadError && activeGoals.length > 0);
+
   function renderGoalsCard() {
     return (
       <View style={styles.goalsSection}>
@@ -1305,10 +1309,10 @@ export default function Home() {
           </Text>
         )}
 
-        {!loading && entries.length > 0 && (
+        {!loading && (showGoalsCard || affordableRewards.length > 0 || followedTales.length > 0) && (
           <View style={styles.bottomCards}>
             {!!remember && renderRememberCard()}
-            {renderGoalsCard()}
+            {showGoalsCard && renderGoalsCard()}
             {affordableRewards.length > 0 && renderRedeemCard()}
             {followedTales.length > 0 && renderFollowedTalesCard()}
           </View>
