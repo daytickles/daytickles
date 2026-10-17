@@ -226,6 +226,12 @@ export default function Home() {
   const [tokenBalance, setTokenBalance] = useState(0);
   const [rewardItems, setRewardItems] = useState([]);
   const [followedTales, setFollowedTales] = useState([]);
+  // True once that source's fetch has succeeded, so an empty section's
+  // placeholder pill never shows before its data is in (or after a
+  // failed fetch, which keeps today's hide-the-section behaviour).
+  const [goalsLoaded, setGoalsLoaded] = useState(false);
+  const [rewardsLoaded, setRewardsLoaded] = useState(false);
+  const [followedTalesLoaded, setFollowedTalesLoaded] = useState(false);
   const [madeMeSmileTotals, setMadeMeSmileTotals] = useState({ week: 0, month: 0, allTime: 0 });
   const [thoughtOfYouTotals, setThoughtOfYouTotals] = useState({ week: 0, month: 0, allTime: 0 });
   const [showGuide, setShowGuide] = useState(false);
@@ -425,7 +431,10 @@ export default function Home() {
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (!error) setGoals(data || []);
+    if (!error) {
+      setGoals(data || []);
+      setGoalsLoaded(true);
+    }
   }, [session]);
 
   // Week/month/all-time totals for Home's two caption-split stat pills --
@@ -549,15 +558,18 @@ export default function Home() {
     if (!session || !tokensEnabled) {
       setTokenBalance(0);
       setRewardItems([]);
+      setRewardsLoaded(false);
       return;
     }
     try {
       const [balance, items] = await Promise.all([fetchTokenBalance(), fetchWishlistItems()]);
       setTokenBalance(balance);
       setRewardItems(items || []);
+      setRewardsLoaded(true);
     } catch {
       // Best-effort -- a failed fetch just hides the strip.
       setRewardItems([]);
+      setRewardsLoaded(false);
     }
   }, [session, tokensEnabled]);
 
@@ -584,6 +596,7 @@ export default function Home() {
   const loadFollowedTales = useCallback(async () => {
     if (!session) {
       setFollowedTales([]);
+      setFollowedTalesLoaded(false);
       return;
     }
     try {
@@ -617,8 +630,10 @@ export default function Home() {
         });
       const withNews = pills.filter((t) => t.newAt).sort((a, b) => new Date(b.newAt) - new Date(a.newAt));
       setFollowedTales([...withNews, ...pills.filter((t) => !t.newAt)]);
+      setFollowedTalesLoaded(true);
     } catch {
       setFollowedTales([]);
+      setFollowedTalesLoaded(false);
     }
   }, [session]);
 
@@ -861,7 +876,34 @@ export default function Home() {
     0.78 * Math.min(windowWidth - 2 * HOME_SIDE_PADDING, HOME_CONTENT_MAX_WIDTH)
   );
 
+  // One faint, dashed, untappable pill in goalPill's shape for a section
+  // with nothing to show -- the same dashed C.faint outline Calendar and
+  // GoalTagModal use for "empty". No text, and hidden from screen readers
+  // so TalkBack doesn't announce an empty pill.
+  function renderPlaceholderPill() {
+    return (
+      <View style={styles.goalPillsRow}>
+        <View
+          style={[styles.goalPill, styles.placeholderPill]}
+          accessible={false}
+          importantForAccessibility="no-hide-descendants"
+          accessibilityElementsHidden
+        />
+      </View>
+    );
+  }
+
+  // With no Tickles yet, remember is null: the "Your latest Tickle"
+  // heading with a placeholder pill.
   function renderRememberCard() {
+    if (!remember) {
+      return (
+        <View style={styles.goalsSection}>
+          <Text style={[styles.cardLabel, styles.goalsCardLabel]}>Your latest Tickle</Text>
+          {renderPlaceholderPill()}
+        </View>
+      );
+    }
     const { entries: picks, isFallback } = remember;
     return (
       <View style={styles.goalsSection}>
@@ -942,10 +984,28 @@ export default function Home() {
   // to the content edge so the last visible pill peeks as a scroll hint.
   // The label leads the header row so it lines up with the other two
   // section labels; the balance circle follows it.
+  // With nothing affordable yet, the same header row (balance circle
+  // included) over a placeholder pill; the header then reads just the
+  // balance, since "You can redeem" with no names would be an empty
+  // sentence.
   function renderRedeemCard() {
-    const headerA11y =
-      `${tokenBalance} token${tokenBalance === 1 ? '' : 's'}. ` +
-      `You can redeem ${joinNames(affordableRewards.map((i) => i.label))}.`;
+    const balanceA11y = `${tokenBalance} token${tokenBalance === 1 ? '' : 's'}.`;
+    const headerA11y = affordableRewards.length === 0
+      ? balanceA11y
+      : `${balanceA11y} You can redeem ${joinNames(affordableRewards.map((i) => i.label))}.`;
+    if (affordableRewards.length === 0) {
+      return (
+        <View style={styles.goalsSection}>
+          <View style={styles.redeemHeaderRow} accessible accessibilityLabel={headerA11y}>
+            <Text style={styles.cardLabel}>You can redeem</Text>
+            <View style={styles.redeemBalanceCircle}>
+              <Text style={styles.redeemBalanceText}>{tokenBalance}</Text>
+            </View>
+          </View>
+          {renderPlaceholderPill()}
+        </View>
+      );
+    }
     return (
       <View style={styles.goalsSection}>
         {/* Plain label like the other sections' -- the reward pills below
@@ -1009,6 +1069,14 @@ export default function Home() {
   // without opening a Multickle. Then the footer link, also its own
   // touchable.
   function renderFollowedTalesCard() {
+    if (followedTales.length === 0) {
+      return (
+        <View style={styles.goalsSection}>
+          <Text style={[styles.cardLabel, styles.goalsCardLabel]}>Multickles you follow</Text>
+          {renderPlaceholderPill()}
+        </View>
+      );
+    }
     return (
       <View style={styles.goalsSection}>
         <Text style={[styles.cardLabel, styles.goalsCardLabel]}>Multickles you follow</Text>
@@ -1061,18 +1129,27 @@ export default function Home() {
   // Mojo Shared pill rows above, it sits straight on the wallpaper as a
   // plain View with no fill/border/padding, so the pills run to the
   // content edge and the last one peeks there. With no active Goals, a
-  // gentle prompt instead; before the first entry the caller shows this
-  // section only once a Goal exists, so a brand-new account isn't shown
-  // two calls to action at once (QuickStartCard already covers that
-  // state). Not after a failed entries load either, where every pill's
-  // count would wrongly read 0.
-  const showGoalsCard = entries.length > 0 || (!loadError && activeGoals.length > 0);
+  // gentle prompt instead -- but before the first entry a placeholder
+  // pill, so a brand-new account isn't shown two calls to action at once
+  // (QuickStartCard already covers that state). Before the first entry
+  // the section also waits for the Goals to load, and stays hidden after
+  // a failed entries load, where every pill's count would wrongly read 0.
+  const showGoalsCard = entries.length > 0 || (!loadError && (activeGoals.length > 0 || goalsLoaded));
+
+  // Every section shows once its data is in, a placeholder pill standing
+  // in when it's empty. Your latest Tickle waits on the entries load
+  // (the caller's !loading) and is hidden after a failed one, which
+  // shows its own "Couldn't load" text instead. You can redeem stays
+  // hidden while Tokens & Rewards is off.
+  const showRememberCard = !!remember || !loadError;
+  const showRedeemCard = tokensEnabled && rewardsLoaded;
+  const showFollowedTalesCard = followedTalesLoaded;
 
   function renderGoalsCard() {
     return (
       <View style={styles.goalsSection}>
         <Text style={[styles.cardLabel, styles.goalsCardLabel]}>Your Goals</Text>
-        {activeGoals.length === 0 ? (
+        {activeGoals.length === 0 && entries.length === 0 ? renderPlaceholderPill() : activeGoals.length === 0 ? (
           <>
             <Text style={styles.goalsPromptText}>
               Working towards something? Add a Goal, then tag Tickles to it as you go.
@@ -1309,12 +1386,12 @@ export default function Home() {
           </Text>
         )}
 
-        {!loading && (showGoalsCard || affordableRewards.length > 0 || followedTales.length > 0) && (
+        {!loading && (showRememberCard || showGoalsCard || showRedeemCard || showFollowedTalesCard) && (
           <View style={styles.bottomCards}>
-            {!!remember && renderRememberCard()}
+            {showRememberCard && renderRememberCard()}
             {showGoalsCard && renderGoalsCard()}
-            {affordableRewards.length > 0 && renderRedeemCard()}
-            {followedTales.length > 0 && renderFollowedTalesCard()}
+            {showRedeemCard && renderRedeemCard()}
+            {showFollowedTalesCard && renderFollowedTalesCard()}
           </View>
         )}
 
@@ -1466,6 +1543,12 @@ const styles = StyleSheet.create({
   // with the same coin icon.
   redeemPill: { backgroundColor: withAlpha(C.amberBg, 0.25), borderColor: C.amberDark },
   redeemPillCost: { flexShrink: 0, fontSize: 12, fontWeight: '700', color: C.text },
+  // Empty-section stand-in: goalPill's 40dp height and 20dp radius with
+  // a fixed width (it has no label to size it), transparent, and the
+  // same dashed C.faint outline as Calendar's countBadgeEmpty.
+  placeholderPill: {
+    width: 96, backgroundColor: 'transparent', borderStyle: 'dashed', borderColor: C.faint,
+  },
 
   // goalPillLabel's type with a fixed line height, so a two-line pill is
   // a predictable 1 + 8 + 2 x 16 + 8 + 1 = 50dp tall (one line stays
