@@ -961,14 +961,15 @@ export default function Home() {
     );
   }
 
-  // "You can redeem" strip: only ever lists rewards affordable right now
-  // -- never the ones still out of reach, and no "almost there" hint, so
-  // it can only ever read as good news. Rewards are repeatable (redeeming
-  // never removes one, see migration 0065), so a chip simply stays while
-  // it's still affordable. rewardItems is already sorted by cost
-  // ascending (fetchWishlistItems). Redeeming itself stays on the Reward
-  // List with its own confirmation -- the header row and every chip just
-  // open it, same target as CornerNav's header circle.
+  // "Your Rewards" strip: every reward on the Reward List, in
+  // fetchWishlistItems' cost-ascending order, each with a circle that
+  // fills once the balance reaches its cost. Rewards are repeatable
+  // (redeeming never removes one, see migration 0065). Redeeming itself
+  // stays on the Reward List with its own confirmation -- every chip, the
+  // out-of-reach ones included, just opens it, same target as CornerNav's
+  // header circle. The Reward List disables Redeem below the cost, and
+  // redeem_wishlist_item refuses it server-side. affordableRewards still
+  // feeds the header's screen-reader label.
   const affordableRewards = tokensEnabled ? rewardItems.filter((i) => i.cost <= tokenBalance) : [];
 
   function joinNames(names) {
@@ -980,24 +981,24 @@ export default function Home() {
   // follow: no white card, and the header row and each pill are their
   // own touchables rather than one around the whole section, so a
   // sideways swipe on the pill row scrolls it without also firing a tap.
-  // No pill cap: every affordable reward gets a pill, and the row runs
-  // to the content edge so the last visible pill peeks as a scroll hint.
+  // No pill cap: every reward gets a pill, and the row runs to the
+  // content edge so the last visible pill peeks as a scroll hint.
   // The label leads the header row so it lines up with the other two
   // section labels; the balance circle follows it.
-  // With nothing affordable yet, the same header row (balance circle
-  // included) over a placeholder pill; the header then reads just the
-  // balance, since "You can redeem" with no names would be an empty
-  // sentence.
+  // The header's screen-reader label names only the affordable rewards,
+  // and reads just the balance when none are, since "You can redeem" with
+  // no names would be an empty sentence. With no rewards at all, the same
+  // header row over a placeholder pill.
   function renderRedeemCard() {
     const balanceA11y = `${tokenBalance} token${tokenBalance === 1 ? '' : 's'}.`;
     const headerA11y = affordableRewards.length === 0
       ? balanceA11y
       : `${balanceA11y} You can redeem ${joinNames(affordableRewards.map((i) => i.label))}.`;
-    if (affordableRewards.length === 0) {
+    if (rewardItems.length === 0) {
       return (
         <View style={styles.goalsSection}>
           <View style={styles.redeemHeaderRow} accessible accessibilityLabel={headerA11y}>
-            <Text style={styles.cardLabel}>You can redeem</Text>
+            <Text style={styles.cardLabel}>Your Rewards - you can redeem</Text>
             <View style={styles.redeemBalanceCircle}>
               <Text style={styles.redeemBalanceText}>{tokenBalance}</Text>
             </View>
@@ -1013,37 +1014,51 @@ export default function Home() {
             reader reads the balance and the redeemable rewards as one
             statement. */}
         <View style={styles.redeemHeaderRow} accessible accessibilityLabel={headerA11y}>
-          <Text style={styles.cardLabel}>You can redeem</Text>
+          <Text style={styles.cardLabel}>Your Rewards - you can redeem</Text>
           <View style={styles.redeemBalanceCircle}>
             <Text style={styles.redeemBalanceText}>{tokenBalance}</Text>
           </View>
         </View>
-        {/* Keyed by the affordable ids so the row remounts at the first
-            pill whenever that list changes (e.g. a redeem drops a pill),
+        {/* Keyed by the reward ids so the row remounts at the first pill
+            whenever that list changes (e.g. a reward added or removed),
             rather than keeping a stale scroll offset into a shorter row. */}
         <ScrollView
-          key={affordableRewards.map((i) => i.id).join(',')}
+          key={rewardItems.map((i) => i.id).join(',')}
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.goalPillsRow}
         >
-          {affordableRewards.map((item) => (
-            // Name and cost in separate Texts so only the name truncates --
-            // a long (up to 60-char) label would otherwise push the cost
-            // off the end of a single truncated line.
-            <TouchableOpacity
-              key={item.id}
-              style={[styles.goalPill, styles.redeemPill]}
-              activeOpacity={0.7}
-              onPress={() => router.push('/wishlist')}
-              accessibilityRole="button"
-              accessibilityLabel={`${item.label}, ${item.cost} token${item.cost === 1 ? '' : 's'}. Opens Reward List.`}
-            >
-              <Text style={styles.goalPillLabel} numberOfLines={1}>{item.label}</Text>
-              <MaterialCommunityIcons name="circle-multiple-outline" size={14} color={C.subtext} />
-              <Text style={styles.redeemPillCost}>{item.cost}</Text>
-            </TouchableOpacity>
-          ))}
+          {rewardItems.map((item) => {
+            const canRedeem = item.cost <= tokenBalance;
+            const short = item.cost - tokenBalance;
+            const stateA11y = canRedeem
+              ? 'Can redeem'
+              : `Needs ${short} more token${short === 1 ? '' : 's'}`;
+            return (
+              // Name and cost in separate Texts so only the name truncates --
+              // a long (up to 60-char) label would otherwise push the cost
+              // off the end of a single truncated line. Every pill opens the
+              // Reward List, affordable or not -- none of them redeem.
+              <TouchableOpacity
+                key={item.id}
+                style={[styles.goalPill, styles.redeemPill]}
+                activeOpacity={0.7}
+                onPress={() => router.push('/wishlist')}
+                accessibilityRole="button"
+                accessibilityLabel={`${item.label}, ${item.cost} token${item.cost === 1 ? '' : 's'}. ${stateA11y}. Opens Reward List.`}
+              >
+                <Text style={styles.goalPillLabel} numberOfLines={1}>{item.label}</Text>
+                <MaterialCommunityIcons name="circle-multiple-outline" size={14} color={C.subtext} />
+                <Text style={styles.redeemPillCost}>{item.cost}</Text>
+                {/* GoalTargetCircle's look at the Goal pill's size 22:
+                    hollow C.text ring below the cost, solid C.text with a
+                    C.card tick once affordable. */}
+                <View style={[styles.rewardCircle, canRedeem && styles.rewardCircleFilled]}>
+                  {canRedeem && <Ionicons name="checkmark" size={13} color={C.card} />}
+                </View>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
       </View>
     );
@@ -1543,6 +1558,15 @@ const styles = StyleSheet.create({
   // with the same coin icon.
   redeemPill: { backgroundColor: withAlpha(C.amberBg, 0.25), borderColor: C.amberDark },
   redeemPillCost: { flexShrink: 0, fontSize: 12, fontWeight: '700', color: C.text },
+  // Same ring as components/GoalTargetCircle.js (1.5dp C.text border,
+  // solid C.text when reached) at the 22dp Home's Goal pills use; fixed
+  // width since it never holds a number.
+  rewardCircle: {
+    flexShrink: 0, width: 22, height: 22, borderRadius: 11,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1.5, borderColor: C.text,
+  },
+  rewardCircleFilled: { backgroundColor: C.text },
   // Empty-section stand-in: goalPill's 40dp height and 20dp radius with
   // a fixed width (it has no label to size it), transparent, and the
   // same dashed C.faint outline as Calendar's countBadgeEmpty.
