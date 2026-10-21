@@ -74,7 +74,9 @@ export default function Create() {
         .single();
 
       if (!error && data) {
-        setText(data.text_content);
+        // A Quick Tickle has no text yet (null) -- '' keeps the counter's
+        // text.length below from crashing.
+        setText(data.text_content ?? '');
         setTickleNature(data.tickle_nature);
         setShareToFeed(data.visibility === 'public');
         setWasPublic(data.visibility === 'public');

@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity, Modal, Share } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { C, darken, lighten, withAlpha, SAVED_ENTRY_DOT_SIZE, vibeIconColor, NATURE_LABELS, AWARD_BADGE_COLOR } from '../lib/theme';
+import { C, accentFor, darken, lighten, withAlpha, SAVED_ENTRY_DOT_SIZE, vibeIconColor, NATURE_LABELS, AWARD_BADGE_COLOR } from '../lib/theme';
 import { showAlert } from '../lib/themedAlert';
+import { useAuth } from '../contexts/AuthContext';
+import { isQuickTickle, useTickleItDismissed } from '../lib/quickTickle';
 import { flagEmoji } from '../lib/country';
 import InitialsAvatar from './InitialsAvatar';
 import FoundingMemberBadge from './FoundingMemberBadge';
@@ -106,6 +108,19 @@ export default function EntryCard({
   // (onToggleVisibility/onDelete/router push for edit), so there's
   // nothing a parent screen needs to coordinate across cards.
   const [menuOpen, setMenuOpen] = useState(false);
+  // A Quick Tickle (lib/quickTickle.js): the owner's own text-less,
+  // photo-less Tickle. Its body is a QT dot plus a "Tickle it" pill
+  // (dismissable per phone); Ripple and Share stay hidden until it has
+  // words. Accent-dark is the viewer's, as on Button.js's secondary
+  // pills -- only the owner ever sees this treatment.
+  const isQuick = isOwnEntry && isQuickTickle(item, !!photoUri || !!hasLinkedPhoto);
+  const { profile } = useAuth();
+  const accentDark = darken(accentFor(profile?.accent_theme).card, 0.35);
+  const [tickleItDismissed, dismissTickleIt] = useTickleItDismissed(item.id, isQuick && showMineActions);
+
+  function openEdit() {
+    router.push({ pathname: '/create', params: { entryId: item.id } });
+  }
 
   function confirmDelete() {
     // The public-copy sentence only applies once there's actually a
@@ -265,7 +280,9 @@ export default function EntryCard({
                   </View>
                 </TouchableOpacity>
               )}
-              {showMineActions && (
+              {/* Hidden for a private Quick Tickle: a text-less Ripple
+                  would be a blank public card. Un-Ripple always stays. */}
+              {showMineActions && !(isQuick && item.visibility !== 'public') && (
                 <TouchableOpacity
                   onPress={() => onToggleVisibility?.(item)}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -493,7 +510,41 @@ export default function EntryCard({
                   Tickle in every way. Plain, fully untruncated
                   text_content, same as every other entry type already
                   gets here. */}
-              <Text style={styles.entryText}>{item.text_content}</Text>
+              {isQuick ? (
+                <View style={styles.quickRow}>
+                  <View
+                    style={[styles.quickDot, { borderColor: accentDark }]}
+                    accessible
+                    accessibilityLabel="Quick Tickle"
+                  >
+                    {/* Capped like GoalTargetCircle's count, so "QT" stays inside the fixed 40dp circle. */}
+                    <Text style={[styles.quickDotLabel, { color: accentDark }]} maxFontSizeMultiplier={1.5}>QT</Text>
+                  </View>
+                  {showMineActions && tickleItDismissed === false && (
+                    <>
+                      <TouchableOpacity
+                        onPress={openEdit}
+                        style={[styles.tickleItPill, { borderColor: accentDark }]}
+                        accessibilityRole="button"
+                        accessibilityLabel="Tickle it"
+                      >
+                        <Text style={[styles.tickleItLabel, { color: accentDark }]}>Tickle it</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={dismissTickleIt}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        style={styles.tickleItDismiss}
+                        accessibilityRole="button"
+                        accessibilityLabel="Dismiss Tickle it for this Quick Tickle"
+                      >
+                        <Ionicons name="close" size={14} color={C.subtext} />
+                      </TouchableOpacity>
+                    </>
+                  )}
+                </View>
+              ) : (
+                <Text style={styles.entryText}>{item.text_content}</Text>
+              )}
             </>
           )}
           <View style={styles.entryMetaRow}>
@@ -534,7 +585,7 @@ export default function EntryCard({
                 style={styles.menuRow}
                 onPress={() => {
                   setMenuOpen(false);
-                  router.push({ pathname: '/create', params: { entryId: item.id } });
+                  openEdit();
                 }}
               >
                 <Ionicons name="pencil-outline" size={18} color={C.text} />
@@ -565,16 +616,19 @@ export default function EntryCard({
               </TouchableOpacity>
             )}
 
-            <TouchableOpacity
-              style={styles.menuRow}
-              onPress={() => {
-                setMenuOpen(false);
-                onShare?.(item.id);
-              }}
-            >
-              <Ionicons name="share-outline" size={18} color={C.text} />
-              <Text style={styles.menuRowLabel}>Share</Text>
-            </TouchableOpacity>
+            {/* Hidden for a Quick Tickle -- it has no words to share yet. */}
+            {!isQuick && (
+              <TouchableOpacity
+                style={styles.menuRow}
+                onPress={() => {
+                  setMenuOpen(false);
+                  onShare?.(item.id);
+                }}
+              >
+                <Ionicons name="share-outline" size={18} color={C.text} />
+                <Text style={styles.menuRowLabel}>Share</Text>
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity
               style={styles.menuRow}
@@ -706,6 +760,25 @@ const styles = StyleSheet.create({
   menuRowLabel: { fontSize: 15, color: C.text },
   menuRowLabelDestructive: { color: C.rust },
   entryText: { fontSize: 15, color: C.text, lineHeight: 20 },
+  // Quick Tickle body: QT dot, then the "Tickle it" pill and its dismiss
+  // X. Transparent with a 1.5dp accent-dark border (inline), like
+  // Button.js's secondary pills; 40dp tall like Home's pills.
+  quickRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  quickDot: {
+    width: 40, height: 40, borderRadius: 20, borderWidth: 1.5, backgroundColor: 'transparent',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  quickDotLabel: { fontSize: 12, fontWeight: '700' },
+  tickleItPill: {
+    minHeight: 40, paddingVertical: 8, paddingHorizontal: 14, justifyContent: 'center',
+    borderRadius: 20, borderWidth: 1.5, backgroundColor: 'transparent',
+  },
+  tickleItLabel: { fontSize: 12, fontWeight: '600' },
+  // 24dp circle; hitSlop (10) brings the tap target to 44dp.
+  tickleItDismiss: {
+    width: 24, height: 24, borderRadius: 12, borderWidth: 1, borderColor: C.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
   // alignSelf flex-start so the chip hugs its content instead of
   // stretching the full row; the title is the only part that shrinks,
   // so a long Tale title truncates without ever clipping "· Tic N".

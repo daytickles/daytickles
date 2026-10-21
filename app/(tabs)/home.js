@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, Image, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, RefreshControl, useWindowDimensions } from 'react-native';
+import { View, Text, Image, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, RefreshControl, Modal, AccessibilityInfo, useWindowDimensions } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { File } from 'expo-file-system';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { C, accentFor, NATURE_ORDER, NATURE_LABELS, VIBE_COLORS, vibeIconColor, withAlpha } from '../../lib/theme';
+import { C, accentFor, darken, NATURE_ORDER, NATURE_LABELS, VIBE_COLORS, vibeIconColor, withAlpha } from '../../lib/theme';
 import {
   isThisWeek, isThisMonth, localDateString, toLocalDateString, parseLocalDateString,
   currentWeekStartISO, monthStartISO, DEFAULT_WEEK_START_DAY,
@@ -17,6 +17,8 @@ import { flagEmoji } from '../../lib/country';
 import { initPinBoardDb, getPhotosForEntries } from '../../lib/pinBoardDb';
 import { fetchTokenBalance, fetchWishlistItems } from '../../lib/tokens';
 import { fetchFollowedTales } from '../../lib/tales';
+import { forgetQuickTickle } from '../../lib/quickTickle';
+import { showSaveFailed } from '../../lib/themedAlert';
 import Button from '../../components/Button';
 import VibeCard from '../../components/VibeCard';
 import NatureIcon from '../../components/NatureIcon';
@@ -28,6 +30,7 @@ import CornerNav from '../../components/CornerNav';
 import WallpaperBackground from '../../components/WallpaperBackground';
 import TesterFeedbackPill from '../../components/TesterFeedbackPill';
 import GoalTargetCircle from '../../components/GoalTargetCircle';
+import QuickTickleToast from '../../components/QuickTickleToast';
 import {
   requestReminderPermission,
   scheduleDailyReminder,
@@ -46,6 +49,10 @@ const HOME_CONTENT_MAX_WIDTH = 600;
 const HOME_SIDE_PADDING = 20;
 // How many Tickles the Remember this? row offers at most.
 const REMEMBER_MAX = 3;
+// Columns loadEntries reads, and a Quick Tickle's insert returns, so the
+// new row drops straight into `entries` in the same shape.
+const HOME_ENTRY_SELECT =
+  'id, entry_date, text_content, like_count, goal_id, tickle_nature, visibility, is_edited, created_at, user_id, entry_kind, local_photo_filename, media_url';
 
 // Same idea as feed.js's/calendar.js's own resolveLinkedPhotoUris --
 // resolves both photo_only entries and entry_kind='text' entries with a
@@ -198,6 +205,9 @@ function computeReturnedFromGap(entries) {
 export default function Home() {
   const { session, profile, refreshProfile } = useAuth();
   const accent = accentFor(profile?.accent_theme);
+  // Button.js's own border colour for New Tickle, so the Quick Tickle dot
+  // beside it matches.
+  const accentDark = darken(accent.card, 0.35);
   const tabBarHeight = useBottomTabBarHeight();
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
@@ -250,6 +260,13 @@ export default function Home() {
   const scrollRef = useRef(null);
   const [paceReminder, setPaceReminder] = useState(null);
   const [optInReminder, setOptInReminder] = useState(null);
+  // Quick Tickle: the Vibe popover, the insert in flight (rows and the
+  // dot button are disabled meanwhile), and the toast for the row just
+  // logged ({ id, label } or null).
+  const [quickPopoverOpen, setQuickPopoverOpen] = useState(false);
+  const [quickSaving, setQuickSaving] = useState(false);
+  const [quickToast, setQuickToast] = useState(null);
+  const quickDotRef = useRef(null);
 
   // Auto-show the first-time intro exactly once, gated on the DB flag —
   // not local/session state, so it stays correctly "seen" across
@@ -406,7 +423,7 @@ export default function Home() {
     if (!session) return;
     const { data, error } = await supabase
       .from('tickle_entries')
-      .select('id, entry_date, text_content, like_count, goal_id, tickle_nature, visibility, is_edited, created_at, user_id, entry_kind, local_photo_filename, media_url')
+      .select(HOME_ENTRY_SELECT)
       .eq('user_id', session.user.id)
       .order('entry_date', { ascending: false })
       .order('created_at', { ascending: false });
@@ -677,6 +694,86 @@ export default function Home() {
     router.push({ pathname: '/feed', params: { tab: 'mine', highlightEntry: entryId } });
   }
 
+  // Quick Tickle (the dot button beside New Tickle): one tap logs a
+  // private, text-less Tickle in the picked Vibe. text_content is null,
+  // never '' (see lib/quickTickle.js). No goal, Multickle or photo, so it
+  // earns no token, sends no Tic notification and uses no Ripple cap.
+  // The new row goes straight into `entries`, so the Vibe numbers and
+  // lightbulbs update without a reload.
+  async function handleQuickTickle(nature) {
+    if (quickSaving || !session) return;
+    setQuickSaving(true);
+    setQuickPopoverOpen(false);
+    setQuickToast(null);
+    const { data, error } = await supabase
+      .from('tickle_entries')
+      .insert({
+        user_id: session.user.id,
+        entry_date: localDateString(),
+        text_content: null,
+        tickle_nature: nature,
+        visibility: 'private',
+      })
+      .select(HOME_ENTRY_SELECT)
+      .single();
+    setQuickSaving(false);
+    if (error || !data) {
+      console.warn('handleQuickTickle: insert failed', error);
+      showSaveFailed();
+      return;
+    }
+    // Newest first, the order loadEntries uses.
+    setEntries((prev) => [data, ...prev]);
+    setQuickToast({ id: data.id, label: NATURE_LABELS[nature] });
+  }
+
+  // TalkBack focus back on the dot button once the toast has gone.
+  function focusQuickDot() {
+    if (quickDotRef.current) AccessibilityInfo.sendAccessibilityEvent(quickDotRef.current, 'focus');
+  }
+
+  function handleQuickToastTimeout() {
+    setQuickToast(null);
+    focusQuickDot();
+  }
+
+  // Deletes just the row this toast logged, by id. Nothing else needs
+  // undoing: its insert fired no notification, token or cap, and every
+  // count on Home is worked out from `entries`.
+  async function handleQuickUndo() {
+    const toast = quickToast;
+    if (!toast) return;
+    const previous = entries;
+    setQuickToast(null);
+    setEntries((prev) => prev.filter((e) => e.id !== toast.id));
+    const { error } = await supabase.from('tickle_entries').delete().eq('id', toast.id);
+    if (error) {
+      setEntries(previous);
+      showSaveFailed();
+    } else {
+      AccessibilityInfo.announceForAccessibility('Removed');
+      forgetQuickTickle(toast.id);
+    }
+    focusQuickDot();
+  }
+
+  // The existing Edit route, same as the ⋯ menu's Edit.
+  function handleQuickTickleIt() {
+    const toast = quickToast;
+    if (!toast) return;
+    setQuickToast(null);
+    router.push({ pathname: '/create', params: { entryId: toast.id } });
+  }
+
+  // Leaving Home closes the popover and the toast (with TalkBack on, the
+  // toast doesn't hide by itself).
+  useFocusEffect(
+    useCallback(() => () => {
+      setQuickPopoverOpen(false);
+      setQuickToast(null);
+    }, [])
+  );
+
   // Same tap-to-show/auto-hide-after-2s mechanism the old self-care
   // badge row used (showNatureTooltip, removed during this redesign) --
   // now applied to the Tickles/Likes/Shares stat pills instead. Tapping
@@ -926,9 +1023,12 @@ export default function Home() {
             // start at the beginning of the entry text.
             const text = (entry.text_content || '').replace(/\s+/g, ' ').trim();
             const label = !isPhotoOnly && text ? text : natureLabel;
-            const short = isPhotoOnly || !text
-              ? 'a photo'
-              : text.length > 60 ? `${text.slice(0, 60).trimEnd()}…` : text;
+            // A Quick Tickle (no text, no photo) is read as just its Vibe.
+            const short = !isPhotoOnly && !text
+              ? null
+              : isPhotoOnly
+                ? 'a photo'
+                : text.length > 60 ? `${text.slice(0, 60).trimEnd()}…` : text;
             return (
               <TouchableOpacity
                 key={entry.id}
@@ -936,7 +1036,7 @@ export default function Home() {
                 activeOpacity={0.7}
                 onPress={() => goToEntryInFeed(entry.id)}
                 accessibilityRole="button"
-                accessibilityLabel={`${natureLabel}, ${short}. Opens Tickle.`}
+                accessibilityLabel={short ? `${natureLabel}, ${short}. Opens Tickle.` : `${natureLabel}. Opens Tickle.`}
               >
                 {/* Any tagged nature, My Day's sun included -- NatureIcon
                     and vibeIconColor cover all four (lib/theme.js). */}
@@ -1384,7 +1484,36 @@ export default function Home() {
         </View>
         <Text style={styles.statPillsCaption}>Mojo Shared</Text>
 
-        <Button title="New Tickle" onPress={() => router.push('/create')} variant="secondary" style={styles.newTickleShadow} />
+        {/* New Tickle shares its row with the Quick Tickle dot, which
+            stretches to New Tickle's height (aspectRatio 1), so the two
+            stay the same height at any font scale. */}
+        <View style={styles.newTickleRow}>
+          <Button
+            title="New Tickle"
+            onPress={() => router.push('/create')}
+            variant="secondary"
+            style={[styles.newTickleShadow, styles.newTickleFlex]}
+          />
+          <TouchableOpacity
+            ref={quickDotRef}
+            onPress={() => {
+              setQuickToast(null);
+              setQuickPopoverOpen(true);
+            }}
+            disabled={quickSaving}
+            activeOpacity={0.8}
+            style={[styles.quickDot, styles.newTickleShadow, { borderColor: accentDark }]}
+            accessibilityRole="button"
+            accessibilityLabel="Quick Tickle: log a Vibe in one tap"
+            accessibilityState={{ expanded: quickPopoverOpen, disabled: quickSaving }}
+          >
+            <View style={styles.quickDotDots} accessible={false} importantForAccessibility="no-hide-descendants">
+              {NATURE_ORDER.map((key) => (
+                <View key={key} style={[styles.quickDotDot, { backgroundColor: VIBE_COLORS[key] }]} accessible={false} />
+              ))}
+            </View>
+          </TouchableOpacity>
+        </View>
         <TesterFeedbackPill scrollRef={scrollRef} />
 
         {loading && <ActivityIndicator color={C.rust} style={styles.loader} />}
@@ -1415,7 +1544,52 @@ export default function Home() {
         )}
       </View>
     </ScrollView>
+    <QuickTickleToast
+      toast={quickToast}
+      onUndo={handleQuickUndo}
+      onTickleIt={handleQuickTickleIt}
+      onTimeout={handleQuickToastTimeout}
+      style={[styles.quickToast, { bottom: tabBarHeight + 12 }]}
+    />
     </WallpaperBackground>
+
+    {/* Quick Tickle's Vibe popover -- same transparent Modal and dimmed
+        backdrop as EntryCard's ⋯ menu. A Modal is its own window on
+        Android, so TalkBack focus stays inside it. The backdrop is a
+        sibling behind the sheet, not its parent, so TalkBack reaches
+        "Close" and each row separately. */}
+    <Modal
+      visible={quickPopoverOpen}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setQuickPopoverOpen(false)}
+    >
+      <View style={styles.quickBackdrop}>
+        <TouchableOpacity
+          style={StyleSheet.absoluteFill}
+          activeOpacity={1}
+          onPress={() => setQuickPopoverOpen(false)}
+          accessibilityRole="button"
+          accessibilityLabel="Close"
+        />
+        <View style={styles.quickSheet}>
+          {NATURE_ORDER.map((key) => (
+            <TouchableOpacity
+              key={key}
+              style={styles.quickRow}
+              onPress={() => handleQuickTickle(key)}
+              disabled={quickSaving}
+              accessibilityRole="button"
+              accessibilityLabel={NATURE_LABELS[key]}
+              accessibilityState={{ disabled: quickSaving }}
+            >
+              <NatureIcon nature={key} size={18} color={vibeIconColor(key)} />
+              <Text style={styles.quickRowLabel}>{NATURE_LABELS[key]}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+    </Modal>
 
     <AboutModal
       visible={showGuide}
@@ -1502,6 +1676,34 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15, shadowRadius: 4, elevation: 3,
   },
+  // alignItems stretch: the dot takes New Tickle's height, and
+  // aspectRatio 1 makes its width match.
+  newTickleRow: { flexDirection: 'row', alignItems: 'stretch', gap: 10 },
+  newTickleFlex: { flex: 1 },
+  // Button.js's secondary look: C.bg fill, 1.5dp accent-dark border
+  // (applied inline).
+  quickDot: {
+    aspectRatio: 1, borderRadius: 999, borderWidth: 1.5, backgroundColor: C.bg,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  quickDotDots: { flexDirection: 'row', gap: 3 },
+  quickDotDot: { width: 7, height: 7, borderRadius: 3.5 },
+  // EntryCard's menuBackdrop/menuSheet/menuRow/menuRowLabel values.
+  quickBackdrop: {
+    flex: 1, backgroundColor: 'rgba(44,44,42,0.4)',
+    justifyContent: 'center', alignItems: 'center', padding: 32,
+  },
+  quickSheet: {
+    width: '100%', maxWidth: 280, backgroundColor: C.card, borderRadius: 18, padding: 8,
+  },
+  quickRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingVertical: 12, paddingHorizontal: 14, borderRadius: 12,
+  },
+  quickRowLabel: { fontSize: 15, color: C.text },
+  // Floats above the tab bar (bottom set inline), within Home's side
+  // padding.
+  quickToast: { position: 'absolute', left: HOME_SIDE_PADDING, right: HOME_SIDE_PADDING },
 
   loader: { marginTop: 12 },
   quickStartTopGap: { marginTop: 12 },

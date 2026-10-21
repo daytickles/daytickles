@@ -28,6 +28,7 @@ import {
 import { pickFromLibrary, pickImageFileByName } from '../../lib/pinBoardPhotos';
 import { DEFAULT_WEEK_START_DAY } from '../../lib/week';
 import { useShareCard } from '../../lib/useShareCard';
+import { forgetQuickTickle } from '../../lib/quickTickle';
 import { makePhotoTicklePublic, makePhotoTicklePrivate, deletePhotoTickleMedia } from '../../lib/photoTickleStorage';
 
 // Indexed like Date.getDay() (0 = Sunday). The header is rotated to the
@@ -557,6 +558,8 @@ export default function Calendar() {
       showSaveFailed();
       return;
     }
+    // Drops a Quick Tickle's "Tickle it" dismissal, if it had one.
+    forgetQuickTickle(entry.id);
 
     // Keep the month grid's count, Vibe icons and Goal dots in sync
     // without a full reload. The icon/dot sets are rebuilt from the day's

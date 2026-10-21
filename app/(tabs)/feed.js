@@ -33,6 +33,7 @@ import {
 import { pickFromLibrary, pickImageFileByName } from '../../lib/pinBoardPhotos';
 import { useShareCard } from '../../lib/useShareCard';
 import { getLastOpened, setLastOpened } from '../../lib/feedLastOpened';
+import { forgetQuickTickle } from '../../lib/quickTickle';
 import { makePhotoTicklePublic, makePhotoTicklePrivate, deletePhotoTickleMedia } from '../../lib/photoTickleStorage';
 
 const TABS = [
@@ -1009,7 +1010,10 @@ export default function Feed() {
     if (error) {
       setEntries(previous);
       showSaveFailed();
+      return;
     }
+    // Drops a Quick Tickle's "Tickle it" dismissal, if it had one.
+    forgetQuickTickle(entry.id);
   }
 
   // Reversible, unlike delete, so no confirmation dialog — same
