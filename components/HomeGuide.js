@@ -30,7 +30,7 @@ const STEPS = [
   },
   {
     title: 'Calendar',
-    body: "Calendar has four tabs. Tickles shows how many you wrote each day, Vibes shows each day's Vibe icons, Goals shows a coloured dot for each Goal you tagged, and Day Dots shows how each day went. Tap any day to see what you wrote.\n\nDot your day on the Tickle Stash, under Mine › My Day.",
+    body: "Each day on the Calendar shows your Day Dot, or a small open circle if you wrote Tickles but didn't dot that day. Tap a day, then tap Tickles or Goals to see what you wrote. Tickles also shows how many of each Vibe.\n\nDot your day on the Tickle Stash, under Mine › My Day.",
   },
   {
     title: 'Tickle Pics',
