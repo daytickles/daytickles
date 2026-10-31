@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { File } from 'expo-file-system';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { C, accentFor, darken, textOn, withAlpha, ALL_NATURES } from '../../lib/theme';
+import { C, accentFor, darken, textOn, withAlpha, ALL_NATURES, NATURE_LABELS, vibeIconColor } from '../../lib/theme';
 import { shareEntry, useShareStatus, sharePhotoOnlyEntry, SHARE_CAPTIONS } from '../../lib/sharing';
 import { alertCapBlocked, checkAndConsumeWeeklyCap, rippleFeatureFor } from '../../lib/freemiumCaps';
 import { showAlert, showSaveFailed } from '../../lib/themedAlert';
@@ -22,8 +22,7 @@ import EntryCard from '../../components/EntryCard';
 import CornerNav from '../../components/CornerNav';
 import WallpaperBackground from '../../components/WallpaperBackground';
 import {
-  initPinBoardDb, getAllLinkedEntryIds, getPhotoForEntry, getPinnedPhotoDatesInRange,
-  getPhotosForEntries, relinkPhotoToEntry,
+  initPinBoardDb, getAllLinkedEntryIds, getPhotoForEntry, getPhotosForEntries, relinkPhotoToEntry,
 } from '../../lib/pinBoardDb';
 import { pickFromLibrary, pickImageFileByName } from '../../lib/pinBoardPhotos';
 import { DEFAULT_WEEK_START_DAY } from '../../lib/week';
@@ -41,6 +40,8 @@ const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 // per-day cell -- not meant to be pixel-precise, just enough spread that a
 // small pick reads visibly smaller than a large one at a glance.
 const DAY_DOTS_SIZES = [9, 12, 15, 18];
+// Words for each DAY_DOTS_SIZES pick, for the grid cells' TalkBack label.
+const DAY_DOTS_SIZE_WORDS = ['small', 'medium', 'large', 'extra large'];
 
 const ENTRY_SELECT =
   'id, entry_date, text_content, like_count, tickle_nature, goal_id, tale_id, visibility, is_edited, created_at, user_id, entry_kind, local_photo_filename, media_url, profiles!tickle_entries_user_id_fkey(username, avatar_emoji, accent_theme, country, founding_member_number)';
@@ -81,11 +82,10 @@ function isoDate(year, month, day) {
 export default function Calendar() {
   const { session, profile } = useAuth();
   const accentDark = darken(accentFor(profile?.accent_theme).card, 0.35);
-  const accentDarkText = textOn(accentDark);
   // Selected-day-cell background is the person's actual accent color,
-  // not the darkened shade above (accentDark/accentDarkText stay as-is
-  // for the Tickles/Tickle Vibes toggle pill and the unselected "today"
-  // label, neither of which has this contrast issue) -- accentCardText
+  // not the darkened shade above (accentDark stays as-is for the
+  // unselected "today" label and the hollow "has Tickles" dot, neither
+  // of which has this contrast issue) -- accentCardText
   // is the correct-contrast color for anything drawn on top of it.
   const accentCard = accentFor(profile?.accent_theme).card;
   const accentCardText = textOn(accentCard);
@@ -96,22 +96,21 @@ export default function Calendar() {
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
   const [countsByDate, setCountsByDate] = useState({});
-  const [natureCategoriesByDate, setNatureCategoriesByDate] = useState({});
-  const [goalIdsByDate, setGoalIdsByDate] = useState({});
-  const [viewMode, setViewMode] = useState('numbers');
   const [loading, setLoading] = useState(true);
 
   const [selectedDate, setSelectedDate] = useState(null);
   const [dayEntries, setDayEntries] = useState([]);
   const [dayLoading, setDayLoading] = useState(false);
+  // Which of the selected day's summary pills is open: 'tickles',
+  // 'goals' or null. Stays open when another day is tapped, so days can
+  // be browsed with the same detail showing.
+  const [openPill, setOpenPill] = useState(null);
 
   // 'YYYY-MM-DD' -> { status, dot_index } for whichever month is in view --
   // a day with no key here simply has no day_dots row yet (unanswered),
   // same shape as weekly-summary.js's own dayDotsPicks but keeping status
   // too (that screen only ever renders answered rows; this grid also needs
-  // to distinguish skipped from unanswered). No separate selected-date
-  // state -- 'daydots' is a 4th viewMode sharing selectedDate/selectDate
-  // with Tickles/Vibes/Goals, same as those three already share it.
+  // to distinguish skipped from unanswered).
   const [dayDotsByDate, setDayDotsByDate] = useState({});
 
   const [goals, setGoals] = useState([]);
@@ -131,7 +130,6 @@ export default function Calendar() {
   // rather than a screen-wide entries list.
   const [awardedPublicTypes, setAwardedPublicTypes] = useState(new Map());
   const [photoLinkedIds, setPhotoLinkedIds] = useState(new Set());
-  const [photoDatesInMonth, setPhotoDatesInMonth] = useState(new Set());
   // Map<entryId, uri> -- same shape/reasoning as feed.js's own
   // linkedPhotoUris, resolved for whichever day's entries are currently
   // loaded (see loadDayEntries below).
@@ -157,13 +155,10 @@ export default function Calendar() {
     if (!error) setFavoritedIds(new Set((data || []).map((f) => f.entry_id)));
   }, [session]);
 
-  // Month-grid dots only need id + entry_date (+ tickle_nature, for
-  // Vibes' per-day category icons, + goal_id for Goals' per-day color
-  // dots) — the full ENTRY_SELECT payload is fetched separately, per
-  // day, only once a day is tapped.
-  // Same (user_id, entry_date) shape as idx_entries_user_date, so adding
-  // these columns to the select list stays within the same indexed
-  // range scan rather than costing a second round-trip.
+  // The month grid only needs each day's count (for the hollow
+  // "has Tickles" dot) -- the full ENTRY_SELECT payload is fetched
+  // separately, per day, only once a day is tapped.
+  // Same (user_id, entry_date) shape as idx_entries_user_date.
   const loadMonth = useCallback(async () => {
     if (!session) return;
     setLoading(true);
@@ -172,51 +167,30 @@ export default function Calendar() {
 
     const { data, error } = await supabase
       .from('tickle_entries')
-      .select('id, entry_date, tickle_nature, goal_id')
+      .select('id, entry_date')
       .eq('user_id', session.user.id)
       .gte('entry_date', start)
       .lte('entry_date', end);
 
     if (!error) {
       const counts = {};
-      const natureCategories = {};
-      const goalIds = {};
       (data || []).forEach((e) => {
         counts[e.entry_date] = (counts[e.entry_date] || 0) + 1;
-        // The three Vibes and My Day each earn a badge (ALL_NATURES);
-        // untagged (null) entries don't.
-        if (ALL_NATURES.includes(e.tickle_nature)) {
-          if (!natureCategories[e.entry_date]) natureCategories[e.entry_date] = new Set();
-          natureCategories[e.entry_date].add(e.tickle_nature);
-        }
-        if (e.goal_id) {
-          if (!goalIds[e.entry_date]) goalIds[e.entry_date] = new Set();
-          goalIds[e.entry_date].add(e.goal_id);
-        }
       });
       setCountsByDate(counts);
-      setNatureCategoriesByDate(natureCategories);
-      setGoalIdsByDate(goalIds);
     }
     setLoading(false);
   }, [session, viewYear, viewMonth]);
 
   // Same init-before-query shape as pinboard.js's loadBoard, so Calendar's
   // local Pin Board queries work even if this screen is opened before the
-  // Pin Board tables have ever been created. Both queries share the same
-  // visible-month range loadMonth already computes for the tickle counts.
+  // Pin Board tables have ever been created.
   const loadPinBoardData = useCallback(async () => {
     if (!session) return;
     await initPinBoardDb(session.user.id);
-    const start = isoDate(viewYear, viewMonth, 1);
-    const end = isoDate(viewYear, viewMonth, new Date(viewYear, viewMonth + 1, 0).getDate());
-    const [linkedIds, photoDates] = await Promise.all([
-      getAllLinkedEntryIds(session.user.id),
-      getPinnedPhotoDatesInRange(session.user.id, start, end),
-    ]);
+    const linkedIds = await getAllLinkedEntryIds(session.user.id);
     setPhotoLinkedIds(new Set(linkedIds));
-    setPhotoDatesInMonth(new Set(photoDates));
-  }, [session, viewYear, viewMonth]);
+  }, [session]);
 
   // Own loader, same (start, end) range shape as loadMonth above but a
   // separate query against day_dots rather than tickle_entries -- Day
@@ -378,6 +352,7 @@ export default function Calendar() {
     setViewYear(year);
     setSelectedDate(null);
     setDayEntries([]);
+    setOpenPill(null);
   }
 
   const goalsById = Object.fromEntries(goals.map((g) => [g.id, g]));
@@ -561,33 +536,14 @@ export default function Calendar() {
     // Drops a Quick Tickle's "Tickle it" dismissal, if it had one.
     forgetQuickTickle(entry.id);
 
-    // Keep the month grid's count, Vibe icons and Goal dots in sync
-    // without a full reload. The icon/dot sets are rebuilt from the day's
-    // remaining entries, with the same tests loadMonth uses.
+    // Keep the month grid's count (and so its hollow dot) in sync
+    // without a full reload.
     setCountsByDate((prev) => {
       if (!selectedDate || !prev[selectedDate]) return prev;
       const next = { ...prev };
       const remaining = next[selectedDate] - 1;
       if (remaining <= 0) delete next[selectedDate];
       else next[selectedDate] = remaining;
-      return next;
-    });
-    if (!selectedDate) return;
-    const remainingEntries = previous.filter((e) => e.id !== entry.id);
-    const natures = new Set(
-      remainingEntries.filter((e) => ALL_NATURES.includes(e.tickle_nature)).map((e) => e.tickle_nature)
-    );
-    const goalIds = new Set(remainingEntries.filter((e) => e.goal_id).map((e) => e.goal_id));
-    setNatureCategoriesByDate((prev) => {
-      const next = { ...prev };
-      if (natures.size) next[selectedDate] = natures;
-      else delete next[selectedDate];
-      return next;
-    });
-    setGoalIdsByDate((prev) => {
-      const next = { ...prev };
-      if (goalIds.size) next[selectedDate] = goalIds;
-      else delete next[selectedDate];
       return next;
     });
   }
@@ -661,27 +617,14 @@ export default function Calendar() {
     }
   }
 
-  // Vibes / Goals each show only entries matching their own tag test
-  // (nature category / goal_id truthiness) -- the same tests loadMonth
-  // already uses to decide which days earn a grid badge, so a day that
-  // shows any badge is guaranteed to have at least one visible entry
-  // here.
-  // Client-side filter on already-fetched data, not a new query -- a
-  // single day's entries are a small dataset.
-  const visibleDayEntries =
-    viewMode === 'vibes'
-      ? dayEntries.filter((e) => ALL_NATURES.includes(e.tickle_nature))
-      : viewMode === 'goals'
-      ? dayEntries.filter((e) => e.goal_id)
-      : dayEntries;
-  // Vibes / Goals name their own tag, so a day with Tickles that just
-  // don't match the active tab never reads as "No Tickles this day".
-  const emptyDayText =
-    viewMode === 'vibes'
-      ? 'No Tickles with a Vibe this day.'
-      : viewMode === 'goals'
-      ? 'No Goal-tagged Tickles this day.'
-      : 'No Tickles this day.';
+  // The selected day's pill counts and Goals list come from the day's
+  // already-loaded entries, so a delete or a Goal-tag change updates
+  // them in place with no extra query.
+  const goalDayEntries = dayEntries.filter((e) => e.goal_id);
+  const dayPills = [
+    { key: 'tickles', label: 'Tickles', count: dayEntries.length },
+    { key: 'goals', label: 'Goals', count: goalDayEntries.length },
+  ];
 
   const pickerEntry = dayEntries.find((e) => e.id === pickerEntryId) || null;
   const talePickerEntry = dayEntries.find((e) => e.id === talePickerEntryId) || null;
@@ -705,6 +648,35 @@ export default function Calendar() {
   });
   const todayStr = isoDate(today.getFullYear(), today.getMonth(), today.getDate());
   const selectedDayDotsEntry = selectedDate ? dayDotsByDate[selectedDate] : null;
+
+  function renderEntryCard(item) {
+    return (
+      <EntryCard
+        key={item.id}
+        item={item}
+        currentUserId={session.user.id}
+        showMineActions
+        isHighlighted={false}
+        isFollowing={false}
+        isFavorited={favoritedIds.has(item.id)}
+        isLiked={false}
+        taggedGoal={item.goal_id ? goalsById[item.goal_id] : null}
+        taleBadge={taleBadges.get(item.id) || null}
+        hasLinkedPhoto={photoLinkedIds.has(item.id)}
+        photoUri={linkedPhotoUris.get(item.id) || null}
+        awardType={awardedTypes.get(item.id) || null}
+        publicAwardTypes={awardedPublicTypes.get(item.id) || []}
+        onOpenPhoto={handleOpenPhoto}
+        onRelinkPhoto={handleRelinkPhoto}
+        onPickGoal={setPickerEntryId}
+        onPickTale={setTalePickerEntryId}
+        onShare={() => (item.entry_kind === 'photo_only' ? handlePhotoOnlyShare(item) : setShareEntryId(item.id))}
+        onToggleFavorite={handleToggleFavorite}
+        onToggleVisibility={handleToggleVisibility}
+        onDelete={handleDeleteEntry}
+      />
+    );
+  }
 
   return (
     <>
@@ -731,25 +703,6 @@ export default function Calendar() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.viewModeRow}>
-          {['numbers', 'vibes', 'goals', 'daydots'].map((mode) => {
-            const selected = viewMode === mode;
-            const label =
-              mode === 'numbers' ? 'Tickles' : mode === 'vibes' ? 'Vibes' : mode === 'goals' ? 'Goals' : 'Day Dots';
-            return (
-              <TouchableOpacity
-                key={mode}
-                onPress={() => setViewMode(mode)}
-                style={[styles.viewModeOption, selected && { backgroundColor: accentDark, borderColor: accentDark }]}
-              >
-                <Text style={[styles.viewModeOptionLabel, selected && { color: accentDarkText }]}>
-                  {label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
         <View style={styles.calendarCard}>
           <View style={styles.weekdayRow}>
             {weekdayLabels.map((label, i) => (
@@ -766,23 +719,26 @@ export default function Calendar() {
 
                 const dateStr = isoDate(viewYear, viewMonth, day);
                 const count = countsByDate[dateStr] || 0;
-                const hasPhoto = photoDatesInMonth.has(dateStr);
                 const isSelected = selectedDate === dateStr;
                 const isToday = dateStr === todayStr;
                 const dotEntry = dayDotsByDate[dateStr];
                 const dotSize = dotEntry?.status === 'answered' ? DAY_DOTS_SIZES[dotEntry.dotIndex] : null;
+                const a11yParts = [
+                  new Date(viewYear, viewMonth, day).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' }),
+                  count === 0 ? 'no Tickles' : `${count} ${count === 1 ? 'Tickle' : 'Tickles'}`,
+                ];
+                if (dotEntry?.status === 'answered') a11yParts.push(`Day Dot ${DAY_DOTS_SIZE_WORDS[dotEntry.dotIndex]}`);
+                else if (dotEntry?.status === 'skipped') a11yParts.push('Day Dot skipped');
 
                 return (
                   <TouchableOpacity
                     key={i}
                     style={[styles.dayCell, isSelected && { backgroundColor: accentCard }]}
                     onPress={() => selectDate(dateStr)}
+                    accessibilityRole="button"
+                    accessibilityLabel={a11yParts.join(', ')}
+                    accessibilityState={{ selected: isSelected }}
                   >
-                    {hasPhoto && (
-                      <View style={styles.photoBadge}>
-                        <Ionicons name="camera-outline" size={9} color={isSelected ? accentCardText : C.subtext} />
-                      </View>
-                    )}
                     <Text
                       style={[
                         styles.dayLabel,
@@ -792,67 +748,34 @@ export default function Calendar() {
                     >
                       {day}
                     </Text>
-                    {viewMode === 'vibes' ? (
-                      <View style={styles.vibesIconRow}>
-                        {ALL_NATURES.filter((nature) => natureCategoriesByDate[dateStr]?.has(nature)).map(
-                          (nature) => (
-                            <NatureIcon
-                              key={nature}
-                              nature={nature}
-                              size={9}
-                              color={isSelected ? accentCardText : accentDark}
-                            />
-                          )
-                        )}
-                      </View>
-                    ) : viewMode === 'goals' ? (
-                      <View style={styles.goalsDotRow}>
-                        {goals
-                          .filter((g) => goalIdsByDate[dateStr]?.has(g.id))
-                          .map((g) => (
-                            <View key={g.id} style={[styles.goalDayDot, { backgroundColor: g.color }]} />
-                          ))}
-                      </View>
-                    ) : viewMode === 'daydots' ? (
-                      <View style={styles.dayDotsBadgeSlot}>
-                        {dotEntry?.status === 'answered' ? (
-                          <View
-                            style={[
-                              styles.dayDotsDot,
-                              {
-                                width: dotSize, height: dotSize, borderRadius: dotSize / 2,
-                                backgroundColor: isSelected ? accentCardText : withAlpha(accentCard, 0.35),
-                                borderColor: isSelected ? accentCardText : darken(accentCard, 0.15),
-                              },
-                            ]}
-                          />
-                        ) : dotEntry?.status === 'skipped' ? (
-                          <View
-                            style={[
-                              styles.dayDotsSkipMark,
-                              { backgroundColor: isSelected ? accentCardText : C.subtext },
-                            ]}
-                          />
-                        ) : (
-                          // Same dashed-outline treatment as this grid's own
-                          // countBadgeEmpty below -- "nothing here yet" for
-                          // this day, whether that's because it hasn't
-                          // happened yet or it simply passed unanswered
-                          // (Tickles' own count badge doesn't distinguish
-                          // those two cases either).
-                          <View
-                            style={[
-                              styles.dayDotsEmptyCircle,
-                              isSelected && { borderColor: accentCardText },
-                            ]}
-                          />
-                        )}
-                      </View>
-                    ) : (
-                      <View style={[styles.countBadge, count === 0 && styles.countBadgeEmpty]}>
-                        {count > 0 && <Text style={styles.countBadgeText}>{count > 9 ? '9+' : count}</Text>}
-                      </View>
-                    )}
+                    {/* One mark per day: the Day Dot if there is a row,
+                        else a small hollow dot if the day has Tickles,
+                        else nothing. */}
+                    <View style={styles.dayMarkSlot}>
+                      {dotEntry?.status === 'answered' ? (
+                        <View
+                          style={[
+                            styles.dayDotsDot,
+                            {
+                              width: dotSize, height: dotSize, borderRadius: dotSize / 2,
+                              backgroundColor: isSelected ? accentCardText : withAlpha(accentCard, 0.35),
+                              borderColor: isSelected ? accentCardText : darken(accentCard, 0.15),
+                            },
+                          ]}
+                        />
+                      ) : dotEntry?.status === 'skipped' ? (
+                        <View
+                          style={[
+                            styles.dayDotsSkipMark,
+                            { backgroundColor: isSelected ? accentCardText : C.subtext },
+                          ]}
+                        />
+                      ) : count > 0 ? (
+                        <View
+                          style={[styles.hasTicklesDot, { borderColor: isSelected ? accentCardText : accentDark }]}
+                        />
+                      ) : null}
+                    </View>
                   </TouchableOpacity>
                 );
               })}
@@ -870,67 +793,92 @@ export default function Calendar() {
                 timeZone: 'UTC',
               })}
             </Text>
-            {viewMode === 'daydots' ? (
-              // Day Dots isn't tickle_entries-backed like the other three
-              // modes, so it can't join their dayLoading/visibleDayEntries/
-              // EntryCard branch below -- own status readout instead,
-              // sharing only the title/card wrapper above with them.
-              <>
-                {selectedDayDotsEntry?.status === 'answered' && (
-                  <View style={styles.dayDotsDetailRow}>
-                    <View
-                      style={[
-                        styles.dayDotsDot,
-                        {
-                          width: DAY_DOTS_SIZES[selectedDayDotsEntry.dotIndex],
-                          height: DAY_DOTS_SIZES[selectedDayDotsEntry.dotIndex],
-                          borderRadius: DAY_DOTS_SIZES[selectedDayDotsEntry.dotIndex] / 2,
-                          backgroundColor: withAlpha(accentCard, 0.35),
-                          borderColor: darken(accentCard, 0.15),
-                        },
-                      ]}
-                    />
-                    <Text style={styles.dayDotsDetailText}>Dotted your day</Text>
-                  </View>
-                )}
-                {selectedDayDotsEntry?.status === 'skipped' && (
-                  <View style={styles.dayDotsDetailRow}>
-                    <View style={[styles.dayDotsSkipMark, { backgroundColor: C.subtext }]} />
-                    <Text style={styles.dayDotsDetailText}>Skipped</Text>
-                  </View>
-                )}
-              </>
+            {/* Day Dots isn't a Tickle (no tickle_entries row), so its
+                result is a single readout line rather than a pill. */}
+            {selectedDayDotsEntry?.status === 'answered' && (
+              <View style={styles.dayDotsDetailRow}>
+                <View
+                  style={[
+                    styles.dayDotsDot,
+                    {
+                      width: DAY_DOTS_SIZES[selectedDayDotsEntry.dotIndex],
+                      height: DAY_DOTS_SIZES[selectedDayDotsEntry.dotIndex],
+                      borderRadius: DAY_DOTS_SIZES[selectedDayDotsEntry.dotIndex] / 2,
+                      backgroundColor: withAlpha(accentCard, 0.35),
+                      borderColor: darken(accentCard, 0.15),
+                    },
+                  ]}
+                />
+                <Text style={styles.dayDotsDetailText}>Dotted your day</Text>
+              </View>
+            )}
+            {selectedDayDotsEntry?.status === 'skipped' && (
+              <View style={styles.dayDotsDetailRow}>
+                <View style={[styles.dayDotsSkipMark, { backgroundColor: C.subtext }]} />
+                <Text style={styles.dayDotsDetailText}>Skipped</Text>
+              </View>
+            )}
+
+            {/* Counts are left off while the day is loading, so a
+                previous day's numbers never show under this day's date. */}
+            <View style={styles.dayPillsRow}>
+              {dayPills.map((pill) => {
+                const isOpen = openPill === pill.key;
+                const label = dayLoading ? pill.label : `${pill.label} ${pill.count}`;
+                return (
+                  <TouchableOpacity
+                    key={pill.key}
+                    style={[
+                      styles.dayPill,
+                      { borderColor: accentCard },
+                      isOpen && styles.dayPillOpen,
+                      isOpen && { borderColor: accentDark, backgroundColor: withAlpha(accentCard, 0.18) },
+                    ]}
+                    activeOpacity={0.7}
+                    onPress={() => setOpenPill(isOpen ? null : pill.key)}
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: isOpen }}
+                    accessibilityLabel={label}
+                  >
+                    <Text style={styles.dayPillLabel}>{label}</Text>
+                    <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={16} color={C.subtext} />
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {openPill === null ? (
+              <Text style={styles.dayPillsHint}>Tap a pill to see the detail.</Text>
             ) : dayLoading ? (
               <ActivityIndicator color={C.rust} style={styles.loader} />
-            ) : visibleDayEntries.length === 0 ? (
-              <Text style={styles.emptyText}>{emptyDayText}</Text>
+            ) : openPill === 'tickles' ? (
+              dayEntries.length === 0 ? (
+                <Text style={styles.emptyText}>No Tickles this day.</Text>
+              ) : (
+                <>
+                  <View style={styles.vibeCountRow}>
+                    {ALL_NATURES.map((nature) => {
+                      const n = dayEntries.filter((e) => e.tickle_nature === nature).length;
+                      return (
+                        <View
+                          key={nature}
+                          style={styles.vibeCountChip}
+                          accessible
+                          accessibilityLabel={`${NATURE_LABELS[nature]}: ${n}`}
+                        >
+                          <NatureIcon nature={nature} size={14} color={vibeIconColor(nature)} />
+                          <Text style={styles.vibeCountText}>{n}</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                  {dayEntries.map(renderEntryCard)}
+                </>
+              )
+            ) : goalDayEntries.length === 0 ? (
+              <Text style={styles.emptyText}>No Goal-tagged Tickles this day.</Text>
             ) : (
-              visibleDayEntries.map((item) => (
-                <EntryCard
-                  key={item.id}
-                  item={item}
-                  currentUserId={session.user.id}
-                  showMineActions
-                  isHighlighted={false}
-                  isFollowing={false}
-                  isFavorited={favoritedIds.has(item.id)}
-                  isLiked={false}
-                  taggedGoal={item.goal_id ? goalsById[item.goal_id] : null}
-                  taleBadge={taleBadges.get(item.id) || null}
-                  hasLinkedPhoto={photoLinkedIds.has(item.id)}
-                  photoUri={linkedPhotoUris.get(item.id) || null}
-                  awardType={awardedTypes.get(item.id) || null}
-                  publicAwardTypes={awardedPublicTypes.get(item.id) || []}
-                  onOpenPhoto={handleOpenPhoto}
-                  onRelinkPhoto={handleRelinkPhoto}
-                  onPickGoal={setPickerEntryId}
-                  onPickTale={setTalePickerEntryId}
-                  onShare={() => (item.entry_kind === 'photo_only' ? handlePhotoOnlyShare(item) : setShareEntryId(item.id))}
-                  onToggleFavorite={handleToggleFavorite}
-                  onToggleVisibility={handleToggleVisibility}
-                  onDelete={handleDeleteEntry}
-                />
-              ))
+              goalDayEntries.map(renderEntryCard)
             )}
           </View>
         )}
@@ -985,13 +933,6 @@ const styles = StyleSheet.create({
   },
   monthLabel: { fontSize: 16, fontWeight: '700', color: C.rustDark },
 
-  viewModeRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
-  viewModeOption: {
-    flex: 1, paddingVertical: 8, borderRadius: 20,
-    alignItems: 'center', backgroundColor: C.card, borderWidth: 1, borderColor: C.border,
-  },
-  viewModeOptionLabel: { fontSize: 12, fontWeight: '600', color: C.subtext },
-
   calendarCard: {
     backgroundColor: C.card,
     borderRadius: 6,
@@ -1015,26 +956,14 @@ const styles = StyleSheet.create({
     width: '14.28%', aspectRatio: 1, borderRadius: 8, position: 'relative',
     alignItems: 'center', justifyContent: 'center', marginBottom: 4,
   },
-  photoBadge: { position: 'absolute', top: 2, right: 4 },
   dayLabel: { fontSize: 14, color: C.text },
-  countBadge: {
-    minWidth: 16, height: 16, borderRadius: 8, marginTop: 2,
-    backgroundColor: C.teal, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3,
-  },
-  countBadgeEmpty: {
-    backgroundColor: 'transparent', borderWidth: 1.5, borderStyle: 'dashed', borderColor: C.faint,
-  },
-  countBadgeText: { fontSize: 10, fontWeight: '700', color: C.bg },
-  // Fixed height matches countBadge's own 16px so the day number doesn't
-  // shift vertically between a day with 0 vs. up to 3 icons (dayCell
-  // centers its content) -- an empty day is just blank space at the
-  // same height, not a placeholder glyph.
-  vibesIconRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2, height: 16, marginTop: 2 },
-  // Same fixed 16px height/margin as vibesIconRow, for the same reason
-  // -- keeps the day number from shifting vertically when switching
-  // between Tickles/Vibes/Goals tabs.
-  goalsDotRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2, height: 16, marginTop: 2 },
-  goalDayDot: { width: 7, height: 7, borderRadius: 3.5 },
+  // Fixed height (fits DAY_DOTS_SIZES' largest 18px dot) so the day
+  // number sits at the same spot whichever mark -- or none -- is drawn.
+  dayMarkSlot: { alignItems: 'center', justifyContent: 'center', height: 20, marginTop: 2 },
+  dayDotsDot: { borderWidth: 1.5 },
+  dayDotsSkipMark: { width: 10, height: 2, borderRadius: 1 },
+  // A day with Tickles but no Day Dot row.
+  hasTicklesDot: { width: 6, height: 6, borderRadius: 3, borderWidth: 1.5 },
 
   loader: { marginTop: 12 },
   emptyText: { color: C.subtext, textAlign: 'center', marginTop: 12 },
@@ -1042,19 +971,29 @@ const styles = StyleSheet.create({
   dayEntriesSection: { marginTop: 20 },
   dayEntriesTitle: { fontSize: 16, fontWeight: '700', color: C.rustDark, marginBottom: 10 },
 
-  // Taller than the Tickles grid's own fixed 16px badge slot (vibesIconRow/
-  // goalsDotRow/countBadge) -- DAY_DOTS_SIZES' largest dot (18px) doesn't
-  // fit inside that shorter slot without clipping.
-  dayDotsBadgeSlot: { alignItems: 'center', justifyContent: 'center', height: 20, marginTop: 2 },
-  dayDotsDot: { borderWidth: 1.5 },
-  dayDotsSkipMark: { width: 10, height: 2, borderRadius: 1 },
-  // Same dashed treatment as countBadgeEmpty above, sized as a plain
-  // circle rather than a count-badge shape (no text ever goes inside it).
-  dayDotsEmptyCircle: {
-    width: 12, height: 12, borderRadius: 6,
-    borderWidth: 1.5, borderStyle: 'dashed', borderColor: C.faint,
-  },
-
-  dayDotsDetailRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  dayDotsDetailRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
   dayDotsDetailText: { fontSize: 14, color: C.text, fontWeight: '600' },
+
+  // Home's statPill look (card fill, accent border, borderRadius 999 so
+  // it stays a pill at any height) at a 42dp tap height. minHeight, not
+  // height, so the label can wrap to two lines at large font scales;
+  // the row stretches both pills to the taller one.
+  dayPillsRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
+  dayPill: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    minHeight: 42, paddingVertical: 6, paddingHorizontal: 12,
+    backgroundColor: C.card, borderWidth: 1.5, borderRadius: 999,
+  },
+  dayPillOpen: { borderWidth: 2 },
+  dayPillLabel: { flexShrink: 1, fontSize: 15, fontWeight: '600', color: C.text, textAlign: 'center' },
+  dayPillsHint: { fontSize: 14, color: C.subtext, textAlign: 'center', marginTop: 2 },
+
+  // Four equal chips, one per ALL_NATURES entry, above the day's cards.
+  vibeCountRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
+  vibeCountChip: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
+    paddingVertical: 6, borderRadius: 999,
+    backgroundColor: C.card, borderWidth: 1, borderColor: C.border,
+  },
+  vibeCountText: { fontSize: 13, fontWeight: '700', color: C.text },
 });
