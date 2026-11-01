@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, Image, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, RefreshControl, Modal, AccessibilityInfo, useWindowDimensions } from 'react-native';
+import { View, Text, Image, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, RefreshControl, AccessibilityInfo, useWindowDimensions } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { File } from 'expo-file-system';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { C, accentFor, darken, textOn, NATURE_ORDER, NATURE_LABELS, VIBE_COLORS, vibeIconColor, withAlpha } from '../../lib/theme';
+import { C, accentFor, darken, NATURE_ORDER, NATURE_LABELS, VIBE_COLORS, vibeIconColor, withAlpha } from '../../lib/theme';
 import {
   isThisWeek, isThisMonth, localDateString, toLocalDateString, parseLocalDateString,
   currentWeekStartISO, monthStartISO, DEFAULT_WEEK_START_DAY,
@@ -17,7 +17,7 @@ import { flagEmoji } from '../../lib/country';
 import { initPinBoardDb, getPhotosForEntries } from '../../lib/pinBoardDb';
 import { fetchTokenBalance, fetchWishlistItems } from '../../lib/tokens';
 import { fetchFollowedTales } from '../../lib/tales';
-import { forgetQuickTickle } from '../../lib/quickTickle';
+import { forgetQuickTickle, insertQuickTickle } from '../../lib/quickTickle';
 import { showSaveFailed } from '../../lib/themedAlert';
 import Button from '../../components/Button';
 import VibeCard from '../../components/VibeCard';
@@ -31,6 +31,7 @@ import WallpaperBackground from '../../components/WallpaperBackground';
 import TesterFeedbackPill from '../../components/TesterFeedbackPill';
 import GoalTargetCircle from '../../components/GoalTargetCircle';
 import QuickTickleToast from '../../components/QuickTickleToast';
+import QuickTicklePopover from '../../components/QuickTicklePopover';
 import {
   requestReminderPermission,
   scheduleDailyReminder,
@@ -49,12 +50,6 @@ const HOME_CONTENT_MAX_WIDTH = 600;
 const HOME_SIDE_PADDING = 20;
 // How many Tickles the Remember this? row offers at most.
 const REMEMBER_MAX = 3;
-// Quick Tickle popover: sheet width (capped at the window width less
-// 40dp), its gap to the dot, and its minimum distance from the safe-area
-// edges.
-const QUICK_SHEET_WIDTH = 236;
-const QUICK_SHEET_GAP = 10;
-const QUICK_SHEET_EDGE = 8;
 // Columns loadEntries reads, and a Quick Tickle's insert returns, so the
 // new row drops straight into `entries` in the same shape.
 const HOME_ENTRY_SELECT =
@@ -273,11 +268,9 @@ export default function Home() {
   const [quickSaving, setQuickSaving] = useState(false);
   const [quickToast, setQuickToast] = useState(null);
   const quickDotRef = useRef(null);
-  // Popover placement: the dot's measureInWindow box, the Modal's own
-  // size, and the sheet's laid-out height (it grows with font scale).
+  // Popover placement: the dot's measureInWindow box (see
+  // components/QuickTicklePopover.js).
   const [quickAnchor, setQuickAnchor] = useState(null);
-  const [quickModalSize, setQuickModalSize] = useState(null);
-  const [quickSheetHeight, setQuickSheetHeight] = useState(null);
 
   // Auto-show the first-time intro exactly once, gated on the DB flag —
   // not local/session state, so it stays correctly "seen" across
@@ -716,17 +709,7 @@ export default function Home() {
     setQuickSaving(true);
     setQuickPopoverOpen(false);
     setQuickToast(null);
-    const { data, error } = await supabase
-      .from('tickle_entries')
-      .insert({
-        user_id: session.user.id,
-        entry_date: localDateString(),
-        text_content: null,
-        tickle_nature: nature,
-        visibility: 'private',
-      })
-      .select(HOME_ENTRY_SELECT)
-      .single();
+    const { data, error } = await insertQuickTickle(session.user.id, nature, HOME_ENTRY_SELECT);
     setQuickSaving(false);
     if (error || !data) {
       console.warn('handleQuickTickle: insert failed', error);
@@ -753,39 +736,6 @@ export default function Home() {
       setQuickPopoverOpen(true);
     });
   }
-
-  // Where the sheet goes: right edge on the dot's right edge, 10dp above
-  // it, or 10dp below when there isn't room above (large font, or Home
-  // scrolled so the dot is near the top). Always clamped inside the
-  // safe area. null until the Modal and the sheet have been laid out.
-  function quickSheetPosition() {
-    if (!quickModalSize || quickSheetHeight == null) return null;
-    const { width: W, height: H } = quickModalSize;
-    const sheetWidth = Math.min(QUICK_SHEET_WIDTH, W - 40);
-    const minLeft = insets.left + QUICK_SHEET_EDGE;
-    const maxLeft = W - insets.right - QUICK_SHEET_EDGE - sheetWidth;
-    const minTop = insets.top + QUICK_SHEET_EDGE;
-    const maxTop = H - insets.bottom - QUICK_SHEET_EDGE - quickSheetHeight;
-    // Prefers the low end, so a sheet taller than the screen starts at the top.
-    const clamp = (v, lo, hi) => Math.max(lo, Math.min(v, hi));
-    if (!quickAnchor) {
-      return {
-        width: sheetWidth,
-        left: clamp((W - sheetWidth) / 2, minLeft, maxLeft),
-        top: clamp((H - quickSheetHeight) / 2, minTop, maxTop),
-      };
-    }
-    const left = clamp(quickAnchor.x + quickAnchor.width - sheetWidth, minLeft, maxLeft);
-    const above = quickAnchor.y - QUICK_SHEET_GAP - quickSheetHeight;
-    const below = quickAnchor.y + quickAnchor.height + QUICK_SHEET_GAP;
-    let top;
-    if (above >= minTop) top = above;
-    else if (below <= maxTop) top = below;
-    // Neither side fits whole: the side with more room, clamped.
-    else top = clamp(quickAnchor.y - minTop > maxTop - quickAnchor.y ? above : below, minTop, maxTop);
-    return { width: sheetWidth, left, top };
-  }
-  const quickSheetPos = quickPopoverOpen ? quickSheetPosition() : null;
 
   // TalkBack focus back on the dot button once the toast has gone.
   function focusQuickDot() {
@@ -1610,98 +1560,42 @@ export default function Home() {
     />
     </WallpaperBackground>
 
-    {/* Quick Tickle's Vibe popover, anchored to the dot (see
-        quickSheetPosition). A Modal is its own window on Android, so
-        TalkBack focus stays inside it. statusBarTranslucent +
-        navigationBarTranslucent make the Modal fill the whole window, so
-        its coordinates are the same as measureInWindow's. The dimmed
-        backdrop is a sibling behind the dot copy and the sheet, not
-        their parent, so TalkBack reaches each of them separately. */}
-    <Modal
+    {/* Quick Tickle's Vibe popover, anchored to the dot. The dot copy
+        is drawn at its measured place over the dim so the dot stays
+        visible; tapping it closes the popover. */}
+    <QuickTicklePopover
       visible={quickPopoverOpen}
-      transparent
-      animationType="fade"
-      statusBarTranslucent
-      navigationBarTranslucent
-      onRequestClose={() => setQuickPopoverOpen(false)}
-    >
-      <View
-        style={styles.quickBackdrop}
-        onLayout={(e) => {
-          const { width, height } = e.nativeEvent.layout;
-          setQuickModalSize({ width, height });
-        }}
-      >
+      anchor={quickAnchor}
+      onPick={handleQuickTickle}
+      onClose={() => setQuickPopoverOpen(false)}
+      saving={quickSaving}
+      renderAnchor={(box) => (
         <TouchableOpacity
-          style={StyleSheet.absoluteFill}
-          activeOpacity={1}
           onPress={() => setQuickPopoverOpen(false)}
-          accessibilityRole="button"
-          accessibilityLabel="Close"
-        />
-        {/* A copy of the dot at its measured place, drawn over the dim
-            so the dot stays visible; tapping it closes the popover. */}
-        {!!quickAnchor && (
-          <TouchableOpacity
-            onPress={() => setQuickPopoverOpen(false)}
-            activeOpacity={0.8}
-            style={[
-              styles.quickDot,
-              styles.newTickleShadow,
-              styles.quickDotCopy,
-              {
-                borderColor: accentDark,
-                left: quickAnchor.x,
-                top: quickAnchor.y,
-                width: quickAnchor.width,
-                height: quickAnchor.height,
-              },
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel="Close Quick Tickle"
-          >
-            <View style={styles.quickDotDots} accessible={false} importantForAccessibility="no-hide-descendants">
-              {NATURE_ORDER.map((key) => (
-                <View key={key} style={[styles.quickDotDot, { backgroundColor: VIBE_COLORS[key] }]} accessible={false} />
-              ))}
-            </View>
-          </TouchableOpacity>
-        )}
-        {/* Hidden (opacity 0) until its height is known, then placed. */}
-        <View
+          activeOpacity={0.8}
           style={[
-            styles.quickSheet,
-            quickSheetPos
-              ? { left: quickSheetPos.left, top: quickSheetPos.top, width: quickSheetPos.width }
-              : { left: 0, top: 0, width: QUICK_SHEET_WIDTH, opacity: 0 },
+            styles.quickDot,
+            styles.newTickleShadow,
+            styles.quickDotCopy,
+            {
+              borderColor: accentDark,
+              left: box.x,
+              top: box.y,
+              width: box.width,
+              height: box.height,
+            },
           ]}
-          onLayout={(e) => setQuickSheetHeight(e.nativeEvent.layout.height)}
+          accessibilityRole="button"
+          accessibilityLabel="Close Quick Tickle"
         >
-          <Text style={styles.quickSheetHelper}>Tap one to log it. No writing needed.</Text>
-          {NATURE_ORDER.map((key) => {
-            // VibeCard.js's label colour on each Vibe's fill (textOn),
-            // for both the label and the icon.
-            const fill = VIBE_COLORS[key];
-            const onFill = textOn(fill);
-            return (
-              <TouchableOpacity
-                key={key}
-                style={[styles.quickRow, { backgroundColor: fill }]}
-                onPress={() => handleQuickTickle(key)}
-                disabled={quickSaving}
-                activeOpacity={0.8}
-                accessibilityRole="button"
-                accessibilityLabel={NATURE_LABELS[key]}
-                accessibilityState={{ disabled: quickSaving }}
-              >
-                <NatureIcon nature={key} size={22} color={onFill} />
-                <Text style={[styles.quickRowLabel, { color: onFill }]}>{NATURE_LABELS[key]}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </View>
-    </Modal>
+          <View style={styles.quickDotDots} accessible={false} importantForAccessibility="no-hide-descendants">
+            {NATURE_ORDER.map((key) => (
+              <View key={key} style={[styles.quickDotDot, { backgroundColor: VIBE_COLORS[key] }]} accessible={false} />
+            ))}
+          </View>
+        </TouchableOpacity>
+      )}
+    />
 
     <AboutModal
       visible={showGuide}
@@ -1800,25 +1694,8 @@ const styles = StyleSheet.create({
   },
   quickDotDots: { flexDirection: 'row', gap: 3 },
   quickDotDot: { width: 7, height: 7, borderRadius: 3.5 },
-  // EntryCard's menuBackdrop dim; the dot copy and the sheet are placed
-  // absolutely inside it (positions applied inline).
-  quickBackdrop: { flex: 1, backgroundColor: 'rgba(44,44,42,0.4)' },
+  // The dot's copy inside QuickTicklePopover (position applied inline).
   quickDotCopy: { position: 'absolute' },
-  // Same shadow values as the toast.
-  quickSheet: {
-    position: 'absolute', gap: 12,
-    backgroundColor: C.card, borderRadius: 22, padding: 12,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15, shadowRadius: 4, elevation: 3,
-  },
-  // Its 4dp bottom padding plus the sheet's 12dp gap sit it above the rows.
-  quickSheetHelper: { fontSize: 13, fontWeight: '400', color: C.subtext, paddingHorizontal: 2, paddingBottom: 4 },
-  // Fill (VIBE_COLORS) and label/icon colours applied inline.
-  quickRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    minHeight: 52, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 16,
-  },
-  quickRowLabel: { flexShrink: 1, fontSize: 16, fontWeight: '600' },
   // Floats above the tab bar (bottom set inline), within Home's side
   // padding.
   quickToast: { position: 'absolute', left: HOME_SIDE_PADDING, right: HOME_SIDE_PADDING },
