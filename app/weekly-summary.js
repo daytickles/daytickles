@@ -14,6 +14,7 @@ import NatureIcon from '../components/NatureIcon';
 import GoalTargetCircle from '../components/GoalTargetCircle';
 import AwardBadges from '../components/AwardBadges';
 import { fetchAwardedEntryTypes } from '../lib/awards';
+import { countDoneSince } from '../lib/rnrs';
 
 // Same relative progression as DayDotsCard.js's own DOT_SIZES
 // (22/30/38/46 there), scaled down for this row-of-7's tighter,
@@ -99,6 +100,9 @@ export default function WeeklySummary() {
   // dot_index can legitimately be 0, so existence checks below use `in` /
   // `!== undefined`, never a truthiness check on the value itself.
   const [dayDotsPicks, setDayDotsPicks] = useState({});
+  // Routines and Reminders tiles marked Done this week. Only done ones are
+  // ever counted; skipped or not-done tiles carry no trace here.
+  const [rnrsDone, setRnrsDone] = useState(0);
 
   const weekStartDate = currentWeekStartDate(weekStartDay);
 
@@ -127,6 +131,7 @@ export default function WeeklySummary() {
       weeklyTickleSharesResult,
       weeklyPhotoShareEventsResult,
       dayDotsResult,
+      rnrsDoneResult,
     ] = await Promise.all([
       supabase
         .from('tickle_entries')
@@ -203,6 +208,7 @@ export default function WeeklySummary() {
         .eq('user_id', session.user.id)
         .eq('status', 'answered')
         .gte('prompt_date', weekStartDate),
+      countDoneSince(session.user.id, weekStartDate),
     ]);
 
     const failed = [
@@ -218,6 +224,7 @@ export default function WeeklySummary() {
       weeklyTickleSharesResult,
       weeklyPhotoShareEventsResult,
       dayDotsResult,
+      rnrsDoneResult,
     ].filter((r) => r?.error);
     if (failed.length) console.warn('Weekly Summary: some queries failed', failed.map((r) => r.error));
     setLoadError(failed.length > 0);
@@ -281,6 +288,8 @@ export default function WeeklySummary() {
     if (!dayDotsResult.error) {
       setDayDotsPicks(Object.fromEntries((dayDotsResult.data || []).map((row) => [row.prompt_date, row.dot_index])));
     }
+
+    if (!rnrsDoneResult.error) setRnrsDone(rnrsDoneResult.count || 0);
 
     setLoading(false);
   }, [session, weekStartDay, weekStartDate]);
@@ -570,6 +579,17 @@ export default function WeeklySummary() {
               </>
             )}
 
+            {rnrsDone > 0 && (
+              <>
+                <Text style={styles.sectionLabel}>Routines and Reminders</Text>
+                <View style={styles.rnrsCard}>
+                  <Text style={styles.rnrsCardText}>
+                    You did {rnrsDone} {rnrsDone === 1 ? 'Routine or Reminder' : 'Routines and Reminders'} this week.
+                  </Text>
+                </View>
+              </>
+            )}
+
             {hasConnection && (
               <>
                 <Text style={styles.sectionLabel}>Connection</Text>
@@ -846,4 +866,10 @@ const styles = StyleSheet.create({
     borderRadius: 16, padding: 14, marginBottom: 16,
   },
   pinBoardCardText: { fontSize: 14, color: C.sparkleText, lineHeight: 20 },
+  // pinBoardCard's light-wash + solid-border card, in teal.
+  rnrsCard: {
+    backgroundColor: withAlpha(C.teal, 0.16), borderWidth: 1, borderColor: C.teal,
+    borderRadius: 16, padding: 14, marginBottom: 16,
+  },
+  rnrsCardText: { fontSize: 14, color: C.tealText, lineHeight: 20 },
 });
