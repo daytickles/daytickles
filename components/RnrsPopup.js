@@ -32,7 +32,7 @@ export default function RnrsPopup({ visible, onClose }) {
   const day = useRnrDay(userId, today, visible);
   const logIt = useRnrLogIt(userId, {
     onLogged: (p) => day.dropLogIt(p.id),
-    beforeLeave: onClose,
+    beforeLeave: () => close({ leaving: true }),
   });
   const [moving, setMoving] = useState(null);
   const [dayPickerFor, setDayPickerFor] = useState(null);
@@ -43,15 +43,17 @@ export default function RnrsPopup({ visible, onClose }) {
   const bySlot = Object.fromEntries(RNR_SLOTS.map((s) => [s, day.placements.filter((p) => p.slot === s)]));
   const isEmpty = day.placements.length === 0;
 
-  function close() {
+  // leaving: closing to go somewhere else, so the caller doesn't pull
+  // TalkBack focus back to its button.
+  function close({ leaving = false } = {}) {
     logIt.dismissToast();
     setMoving(null);
     setDayPickerFor(null);
-    onClose();
+    onClose({ leaving });
   }
 
   function openFullPage() {
-    close();
+    close({ leaving: true });
     router.navigate('/rnrs');
   }
 
