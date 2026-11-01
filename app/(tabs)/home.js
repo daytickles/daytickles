@@ -1560,41 +1560,13 @@ export default function Home() {
     />
     </WallpaperBackground>
 
-    {/* Quick Tickle's Vibe popover, anchored to the dot. The dot copy
-        is drawn at its measured place over the dim so the dot stays
-        visible; tapping it closes the popover. */}
+    {/* Quick Tickle's Vibe popover, anchored to the dot. */}
     <QuickTicklePopover
       visible={quickPopoverOpen}
       anchor={quickAnchor}
       onPick={handleQuickTickle}
       onClose={() => setQuickPopoverOpen(false)}
       saving={quickSaving}
-      renderAnchor={(box) => (
-        <TouchableOpacity
-          onPress={() => setQuickPopoverOpen(false)}
-          activeOpacity={0.8}
-          style={[
-            styles.quickDot,
-            styles.newTickleShadow,
-            styles.quickDotCopy,
-            {
-              borderColor: accentDark,
-              left: box.x,
-              top: box.y,
-              width: box.width,
-              height: box.height,
-            },
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel="Close Quick Tickle"
-        >
-          <View style={styles.quickDotDots} accessible={false} importantForAccessibility="no-hide-descendants">
-            {NATURE_ORDER.map((key) => (
-              <View key={key} style={[styles.quickDotDot, { backgroundColor: VIBE_COLORS[key] }]} accessible={false} />
-            ))}
-          </View>
-        </TouchableOpacity>
-      )}
     />
 
     <AboutModal
@@ -1694,8 +1666,6 @@ const styles = StyleSheet.create({
   },
   quickDotDots: { flexDirection: 'row', gap: 3 },
   quickDotDot: { width: 7, height: 7, borderRadius: 3.5 },
-  // The dot's copy inside QuickTicklePopover (position applied inline).
-  quickDotCopy: { position: 'absolute' },
   // Floats above the tab bar (bottom set inline), within Home's side
   // padding.
   quickToast: { position: 'absolute', left: HOME_SIDE_PADDING, right: HOME_SIDE_PADDING },

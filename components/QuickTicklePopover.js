@@ -14,16 +14,15 @@ const SHEET_EDGE = 8;
 // that control's measureInWindow box ({ x, y, width, height }), or null
 // to centre the sheet. Picking a Vibe only calls onPick -- the caller
 // does the insert (lib/quickTickle.js insertQuickTickle) and owns the
-// toast. renderAnchor(box), when given, draws a copy of the opener at
-// its measured place over the dim (Home's dot); tapping it should close.
+// toast. The dimmed area around the sheet closes it, as does Android
+// Back.
 //
 // A Modal is its own window on Android, so TalkBack focus stays inside
 // it. statusBarTranslucent + navigationBarTranslucent make the Modal
 // fill the whole window, so its coordinates are the same as
-// measureInWindow's. The dimmed backdrop is a sibling behind the anchor
-// copy and the sheet, not their parent, so TalkBack reaches each of them
-// separately.
-export default function QuickTicklePopover({ visible, anchor, onPick, onClose, saving, renderAnchor }) {
+// measureInWindow's. The dimmed backdrop is a sibling behind the sheet,
+// not its parent, so TalkBack reaches each of them separately.
+export default function QuickTicklePopover({ visible, anchor, onPick, onClose, saving }) {
   const insets = useSafeAreaInsets();
   // The Modal's own size, and the sheet's laid-out height (it grows with
   // font scale).
@@ -84,9 +83,8 @@ export default function QuickTicklePopover({ visible, anchor, onPick, onClose, s
           activeOpacity={1}
           onPress={onClose}
           accessibilityRole="button"
-          accessibilityLabel="Close"
+          accessibilityLabel="Close Quick Tickle"
         />
-        {!!anchor && !!renderAnchor && renderAnchor(anchor)}
         {/* Hidden (opacity 0) until its height is known, then placed. */}
         <View
           style={[
@@ -126,8 +124,8 @@ export default function QuickTicklePopover({ visible, anchor, onPick, onClose, s
 }
 
 const styles = StyleSheet.create({
-  // EntryCard's menuBackdrop dim; the anchor copy and the sheet are
-  // placed absolutely inside it (positions applied inline).
+  // EntryCard's menuBackdrop dim; the sheet is placed absolutely inside
+  // it (position applied inline).
   backdrop: { flex: 1, backgroundColor: 'rgba(44,44,42,0.4)' },
   // Same shadow values as the toast.
   sheet: {
