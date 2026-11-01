@@ -29,8 +29,12 @@ const STEPS = [
     body: "Turn a string of Rippled Tickles into a Multickle — a named, ongoing story other users can recognise and follow as it unfolds. Start one from Manage Multickles in Settings, then add Tics by tagging any Rippled Tickle to it from its three-dot menu.\n\nEach Tic carries a small Multickle chip, on Tickle Stash and Calendar, showing its place in the story. Tap it to open the Multickle and see every Tic in order, plus a Follow button of its own — separate from following the author.\n\nMark a Multickle as complete once its story is finished. No new Tics can be added after that, but everything already there stays exactly as it is.",
   },
   {
+    title: 'Routines and Reminders',
+    body: "Tap the tick-circle button in the bottom bar to see today's tiles under Morning, Afternoon and Evening. Mark each one Done, Skip it, or Move it — to another part of the day or another day. It's up to you whether a tile is a routine or a reminder.\n\nTap Open Routines and Reminders to plan any day: add one of the ideas, one of your own tiles, or make a new one. Once a tile is Done, tap Log it if you'd like to log a Vibe for it. Nothing is logged unless you pick one.",
+  },
+  {
     title: 'Calendar',
-    body: "Each day on the Calendar shows your Day Dot, or a small open circle if you wrote Tickles but didn't dot that day. Tap a day, then tap Tickles or Goals to see what you wrote. Tickles also shows how many of each Vibe.\n\nDot your day on the Tickle Stash, under Mine › My Day.",
+    body: "To open the Calendar, tap the calendar icon at the top of Home. Each day shows your Day Dot, or a small open circle if you wrote Tickles but didn't dot that day. Tap a day, then tap Tickles or Goals to see what you wrote. Tickles also shows how many of each Vibe.\n\nDot your day on the Tickle Stash, under Mine › My Day.",
   },
   {
     title: 'Tickle Pics',
@@ -38,7 +42,7 @@ const STEPS = [
   },
   {
     title: 'Goals',
-    body: "Manage your Goals from Settings. Use them for anything you're focusing on, then tag Tickles to a Goal by tapping the empty circle on the entry — an easy, private way to record your progress. Mark a Goal as Achieved or delete it whenever you like.\n\nIf you like, give a Goal a weekly target. Its pill on Home then shows this week's count in a small circle, which fills with a tick once you get there — and if you don't, that's fine too.\n\nToggle on 'Earn tokens' for any Goal to collect a token each time you tag a Tickle to it. Your balance shows in the top bar; spend tokens on rewards you set up yourself, from Manage Reward List in Settings. Turn Tokens & Rewards off in Settings to hide all of this.",
+    body: "Manage your Goals from Settings. Use them for anything you're focusing on, then tag Tickles to a Goal by tapping the empty circle on the entry — an easy, private way to record your progress. Mark a Goal as Achieved or delete it whenever you like.\n\nIf you like, give a Goal a weekly target. Its pill on Home then shows this week's count in a small circle, which fills with a tick once you get there — and if you don't, that's fine too.\n\nToggle on 'Earn tokens' for any Goal to collect a token each time you tag a Tickle to it. Your balance shows on Home, next to Your Rewards; spend tokens on rewards you set up yourself, from Manage Reward List in Settings. Turn Tokens & Rewards off in Settings to hide all of this.",
   },
   {
     title: 'Awareness Cue',
