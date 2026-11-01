@@ -513,12 +513,12 @@ export default function EntryCard({
               {isQuick ? (
                 <View style={styles.quickRow}>
                   <View
-                    style={[styles.quickDot, { borderColor: accentDark }]}
+                    style={[styles.quickDot, { backgroundColor: accentDark, borderColor: accentDark }]}
                     accessible
                     accessibilityLabel="Quick Tickle"
                   >
-                    {/* Capped like GoalTargetCircle's count, so "QT" stays inside the fixed 40dp circle. */}
-                    <Text style={[styles.quickDotLabel, { color: accentDark }]} maxFontSizeMultiplier={1.5}>QT</Text>
+                    {/* Capped like GoalTargetCircle's count, so "QT" stays inside the fixed 28dp circle. */}
+                    <Text style={styles.quickDotLabel} maxFontSizeMultiplier={1.3}>QT</Text>
                   </View>
                   {showMineActions && tickleItDismissed === false && (
                     <>
@@ -761,14 +761,17 @@ const styles = StyleSheet.create({
   menuRowLabelDestructive: { color: C.rust },
   entryText: { fontSize: 15, color: C.text, lineHeight: 20 },
   // Quick Tickle body: QT dot, then the "Tickle it" pill and its dismiss
-  // X. Transparent with a 1.5dp accent-dark border (inline), like
-  // Button.js's secondary pills; 40dp tall like Home's pills.
+  // X. The pill is transparent with a 1.5dp accent-dark border (inline),
+  // like Button.js's secondary pills; 40dp tall like Home's pills. The
+  // dot is a smaller, filled mark so it doesn't read as a button: accent
+  // dark fill (inline) with the card's white "QT" -- its old outline
+  // colours swapped. It isn't pressable.
   quickRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   quickDot: {
-    width: 40, height: 40, borderRadius: 20, borderWidth: 1.5, backgroundColor: 'transparent',
+    width: 28, height: 28, borderRadius: 14, borderWidth: 1.5,
     alignItems: 'center', justifyContent: 'center',
   },
-  quickDotLabel: { fontSize: 12, fontWeight: '700' },
+  quickDotLabel: { fontSize: 10, fontWeight: '700', color: C.card },
   tickleItPill: {
     minHeight: 40, paddingVertical: 8, paddingHorizontal: 14, justifyContent: 'center',
     borderRadius: 20, borderWidth: 1.5, backgroundColor: 'transparent',
