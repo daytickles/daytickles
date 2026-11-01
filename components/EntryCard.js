@@ -541,6 +541,11 @@ export default function EntryCard({
                       </TouchableOpacity>
                     </>
                   )}
+                  {/* Once "Tickle it" has been dismissed, a plain label in
+                      its place: text only, not pressable. */}
+                  {showMineActions && tickleItDismissed === true && (
+                    <Text style={[styles.entryDate, styles.quickLabel]}>Quick Tickle!</Text>
+                  )}
                 </View>
               ) : (
                 <Text style={styles.entryText}>{item.text_content}</Text>
@@ -777,6 +782,9 @@ const styles = StyleSheet.create({
     borderRadius: 20, borderWidth: 1.5, backgroundColor: 'transparent',
   },
   tickleItLabel: { fontSize: 12, fontWeight: '600' },
+  // entryDate's type; shrinks and wraps rather than pushing the row at
+  // large font sizes.
+  quickLabel: { flexShrink: 1 },
   // 24dp circle; hitSlop (10) brings the tap target to 44dp.
   tickleItDismiss: {
     width: 24, height: 24, borderRadius: 12, borderWidth: 1, borderColor: C.border,
