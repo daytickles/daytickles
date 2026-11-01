@@ -66,6 +66,8 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, size }) => <Ionicons name="calendar-outline" color={color} size={size} />,
         }}
       />
+      {/* The Routines and Reminders page. Not in the bar yet. */}
+      <Tabs.Screen name="rnrs" options={{ href: null }} />
       <Tabs.Screen
         name="pinboard"
         options={{

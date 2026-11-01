@@ -12,6 +12,7 @@ import { useRnrLogIt } from '../lib/useRnrLogIt';
 import Button from './Button';
 import RnrTile from './RnrTile';
 import RnrMoveChooser from './RnrMoveChooser';
+import RnrDayPicker from './RnrDayPicker';
 import QuickTicklePopover from './QuickTicklePopover';
 import QuickTickleToast from './QuickTickleToast';
 
@@ -34,6 +35,7 @@ export default function RnrsPopup({ visible, onClose }) {
     beforeLeave: onClose,
   });
   const [moving, setMoving] = useState(null);
+  const [dayPickerFor, setDayPickerFor] = useState(null);
 
   const todayLabel = parseLocalDateString(today).toLocaleDateString('en-US', {
     weekday: 'long', month: 'long', day: 'numeric',
@@ -44,6 +46,7 @@ export default function RnrsPopup({ visible, onClose }) {
   function close() {
     logIt.dismissToast();
     setMoving(null);
+    setDayPickerFor(null);
     onClose();
   }
 
@@ -151,7 +154,21 @@ export default function RnrsPopup({ visible, onClose }) {
           setMoving(null);
           day.move(p, { slot });
         }}
+        onAnotherDay={() => {
+          setDayPickerFor(moving);
+          setMoving(null);
+        }}
         onClose={() => setMoving(null)}
+      />
+      <RnrDayPicker
+        visible={!!dayPickerFor}
+        currentDate={today}
+        onPick={(dateStr) => {
+          const p = dayPickerFor;
+          setDayPickerFor(null);
+          day.move(p, { planDate: dateStr });
+        }}
+        onClose={() => setDayPickerFor(null)}
       />
       <QuickTicklePopover {...logIt.popoverProps} />
     </Modal>

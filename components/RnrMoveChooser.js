@@ -2,10 +2,11 @@ import { View, Text, StyleSheet, TouchableOpacity, Modal } from 'react-native';
 import { C } from '../lib/theme';
 import { RNR_SLOTS, RNR_SLOT_LABELS } from '../lib/rnrs';
 
-// "Move to" for one tile: the three slots of the same day. The tile's
-// own slot is shown but can't be picked. Close, Android Back and the
+// "Move to" for one tile: the three slots of the same day, and, when
+// onAnotherDay is given, "Another day..." (components/RnrDayPicker.js).
+// The tile's own slot is shown but can't be picked. Close, Android Back and the
 // dimmed area close it without moving anything.
-export default function RnrMoveChooser({ placement, onPickSlot, onClose }) {
+export default function RnrMoveChooser({ placement, onPickSlot, onAnotherDay, onClose }) {
   const visible = !!placement;
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -39,6 +40,16 @@ export default function RnrMoveChooser({ placement, onPickSlot, onClose }) {
                 </TouchableOpacity>
               );
             })}
+            {!!onAnotherDay && (
+              <TouchableOpacity
+                style={styles.option}
+                onPress={onAnotherDay}
+                accessibilityRole="button"
+                accessibilityLabel="Another day"
+              >
+                <Text style={styles.optionText}>Another day…</Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
               style={styles.cancel}
               onPress={onClose}
