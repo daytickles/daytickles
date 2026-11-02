@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { File } from 'expo-file-system';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { C, accentFor, darken, NATURE_ORDER, NATURE_LABELS, VIBE_COLORS, vibeIconColor, withAlpha } from '../../lib/theme';
+import { C, accentFor, darken, NATURE_ORDER, NATURE_LABELS, VIBE_COLORS, VIBE_CARD_PALETTE, vibeIconColor, withAlpha } from '../../lib/theme';
 import {
   isThisWeek, isThisMonth, localDateString, toLocalDateString, parseLocalDateString,
   currentWeekStartISO, monthStartISO, DEFAULT_WEEK_START_DAY,
@@ -1449,7 +1449,8 @@ export default function Home() {
             <VibeCard
               key={key}
               nature={key}
-              color={VIBE_COLORS[key]}
+              color={VIBE_CARD_PALETTE.colors[key]}
+              textColor={VIBE_CARD_PALETTE.text}
               lit={isVibeLit(key)}
               litWeekly={isVibeLitWeekly(key)}
               accentColor={accent.card}

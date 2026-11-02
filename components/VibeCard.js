@@ -1,21 +1,21 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { C, textOn, withAlpha, lighten } from '../lib/theme';
+import { C, textOn, withAlpha, NATURE_LABELS } from '../lib/theme';
 import NatureIcon from './NatureIcon';
 
-// Same explainer for every card, tap-triggered -- the three stacked
-// numbers' meaning is positional, not per-vibe, so one shared string
-// covers all three.
-const TOOLTIP_TEXT = 'Top: this week · Middle: this month · Bottom: all-time';
+// Same explainer for every card, tap-triggered -- the three numbers'
+// meaning is positional (left to right), not per-vibe, so one shared
+// string covers all three.
+const TOOLTIP_TEXT = 'This week | this month | all time';
 
-// Home Vibes redesign — one card per nature category. Deliberately no
-// text labels inside the card (week/month/all-time read by position,
-// top to bottom, largest/most prominent on top per the spec) — the
-// vibe's own label sits below the card, passed in and rendered by the
-// caller, not by this component.
+// Home Vibes card, compact version (Task 3 H1): 72dp tall, one line of
+// numbers. Deliberately no text labels inside the card -- the vibe's own
+// label sits below the card, rendered by the caller. The two bulbs above
+// the card are unchanged.
 export default function VibeCard({
   nature,
   color,
+  textColor: textColorProp,
   lit,
   litWeekly,
   accentColor,
@@ -25,19 +25,18 @@ export default function VibeCard({
   showTooltip,
   onPress,
 }) {
-  const textColor = textOn(color);
-  const dividerColor = withAlpha(textColor, 0.25);
-  // Same formula as Home's old streak-card sunburst (streakSunburstColor,
-  // removed during this redesign) -- lightened 50% toward white, 40%
-  // alpha -- but derived from this card's OWN color, not the user's
-  // accent theme. The spec's "explicitly rejected placements" ruled out
-  // an ACCENT-colored dot here (real clash risk against a similarly-
-  // hued vibe card); a same-color dot can't clash with itself, so this
-  // is a different case, not a reintroduction of that one.
-  const cornerDotColor = withAlpha(lighten(color, 0.5), 0.4);
+  // A palette can fix the text colour (VIBE_CARD_PALETTES in
+  // lib/theme.js); otherwise it's worked out from the card colour.
+  const textColor = textColorProp || textOn(color);
 
   return (
-    <TouchableOpacity style={styles.wrap} activeOpacity={0.8} onPress={onPress}>
+    <TouchableOpacity
+      style={styles.wrap}
+      activeOpacity={0.8}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${NATURE_LABELS[nature]}: ${weekCount} this week, ${monthCount} this month, ${allTimeCount} all time`}
+    >
       <View style={styles.bulbRow}>
         <Ionicons
           name={lit ? 'bulb' : 'bulb-outline'}
@@ -50,18 +49,30 @@ export default function VibeCard({
           color={litWeekly ? accentColor : C.faint}
         />
       </View>
-      <View style={[styles.card, { backgroundColor: color }]}>
-        <View style={[styles.cornerDot, { backgroundColor: cornerDotColor }]} />
-        <NatureIcon nature={nature} size={14} color={withAlpha(textColor, 0.55)} style={styles.natureIcon} />
-        <Text style={[styles.weekNumber, { color: textColor }]}>{weekCount}</Text>
-        <View style={[styles.divider, { backgroundColor: dividerColor }]} />
-        <Text style={[styles.monthNumber, { color: textColor }]}>{monthCount}</Text>
-        <View style={[styles.divider, { backgroundColor: dividerColor }]} />
-        <Text style={[styles.allTimeNumber, { color: textColor }]}>{allTimeCount}</Text>
+      {/* Soft shadow tinted with the card's own colour. No overflow:
+          'hidden' any more (the corner circle it clipped is gone), so the
+          tooltip below could sit inside -- kept as a sibling anyway. */}
+      <View style={[styles.card, { backgroundColor: color, shadowColor: color }]}>
+        <View style={[styles.iconCircle, { backgroundColor: withAlpha(textColor, 0.18) }]}>
+          <NatureIcon nature={nature} size={15} color={textColor} />
+        </View>
+        {/* One line, never wrapped or clipped: with 3-digit numbers (or a
+            large font scale) the whole line shrinks to fit the card's
+            width. The card's height is a minimum, so a taller line at a
+            large font scale grows the card instead of clipping it. */}
+        <Text
+          style={[styles.numbersLine, { color: textColor }]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.3}
+        >
+          <Text style={styles.weekNumber}>{weekCount}</Text>
+          <Text style={[styles.separator, { color: withAlpha(textColor, 0.55) }]}>{' | '}</Text>
+          <Text style={styles.monthNumber}>{monthCount}</Text>
+          <Text style={[styles.separator, { color: withAlpha(textColor, 0.55) }]}>{' | '}</Text>
+          <Text style={styles.allTimeNumber}>{allTimeCount}</Text>
+        </Text>
       </View>
-      {/* Rendered as a sibling of `card`, not a child -- card has
-          overflow: 'hidden' (needed to clip the corner dot), which
-          would clip this tooltip too if it were nested inside. */}
       {showTooltip && (
         <View style={styles.tooltip} pointerEvents="none">
           <Text style={styles.tooltipText}>{TOOLTIP_TEXT}</Text>
@@ -75,22 +86,21 @@ const styles = StyleSheet.create({
   wrap: { flex: 1, alignItems: 'center' },
   bulbRow: { flexDirection: 'row', gap: 8, marginBottom: 6 },
   card: {
-    width: '100%', borderRadius: 18, overflow: 'hidden',
-    paddingTop: 10, paddingBottom: 12, alignItems: 'center',
+    width: '100%', minHeight: 72, borderRadius: 24,
+    paddingVertical: 8, paddingHorizontal: 6,
+    alignItems: 'center', justifyContent: 'center', gap: 4,
+    // shadowColor is the card colour (inline). Android 9+ uses it with
+    // elevation; older Android shows a plain grey elevation shadow.
+    shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.35, shadowRadius: 6, elevation: 4,
   },
-  // Offset scales with size (both doubled together here) so the dot
-  // keeps the same "peeking from the corner" proportion rather than
-  // just growing in place -- same ~1/3-of-diameter offset ratio the
-  // old streak-card sunburst used (30/90).
-  cornerDot: {
-    position: 'absolute', top: -36, right: -36,
-    width: 112, height: 112, borderRadius: 56,
+  iconCircle: {
+    width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center',
   },
-  natureIcon: { marginBottom: 4 },
-  weekNumber: { fontSize: 24, fontWeight: 'bold', lineHeight: 28 },
-  monthNumber: { fontSize: 17, fontWeight: '700', lineHeight: 21 },
-  allTimeNumber: { fontSize: 13, fontWeight: '600', lineHeight: 17 },
-  divider: { width: 28, height: 1, marginVertical: 4 },
+  numbersLine: { textAlign: 'center', alignSelf: 'stretch' },
+  weekNumber: { fontSize: 22, fontWeight: '700' },
+  monthNumber: { fontSize: 16, fontWeight: '600' },
+  allTimeNumber: { fontSize: 15, fontWeight: '500' },
+  separator: { fontSize: 15, fontWeight: '400' },
   // Same visual treatment as home.js's own statTooltip/statTooltipText
   // (Tickles/Likes/Shares pills) -- kept as a separate copy here since
   // this is a different file/component, matching this app's existing
