@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { fetchAwardedEntryTypes } from '../../lib/awards';
-import { C, accentFor, darken, lighten, textOn, vibeIconColor, NATURE_ORDER, NATURE_LABELS } from '../../lib/theme';
+import { C, accentFor, darken, lighten, vibeIconColor, NATURE_ORDER, NATURE_LABELS } from '../../lib/theme';
 import { shareEntry, useShareStatus, sharePhotoOnlyEntry, SHARE_CAPTIONS } from '../../lib/sharing';
 import { alertCapBlocked, capFor, checkAndConsumeWeeklyCap, rippleFeatureFor } from '../../lib/freemiumCaps';
 import { showAlert, showSaveFailed } from '../../lib/themedAlert';
@@ -170,8 +170,6 @@ function dividerLabel(tabId, count) {
 
 export default function Feed() {
   const { session, profile } = useAuth();
-  const accentDark = darken(accentFor(profile?.accent_theme).card, 0.35);
-  const accentDarkText = textOn(accentDark);
   const tabBarHeight = useBottomTabBarHeight();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
@@ -1348,10 +1346,7 @@ export default function Feed() {
               <TouchableOpacity
                 key={g.id}
                 onPress={() => setGoalFilter(g.id)}
-                style={[
-                  styles.goalFilterChip,
-                  goalFilter === g.id && { backgroundColor: accentDark, borderColor: accentDark },
-                ]}
+                style={[styles.goalFilterChip, goalFilter === g.id && styles.goalFilterChipActive]}
               >
                 {/* Same lighten(0.6)/checkmark-darken(0.4) formula as
                     goals.js/GoalTagModal/EntryCard's own achieved-goal
@@ -1376,12 +1371,12 @@ export default function Feed() {
                   style={[
                     styles.goalFilterLabel,
                     // A retired Goal gets the italic mute
-                    // (goalFilterLabelMuted), since the label is already
-                    // C.subtext like every chip here. Applied before the
+                    // (goalFilterLabelMuted), since the label is the same
+                    // colour as every chip here. Applied before the
                     // selected-state override below so a selected retired
-                    // Goal still gets accentDarkText against accentDark.
+                    // Goal still gets cream text on dusk blue.
                     !!g.achieved_at && styles.goalFilterLabelMuted,
-                    goalFilter === g.id && { color: accentDarkText },
+                    goalFilter === g.id && styles.goalFilterLabelActive,
                   ]}
                   numberOfLines={1}
                   ellipsizeMode="tail"
@@ -1413,19 +1408,16 @@ export default function Feed() {
                 <TouchableOpacity
                   key={t.id}
                   onPress={() => setTaleFilter(isSelected ? null : t.id)}
-                  style={[
-                    styles.goalFilterChip,
-                    isSelected && { backgroundColor: accentDark, borderColor: accentDark },
-                  ]}
+                  style={[styles.goalFilterChip, isSelected && styles.goalFilterChipActive]}
                 >
-                  <Ionicons name={t.icon} size={12} color={isSelected ? accentDarkText : C.rust} />
+                  <Ionicons name={t.icon} size={12} color={isSelected ? TAB_INK_TEXT : C.rust} />
                   <Text
                     style={[
                       styles.goalFilterLabel,
                       // Same completed mute + selected override order as
                       // the Goal chips' achieved state.
                       t.completed && styles.goalFilterLabelMuted,
-                      isSelected && { color: accentDarkText },
+                      isSelected && styles.goalFilterLabelActive,
                     ]}
                     numberOfLines={1}
                     ellipsizeMode="tail"
@@ -1612,16 +1604,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 0,
     maxWidth: 160, overflow: 'hidden',
     paddingVertical: 5, paddingHorizontal: 12, borderRadius: 12,
-    backgroundColor: C.bg, borderWidth: 1, borderColor: C.border,
+    backgroundColor: TAB_FILL, borderWidth: 1, borderColor: TAB_LINE,
   },
+  // Selected Goal / Multickle chip: same dusk blue + cream as the active
+  // tab (Task 3 S1b), not the accent theme.
+  goalFilterChipActive: { backgroundColor: TAB_INK, borderColor: TAB_INK },
   goalFilterDot: {
     width: 8, height: 8, borderRadius: 4, flexShrink: 0,
     alignItems: 'center', justifyContent: 'center',
   },
-  goalFilterLabel: { fontSize: 11, fontWeight: '600', color: C.subtext, flexShrink: 1 },
-  // Retired Goal / completed Multickle chips. Was C.faint (1.9:1); now
-  // the same readable C.subtext as other chips, with italics as the mute.
-  goalFilterLabelMuted: { color: C.subtext, fontStyle: 'italic' },
+  goalFilterLabel: { fontSize: 11, fontWeight: '600', color: TAB_INK, flexShrink: 1 },
+  goalFilterLabelActive: { color: TAB_INK_TEXT },
+  // Retired Goal / completed Multickle chips: the same readable colour as
+  // other chips (was C.faint, 1.9:1), with italics as the mute.
+  goalFilterLabelMuted: { fontStyle: 'italic' },
 
   // "New since you were here" divider -- plain text label, deliberately
   // no icon (would overlap with the High Five hand icon's existing
