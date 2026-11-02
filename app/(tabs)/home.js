@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { File } from 'expo-file-system';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { C, accentFor, darken, NATURE_ORDER, NATURE_LABELS, VIBE_COLORS, VIBE_CARD_PALETTE, vibeIconColor, withAlpha } from '../../lib/theme';
+import { C, accentFor, NATURE_ORDER, NATURE_LABELS, VIBE_COLORS, VIBE_CARD_PALETTE, vibeIconColor, withAlpha } from '../../lib/theme';
 import {
   isThisWeek, isThisMonth, localDateString, toLocalDateString, parseLocalDateString,
   currentWeekStartISO, monthStartISO, DEFAULT_WEEK_START_DAY,
@@ -20,6 +20,7 @@ import { fetchFollowedTales } from '../../lib/tales';
 import { forgetQuickTickle, insertQuickTickle } from '../../lib/quickTickle';
 import { showSaveFailed } from '../../lib/themedAlert';
 import Button from '../../components/Button';
+import NewTickleButton, { TICKLE_BUTTON_SURFACE, TICKLE_BUTTON_HEIGHT } from '../../components/NewTickleButton';
 import VibeCard from '../../components/VibeCard';
 import NatureIcon from '../../components/NatureIcon';
 import InitialsAvatar from '../../components/InitialsAvatar';
@@ -206,9 +207,6 @@ function computeReturnedFromGap(entries) {
 export default function Home() {
   const { session, profile, refreshProfile } = useAuth();
   const accent = accentFor(profile?.accent_theme);
-  // Button.js's own border colour for New Tickle, so the Quick Tickle dot
-  // beside it matches.
-  const accentDark = darken(accent.card, 0.35);
   const tabBarHeight = useBottomTabBarHeight();
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
@@ -1499,22 +1497,18 @@ export default function Home() {
         </View>
         </View>
 
-        {/* New Tickle shares its row with the Quick Tickle dot, which
-            stretches to New Tickle's height (aspectRatio 1), so the two
-            stay the same height at any font scale. */}
+        {/* New Tickle and the Quick Tickle circle share one look
+            (components/NewTickleButton.js), both 56dp tall. The popup
+            measures the circle when it opens, so it stays anchored above
+            it at this size. */}
         <View style={styles.newTickleRow}>
-          <Button
-            title="New Tickle"
-            onPress={() => router.push('/create')}
-            variant="secondary"
-            style={[styles.newTickleShadow, styles.newTickleFlex]}
-          />
+          <NewTickleButton onPress={() => router.push('/create')} style={styles.newTickleFlex} />
           <TouchableOpacity
             ref={quickDotRef}
             onPress={openQuickPopover}
             disabled={quickSaving}
             activeOpacity={0.8}
-            style={[styles.quickDot, styles.newTickleShadow, { borderColor: accentDark }]}
+            style={[TICKLE_BUTTON_SURFACE, styles.quickDot]}
             accessibilityRole="button"
             accessibilityLabel="Quick Tickle: log a Vibe in one tap"
             accessibilityState={{ expanded: quickPopoverOpen, disabled: quickSaving }}
@@ -1662,22 +1656,17 @@ const styles = StyleSheet.create({
     paddingVertical: 4, paddingHorizontal: 10,
   },
 
-  newTickleShadow: {
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15, shadowRadius: 4, elevation: 3,
-  },
-  // alignItems stretch: the dot takes New Tickle's height, and
-  // aspectRatio 1 makes its width match.
-  newTickleRow: { flexDirection: 'row', alignItems: 'stretch', gap: 10 },
+  // Centred: at a large font scale the New Tickle pill grows taller
+  // while the Quick Tickle circle stays 56dp.
+  newTickleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   newTickleFlex: { flex: 1 },
-  // Button.js's secondary look: C.bg fill, 1.5dp accent-dark border
-  // (applied inline).
+  // Fill, border and shadow come from TICKLE_BUTTON_SURFACE.
   quickDot: {
-    aspectRatio: 1, borderRadius: 999, borderWidth: 1.5, backgroundColor: C.bg,
+    width: TICKLE_BUTTON_HEIGHT, height: TICKLE_BUTTON_HEIGHT, borderRadius: TICKLE_BUTTON_HEIGHT / 2,
     alignItems: 'center', justifyContent: 'center',
   },
-  quickDotDots: { flexDirection: 'row', gap: 3 },
-  quickDotDot: { width: 7, height: 7, borderRadius: 3.5 },
+  quickDotDots: { flexDirection: 'row', gap: 4 },
+  quickDotDot: { width: 8, height: 8, borderRadius: 4 },
   // Floats above the tab bar (bottom set inline), within Home's side
   // padding.
   quickToast: { position: 'absolute', left: HOME_SIDE_PADDING, right: HOME_SIDE_PADDING },
