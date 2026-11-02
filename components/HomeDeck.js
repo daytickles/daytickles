@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, AccessibilityInfo, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Home's flip-card deck (Task 3 H5): one card in front, the others fanned
 // behind it. It replaces the four stacked bottom sections. Plain RN
@@ -48,6 +49,16 @@ const FAN = [
 ];
 // Half a flip (front card edge-on), in ms.
 const FLIP_HALF_MS = 140;
+// The card the deck was left on (its key), per phone -- same naming as
+// lib/quickTickle.js's 'daytickles-quick-tickle-dismissed'. Best-effort:
+// any read error, or a saved card that isn't showing, opens card 1.
+const DECK_CARD_KEY = 'daytickles-home-deck-card';
+// Longest the deck waits for the saved card and its data before it shows
+// anyway, so a failed or slow fetch can't hold it back.
+const DECK_WAIT_MS = 3000;
+// The controls row under the cards: its 18dp top margin + 44dp targets.
+// Reserved along with the cards while the deck waits.
+const CONTROLS_SPACE = 18 + 44;
 
 function useReduceMotion() {
   const [reduceMotion, setReduceMotion] = useState(false);
@@ -83,7 +94,11 @@ function BottomFade({ color }) {
   );
 }
 
-export default function HomeDeck({ cards, width }) {
+// dataSettled: the caller's "every card's data is in" flag. The deck
+// stays a blank space of its own size until that and the saved-card read
+// are both done (or DECK_WAIT_MS has passed), then opens once on the
+// right card -- so a card that loads late never makes it jump.
+export default function HomeDeck({ cards, width, dataSettled = true }) {
   const reduceMotion = useReduceMotion();
   // useWindowDimensions' fontScale (same value as PixelRatio.getFontScale)
   // re-renders the deck if the font size changes while the app is open.
@@ -93,6 +108,44 @@ export default function HomeDeck({ cards, width }) {
   const [activeKey, setActiveKey] = useState(null);
   const flip = useRef(new Animated.Value(0)).current;
   const flipping = useRef(false);
+  // The saved card: undefined while it's being read, then a key or null.
+  const [savedKey, setSavedKey] = useState(undefined);
+  const [waitedTooLong, setWaitedTooLong] = useState(false);
+  const [shown, setShown] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    AsyncStorage.getItem(DECK_CARD_KEY)
+      .then((saved) => {
+        if (alive) setSavedKey(typeof saved === 'string' && saved ? saved : null);
+      })
+      .catch(() => {
+        if (alive) setSavedKey(null);
+      });
+    const timer = setTimeout(() => {
+      if (alive) setWaitedTooLong(true);
+    }, DECK_WAIT_MS);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
+  }, []);
+
+  // Decided once: the saved card if it's showing, otherwise card 1. The
+  // front card is then held by its key, so cards that turn up or drop out
+  // later don't move it.
+  const ready = (savedKey !== undefined && dataSettled) || waitedTooLong;
+  useEffect(() => {
+    if (shown || !ready || cards.length === 0) return;
+    const validSaved = !!savedKey && cards.some((c) => c.key === savedKey);
+    setActiveKey(validSaved ? savedKey : cards[0].key);
+    setShown(true);
+  }, [ready, shown, savedKey, cards]);
+
+  function choose(key) {
+    setActiveKey(key);
+    AsyncStorage.setItem(DECK_CARD_KEY, key).catch(() => {});
+  }
 
   const count = cards.length;
   const foundIndex = cards.findIndex((c) => c.key === activeKey);
@@ -109,13 +162,13 @@ export default function HomeDeck({ cards, width }) {
     if (count === 0 || nextIndex === index || flipping.current) return;
     const nextKey = cards[nextIndex].key;
     if (reduceMotion) {
-      setActiveKey(nextKey);
+      choose(nextKey);
       announce(nextIndex);
       return;
     }
     flipping.current = true;
     Animated.timing(flip, { toValue: direction, duration: FLIP_HALF_MS, useNativeDriver: true }).start(() => {
-      setActiveKey(nextKey);
+      choose(nextKey);
       flip.setValue(-direction);
       Animated.timing(flip, { toValue: 0, duration: FLIP_HALF_MS, useNativeDriver: true }).start(() => {
         flipping.current = false;
@@ -133,6 +186,17 @@ export default function HomeDeck({ cards, width }) {
   }
 
   if (!front) return null;
+  // Waiting: the deck's own space, empty, so the page doesn't jump when it
+  // opens.
+  if (!shown) {
+    return (
+      <View
+        style={{ width, height: deckHeight + CONTROLS_SPACE, alignSelf: 'center' }}
+        accessible={false}
+        importantForAccessibility="no-hide-descendants"
+      />
+    );
+  }
 
   const rotateY = flip.interpolate({ inputRange: [-1, 0, 1], outputRange: ['90deg', '0deg', '-90deg'] });
   // The cards behind, in the order they'd come next, nearest last so it

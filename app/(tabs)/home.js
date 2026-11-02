@@ -1243,6 +1243,10 @@ export default function Home() {
   // 322dp, or the content width when the screen is narrower (a 360dp
   // phone has 320dp between Home's side paddings).
   const deckWidth = Math.min(DECK_WIDTH, windowWidth - 2 * HOME_SIDE_PADDING, HOME_CONTENT_MAX_WIDTH);
+  // Every card's data is in: entries (loading), Goals, the Reward List
+  // while Tokens & Rewards is on, and followed Multickles. A failed fetch
+  // never sets its flag -- the deck's own 3s wait covers that.
+  const deckSettled = !loading && goalsLoaded && (!tokensEnabled || rewardsLoaded) && followedTalesLoaded;
 
   // label is the short text under each pill; a11yName is what a screen
   // reader says, so the two "Polaroid" pills can still be told apart.
@@ -1442,9 +1446,11 @@ export default function Home() {
           </Text>
         )}
 
-        {!loading && deckCards.length > 0 && (
+        {/* Mounted from the start (not after loading), so the deck holds
+            its space while it waits for deckSettled. */}
+        {deckCards.length > 0 && (
           <View style={styles.bottomCards}>
-            <HomeDeck cards={deckCards} width={deckWidth} />
+            <HomeDeck cards={deckCards} width={deckWidth} dataSettled={deckSettled} />
           </View>
         )}
 
