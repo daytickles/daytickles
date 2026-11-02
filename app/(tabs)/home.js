@@ -1468,6 +1468,10 @@ export default function Home() {
           ))}
         </View>
 
+        {/* Caption above the pills, both on one shaded panel -- the
+            Settings group shade (app/settings.js styles.card). */}
+        <View style={styles.mojoPanel}>
+        <Text style={styles.statPillsCaption}>Mojo Shared</Text>
         <View style={styles.statPillsRow}>
           {STAT_PILLS.map((pill) => (
             <TouchableOpacity
@@ -1493,7 +1497,7 @@ export default function Home() {
             <Text key={pill.key} style={styles.statPillLabel} numberOfLines={1}>{pill.label}</Text>
           ))}
         </View>
-        <Text style={styles.statPillsCaption}>Mojo Shared</Text>
+        </View>
 
         {/* New Tickle shares its row with the Quick Tickle dot, which
             stretches to New Tickle's height (aspectRatio 1), so the two
@@ -1622,8 +1626,15 @@ const styles = StyleSheet.create({
     flex: 1, fontSize: 12, fontWeight: '600', color: C.subtext, textAlign: 'center',
   },
 
+  // Same fill and border as Settings' group cards (app/settings.js
+  // styles.card: C.subtext at 10% over the wallpaper, C.border); radius
+  // 20 as asked (Settings' own cards use 16).
+  mojoPanel: {
+    backgroundColor: withAlpha(C.subtext, 0.1), borderWidth: 1, borderColor: C.border,
+    borderRadius: 20, paddingTop: 10, paddingBottom: 10, paddingHorizontal: 12, marginBottom: 14,
+  },
   statPillsRow: { flexDirection: 'row', gap: 10, marginBottom: 6 },
-  statPillLabelsRow: { flexDirection: 'row', gap: 10, marginBottom: 2 },
+  statPillLabelsRow: { flexDirection: 'row', gap: 10 },
   statPillLabel: {
     flex: 1, fontSize: 11, fontWeight: '600', color: C.subtext, textAlign: 'center',
   },
@@ -1639,7 +1650,7 @@ const styles = StyleSheet.create({
   },
   statPillNumber: { fontSize: 13, fontWeight: '700', color: C.text },
   statPillsCaption: {
-    fontSize: 11, fontWeight: '600', color: C.subtext, textAlign: 'center', marginBottom: 14,
+    fontSize: 11, fontWeight: '600', color: C.subtext, textAlign: 'center', marginBottom: 8,
   },
   statTooltip: {
     position: 'absolute', top: -34, left: -30, right: -30,
