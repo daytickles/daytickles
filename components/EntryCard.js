@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity, Modal, Share } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { C, darken, lighten, withAlpha, SAVED_ENTRY_DOT_SIZE, vibeIconColor, NATURE_LABELS, AWARD_BADGE_COLOR } from '../lib/theme';
+import { C, darken, lighten, withAlpha, vibeIconColor, NATURE_LABELS, AWARD_BADGE_COLOR } from '../lib/theme';
 import { showAlert } from '../lib/themedAlert';
 import { isQuickTickle, useTickleItDismissed } from '../lib/quickTickle';
 import { flagEmoji } from '../lib/country';
@@ -57,6 +57,10 @@ export const CARD_SPACING = 12;
 // Dusk blue for the card's Quick Tickle mark and its "Tickle it" pill
 // (Task 3 Q2) -- fixed, not the viewer's accent theme any more.
 const INK = '#425762';
+// Restyled card (Task 3 S3): warm white, a 1dp sand border, radius 22.
+const CARD_FILL = '#FFFDF7';
+const CARD_LINE = '#EADFCB';
+const VIBE_ICON_SIZE = 16;
 
 // Extracted from feed.js's original renderEntry — same markup, same
 // styles, same tab==='mine'-gated actions (now `showMineActions`), same
@@ -116,6 +120,7 @@ export default function EntryCard({
   // (dismissable per phone); Ripple and Share stay hidden until it has
   // words. Only the owner ever sees this treatment.
   const isQuick = isOwnEntry && isQuickTickle(item, !!photoUri || !!hasLinkedPhoto);
+  const likeCount = item.like_count || 0;
   const [tickleItDismissed, dismissTickleIt] = useTickleItDismissed(item.id, isQuick && showMineActions);
 
   function openEdit() {
@@ -172,408 +177,413 @@ export default function EntryCard({
       ]}
       onLayout={onLayout}
     >
-      <View style={styles.entryRow}>
-        <View
-          style={[
-            styles.vibeIconSlot,
-            {
-              width: SAVED_ENTRY_DOT_SIZE,
-              height: SAVED_ENTRY_DOT_SIZE,
-              alignItems: 'center',
-              justifyContent: 'center',
-            },
-          ]}
-        >
-          {/* One icon for all four natures, My Day's sun included
-              (TICKLE_NATURE_ICONS / vibeIconColor in lib/theme.js).
-              NatureIcon renders nothing for an untagged (null) entry.
-              My Day is deliberately still NOT in NATURE_ORDER, which
-              drives the tracked-Vibe features (Vibe Targets, Home's
-              Vibe cards, the profile select). */}
+      {/* Author row: who posted it. The username is the only thing that
+          shrinks -- the flag and Moji badge sit beside it as non-shrinking
+          siblings, so a long name truncates without clipping the flag. */}
+      <View style={styles.authorRow}>
+        <InitialsAvatar username={item.profiles?.username} accentTheme={item.profiles?.accent_theme} size={18} />
+        <Text style={styles.authorText} numberOfLines={1}>
+          {item.profiles?.username}
+        </Text>
+        {!!item.profiles?.country && (
+          <Text style={styles.authorFlag}>{flagEmoji(item.profiles.country)}</Text>
+        )}
+        {!!item.profiles?.founding_member_number && (
+          <FoundingMemberBadge number={item.profiles.founding_member_number} compact />
+        )}
+        {!isOwnEntry && (
+          <TouchableOpacity
+            onPress={() => onToggleFollow?.(item.user_id)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={styles.followAction}
+          >
+            <Text style={[styles.followLink, isFollowing && styles.followLinkActive]}>
+              {isFollowing ? 'Following' : 'Follow'}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+      {/* Header: the Vibe's icon in a soft circle and its name on the left,
+          the date on the right. One icon for all four natures, My Day's
+          sun included (TICKLE_NATURE_ICONS / vibeIconColor in
+          lib/theme.js); an untagged (null) entry shows no Vibe. The public
+          "this post received recognition" badges (components/
+          AwardBadges.js) follow the Vibe name. */}
+      <View style={styles.headerRow}>
+        <View style={styles.vibeHeader}>
           {!!item.tickle_nature && (
-            <NatureIcon
-              nature={item.tickle_nature}
-              size={SAVED_ENTRY_DOT_SIZE}
-              color={vibeIconColor(item.tickle_nature)}
-            />
+            <>
+              <View style={[styles.vibeCircle, { backgroundColor: withAlpha(vibeIconColor(item.tickle_nature), 0.12) }]}>
+                <NatureIcon
+                  nature={item.tickle_nature}
+                  size={VIBE_ICON_SIZE}
+                  color={vibeIconColor(item.tickle_nature)}
+                />
+              </View>
+              <Text style={styles.vibeName} numberOfLines={1}>{NATURE_LABELS[item.tickle_nature]}</Text>
+            </>
           )}
+          {hasPublicAward && <AwardBadges types={publicAwardTypes} style={styles.publicAwardBadge} />}
         </View>
-        <View style={styles.entryBody}>
-          <View style={styles.headerRow}>
-            <View style={styles.authorRow}>
-              <InitialsAvatar username={item.profiles?.username} accentTheme={item.profiles?.accent_theme} size={18} />
-              <Text style={styles.authorText} numberOfLines={1}>
-                {item.profiles?.username}
-              </Text>
-              {!!item.profiles?.country && (
-                <Text style={styles.authorFlag}>{flagEmoji(item.profiles.country)}</Text>
-              )}
-              {!!item.profiles?.founding_member_number && (
-                <FoundingMemberBadge number={item.profiles.founding_member_number} compact />
-              )}
-              {!isOwnEntry && (
-                <TouchableOpacity
-                  onPress={() => onToggleFollow?.(item.user_id)}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  style={styles.followAction}
-                >
-                  <Text style={[styles.followLink, isFollowing && styles.followLinkActive]}>
-                    {isFollowing ? 'Following' : 'Follow'}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-            <View style={styles.iconGroup}>
-              {/* hasLinkedPhoto's one remaining use in this file (the
-                  linked-photo strip below no longer gates on it -- see
-                  that block's own comment). This icon means "YOUR local
-                  Pin Board link exists for this entry, but nothing
-                  resolved to show for it" -- an owner-only affordance,
-                  which is exactly what hasLinkedPhoto (the viewer's own
-                  local link table) correctly signals here: a non-owner
-                  never has a link to speak of, so this icon rightly
-                  never shows for them, with or without a resolvable
-                  photoUri via media_url. Suppressed for a photo-only
-                  entry -- this icon means "a photo is attached", which
-                  is redundant and confusing on a card whose entire
-                  content already is one; hasLinkedPhoto is also always
-                  true for its own entry_id in this case anyway. Also
-                  suppressed once photoUri resolves -- that case renders
-                  the linked-photo strip below instead, and this icon
-                  becomes its fallback only for the rarer case of a link
-                  existing but the local file being unresolved (e.g. gone
-                  missing) -- same tap target, still opens
-                  PhotoEnlargeModal. */}
-              {hasLinkedPhoto && !isPhotoOnly && !photoUri && (
-                <TouchableOpacity
-                  onPress={() => onOpenPhoto?.(item.id)}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  style={styles.photoAction}
-                >
-                  <Ionicons name="image-outline" size={16} color={C.subtext} />
-                </TouchableOpacity>
-              )}
-              {/* Public "this post received recognition" badge -- see
-                  components/AwardBadges.js (privacy, tap-to-reveal,
-                  unknown types skipped). */}
-              {hasPublicAward && <AwardBadges types={publicAwardTypes} style={styles.publicAwardBadge} />}
-              {showMineActions && (
-                <TouchableOpacity
-                  onPress={() => onPickGoal?.(item.id)}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <View
-                    style={[
-                      styles.goalDot,
-                      taggedGoal
-                        ? {
-                            backgroundColor: taggedGoal.achieved_at
-                              ? lighten(taggedGoal.color, 0.6)
-                              : taggedGoal.color,
-                          }
-                        : styles.goalDotEmpty,
-                    ]}
-                  >
-                    {taggedGoal?.achieved_at && (
-                      <Ionicons name="checkmark" size={10} color={darken(taggedGoal.color, 0.4)} />
+        <Text style={styles.entryDate}>
+          {formatEntryDate(item.entry_date)}
+          {item.visibility === 'public' && item.is_edited ? ' · (edited)' : ''}
+        </Text>
+      </View>
+      {/* TickleTale chip (migration 0067) -- its own full-width
+          line under the header. Shown to
+          everyone who can see the entry; taleBadge comes from
+          lib/tales.js's fetchTaleBadges. chapterNumber is null only
+          for the owner's own tagged-but-private entry (nobody else
+          can see that row), which isn't a numbered chapter until
+          it's Rippled again. */}
+      {!!taleBadge && (
+        <TouchableOpacity
+          onPress={() => router.push({ pathname: '/tale', params: { id: taleBadge.taleId } })}
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          style={styles.taleChip}
+        >
+          <Ionicons name={taleBadge.icon} size={12} color={C.rust} />
+          <Text style={styles.taleChipTitle} numberOfLines={1}>{taleBadge.title}</Text>
+          <Text style={styles.taleChipMeta}>
+            {taleBadge.chapterNumber != null ? `· Tic ${taleBadge.chapterNumber}` : '· not Rippled'}
+          </Text>
+          {taleBadge.completed && <Ionicons name="checkmark-circle" size={12} color={C.subtext} />}
+        </TouchableOpacity>
+      )}
+      {isPhotoOnly ? (
+        // The Polaroid itself -- tilted, drop-shadowed, its own
+        // white frame (see polaroidPhotoCard below), deliberately
+        // NOT nested inside the standard bordered card (that's
+        // dropped entirely for isPhotoOnly, see photoOnlyCard
+        // above). Favorite/goal-tag/delete stay up in headerRow
+        // above rather than in the Polaroid's own top strip the
+        // spec describes -- an explicit, documented deviation on
+        // the one point the spec itself calls not-yet-decided
+        // ("may need reconsidering once actually built and seen for
+        // real... decide after seeing it built"), traded for
+        // reusing headerRow's already-working icons wholesale
+        // instead of duplicating them. Revisit if it reads wrong in
+        // practice.
+        // A plain View when the photo is missing: a selectable Text
+        // nested under a touchable never gets the long-press on
+        // Android (the touchable takes the touch first).
+        <PolaroidFrame
+          {...(photoUri ? { activeOpacity: 0.85, onPress: () => onOpenPhoto?.(item.id, photoUri) } : {})}
+          style={[styles.polaroidPhotoCard, { transform: [{ rotate: rotationForId(item.id) }] }]}
+        >
+          {photoUri ? (
+            <Image source={{ uri: photoUri }} style={styles.polaroidPhoto} />
+          ) : (
+            // Square at minimum, taller only when the stack below needs
+            // it: the zero-width sizer's percentage padding is a share
+            // of the wrap's width, so it holds the row at least that
+            // tall, and the content beside it can still push past it
+            // (aspectRatio alone would let the stack overflow).
+            <View style={styles.polaroidMissingWrap}>
+              <View style={styles.polaroidMissingSizer} />
+              <View style={styles.polaroidMissingContent}>
+                <Ionicons name="image-outline" size={26} color={C.faint} />
+                {isOwnEntry ? (
+                  <>
+                    {/* The filename finds the auto-saved gallery copy before
+                        Relinking. Long-press selects it; "Copy name" opens the
+                        share sheet (which has Copy) as the dependable route,
+                        since there's no clipboard module in this build. */}
+                    <Text style={styles.polaroidMissingText} selectable>
+                      {item.local_photo_filename || 'Photo missing'}
+                    </Text>
+                    {!!savedAroundText(item.local_photo_filename) && (
+                      <Text style={styles.polaroidMissingHint}>
+                        {savedAroundText(item.local_photo_filename)}
+                      </Text>
                     )}
-                  </View>
-                </TouchableOpacity>
-              )}
-              {/* Hidden for a private Quick Tickle: a text-less Ripple
-                  would be a blank public card. Un-Ripple always stays. */}
-              {showMineActions && !(isQuick && item.visibility !== 'public') && (
-                <TouchableOpacity
-                  onPress={() => onToggleVisibility?.(item)}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  style={styles.shareAction}
-                >
-                  <Text style={styles.shareLink}>
-                    {item.visibility === 'public' ? 'Un-Ripple' : 'Ripple'}
-                  </Text>
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity
-                onPress={() => onToggleFavorite?.(item.id)}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                style={styles.starAction}
-              >
-                <Text style={[styles.starIcon, isFavorited && styles.starIconActive]}>
-                  {isFavorited ? '★' : '☆'}
-                </Text>
-              </TouchableOpacity>
-              {/* Give-High-Five CTA -- shown only while the viewer
-                  hasn't given their own award yet. Once they have
-                  (awardType truthy), this element is dropped entirely
-                  rather than swapped for a duplicate colored icon here:
-                  the public badge above (hasPublicAward) already
-                  renders a colored hand icon for that exact type, now
-                  that award_type is public (migration 0054) -- a
-                  second, visually identical icon here was pure
-                  redundant clutter. Awarding your own entry is blocked
-                  -- both here client-side and server-side via migration
-                  0020's prevent_self_award trigger, same defense-in-
-                  depth shape as the Like button's own !isOwnEntry gate
-                  further down this file. My Day entries are eligible for
-                  awards now, same as any other Tickle. */}
-              {isFavorited && !isOwnEntry && !awardType && (
-                <TouchableOpacity
-                  onPress={() => onGiveAward?.(item.id)}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  style={styles.awardAction}
-                  accessibilityRole="button"
-                  accessibilityLabel="Give a high five"
-                >
-                  <Ionicons name="hand-right-outline" size={16} color={C.faint} />
-                </TouchableOpacity>
-              )}
-              {/* Edit/Share/delete used to each be their own inline
-                  icon -- collapsed into this single menu (see the Modal
-                  below) once the row started overflowing the screen's
-                  right edge on Mine-tab/Calendar cards, the three most
-                  crowded showMineActions icons combined with the new
-                  public award badge being what tipped it over. Goal tag,
-                  Ripple/Un-Ripple (visibility toggle), and Favorite stay
-                  inline as the higher-frequency actions. */}
-              {showMineActions && (
-                <TouchableOpacity
-                  onPress={() => setMenuOpen(true)}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  style={styles.moreAction}
-                >
-                  <Ionicons name="ellipsis-vertical" size={16} color={C.subtext} />
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
-          {/* TickleTale chip (migration 0067) -- its own full-width
-              line rather than another icon in headerRow above, which
-              is already down to ~4dp spare on Un-Ripple rows. Shown to
-              everyone who can see the entry; taleBadge comes from
-              lib/tales.js's fetchTaleBadges. chapterNumber is null only
-              for the owner's own tagged-but-private entry (nobody else
-              can see that row), which isn't a numbered chapter until
-              it's Rippled again. */}
-          {!!taleBadge && (
-            <TouchableOpacity
-              onPress={() => router.push({ pathname: '/tale', params: { id: taleBadge.taleId } })}
-              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-              style={styles.taleChip}
-            >
-              <Ionicons name={taleBadge.icon} size={12} color={C.rust} />
-              <Text style={styles.taleChipTitle} numberOfLines={1}>{taleBadge.title}</Text>
-              <Text style={styles.taleChipMeta}>
-                {taleBadge.chapterNumber != null ? `· Tic ${taleBadge.chapterNumber}` : '· not Rippled'}
-              </Text>
-              {taleBadge.completed && <Ionicons name="checkmark-circle" size={12} color={C.subtext} />}
-            </TouchableOpacity>
-          )}
-          {isPhotoOnly ? (
-            // The Polaroid itself -- tilted, drop-shadowed, its own
-            // white frame (see polaroidPhotoCard below), deliberately
-            // NOT nested inside the standard bordered card (that's
-            // dropped entirely for isPhotoOnly, see photoOnlyCard
-            // above). Favorite/goal-tag/delete stay up in headerRow
-            // above rather than in the Polaroid's own top strip the
-            // spec describes -- an explicit, documented deviation on
-            // the one point the spec itself calls not-yet-decided
-            // ("may need reconsidering once actually built and seen for
-            // real... decide after seeing it built"), traded for
-            // reusing headerRow's already-working icons wholesale
-            // instead of duplicating them. Revisit if it reads wrong in
-            // practice.
-            // A plain View when the photo is missing: a selectable Text
-            // nested under a touchable never gets the long-press on
-            // Android (the touchable takes the touch first).
-            <PolaroidFrame
-              {...(photoUri ? { activeOpacity: 0.85, onPress: () => onOpenPhoto?.(item.id, photoUri) } : {})}
-              style={[styles.polaroidPhotoCard, { transform: [{ rotate: rotationForId(item.id) }] }]}
-            >
-              {photoUri ? (
-                <Image source={{ uri: photoUri }} style={styles.polaroidPhoto} />
-              ) : (
-                // Square at minimum, taller only when the stack below needs
-                // it: the zero-width sizer's percentage padding is a share
-                // of the wrap's width, so it holds the row at least that
-                // tall, and the content beside it can still push past it
-                // (aspectRatio alone would let the stack overflow).
-                <View style={styles.polaroidMissingWrap}>
-                  <View style={styles.polaroidMissingSizer} />
-                  <View style={styles.polaroidMissingContent}>
-                    <Ionicons name="image-outline" size={26} color={C.faint} />
-                    {isOwnEntry ? (
-                      <>
-                        {/* The filename finds the auto-saved gallery copy before
-                            Relinking. Long-press selects it; "Copy name" opens the
-                            share sheet (which has Copy) as the dependable route,
-                            since there's no clipboard module in this build. */}
-                        <Text style={styles.polaroidMissingText} selectable>
-                          {item.local_photo_filename || 'Photo missing'}
-                        </Text>
-                        {!!savedAroundText(item.local_photo_filename) && (
-                          <Text style={styles.polaroidMissingHint}>
-                            {savedAroundText(item.local_photo_filename)}
-                          </Text>
-                        )}
-                        {/* With a name: copy it, then search for it in the
-                            file picker (which has a search box), or else
-                            browse the photo grid (which doesn't). */}
-                        <View style={styles.missingActionsStack}>
-                          {!!item.local_photo_filename && (
-                            <>
-                              <TouchableOpacity
-                                onPress={() => Share.share({ message: item.local_photo_filename }).catch(() => {})}
-                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                                style={styles.relinkButton}
-                                accessibilityRole="button"
-                                accessibilityLabel="Copy file name"
-                              >
-                                <Text style={styles.relinkButtonText}>Copy name</Text>
-                              </TouchableOpacity>
-                              <Text style={styles.missingStepText}>then</Text>
-                              <TouchableOpacity
-                                onPress={() => onRelinkPhoto?.(item, 'byName')}
-                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                                style={styles.relinkButton}
-                                accessibilityRole="button"
-                                accessibilityLabel="Find photo by name"
-                              >
-                                <Text style={styles.relinkButtonText}>Find by name</Text>
-                              </TouchableOpacity>
-                              <Text style={styles.missingSearchHint}>
-                                Paste the name into the search box at the top.
-                              </Text>
-                              <Text style={styles.missingStepText}>or</Text>
-                            </>
-                          )}
+                    {/* With a name: copy it, then search for it in the
+                        file picker (which has a search box), or else
+                        browse the photo grid (which doesn't). */}
+                    <View style={styles.missingActionsStack}>
+                      {!!item.local_photo_filename && (
+                        <>
                           <TouchableOpacity
-                            onPress={() => onRelinkPhoto?.(item)}
+                            onPress={() => Share.share({ message: item.local_photo_filename }).catch(() => {})}
                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                             style={styles.relinkButton}
                             accessibilityRole="button"
-                            accessibilityLabel="Find photo visually"
+                            accessibilityLabel="Copy file name"
                           >
-                            <Text style={styles.relinkButtonText}>Visual find</Text>
+                            <Text style={styles.relinkButtonText}>Copy name</Text>
                           </TouchableOpacity>
-                        </View>
-                      </>
-                    ) : (
-                      <Text style={styles.polaroidMissingText}>Photo not available</Text>
-                    )}
-                  </View>
-                </View>
-              )}
-              {/* Caption shows the chosen Vibe's label instead of a
-                  share caption, per spec. */}
-              <View style={styles.polaroidCaptionStrip}>
-                <Text style={styles.polaroidCaptionLabel}>{NATURE_LABELS[item.tickle_nature]}</Text>
+                          <Text style={styles.missingStepText}>then</Text>
+                          <TouchableOpacity
+                            onPress={() => onRelinkPhoto?.(item, 'byName')}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            style={styles.relinkButton}
+                            accessibilityRole="button"
+                            accessibilityLabel="Find photo by name"
+                          >
+                            <Text style={styles.relinkButtonText}>Find by name</Text>
+                          </TouchableOpacity>
+                          <Text style={styles.missingSearchHint}>
+                            Paste the name into the search box at the top.
+                          </Text>
+                          <Text style={styles.missingStepText}>or</Text>
+                        </>
+                      )}
+                      <TouchableOpacity
+                        onPress={() => onRelinkPhoto?.(item)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        style={styles.relinkButton}
+                        accessibilityRole="button"
+                        accessibilityLabel="Find photo visually"
+                      >
+                        <Text style={styles.relinkButtonText}>Visual find</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </>
+                ) : (
+                  <Text style={styles.polaroidMissingText}>Photo not available</Text>
+                )}
               </View>
-            </PolaroidFrame>
-          ) : (
-            <>
-              {/* Tickle-a-Photo display change -- a linked photo that
-                  came from the "Tickle" button on a Tickle Pics photo
-                  (create.js's pinnedPhotoId flow is the only path that
-                  links a photo to an entry_kind='text' entry). Gated on
-                  photoUri alone, same as isPhotoOnly's own Polaroid
-                  branch above -- NOT additionally on hasLinkedPhoto,
-                  which is the viewer's own local-device Pin Board link
-                  and can never be true for anyone but the linking
-                  device/account. Once the upload-on-Ripple mechanic
-                  populated media_url for entry_kind='text' too,
-                  resolveLinkedPhotoUris (feed.js/calendar.js) already
-                  resolves photoUri correctly for a non-owner or a
-                  second device via that fallback -- gating on
-                  hasLinkedPhoto on top of that was a real bug (found and
-                  confirmed live cross-account, see
-                  ripple_photo_cross_account_bug_findings.md), not a
-                  deliberate restriction: it silently blocked the strip
-                  for every viewer except the one device that created the
-                  link, even once a perfectly valid photoUri existed.
-                  Deliberately its own plainer style, not isPhotoOnly's
-                  Polaroid treatment -- full-width strip, no white
-                  border/rotation/caption. Height/proportions are a first
-                  pass, flagged in the spec as needing a real-device
-                  look. */}
-              {!!photoUri && (
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  onPress={() => onOpenPhoto?.(item.id, photoUri)}
-                  style={styles.linkedPhotoStrip}
-                >
-                  <Image source={{ uri: photoUri }} style={styles.linkedPhotoStripImage} />
-                </TouchableOpacity>
-              )}
-              {/* My Day entries used to render behind a ruled-paper
-                  texture, clamped to 4 lines with a "Continue reading"
-                  expand -- both removed now that My Day is a regular
-                  Tickle in every way. Plain, fully untruncated
-                  text_content, same as every other entry type already
-                  gets here. */}
-              {isQuick ? (
-                <View style={styles.quickRow}>
-                  <View
-                    style={styles.quickDot}
-                    accessible
-                    accessibilityLabel="Quick Tickle"
-                  >
-                    {/* Capped like GoalTargetCircle's count, so "QT" stays inside the fixed 28dp circle. */}
-                    <Text style={styles.quickDotLabel} maxFontSizeMultiplier={1.3}>QT</Text>
-                  </View>
-                  {showMineActions && tickleItDismissed === false && (
-                    <>
-                      <TouchableOpacity
-                        onPress={openEdit}
-                        style={styles.tickleItPill}
-                        accessibilityRole="button"
-                        accessibilityLabel="Tickle it"
-                      >
-                        <Text style={styles.tickleItLabel}>Tickle it</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={dismissTickleIt}
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                        style={styles.tickleItDismiss}
-                        accessibilityRole="button"
-                        accessibilityLabel="Dismiss Tickle it for this Quick Tickle"
-                      >
-                        <Ionicons name="close" size={14} color={C.subtext} />
-                      </TouchableOpacity>
-                    </>
-                  )}
-                  {/* Once "Tickle it" has been dismissed, a plain label in
-                      its place: text only, not pressable. */}
-                  {showMineActions && tickleItDismissed === true && (
-                    <Text style={[styles.entryDate, styles.quickLabel]}>Quick Tickle!</Text>
-                  )}
-                </View>
-              ) : (
-                <Text style={styles.entryText}>{item.text_content}</Text>
-              )}
-            </>
+            </View>
           )}
-          <View style={styles.entryMetaRow}>
-            <Text style={styles.entryDate}>
-              {formatEntryDate(item.entry_date)}
-              {item.visibility === 'public' && item.is_edited ? ' · (edited)' : ''}
-            </Text>
-            <View style={styles.entryMetaRight}>
-              {!isOwnEntry && (
-                <TouchableOpacity
-                  onPress={() => onToggleLike?.(item.id)}
-                  style={styles.likeButton}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <Ionicons
-                    name={isLiked ? 'thumbs-up' : 'thumbs-up-outline'}
-                    size={16}
-                    color={isLiked ? C.amberBg : C.faint}
-                  />
-                  <Text style={[styles.likeCount, isLiked && styles.likeCountActive]}>{item.like_count || 0}</Text>
-                </TouchableOpacity>
+          {/* Caption shows the chosen Vibe's label instead of a
+              share caption, per spec. */}
+          <View style={styles.polaroidCaptionStrip}>
+            <Text style={styles.polaroidCaptionLabel}>{NATURE_LABELS[item.tickle_nature]}</Text>
+          </View>
+        </PolaroidFrame>
+      ) : (
+        <>
+          {/* My Day entries used to render behind a ruled-paper
+              texture, clamped to 4 lines with a "Continue reading"
+              expand -- both removed now that My Day is a regular
+              Tickle in every way. Plain, fully untruncated
+              text_content, same as every other entry type already
+              gets here. */}
+          {isQuick ? (
+            <View style={styles.quickRow}>
+              <View
+                style={styles.quickDot}
+                accessible
+                accessibilityLabel="Quick Tickle"
+              >
+                {/* Capped like GoalTargetCircle's count, so "QT" stays inside the fixed 28dp circle. */}
+                <Text style={styles.quickDotLabel} maxFontSizeMultiplier={1.3}>QT</Text>
+              </View>
+              {showMineActions && tickleItDismissed === false && (
+                <>
+                  <TouchableOpacity
+                    onPress={openEdit}
+                    style={styles.tickleItPill}
+                    accessibilityRole="button"
+                    accessibilityLabel="Tickle it"
+                  >
+                    <Text style={styles.tickleItLabel}>Tickle it</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={dismissTickleIt}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    style={styles.tickleItDismiss}
+                    accessibilityRole="button"
+                    accessibilityLabel="Dismiss Tickle it for this Quick Tickle"
+                  >
+                    <Ionicons name="close" size={14} color={C.subtext} />
+                  </TouchableOpacity>
+                </>
+              )}
+              {/* Once "Tickle it" has been dismissed, a plain label in
+                  its place: text only, not pressable. */}
+              {showMineActions && tickleItDismissed === true && (
+                <Text style={[styles.entryDate, styles.quickLabel]}>Quick Tickle!</Text>
               )}
             </View>
-          </View>
+          ) : (
+            <Text style={styles.entryText}>{item.text_content}</Text>
+          )}
+          {/* Below the text (Task 3 S3). Tickle-a-Photo display change --
+              a linked photo that
+              came from the "Tickle" button on a Tickle Pics photo
+              (create.js's pinnedPhotoId flow is the only path that
+              links a photo to an entry_kind='text' entry). Gated on
+              photoUri alone, same as isPhotoOnly's own Polaroid
+              branch above -- NOT additionally on hasLinkedPhoto,
+              which is the viewer's own local-device Pin Board link
+              and can never be true for anyone but the linking
+              device/account. Once the upload-on-Ripple mechanic
+              populated media_url for entry_kind='text' too,
+              resolveLinkedPhotoUris (feed.js/calendar.js) already
+              resolves photoUri correctly for a non-owner or a
+              second device via that fallback -- gating on
+              hasLinkedPhoto on top of that was a real bug (found and
+              confirmed live cross-account, see
+              ripple_photo_cross_account_bug_findings.md), not a
+              deliberate restriction: it silently blocked the strip
+              for every viewer except the one device that created the
+              link, even once a perfectly valid photoUri existed.
+              Deliberately its own plainer style, not isPhotoOnly's
+              Polaroid treatment -- full-width strip, no white
+              border/rotation/caption. Height/proportions are a first
+              pass, flagged in the spec as needing a real-device
+              look. */}
+          {!!photoUri && (
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => onOpenPhoto?.(item.id, photoUri)}
+              style={styles.linkedPhotoStrip}
+            >
+              <Image source={{ uri: photoUri }} style={styles.linkedPhotoStripImage} />
+            </TouchableOpacity>
+          )}
+        </>
+      )}
+      {/* A thin line, then the link row. Not on a photo-only Tickle,
+          which has no card surface for it to divide. */}
+      {!isPhotoOnly && <View style={styles.linkDivider} />}
+      {/* Link row (Task 3 S5): star, likes and share on the left; then
+          Ripple and the ⋯ menu on the right, ⋯ at the far edge. Every
+          control is a 44dp target with its own label. At a large font
+          scale the right group wraps under the left one rather than
+          running off the card. */}
+      <View style={styles.linkRow}>
+        <View style={styles.linkGroup}>
+          <TouchableOpacity
+            onPress={() => onToggleFavorite?.(item.id)}
+            style={styles.linkTarget}
+            accessibilityRole="button"
+            accessibilityLabel={isFavorited ? 'Remove star' : 'Star this Tickle'}
+            accessibilityState={{ selected: !!isFavorited }}
+          >
+            <Text style={[styles.starIcon, isFavorited && styles.starIconActive]}>
+              {isFavorited ? '★' : '☆'}
+            </Text>
+          </TouchableOpacity>
+          {/* Likes, with their count. Never on your own Tickle -- the
+              self-like guard, backed server-side by migration 0006's
+              prevent_self_like_insert trigger. */}
+          {!isOwnEntry && (
+            <TouchableOpacity
+              onPress={() => onToggleLike?.(item.id)}
+              style={[styles.linkTarget, styles.likeButton]}
+              accessibilityRole="button"
+              accessibilityLabel={`${isLiked ? 'Unlike' : 'Like'}, ${likeCount} like${likeCount === 1 ? '' : 's'}`}
+              accessibilityState={{ selected: !!isLiked }}
+            >
+              <Ionicons
+                name={isLiked ? 'thumbs-up' : 'thumbs-up-outline'}
+                size={16}
+                color={isLiked ? C.amberBg : C.faint}
+              />
+              <Text style={[styles.likeCount, isLiked && styles.likeCountActive]}>{likeCount}</Text>
+            </TouchableOpacity>
+          )}
+          {/* Share, the same as the ⋯ menu's Share: only on your own
+              Tickles (Mine and Calendar), and hidden for a Quick Tickle --
+              it has no words to share yet. */}
+          {showMineActions && !isQuick && (
+            <TouchableOpacity
+              onPress={() => onShare?.(item.id)}
+              style={styles.linkTarget}
+              accessibilityRole="button"
+              accessibilityLabel="Share"
+            >
+              <Ionicons name="share-outline" size={18} color={C.subtext} />
+            </TouchableOpacity>
+          )}
+          {/* "YOUR local Tickle Pics link exists for this entry, but
+              nothing resolved to show for it" -- owner-only, since
+              hasLinkedPhoto is the viewer's own local link table. Not on a
+              photo-only entry (its whole content already is the photo),
+              and not once photoUri resolves (the photo shows above). Opens
+              PhotoEnlargeModal. */}
+          {hasLinkedPhoto && !isPhotoOnly && !photoUri && (
+            <TouchableOpacity
+              onPress={() => onOpenPhoto?.(item.id)}
+              style={styles.linkTarget}
+              accessibilityRole="button"
+              accessibilityLabel="Open linked photo"
+            >
+              <Ionicons name="image-outline" size={16} color={C.subtext} />
+            </TouchableOpacity>
+          )}
+        </View>
+        <View style={styles.linkGroup}>
+          {/* Goal tag (Mine and Calendar): filled with the Goal's colour,
+              dashed when untagged, a tick once that Goal is achieved. */}
+          {showMineActions && (
+            <TouchableOpacity
+              onPress={() => onPickGoal?.(item.id)}
+              style={styles.linkTarget}
+              accessibilityRole="button"
+              accessibilityLabel={taggedGoal ? `Goal: ${taggedGoal.label}. Change Goal` : 'Tag to a Goal'}
+            >
+              <View
+                style={[
+                  styles.goalDot,
+                  taggedGoal
+                    ? {
+                        backgroundColor: taggedGoal.achieved_at
+                          ? lighten(taggedGoal.color, 0.6)
+                          : taggedGoal.color,
+                      }
+                    : styles.goalDotEmpty,
+                ]}
+              >
+                {taggedGoal?.achieved_at && (
+                  <Ionicons name="checkmark" size={10} color={darken(taggedGoal.color, 0.4)} />
+                )}
+              </View>
+            </TouchableOpacity>
+          )}
+          {/* Ripple / Un-Ripple. Hidden for a private Quick Tickle: a
+              text-less Ripple would be a blank public card. Un-Ripple
+              always stays. */}
+          {showMineActions && !(isQuick && item.visibility !== 'public') && (
+            <TouchableOpacity
+              onPress={() => onToggleVisibility?.(item)}
+              style={[styles.linkTarget, styles.labelAction]}
+              accessibilityRole="button"
+              accessibilityLabel={item.visibility === 'public' ? 'Un-Ripple' : 'Ripple'}
+            >
+              <Ionicons name="eye-outline" size={16} color={INK} />
+              <Text style={styles.labelActionText} maxFontSizeMultiplier={1.5}>
+                {item.visibility === 'public' ? 'Un-Ripple' : 'Ripple'}
+              </Text>
+            </TouchableOpacity>
+          )}
+          {/* Give-High-Five CTA (Task 3 S6): "High Five" with its hand,
+              in dusk blue, where Ripple sits on your own Tickles -- the
+              two never show together (High Five needs someone else's
+              Tickle, Ripple your own). Shown only once you've starred it
+              and while you haven't given your own award yet (once you
+              have, the public badge in the header already shows that
+              type's coloured hand).
+              Never on your own entry -- blocked here and server-side by
+              migration 0020's prevent_self_award trigger, the same
+              defence-in-depth shape as the like button's !isOwnEntry
+              gate. My Day entries are eligible, like any Tickle. */}
+          {isFavorited && !isOwnEntry && !awardType && (
+            <TouchableOpacity
+              onPress={() => onGiveAward?.(item.id)}
+              style={[styles.linkTarget, styles.labelAction]}
+              accessibilityRole="button"
+              accessibilityLabel="Give a high five"
+            >
+              <Ionicons name="hand-right-outline" size={16} color={INK} />
+              <Text style={styles.labelActionText} maxFontSizeMultiplier={1.5}>High Five</Text>
+            </TouchableOpacity>
+          )}
+          {/* Edit / Multickle / Share / Delete live in this menu (the
+              Modal below); always the last control, at the far right. */}
+          {showMineActions && (
+            <TouchableOpacity
+              onPress={() => setMenuOpen(true)}
+              style={styles.linkTarget}
+              accessibilityRole="button"
+              accessibilityLabel="More options"
+            >
+              <Ionicons name="ellipsis-vertical" size={16} color={C.subtext} />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -654,9 +664,15 @@ export default function EntryCard({
 
 const styles = StyleSheet.create({
   entryCard: {
-    backgroundColor: C.card, borderRadius: 16, padding: 14, marginBottom: CARD_SPACING,
+    backgroundColor: CARD_FILL, borderRadius: 22, borderWidth: 1, borderColor: CARD_LINE,
+    padding: 14, marginBottom: CARD_SPACING,
+    shadowColor: '#4A1F10', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08, shadowRadius: 6, elevation: 2,
   },
-  photoOnlyCard: { backgroundColor: 'transparent', padding: 0 },
+  // No surface, border or shadow -- the Polaroid supplies its own.
+  photoOnlyCard: {
+    backgroundColor: 'transparent', padding: 0, borderWidth: 0, shadowOpacity: 0, elevation: 0,
+  },
   // Same tilt+shadow language as PolaroidCard.js/ShareCard.js's own
   // Polaroid treatments (shadowOffset/Opacity/Radius/elevation values
   // copied from there for visual consistency) -- square photo, small
@@ -718,39 +734,29 @@ const styles = StyleSheet.create({
   awardWash: {
     backgroundColor: withAlpha(AWARD_BADGE_COLOR, 0.14), borderWidth: 1, borderColor: AWARD_BADGE_COLOR,
   },
-  entryRow: { flexDirection: 'row', alignItems: 'flex-start' },
-  vibeIconSlot: { marginRight: 12, marginTop: 4 },
-  entryBody: { flex: 1 },
+  // Vibe circle + name (shrinks first) on the left, date on the right.
   headerRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 8,
   },
-  // Username is the only thing in this row that shrinks -- the flag and
-  // Moji badge sit beside it as non-shrinking siblings, so a long name
-  // truncates to "…" without ever clipping the flag. The flag used to be
-  // appended inside authorText itself, so it was the first thing cut.
-  authorRow: { flexDirection: 'row', alignItems: 'center', flexShrink: 1, marginRight: 6, gap: 4 },
+  vibeHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 },
+  vibeCircle: {
+    width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center',
+  },
+  vibeName: { flexShrink: 1, fontSize: 13, fontWeight: '600', color: C.text },
+  authorRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 8 },
   authorText: { fontSize: 13, fontWeight: '600', color: C.rustDark, flexShrink: 1 },
   authorFlag: { fontSize: 13 },
   followAction: { marginLeft: 10 },
-  iconGroup: { flexDirection: 'row', alignItems: 'center' },
-  photoAction: { marginLeft: 8 },
-  // Row layout and gap live in AwardBadges; the card only adds its spacing.
-  publicAwardBadge: { marginLeft: 8 },
+  // Row layout and gap live in AwardBadges; the header row's gap spaces it.
+  publicAwardBadge: { marginLeft: 0 },
   goalDot: {
-    width: 16, height: 16, borderRadius: 8, marginLeft: 8,
+    width: 16, height: 16, borderRadius: 8,
     alignItems: 'center', justifyContent: 'center',
   },
   goalDotEmpty: {
     backgroundColor: 'transparent', borderWidth: 1.5,
     borderStyle: 'dashed', borderColor: C.faint,
   },
-  // 8, not 12 -- the Mine-tab header (goal dot + Un-Ripple + star + menu)
-  // left the username only ~32dp on a 360dp screen at 12; 8 hands ~16dp
-  // back to it. hitSlop (10) is unchanged, so tap targets are too.
-  shareAction: { marginLeft: 8 },
-  starAction: { marginLeft: 8 },
-  awardAction: { marginLeft: 8 },
-  moreAction: { marginLeft: 8 },
   menuBackdrop: {
     flex: 1, backgroundColor: 'rgba(44,44,42,0.4)',
     justifyContent: 'center', alignItems: 'center', padding: 32,
@@ -799,22 +805,26 @@ const styles = StyleSheet.create({
   },
   taleChipTitle: { fontSize: 11, fontWeight: '600', color: C.rustDark, flexShrink: 1 },
   taleChipMeta: { fontSize: 11, fontWeight: '600', color: C.subtext },
-  // borderRadius matches entryCard's own (16) per spec -- "rounded
-  // corners matching the card's own radius".
+  // Below the text, about 110dp tall, rounded.
   linkedPhotoStrip: {
-    width: '100%', height: 100, borderRadius: 16, overflow: 'hidden', marginBottom: 8,
+    width: '100%', height: 110, borderRadius: 16, overflow: 'hidden', marginTop: 8,
     backgroundColor: C.border,
   },
   linkedPhotoStripImage: { width: '100%', height: '100%' },
 
-  entryMetaRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8,
-  },
-  entryDate: { fontSize: 12, color: C.subtext },
-  entryMetaRight: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  entryDate: { flexShrink: 0, fontSize: 12, color: C.subtext },
+  linkDivider: { height: 1, backgroundColor: CARD_LINE, marginTop: 12, marginBottom: 4 },
+  // Two groups pushed to either edge; wraps at a large font scale.
+  linkRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' },
+  linkGroup: { flexDirection: 'row', alignItems: 'center' },
+  // Every link-row control: at least 44 x 44dp.
+  linkTarget: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  // Icon + label (Ripple, High Five), padded so the label isn't flush to
+  // its target.
+  labelAction: { flexDirection: 'row', gap: 4, paddingHorizontal: 8 },
+  labelActionText: { fontSize: 13, fontWeight: '600', color: INK },
   followLink: { fontSize: 12, fontWeight: '600', color: C.rust },
   followLinkActive: { color: C.subtext },
-  shareLink: { fontSize: 12, color: C.subtext, fontWeight: '600' },
   likeButton: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   likeCount: { fontSize: 12, fontWeight: '600', color: C.subtext },
   likeCountActive: { color: C.sparkleText },
