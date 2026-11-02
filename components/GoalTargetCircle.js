@@ -16,14 +16,17 @@ import { C } from '../lib/theme';
 //
 // `accessible={false}` is for use inside a touchable that already speaks for
 // the whole thing (Home's Goal pill), so the label isn't read twice.
-export default function GoalTargetCircle({ count, target, size = 24, accessible = true }) {
+//
+// color / tickColor default to C.text / C.card; Home's dark deck card
+// passes cream / its own card colour instead.
+export default function GoalTargetCircle({ count, target, size = 24, accessible = true, color = C.text, tickColor = C.card }) {
   const reached = count >= target;
   return (
     <View
       style={[
         styles.circle,
-        { minWidth: size, height: size, borderRadius: size / 2 },
-        reached && styles.circleReached,
+        { minWidth: size, height: size, borderRadius: size / 2, borderColor: color },
+        reached && { backgroundColor: color },
       ]}
       accessible={accessible}
       accessibilityLabel={
@@ -33,9 +36,9 @@ export default function GoalTargetCircle({ count, target, size = 24, accessible 
       }
     >
       {reached ? (
-        <Ionicons name="checkmark" size={Math.round(size * 0.6)} color={C.card} />
+        <Ionicons name="checkmark" size={Math.round(size * 0.6)} color={tickColor} />
       ) : (
-        <Text style={styles.count} maxFontSizeMultiplier={1.2}>{count}</Text>
+        <Text style={[styles.count, { color }]} maxFontSizeMultiplier={1.2}>{count}</Text>
       )}
     </View>
   );
@@ -45,8 +48,7 @@ const styles = StyleSheet.create({
   circle: {
     flexShrink: 0, paddingHorizontal: 4,
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1.5, borderColor: C.text,
+    borderWidth: 1.5,
   },
-  circleReached: { backgroundColor: C.text },
-  count: { fontSize: 12, fontWeight: '700', color: C.text },
+  count: { fontSize: 12, fontWeight: '700' },
 });

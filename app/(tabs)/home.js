@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { File } from 'expo-file-system';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { C, accentFor, NATURE_ORDER, NATURE_LABELS, VIBE_COLORS, VIBE_CARD_PALETTE, vibeIconColor, withAlpha } from '../../lib/theme';
+import { C, accentFor, NATURE_ORDER, NATURE_LABELS, VIBE_COLORS, VIBE_CARD_PALETTE, withAlpha } from '../../lib/theme';
 import {
   isThisWeek, isThisMonth, localDateString, toLocalDateString, parseLocalDateString,
   currentWeekStartISO, monthStartISO, DEFAULT_WEEK_START_DAY,
@@ -33,6 +33,7 @@ import TesterFeedbackPill from '../../components/TesterFeedbackPill';
 import GoalTargetCircle from '../../components/GoalTargetCircle';
 import QuickTickleToast from '../../components/QuickTickleToast';
 import QuickTicklePopover from '../../components/QuickTicklePopover';
+import HomeDeck, { DECK_WIDTH, DECK_COLORS, DECK_TEXT, DECK_SUBTEXT, deckRowStyles } from '../../components/HomeDeck';
 import {
   requestReminderPermission,
   scheduleDailyReminder,
@@ -47,9 +48,9 @@ import { isReviewAvailable, requestReview } from '../../lib/rateUs';
 // this content) still fills the full screen width either way.
 const HOME_CONTENT_MAX_WIDTH = 600;
 // styles.content's padding on each side; also used to work out the
-// content width for the Remember this? pills' maxWidth.
+// content width the deck has to fit in.
 const HOME_SIDE_PADDING = 20;
-// How many Tickles the Remember this? row offers at most.
+// How many Tickles the Remember this? card offers at most.
 const REMEMBER_MAX = 3;
 // Columns loadEntries reads, and a Quick Tickle's insert returns, so the
 // new row drops straight into `entries` in the same shape.
@@ -968,116 +969,85 @@ export default function Home() {
     }
   }
 
-  // Same transparent pill-row pattern as Your Goals, You can redeem and
-  // Multickles you follow: each pill is its own touchable, so a swipe on
-  // the row scrolls it without opening a Tickle. A tap jumps to the entry
-  // in Tickle Stash, where Share/Edit/Ripple/Delete live. Each pill is
-  // capped at 78% of the content width, so the first shows in full and
-  // the next peeks as a scroll hint; the text gets two lines. Photo-only
-  // entries have no text, so they show a small thumbnail and the Vibe
-  // name instead. No age label: three pills can have three different
-  // ages, which don't fit the one header row.
-  const rememberPillMaxWidth = Math.round(
-    0.78 * Math.min(windowWidth - 2 * HOME_SIDE_PADDING, HOME_CONTENT_MAX_WIDTH)
-  );
+  // The four bottom sections are now the four cards of one deck
+  // (components/HomeDeck.js). Each card's rows are what its old pill row
+  // showed, as vertical rows in cream on the card colour. Each row is its
+  // own touchable and opens what its pill opened.
 
-  // One faint, dashed, untappable pill in goalPill's shape for a section
-  // with nothing to show -- the same dashed C.faint outline Calendar and
-  // GoalTagModal use for "empty". No text, and hidden from screen readers
-  // so TalkBack doesn't announce an empty pill.
-  function renderPlaceholderPill() {
+  // One dashed, untappable row for a card with nothing to show. No text,
+  // and hidden from screen readers so TalkBack doesn't announce it.
+  function renderPlaceholderRow() {
     return (
-      <View style={styles.goalPillsRow}>
-        <View
-          style={[styles.goalPill, styles.placeholderPill]}
-          accessible={false}
-          importantForAccessibility="no-hide-descendants"
-          accessibilityElementsHidden
-        />
-      </View>
+      <View
+        style={deckRowStyles.placeholder}
+        accessible={false}
+        importantForAccessibility="no-hide-descendants"
+        accessibilityElementsHidden
+      />
     );
   }
 
-  // With no Tickles yet, remember is null: the "Your latest Tickle"
-  // heading with a placeholder pill.
-  function renderRememberCard() {
-    if (!remember) {
-      return (
-        <View style={styles.goalsSection}>
-          <Text style={[styles.cardLabel, styles.goalsCardLabel]}>Your latest Tickle</Text>
-          {renderPlaceholderPill()}
-        </View>
-      );
-    }
-    const { entries: picks, isFallback } = remember;
-    return (
-      <View style={styles.goalsSection}>
-        <Text style={[styles.cardLabel, styles.goalsCardLabel]}>
-          {isFallback ? 'Your latest Tickle' : 'Remember this?'}
-        </Text>
-        {/* Keyed by the picked ids so the row restarts at the first pill
-            when the picks change (e.g. the next day), like the others. */}
-        <ScrollView
-          key={picks.map((e) => e.id).join(',')}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.goalPillsRow}
-        >
-          {picks.map((entry) => {
-            const isPhotoOnly = entry.entry_kind === 'photo_only';
-            const photoUri = isPhotoOnly ? linkedPhotoUris.get(entry.id) || null : null;
-            const natureLabel = NATURE_LABELS[entry.tickle_nature] || 'Tickle';
-            // Newlines and runs of spaces collapsed, so the two lines
-            // start at the beginning of the entry text.
-            const text = (entry.text_content || '').replace(/\s+/g, ' ').trim();
-            const label = !isPhotoOnly && text ? text : natureLabel;
-            // A Quick Tickle (no text, no photo) is read as just its Vibe.
-            const short = !isPhotoOnly && !text
-              ? null
-              : isPhotoOnly
-                ? 'a photo'
-                : text.length > 60 ? `${text.slice(0, 60).trimEnd()}…` : text;
-            return (
-              <TouchableOpacity
-                key={entry.id}
-                style={[styles.goalPill, styles.redeemPill, { maxWidth: rememberPillMaxWidth }]}
-                activeOpacity={0.7}
-                onPress={() => goToEntryInFeed(entry.id)}
-                accessibilityRole="button"
-                accessibilityLabel={short ? `${natureLabel}, ${short}. Opens Tickle.` : `${natureLabel}. Opens Tickle.`}
-              >
-                {/* Any tagged nature, My Day's sun included -- NatureIcon
-                    and vibeIconColor cover all four (lib/theme.js). */}
-                {!!entry.tickle_nature && (
-                  <NatureIcon nature={entry.tickle_nature} size={16} color={vibeIconColor(entry.tickle_nature)} />
-                )}
-                {isPhotoOnly && (
-                  photoUri ? (
-                    <Image source={{ uri: photoUri }} style={styles.rememberThumb} />
-                  ) : (
-                    <View style={[styles.rememberThumb, styles.rememberThumbMissing]}>
-                      <Ionicons name="image-outline" size={14} color={C.faint} />
-                    </View>
-                  )
-                )}
-                <Text style={styles.rememberPillLabel} numberOfLines={2}>{label}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </View>
-    );
+  // Remember this?: a tap jumps to the entry in Tickle Stash, where
+  // Share/Edit/Ripple/Delete live. Photo-only entries have no text, so
+  // they show a small thumbnail and the Vibe name instead. With no
+  // Tickles yet, remember is null: "Your latest Tickle" over a
+  // placeholder row.
+  function rememberCard() {
+    return {
+      key: 'remember',
+      title: !remember || remember.isFallback ? 'Your latest Tickle' : 'Remember this?',
+      color: DECK_COLORS.remember,
+      children: !remember ? renderPlaceholderRow() : remember.entries.map((entry) => {
+        const isPhotoOnly = entry.entry_kind === 'photo_only';
+        const photoUri = isPhotoOnly ? linkedPhotoUris.get(entry.id) || null : null;
+        const natureLabel = NATURE_LABELS[entry.tickle_nature] || 'Tickle';
+        // Newlines and runs of spaces collapsed, so the two lines start
+        // at the beginning of the entry text.
+        const text = (entry.text_content || '').replace(/\s+/g, ' ').trim();
+        const label = !isPhotoOnly && text ? text : natureLabel;
+        // A Quick Tickle (no text, no photo) is read as just its Vibe.
+        const short = !isPhotoOnly && !text
+          ? null
+          : isPhotoOnly
+            ? 'a photo'
+            : text.length > 60 ? `${text.slice(0, 60).trimEnd()}…` : text;
+        return (
+          <TouchableOpacity
+            key={entry.id}
+            style={deckRowStyles.row}
+            activeOpacity={0.7}
+            onPress={() => goToEntryInFeed(entry.id)}
+            accessibilityRole="button"
+            accessibilityLabel={short ? `${natureLabel}, ${short}. Opens Tickle.` : `${natureLabel}. Opens Tickle.`}
+          >
+            {!!entry.tickle_nature && (
+              <NatureIcon nature={entry.tickle_nature} size={16} color={DECK_TEXT} />
+            )}
+            {isPhotoOnly && (
+              photoUri ? (
+                <Image source={{ uri: photoUri }} style={styles.rememberThumb} />
+              ) : (
+                <View style={[styles.rememberThumb, styles.rememberThumbMissing]}>
+                  <Ionicons name="image-outline" size={14} color={C.faint} />
+                </View>
+              )
+            )}
+            <Text style={deckRowStyles.label} numberOfLines={2}>{label}</Text>
+          </TouchableOpacity>
+        );
+      }),
+    };
   }
 
-  // "Your Rewards" strip: every reward on the Reward List, in
-  // fetchWishlistItems' cost-ascending order, each with a circle that
-  // fills once the balance reaches its cost. Rewards are repeatable
-  // (redeeming never removes one, see migration 0065). Redeeming itself
-  // stays on the Reward List with its own confirmation -- every chip, the
-  // out-of-reach ones included, just opens it, same target as CornerNav's
-  // header circle. The Reward List disables Redeem below the cost, and
-  // redeem_wishlist_item refuses it server-side. affordableRewards still
-  // feeds the header's screen-reader label.
+  // Your Rewards: every reward on the Reward List, in fetchWishlistItems'
+  // cost-ascending order, each with a circle that fills once the balance
+  // reaches its cost. Rewards are repeatable (redeeming never removes
+  // one, see migration 0065). Redeeming itself stays on the Reward List
+  // with its own confirmation -- every row, the out-of-reach ones
+  // included, just opens it, as does the Reward List button in the
+  // header. The token total is the sub line; its screen-reader label
+  // names only the affordable rewards, and reads just the balance when
+  // none are. With no rewards at all, a placeholder row.
   const affordableRewards = tokensEnabled ? rewardItems.filter((i) => i.cost <= tokenBalance) : [];
 
   function joinNames(names) {
@@ -1085,99 +1055,54 @@ export default function Home() {
     return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
   }
 
-  // Same transparent pill-row pattern as Your Goals and Multickles you
-  // follow: no white card, and the header row and each pill are their
-  // own touchables rather than one around the whole section, so a
-  // sideways swipe on the pill row scrolls it without also firing a tap.
-  // No pill cap: every reward gets a pill, and the row runs to the
-  // content edge so the last visible pill peeks as a scroll hint.
-  // The label leads the header row so it lines up with the other two
-  // section labels; the balance circle follows it.
-  // The header's screen-reader label names only the affordable rewards,
-  // and reads just the balance when none are, since "You can redeem" with
-  // no names would be an empty sentence. With no rewards at all, the same
-  // header row over a placeholder pill.
-  function renderRedeemCard() {
-    const balanceA11y = `${tokenBalance} token${tokenBalance === 1 ? '' : 's'}.`;
-    const headerA11y = affordableRewards.length === 0
-      ? balanceA11y
-      : `${balanceA11y} You can redeem ${joinNames(affordableRewards.map((i) => i.label))}.`;
-    if (rewardItems.length === 0) {
-      return (
-        <View style={styles.goalsSection}>
-          <View style={styles.redeemHeaderRow} accessible accessibilityLabel={headerA11y}>
-            <Text style={styles.cardLabel}>Your Rewards - you can redeem</Text>
-            <View style={styles.redeemBalanceCircle}>
-              <Text style={styles.redeemBalanceText}>{tokenBalance}</Text>
+  function rewardsCard() {
+    const balanceText = `${tokenBalance} token${tokenBalance === 1 ? '' : 's'}`;
+    const subA11y = affordableRewards.length === 0
+      ? `${balanceText}.`
+      : `${balanceText}. You can redeem ${joinNames(affordableRewards.map((i) => i.label))}.`;
+    return {
+      key: 'rewards',
+      title: 'Your Rewards',
+      sub: balanceText,
+      subA11y,
+      color: DECK_COLORS.rewards,
+      headerAction: { label: 'Reward List', a11yLabel: 'Open Reward List', onPress: () => router.push('/wishlist') },
+      children: rewardItems.length === 0 ? renderPlaceholderRow() : rewardItems.map((item) => {
+        const canRedeem = item.cost <= tokenBalance;
+        const short = item.cost - tokenBalance;
+        const stateA11y = canRedeem
+          ? 'Can redeem'
+          : `Needs ${short} more token${short === 1 ? '' : 's'}`;
+        return (
+          // Name and cost in separate Texts so only the name truncates.
+          <TouchableOpacity
+            key={item.id}
+            style={deckRowStyles.row}
+            activeOpacity={0.7}
+            onPress={() => router.push('/wishlist')}
+            accessibilityRole="button"
+            accessibilityLabel={`${item.label}, ${item.cost} token${item.cost === 1 ? '' : 's'}. ${stateA11y}. Opens Reward List.`}
+          >
+            <Text style={deckRowStyles.label} numberOfLines={1}>{item.label}</Text>
+            <View style={deckRowStyles.spacer} />
+            <MaterialCommunityIcons name="circle-multiple-outline" size={14} color={DECK_SUBTEXT} />
+            <Text style={deckRowStyles.meta}>{item.cost}</Text>
+            {/* Hollow cream ring below the cost, solid cream with a tick
+                in the card colour once affordable. */}
+            <View style={[styles.rewardCircle, canRedeem && styles.rewardCircleFilled]}>
+              {canRedeem && <Ionicons name="checkmark" size={13} color={DECK_COLORS.rewards} />}
             </View>
-          </View>
-          {renderPlaceholderPill()}
-        </View>
-      );
-    }
-    return (
-      <View style={styles.goalsSection}>
-        {/* Plain label like the other sections' -- the reward pills below
-            are what open the Reward List. accessible + label so a screen
-            reader reads the balance and the redeemable rewards as one
-            statement. */}
-        <View style={styles.redeemHeaderRow} accessible accessibilityLabel={headerA11y}>
-          <Text style={styles.cardLabel}>Your Rewards - you can redeem</Text>
-          <View style={styles.redeemBalanceCircle}>
-            <Text style={styles.redeemBalanceText}>{tokenBalance}</Text>
-          </View>
-        </View>
-        {/* Keyed by the reward ids so the row remounts at the first pill
-            whenever that list changes (e.g. a reward added or removed),
-            rather than keeping a stale scroll offset into a shorter row. */}
-        <ScrollView
-          key={rewardItems.map((i) => i.id).join(',')}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.goalPillsRow}
-        >
-          {rewardItems.map((item) => {
-            const canRedeem = item.cost <= tokenBalance;
-            const short = item.cost - tokenBalance;
-            const stateA11y = canRedeem
-              ? 'Can redeem'
-              : `Needs ${short} more token${short === 1 ? '' : 's'}`;
-            return (
-              // Name and cost in separate Texts so only the name truncates --
-              // a long (up to 60-char) label would otherwise push the cost
-              // off the end of a single truncated line. Every pill opens the
-              // Reward List, affordable or not -- none of them redeem.
-              <TouchableOpacity
-                key={item.id}
-                style={[styles.goalPill, styles.redeemPill]}
-                activeOpacity={0.7}
-                onPress={() => router.push('/wishlist')}
-                accessibilityRole="button"
-                accessibilityLabel={`${item.label}, ${item.cost} token${item.cost === 1 ? '' : 's'}. ${stateA11y}. Opens Reward List.`}
-              >
-                <Text style={styles.goalPillLabel} numberOfLines={1}>{item.label}</Text>
-                <MaterialCommunityIcons name="circle-multiple-outline" size={14} color={C.subtext} />
-                <Text style={styles.redeemPillCost}>{item.cost}</Text>
-                {/* GoalTargetCircle's look at the Goal pill's size 22:
-                    hollow C.text ring below the cost, solid C.text with a
-                    C.card tick once affordable. */}
-                <View style={[styles.rewardCircle, canRedeem && styles.rewardCircleFilled]}>
-                  {canRedeem && <Ionicons name="checkmark" size={13} color={C.card} />}
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </View>
-    );
+          </TouchableOpacity>
+        );
+      }),
+    };
   }
 
-  // Tapping a pill opens the Multickle and clears its sparkle locally, in
-  // place -- no re-order or removal, so the row's key (and scroll
-  // position) stays put; tale.js marks the notifications read. The
-  // newest unread created_at it was showing is remembered, so a Home
-  // focus that beats that mark-read doesn't bring the sparkle back, while
-  // a newer Tic still does.
+  // Tapping a row opens the Multickle and clears its sparkle locally, in
+  // place -- no re-order or removal; tale.js marks the notifications
+  // read. The newest unread created_at it was showing is remembered, so a
+  // Home focus that beats that mark-read doesn't bring the sparkle back,
+  // while a newer Tic still does.
   function openFollowedTale(tale) {
     if (tale.newAt) {
       tappedTaleNewAtRef.current.set(tale.id, tale.newAt);
@@ -1186,157 +1111,138 @@ export default function Home() {
     router.push({ pathname: '/tale', params: { id: tale.id } });
   }
 
-  // Same pattern as the Your Goals section below: transparent, no white
-  // card, a sideways row of pills (reusing the Goal pill's shape and
-  // type), each its own touchable so a swipe on the row scrolls it
-  // without opening a Multickle. Then the footer link, also its own
-  // touchable.
-  function renderFollowedTalesCard() {
-    if (followedTales.length === 0) {
-      return (
-        <View style={styles.goalsSection}>
-          <Text style={[styles.cardLabel, styles.goalsCardLabel]}>Multickles you follow</Text>
-          {renderPlaceholderPill()}
-        </View>
-      );
-    }
-    return (
-      <View style={styles.goalsSection}>
-        <Text style={[styles.cardLabel, styles.goalsCardLabel]}>Multickles you follow</Text>
-        {/* Keyed by the ordered ids so the row restarts at the first pill
-            when the list changes; a tap only clears the sparkle, so it keeps
-            the key. */}
-        <ScrollView
-          key={followedTales.map((t) => t.id).join(',')}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.goalPillsRow}
+  function multicklesCard() {
+    return {
+      key: 'multickles',
+      title: 'Multickles you follow',
+      color: DECK_COLORS.multickles,
+      children: followedTales.length === 0 ? renderPlaceholderRow() : followedTales.map((t) => (
+        <TouchableOpacity
+          key={t.id}
+          style={deckRowStyles.row}
+          activeOpacity={0.7}
+          onPress={() => openFollowedTale(t)}
+          accessibilityRole="button"
+          accessibilityLabel={
+            t.newAt
+              ? `${t.title}, new Tic added ${relativeTimeLabel(t.newAt)}. Opens Multickle.`
+              : `${t.title}. Opens Multickle.`
+          }
         >
-          {followedTales.map((t) => (
-            <TouchableOpacity
-              key={t.id}
-              style={[styles.goalPill, styles.redeemPill]}
-              activeOpacity={0.7}
-              onPress={() => openFollowedTale(t)}
-              accessibilityRole="button"
-              accessibilityLabel={
-                t.newAt
-                  ? `${t.title}, new Tic added ${relativeTimeLabel(t.newAt)}. Opens Multickle.`
-                  : `${t.title}. Opens Multickle.`
-              }
-            >
-              {/* Unread indicator. Hidden from screen readers -- the
-                  pill's label already says "new Tic added ...". */}
-              {!!t.newAt && (
-                <Ionicons
-                  name="sparkles"
-                  size={12}
-                  color={C.sparkleText}
-                  importantForAccessibility="no"
-                  accessibilityElementsHidden
-                />
-              )}
-              <Text style={styles.goalPillLabel} numberOfLines={1}>{t.title}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-    );
+          {/* Unread indicator. Hidden from screen readers -- the row's
+              label already says "new Tic added ...". */}
+          {!!t.newAt && (
+            <Ionicons
+              name="sparkles"
+              size={14}
+              color={DECK_TEXT}
+              importantForAccessibility="no"
+              accessibilityElementsHidden
+            />
+          )}
+          <Text style={deckRowStyles.label} numberOfLines={1}>{t.title}</Text>
+        </TouchableOpacity>
+      )),
+    };
   }
 
-  // One pill per active Goal -> that Goal's own summary screen
-  // (app/goal.js), in a sideways-scrolling row -- same pattern as the
-  // "You can redeem" strip below: each pill is its own touchable, with no
-  // wrapper touchable around the card, so a swipe on the row scrolls it
-  // without opening a Goal. No white card: like the Vibe cards and the
-  // Mojo Shared pill rows above, it sits straight on the wallpaper as a
-  // plain View with no fill/border/padding, so the pills run to the
-  // content edge and the last one peeks there. With no active Goals, a
-  // gentle prompt instead -- but before the first entry a placeholder
-  // pill, so a brand-new account isn't shown two calls to action at once
-  // (QuickStartCard already covers that state). Before the first entry
-  // the section also waits for the Goals to load, and stays hidden after
-  // a failed entries load, where every pill's count would wrongly read 0.
+  // Your Goals: one row per active Goal -> that Goal's own summary screen
+  // (app/goal.js). With no active Goals, a gentle prompt instead -- but
+  // before the first entry a placeholder row, so a brand-new account isn't
+  // shown two calls to action at once (QuickStartCard already covers that
+  // state). Before the first entry the card also waits for the Goals to
+  // load, and stays hidden after a failed entries load, where every row's
+  // count would wrongly read 0.
   const showGoalsCard = entries.length > 0 || (!loadError && (activeGoals.length > 0 || goalsLoaded));
 
-  // Every section shows once its data is in, a placeholder pill standing
-  // in when it's empty. Your latest Tickle waits on the entries load
-  // (the caller's !loading) and is hidden after a failed one, which
-  // shows its own "Couldn't load" text instead. You can redeem stays
-  // hidden while Tokens & Rewards is off.
+  // Every card shows once its data is in, a placeholder row standing in
+  // when it's empty. Your latest Tickle waits on the entries load (the
+  // caller's !loading) and is hidden after a failed one, which shows its
+  // own "Couldn't load" text instead. Your Rewards stays hidden while
+  // Tokens & Rewards is off.
   const showRememberCard = !!remember || !loadError;
   const showRedeemCard = tokensEnabled && rewardsLoaded;
   const showFollowedTalesCard = followedTalesLoaded;
 
-  function renderGoalsCard() {
-    return (
-      <View style={styles.goalsSection}>
-        <Text style={[styles.cardLabel, styles.goalsCardLabel]}>Your Goals</Text>
-        {activeGoals.length === 0 && entries.length === 0 ? renderPlaceholderPill() : activeGoals.length === 0 ? (
-          <>
-            <Text style={styles.goalsPromptText}>
-              Working towards something? Add a Goal, then tag Tickles to it as you go.
-            </Text>
-            <Button title="Add a Goal" onPress={() => router.push('/goals')} variant="secondary" />
-          </>
-        ) : (
-          // Keyed by the active Goal ids so the row restarts at the first
-          // pill whenever the Goals change, same as the redeem row.
-          <ScrollView
-            key={activeGoals.map((g) => g.id).join(',')}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.goalPillsRow}
+  function goalsCard() {
+    let children;
+    if (activeGoals.length === 0 && entries.length === 0) {
+      children = renderPlaceholderRow();
+    } else if (activeGoals.length === 0) {
+      children = (
+        <>
+          <Text style={deckRowStyles.body}>
+            Working towards something? Add a Goal, then tag Tickles to it as you go.
+          </Text>
+          <Button title="Add a Goal" onPress={() => router.push('/goals')} variant="secondary" />
+        </>
+      );
+    } else {
+      children = activeGoals.map((g) => {
+        const count = goalCounts.get(g.id) || 0;
+        // A Goal with a weekly target shows this week's count in a
+        // GoalTargetCircle instead of the all-time count. Only the a11y
+        // label says "of N" -- visually it's just the number (or a tick).
+        const target = g.weekly_target;
+        const weekCount = goalWeekCounts.get(g.id) || 0;
+        const countLabel = !target
+          ? `${count} Tickle${count === 1 ? '' : 's'}`
+          : weekCount >= target
+            ? `${weekCount} Tickle${weekCount === 1 ? '' : 's'} this week, target reached`
+            : `${weekCount} of ${target} Tickle${target === 1 ? '' : 's'} this week`;
+        // Hidden when the Tokens master switch is off, same "!== false"
+        // idiom as CornerNav's showTokens.
+        const showCoin = g.earns_tokens && profile?.tokens_enabled !== false;
+        return (
+          <TouchableOpacity
+            key={g.id}
+            style={deckRowStyles.row}
+            activeOpacity={0.7}
+            onPress={() => router.push({ pathname: '/goal', params: { id: g.id } })}
+            accessibilityRole="button"
+            accessibilityLabel={
+              `${g.label}, ${countLabel}` +
+              `${showCoin ? ', earns tokens' : ''}. Opens Goal summary.`
+            }
           >
-            {activeGoals.map((g) => {
-              const count = goalCounts.get(g.id) || 0;
-              // A Goal with a weekly target shows this week's count in a
-              // GoalTargetCircle instead of the all-time count; without
-              // one the pill is exactly as before. Only the a11y label
-              // says "of N" -- visually it's just the number (or a tick).
-              const target = g.weekly_target;
-              const weekCount = goalWeekCounts.get(g.id) || 0;
-              const countLabel = !target
-                ? `${count} Tickle${count === 1 ? '' : 's'}`
-                : weekCount >= target
-                  ? `${weekCount} Tickle${weekCount === 1 ? '' : 's'} this week, target reached`
-                  : `${weekCount} of ${target} Tickle${target === 1 ? '' : 's'} this week`;
-              // Hidden when the Tokens master switch is off, same
-              // "!== false" idiom as CornerNav's showTokens.
-              const showCoin = g.earns_tokens && profile?.tokens_enabled !== false;
-              return (
-                // Unselected look of New Tickle's Vibe pills (create.js's
-                // natureOption): 14% tint fill + full-colour 1px border. The
-                // Goal colour lives in the tint and border, so the separate
-                // dot is gone.
-                <TouchableOpacity
-                  key={g.id}
-                  style={[styles.goalPill, { backgroundColor: withAlpha(g.color, 0.14), borderColor: g.color }]}
-                  activeOpacity={0.7}
-                  onPress={() => router.push({ pathname: '/goal', params: { id: g.id } })}
-                  accessibilityRole="button"
-                  accessibilityLabel={
-                    `${g.label}, ${countLabel}` +
-                    `${showCoin ? ', earns tokens' : ''}. Opens Goal summary.`
-                  }
-                >
-                  <Text style={styles.goalPillLabel} numberOfLines={1}>{g.label}</Text>
-                  {showCoin && (
-                    <MaterialCommunityIcons name="circle-multiple-outline" size={14} color={C.subtext} />
-                  )}
-                  {target ? (
-                    <GoalTargetCircle count={weekCount} target={target} size={22} accessible={false} />
-                  ) : (
-                    <Text style={styles.goalPillCount}>{count}</Text>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        )}
-      </View>
-    );
+            {/* The Goal's own colour, which the old pill carried in its
+                tint and border, as a small dot. */}
+            <View style={[styles.goalColorDot, { backgroundColor: g.color }]} />
+            <Text style={deckRowStyles.label} numberOfLines={1}>{g.label}</Text>
+            <View style={deckRowStyles.spacer} />
+            {showCoin && (
+              <MaterialCommunityIcons name="circle-multiple-outline" size={14} color={DECK_SUBTEXT} />
+            )}
+            {target ? (
+              <GoalTargetCircle
+                count={weekCount}
+                target={target}
+                size={22}
+                accessible={false}
+                color={DECK_TEXT}
+                tickColor={DECK_COLORS.goals}
+              />
+            ) : (
+              <Text style={deckRowStyles.meta}>{count}</Text>
+            )}
+          </TouchableOpacity>
+        );
+      });
+    }
+    return { key: 'goals', title: 'Your Goals', color: DECK_COLORS.goals, children };
   }
+
+  // Card order: Remember this?, Your Goals, Your Rewards, Multickles you
+  // follow -- only the ones that are showing.
+  const deckCards = [
+    showRememberCard && rememberCard(),
+    showGoalsCard && goalsCard(),
+    showRedeemCard && rewardsCard(),
+    showFollowedTalesCard && multicklesCard(),
+  ].filter(Boolean);
+  // 322dp, or the content width when the screen is narrower (a 360dp
+  // phone has 320dp between Home's side paddings).
+  const deckWidth = Math.min(DECK_WIDTH, windowWidth - 2 * HOME_SIDE_PADDING, HOME_CONTENT_MAX_WIDTH);
 
   // label is the short text under each pill; a11yName is what a screen
   // reader says, so the two "Polaroid" pills can still be told apart.
@@ -1536,12 +1442,9 @@ export default function Home() {
           </Text>
         )}
 
-        {!loading && (showRememberCard || showGoalsCard || showRedeemCard || showFollowedTalesCard) && (
+        {!loading && deckCards.length > 0 && (
           <View style={styles.bottomCards}>
-            {showRememberCard && renderRememberCard()}
-            {showGoalsCard && renderGoalsCard()}
-            {showRedeemCard && renderRedeemCard()}
-            {showFollowedTalesCard && renderFollowedTalesCard()}
+            <HomeDeck cards={deckCards} width={deckWidth} />
           </View>
         )}
 
@@ -1675,79 +1578,26 @@ const styles = StyleSheet.create({
   quickStartTopGap: { marginTop: 12 },
   emptyText: { color: C.subtext, textAlign: 'center', marginTop: 12 },
 
-  bottomCards: { marginTop: 12 },
-  cardLabel: { fontSize: 13, fontWeight: '700', color: C.rustDark },
+  // 40dp below the buttons (or the tester pill, when it shows).
+  bottomCards: { marginTop: 40 },
 
-  // Transparent section -- same treatment as vibeCardsRow/statPillsRow:
-  // no background, border, shadow or padding, only a 12dp bottom margin
-  // between sections.
-  goalsSection: { marginBottom: 10 },
-  goalsCardLabel: { marginBottom: 5 },
-  goalsPromptText: { fontSize: 14, color: C.subtext, lineHeight: 20, marginBottom: 10 },
-  goalPillsRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  // Shape, border and label type copied from create.js's
-  // natureOption/natureOptionLabel (New Tickle's Vibe pills), which keep
-  // these values local rather than in a shared style; the per-Goal
-  // fill/border colour is applied inline. Compact sizing (2026-10-09):
-  // minHeight 40 rather than the earlier 44, so more of each row fits on
-  // screen -- the pill is its own touch target, and a vertical hitSlop
-  // can't reach outside the horizontal ScrollView on Android, so 40 is
-  // the real tap height. minHeight (not height) so it still grows with
-  // font scaling. maxWidth caps a long (up to 60-char) Goal name so only
-  // it truncates.
-  goalPill: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    minHeight: 40, maxWidth: 240, paddingVertical: 8, paddingHorizontal: 12,
-    borderRadius: 20, borderWidth: 1,
+  // Goal rows: the Goal's own colour as a small dot with a faint cream
+  // ring, so the darker Goal colours still read on the card.
+  goalColorDot: {
+    flexShrink: 0, width: 12, height: 12, borderRadius: 6,
+    borderWidth: 1, borderColor: 'rgba(255,248,236,0.6)',
   },
-  // Shared by the Goal, reward and Multickle pills.
-  goalPillLabel: { flexShrink: 1, fontSize: 12, fontWeight: '600', color: C.text },
-  // Count stays a step bolder and darker than the label so the number
-  // still reads first at New Tickle's smaller 12px size.
-  goalPillCount: { flexShrink: 0, fontSize: 12, fontWeight: '700', color: C.text },
-
-  // "You can redeem" sits in goalsSection like the other pill rows. Its
-  // header is a plain label (not tappable -- the reward pills open the
-  // Reward List) with the balance circle beside it, and the same 5dp gap
-  // to its pills as goalsCardLabel.
-  redeemHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 5 },
-  // Same look as CornerNav's tokenCircle + tokenCircleFilled.
-  redeemBalanceCircle: {
-    minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 4,
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1.5, borderColor: C.subtext, backgroundColor: C.subtext,
-    // Overhangs the ~15dp label row so this header keeps the other sections' label spacing (10 above / 5 below).
-    marginVertical: -3.5,
-  },
-  redeemBalanceText: { fontSize: 11, fontWeight: '700', color: C.card },
-  // Reward, Multickle and Remember this? pills reuse goalPill's shape; a
-  // soft amber tint with the full amber border so they read as good news.
-  // Name and cost use the Goal pill's type (12/600 label, 12/700 count),
-  // with the same coin icon.
-  redeemPill: { backgroundColor: withAlpha(C.amberBg, 0.25), borderColor: C.amberDark },
-  redeemPillCost: { flexShrink: 0, fontSize: 12, fontWeight: '700', color: C.text },
-  // Same ring as components/GoalTargetCircle.js (1.5dp C.text border,
-  // solid C.text when reached) at the 22dp Home's Goal pills use; fixed
-  // width since it never holds a number.
+  // Same ring as components/GoalTargetCircle.js at 22dp, in cream on the
+  // deck card; fixed width since it never holds a number.
   rewardCircle: {
     flexShrink: 0, width: 22, height: 22, borderRadius: 11,
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1.5, borderColor: C.text,
+    borderWidth: 1.5, borderColor: DECK_TEXT,
   },
-  rewardCircleFilled: { backgroundColor: C.text },
-  // Empty-section stand-in: goalPill's 40dp height and 20dp radius with
-  // a fixed width (it has no label to size it), transparent, and the
-  // same dashed C.faint outline as Calendar's countBadgeEmpty.
-  placeholderPill: {
-    width: 96, backgroundColor: 'transparent', borderStyle: 'dashed', borderColor: C.faint,
-  },
+  rewardCircleFilled: { backgroundColor: DECK_TEXT },
 
-  // goalPillLabel's type with a fixed line height, so a two-line pill is
-  // a predictable 1 + 8 + 2 x 16 + 8 + 1 = 50dp tall (one line stays
-  // at the 40dp minimum).
-  rememberPillLabel: { flexShrink: 1, fontSize: 12, fontWeight: '600', color: C.text, lineHeight: 16 },
   // Photo-only Remember this? entries: a small thumbnail in place of
-  // text, sized to keep the pill at its 40dp minimum height.
+  // text.
   rememberThumb: { width: 22, height: 22, borderRadius: 5.5, backgroundColor: C.border },
   rememberThumbMissing: { backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
 });
