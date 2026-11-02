@@ -14,7 +14,7 @@ const STEPS = [
   },
   {
     title: 'More on Home',
-    body: "Below the Vibe cards, the Mojo Shared pills track your Polaroid shares and Ripples the same way — this week, this month, and all-time. Tap a pill to see exactly what it's counting.\n\nFurther down, Remember this? shows up to three older Tickles to revisit — tap one to open it. Your Goals shows how many Tickles you've tagged to each active Goal — tap one to see them all. When you have enough tokens for a reward, You can redeem shows which ones — tap a reward to open your Reward List. Multickles you follow lists the ones that are still going, with a small sparkle on any that have a Tic you haven't seen yet.",
+    body: "Below the Vibe cards, the Mojo Shared pills track your Polaroid shares and Ripples the same way — this week, this month, and all-time. Tap a pill to see exactly what it's counting.\n\nFurther down is a small deck of cards: Remember this?, Your Goals, Your Rewards (when Tokens & Rewards is on) and Multickles you follow. Use the arrows or the dots under the deck to move between them, or swipe the deck sideways. It opens on whichever card you left it on. Remember this? shows up to three older Tickles to revisit — tap one to open it. Your Goals shows how many Tickles you've tagged to each active Goal — tap one to see them all. Your Rewards shows your token balance and every reward on your Reward List, with a tick on the ones you have enough tokens for — tap a reward, or the Reward List button, to open your Reward List. Multickles you follow lists the ones that are still going, with a small sparkle on any that have a Tic you haven't seen yet.",
   },
   {
     title: 'New Tickle',
@@ -42,7 +42,7 @@ const STEPS = [
   },
   {
     title: 'Goals',
-    body: "Manage your Goals from Settings. Use them for anything you're focusing on, then tag Tickles to a Goal by tapping the empty circle on the entry — an easy, private way to record your progress. Mark a Goal as Achieved or delete it whenever you like.\n\nIf you like, give a Goal a weekly target. Its pill on Home then shows this week's count in a small circle, which fills with a tick once you get there — and if you don't, that's fine too.\n\nToggle on 'Earn tokens' for any Goal to collect a token each time you tag a Tickle to it. Your balance shows on Home, next to Your Rewards; spend tokens on rewards you set up yourself, from Manage Reward List in Settings. Turn Tokens & Rewards off in Settings to hide all of this.",
+    body: "Manage your Goals from Settings. Use them for anything you're focusing on, then tag Tickles to a Goal by tapping the empty circle on the entry — an easy, private way to record your progress. Mark a Goal as Achieved or delete it whenever you like.\n\nIf you like, give a Goal a weekly target. Its row on Home's Your Goals card then shows this week's count in a small circle, which fills with a tick once you get there — and if you don't, that's fine too.\n\nToggle on 'Earn tokens' for any Goal to collect a token each time you tag a Tickle to it. Your balance shows on Home, on the Your Rewards card; spend tokens on rewards you set up yourself, from Manage Reward List in Settings. Turn Tokens & Rewards off in Settings to hide all of this.",
   },
   {
     title: 'Awareness Cue',
