@@ -2,9 +2,8 @@ import { useState } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity, Modal, Share } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { C, accentFor, darken, lighten, withAlpha, SAVED_ENTRY_DOT_SIZE, vibeIconColor, NATURE_LABELS, AWARD_BADGE_COLOR } from '../lib/theme';
+import { C, darken, lighten, withAlpha, SAVED_ENTRY_DOT_SIZE, vibeIconColor, NATURE_LABELS, AWARD_BADGE_COLOR } from '../lib/theme';
 import { showAlert } from '../lib/themedAlert';
-import { useAuth } from '../contexts/AuthContext';
 import { isQuickTickle, useTickleItDismissed } from '../lib/quickTickle';
 import { flagEmoji } from '../lib/country';
 import InitialsAvatar from './InitialsAvatar';
@@ -54,6 +53,10 @@ function savedAroundText(filename) {
 // any caller doing its own height math (e.g. feed.js's FlatList
 // getItemLayout) can't silently drift out of sync with the real value.
 export const CARD_SPACING = 12;
+
+// Dusk blue for the card's Quick Tickle mark and its "Tickle it" pill
+// (Task 3 Q2) -- fixed, not the viewer's accent theme any more.
+const INK = '#425762';
 
 // Extracted from feed.js's original renderEntry — same markup, same
 // styles, same tab==='mine'-gated actions (now `showMineActions`), same
@@ -111,11 +114,8 @@ export default function EntryCard({
   // A Quick Tickle (lib/quickTickle.js): the owner's own text-less,
   // photo-less Tickle. Its body is a QT dot plus a "Tickle it" pill
   // (dismissable per phone); Ripple and Share stay hidden until it has
-  // words. Accent-dark is the viewer's, as on Button.js's secondary
-  // pills -- only the owner ever sees this treatment.
+  // words. Only the owner ever sees this treatment.
   const isQuick = isOwnEntry && isQuickTickle(item, !!photoUri || !!hasLinkedPhoto);
-  const { profile } = useAuth();
-  const accentDark = darken(accentFor(profile?.accent_theme).card, 0.35);
   const [tickleItDismissed, dismissTickleIt] = useTickleItDismissed(item.id, isQuick && showMineActions);
 
   function openEdit() {
@@ -513,7 +513,7 @@ export default function EntryCard({
               {isQuick ? (
                 <View style={styles.quickRow}>
                   <View
-                    style={[styles.quickDot, { backgroundColor: accentDark, borderColor: accentDark }]}
+                    style={styles.quickDot}
                     accessible
                     accessibilityLabel="Quick Tickle"
                   >
@@ -524,11 +524,11 @@ export default function EntryCard({
                     <>
                       <TouchableOpacity
                         onPress={openEdit}
-                        style={[styles.tickleItPill, { borderColor: accentDark }]}
+                        style={styles.tickleItPill}
                         accessibilityRole="button"
                         accessibilityLabel="Tickle it"
                       >
-                        <Text style={[styles.tickleItLabel, { color: accentDark }]}>Tickle it</Text>
+                        <Text style={styles.tickleItLabel}>Tickle it</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         onPress={dismissTickleIt}
@@ -765,29 +765,28 @@ const styles = StyleSheet.create({
   menuRowLabel: { fontSize: 15, color: C.text },
   menuRowLabelDestructive: { color: C.rust },
   entryText: { fontSize: 15, color: C.text, lineHeight: 20 },
-  // Quick Tickle body: QT dot, then the "Tickle it" pill and its dismiss
-  // X. The pill is transparent with a 1.5dp accent-dark border (inline),
-  // like Button.js's secondary pills; 40dp tall like Home's pills. The
-  // dot is a smaller, filled mark so it doesn't read as a button: accent
-  // dark fill (inline) with the card's white "QT" -- its old outline
-  // colours swapped. It isn't pressable.
+  // Quick Tickle body: QT mark, then the "Tickle it" pill and its dismiss
+  // X. The pill is transparent with a 1.5dp INK outline and INK label;
+  // 40dp tall like Home's pills. The mark is a 28dp filled INK circle
+  // with a white "QT", so it doesn't read as a button. It isn't
+  // pressable.
   quickRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   quickDot: {
-    width: 28, height: 28, borderRadius: 14, borderWidth: 1.5,
+    width: 28, height: 28, borderRadius: 14, backgroundColor: INK,
     alignItems: 'center', justifyContent: 'center',
   },
   quickDotLabel: { fontSize: 10, fontWeight: '700', color: C.card },
   tickleItPill: {
     minHeight: 40, paddingVertical: 8, paddingHorizontal: 14, justifyContent: 'center',
-    borderRadius: 20, borderWidth: 1.5, backgroundColor: 'transparent',
+    borderRadius: 20, borderWidth: 1.5, borderColor: INK, backgroundColor: 'transparent',
   },
-  tickleItLabel: { fontSize: 12, fontWeight: '600' },
+  tickleItLabel: { fontSize: 12, fontWeight: '600', color: INK },
   // entryDate's type; shrinks and wraps rather than pushing the row at
   // large font sizes.
   quickLabel: { flexShrink: 1 },
   // 24dp circle; hitSlop (10) brings the tap target to 44dp.
   tickleItDismiss: {
-    width: 24, height: 24, borderRadius: 12, borderWidth: 1, borderColor: C.border,
+    width: 24, height: 24, borderRadius: 12, borderWidth: 1, borderColor: INK,
     alignItems: 'center', justifyContent: 'center',
   },
   // alignSelf flex-start so the chip hugs its content instead of
