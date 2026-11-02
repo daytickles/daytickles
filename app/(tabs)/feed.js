@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { fetchAwardedEntryTypes } from '../../lib/awards';
-import { C, accentFor, darken, lighten, textOn, NATURE_ORDER, NATURE_LABELS } from '../../lib/theme';
+import { C, accentFor, darken, lighten, textOn, vibeIconColor, NATURE_ORDER, NATURE_LABELS } from '../../lib/theme';
 import { shareEntry, useShareStatus, sharePhotoOnlyEntry, SHARE_CAPTIONS } from '../../lib/sharing';
 import { alertCapBlocked, capFor, checkAndConsumeWeeklyCap, rippleFeatureFor } from '../../lib/freemiumCaps';
 import { showAlert, showSaveFailed } from '../../lib/themedAlert';
@@ -25,6 +25,7 @@ import EntryCard, { CARD_SPACING } from '../../components/EntryCard';
 import DayDotsCard from '../../components/DayDotsCard';
 import CornerNav from '../../components/CornerNav';
 import CountBadge from '../../components/CountBadge';
+import NatureIcon from '../../components/NatureIcon';
 import WallpaperBackground from '../../components/WallpaperBackground';
 import { File } from 'expo-file-system';
 import {
@@ -36,6 +37,13 @@ import { getLastOpened, setLastOpened } from '../../lib/feedLastOpened';
 import { forgetQuickTickle } from '../../lib/quickTickle';
 import { makePhotoTicklePublic, makePhotoTicklePrivate, deletePhotoTickleMedia } from '../../lib/photoTickleStorage';
 
+// Tab pills (Task 3 S1): dusk blue with cream text when active, warm
+// white with a sand border otherwise. Fixed colours, not the accent theme.
+const TAB_INK = '#425762';
+const TAB_INK_TEXT = '#FFF8EC';
+const TAB_FILL = '#FFFDF7';
+const TAB_LINE = '#E3D3B3';
+
 const TABS = [
   { id: 'mine', label: 'Mine' },
   { id: 'favorites', label: "Fav's" },
@@ -43,22 +51,22 @@ const TABS = [
   { id: 'rippled', label: 'Rippled' },
 ];
 
-// Mine-only. 'all' is the default: everything, tagged or not --
-// including My Day (day_journal) entries, which count as a fourth Vibe
-// here. My Day also keeps its own dedicated chip below (with the Day
-// Dots card). The chips show short names; a11yLabel carries the full
-// Vibe name from lib/theme.js's NATURE_LABELS for screen readers (and is
-// the visible fallback for any id without a short name). The ids, and so
-// the filtering, are NATURE_ORDER's.
-const NATURE_CHIP_LABELS = { received: 'Smiles', given: 'Given', self: 'For me' };
-const NATURE_FILTERS = NATURE_ORDER.map((id) => ({
-  id, label: NATURE_CHIP_LABELS[id] ?? NATURE_LABELS[id], a11yLabel: NATURE_LABELS[id],
-}));
-
-// My Day is a permanent chip now, same as the three Vibe filters above
-// -- id stays 'day_journal' (matches tickle_entries.tickle_nature),
-// only the user-facing label reads "My Day".
-const DAY_JOURNAL_FILTER = { id: 'day_journal', label: NATURE_LABELS.day_journal };
+// Mine-only Vibe filter (Task 3 S2): "All", then one icon chip per Vibe
+// and My Day -- icons instead of the old short names ("Smiles",
+// "Given"), so there's no third set of Vibe names. Each icon chip's
+// spoken label is the full name from lib/theme.js's NATURE_LABELS. 'all'
+// is the default: everything, tagged or not, My Day (day_journal)
+// included. The ids, and so the filtering, are unchanged: NATURE_ORDER's
+// plus 'day_journal' (matches tickle_entries.tickle_nature).
+const VIBE_FILTER_INK = '#425762';
+const VIBE_FILTER_INK_TEXT = '#FFF8EC';
+// Icon colour per chip while not selected. My Day keeps its usual
+// vibeIconColor (C.rust).
+const VIBE_FILTER_ICON_COLORS = { received: '#2F7A5F', given: '#5038B8', self: '#8A5F0A' };
+const NATURE_FILTERS = [
+  { id: 'all', label: 'All' },
+  ...[...NATURE_ORDER, 'day_journal'].map((id) => ({ id, nature: id, a11yLabel: NATURE_LABELS[id] })),
+];
 
 const EMPTY_TEXT = {
   mine: 'No Tickles here yet.',
@@ -1262,12 +1270,12 @@ export default function Feed() {
           <TouchableOpacity
             key={t.id}
             onPress={() => handleTabPress(t.id)}
-            style={[
-              styles.tabButton,
-              tab === t.id && { backgroundColor: accentDark, borderColor: accentDark },
-            ]}
+            style={[styles.tabButton, tab === t.id && styles.tabButtonActive]}
+            accessibilityRole="button"
+            accessibilityLabel={t.label}
+            accessibilityState={{ selected: tab === t.id }}
           >
-            <Text style={[styles.tabLabel, tab === t.id && { color: accentDarkText }]}>{t.label}</Text>
+            <Text style={[styles.tabLabel, tab === t.id && styles.tabLabelActive]}>{t.label}</Text>
             {NEW_SINCE_TABS.includes(t.id) && <CountBadge count={badgeCounts[t.id]} />}
           </TouchableOpacity>
         ))}
@@ -1275,38 +1283,37 @@ export default function Feed() {
 
       {tab === 'mine' && (
         <View style={styles.natureFilterRow}>
-          {[
-            { id: 'all', label: 'All' },
-            ...NATURE_FILTERS,
-            DAY_JOURNAL_FILTER,
-          ].map((f) => (
-            <TouchableOpacity
-              key={f.id}
-              onPress={() => {
-                // Picking any nature chip (including "All") always clears
-                // an active Goal filter -- the two are mutually exclusive,
-                // never combined (see goalFilter's own comment above).
-                setGoalFilter(null);
-                setNatureFilter(f.id);
-              }}
-              style={[
-                styles.natureFilterChip,
-                !goalFilter && natureFilter === f.id && { backgroundColor: accentDark, borderColor: accentDark },
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel={f.a11yLabel ?? f.label}
-              accessibilityState={{ selected: !goalFilter && natureFilter === f.id }}
-            >
-              <Text
-                style={[
-                  styles.natureFilterLabel,
-                  !goalFilter && natureFilter === f.id && { color: accentDarkText },
-                ]}
+          {NATURE_FILTERS.map((f) => {
+            const selected = !goalFilter && natureFilter === f.id;
+            return (
+              <TouchableOpacity
+                key={f.id}
+                onPress={() => {
+                  // Picking any nature chip (including "All") always clears
+                  // an active Goal filter -- the two are mutually exclusive,
+                  // never combined (see goalFilter's own comment above).
+                  setGoalFilter(null);
+                  setNatureFilter(f.id);
+                }}
+                style={[styles.natureFilterChip, selected && styles.natureFilterChipActive]}
+                accessibilityRole="button"
+                accessibilityLabel={f.a11yLabel ?? f.label}
+                accessibilityState={{ selected }}
               >
-                {f.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+                {f.nature ? (
+                  <NatureIcon
+                    nature={f.nature}
+                    size={20}
+                    color={selected ? VIBE_FILTER_INK_TEXT : VIBE_FILTER_ICON_COLORS[f.nature] ?? vibeIconColor(f.nature)}
+                  />
+                ) : (
+                  <Text style={[styles.natureFilterLabel, selected && styles.natureFilterLabelActive]}>
+                    {f.label}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            );
+          })}
         </View>
       )}
 
@@ -1524,20 +1531,25 @@ const styles = StyleSheet.create({
   tabRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16 },
   tabButton: {
     flex: 1, paddingVertical: 10, borderRadius: 20, position: 'relative',
-    alignItems: 'center', backgroundColor: C.card, borderWidth: 1, borderColor: C.border,
+    alignItems: 'center', backgroundColor: TAB_FILL, borderWidth: 1, borderColor: TAB_LINE,
   },
-  tabLabel: { fontSize: 12, fontWeight: '600', color: C.subtext },
+  tabButtonActive: { backgroundColor: TAB_INK, borderColor: TAB_INK },
+  tabLabel: { fontSize: 12, fontWeight: '600', color: TAB_INK },
+  tabLabelActive: { color: TAB_INK_TEXT },
 
-  // Nested one level in from tabRow above, and deliberately lighter —
-  // smaller padding/radius/font, content-sized chips rather than
-  // flex:1 — so this reads as a secondary refinement of Mine, not a
-  // second peer tab row.
+  // Nested one level in from tabRow above: content-sized chips rather
+  // than flex:1, so this reads as a refinement of Mine, not a second peer
+  // tab row. 40dp tall, at least 48dp wide, so each icon chip is an easy
+  // target.
   natureFilterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 16 },
   natureFilterChip: {
-    paddingVertical: 5, paddingHorizontal: 12, borderRadius: 12,
+    minHeight: 40, minWidth: 48, paddingHorizontal: 14, borderRadius: 20,
+    alignItems: 'center', justifyContent: 'center',
     backgroundColor: C.bg, borderWidth: 1, borderColor: C.border,
   },
-  natureFilterLabel: { fontSize: 11, fontWeight: '600', color: C.subtext },
+  natureFilterChipActive: { backgroundColor: VIBE_FILTER_INK, borderColor: VIBE_FILTER_INK },
+  natureFilterLabel: { fontSize: 13, fontWeight: '600', color: C.subtext },
+  natureFilterLabelActive: { color: VIBE_FILTER_INK_TEXT },
 
   // The height fix lives on THIS wrapping View, not on the ScrollView
   // itself -- confirmed on-device that setting height directly via a
