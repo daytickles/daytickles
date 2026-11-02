@@ -25,6 +25,7 @@ import EntryCard, { CARD_SPACING } from '../../components/EntryCard';
 import DayDotsCard from '../../components/DayDotsCard';
 import CornerNav from '../../components/CornerNav';
 import CountBadge from '../../components/CountBadge';
+import NewTickleButton from '../../components/NewTickleButton';
 import NatureIcon from '../../components/NatureIcon';
 import WallpaperBackground from '../../components/WallpaperBackground';
 import { File } from 'expo-file-system';
@@ -74,6 +75,12 @@ const EMPTY_TEXT = {
   following: 'Follow people to see their Tickles here.',
   rippled: 'No Rippled Tickles yet.',
 };
+
+// Mine with no filter at all (Task 3 S7) gets a fuller empty state: an
+// icon, this heading and line, and a New Tickle button. Every other empty
+// state keeps its one line from EMPTY_TEXT / getEmptyText below.
+const MINE_EMPTY_TITLE = 'No Tickles here yet';
+const MINE_EMPTY_LINE = 'Write about what made you smile today.';
 
 // Mine's My Day filter needs its own empty message rather than the
 // generic `mine` one above, so it can invite a first My Day entry.
@@ -1474,7 +1481,26 @@ export default function Feed() {
             });
           }, 50);
         }}
-        ListEmptyComponent={!loading && <Text style={styles.emptyText}>{getEmptyText(tab, natureFilter, goalFilter, taleFilter)}</Text>}
+        ListEmptyComponent={!loading && (
+          // Unfiltered Mine: no Vibe or My Day chip ('all'), no Goal chip.
+          // (Multickle pills only exist on Following.)
+          tab === 'mine' && natureFilter === 'all' && !goalFilter ? (
+            <View style={styles.emptyState}>
+              <Ionicons
+                name="leaf-outline"
+                size={34}
+                color={C.faint}
+                importantForAccessibility="no"
+                accessibilityElementsHidden
+              />
+              <Text style={styles.emptyTitle} accessibilityRole="header">{MINE_EMPTY_TITLE}</Text>
+              <Text style={styles.emptyLine}>{MINE_EMPTY_LINE}</Text>
+              <NewTickleButton onPress={() => router.push('/create')} style={styles.emptyButton} />
+            </View>
+          ) : (
+            <Text style={styles.emptyText}>{getEmptyText(tab, natureFilter, goalFilter, taleFilter)}</Text>
+          )
+        )}
       />
     </View>
     </WallpaperBackground>
@@ -1608,4 +1634,8 @@ const styles = StyleSheet.create({
   list: { flex: 1 },
   listContent: { paddingBottom: 40 },
   emptyText: { color: C.subtext, textAlign: 'center', marginTop: 24 },
+  emptyState: { alignItems: 'center', marginTop: 32, paddingHorizontal: 12 },
+  emptyTitle: { marginTop: 10, fontSize: 17, fontWeight: '700', color: C.rustDark, textAlign: 'center' },
+  emptyLine: { marginTop: 6, fontSize: 14, color: C.subtext, textAlign: 'center', lineHeight: 20 },
+  emptyButton: { marginTop: 18, alignSelf: 'center' },
 });
