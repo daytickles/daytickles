@@ -71,6 +71,9 @@ export default function EntryCard({
   item,
   currentUserId,
   showMineActions,
+  // false hides the author row (avatar, name, flag, Moji number) --
+  // Tickle Stash's Mine tab, where every post is your own (Task 3 S4).
+  showAuthor = true,
   isHighlighted,
   isFollowing,
   isFavorited,
@@ -180,29 +183,31 @@ export default function EntryCard({
       {/* Author row: who posted it. The username is the only thing that
           shrinks -- the flag and Moji badge sit beside it as non-shrinking
           siblings, so a long name truncates without clipping the flag. */}
-      <View style={styles.authorRow}>
-        <InitialsAvatar username={item.profiles?.username} accentTheme={item.profiles?.accent_theme} size={18} />
-        <Text style={styles.authorText} numberOfLines={1}>
-          {item.profiles?.username}
-        </Text>
-        {!!item.profiles?.country && (
-          <Text style={styles.authorFlag}>{flagEmoji(item.profiles.country)}</Text>
-        )}
-        {!!item.profiles?.founding_member_number && (
-          <FoundingMemberBadge number={item.profiles.founding_member_number} compact />
-        )}
-        {!isOwnEntry && (
-          <TouchableOpacity
-            onPress={() => onToggleFollow?.(item.user_id)}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            style={styles.followAction}
-          >
-            <Text style={[styles.followLink, isFollowing && styles.followLinkActive]}>
-              {isFollowing ? 'Following' : 'Follow'}
-            </Text>
-          </TouchableOpacity>
-        )}
-      </View>
+      {showAuthor && (
+        <View style={styles.authorRow}>
+          <InitialsAvatar username={item.profiles?.username} accentTheme={item.profiles?.accent_theme} size={18} />
+          <Text style={styles.authorText} numberOfLines={1}>
+            {item.profiles?.username}
+          </Text>
+          {!!item.profiles?.country && (
+            <Text style={styles.authorFlag}>{flagEmoji(item.profiles.country)}</Text>
+          )}
+          {!!item.profiles?.founding_member_number && (
+            <FoundingMemberBadge number={item.profiles.founding_member_number} compact />
+          )}
+          {!isOwnEntry && (
+            <TouchableOpacity
+              onPress={() => onToggleFollow?.(item.user_id)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={styles.followAction}
+            >
+              <Text style={[styles.followLink, isFollowing && styles.followLinkActive]}>
+                {isFollowing ? 'Following' : 'Follow'}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
       {/* Header: the Vibe's icon in a soft circle and its name on the left,
           the date on the right. One icon for all four natures, My Day's
           sun included (TICKLE_NATURE_ICONS / vibeIconColor in

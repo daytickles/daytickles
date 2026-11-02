@@ -1165,6 +1165,7 @@ export default function Feed() {
         item={item}
         currentUserId={session.user.id}
         showMineActions={tab === 'mine'}
+        showAuthor={tab !== 'mine'}
         isHighlighted={tab === 'mine' && item.id === highlightedEntryId}
         isFollowing={followedIds.has(item.user_id)}
         isFavorited={favoritedIds.has(item.id)}

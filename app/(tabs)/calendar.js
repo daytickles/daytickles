@@ -656,6 +656,9 @@ export default function Calendar() {
         item={item}
         currentUserId={session.user.id}
         showMineActions
+        // Every Calendar card is your own, so no author row -- same as
+        // Tickle Stash's Mine tab (Task 3 S4).
+        showAuthor={false}
         isHighlighted={false}
         isFollowing={false}
         isFavorited={favoritedIds.has(item.id)}
