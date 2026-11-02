@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, AccessibilityInfo, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, AccessibilityInfo, useWindowDimensions, PanResponder } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -53,6 +53,14 @@ const FLIP_HALF_MS = 140;
 // lib/quickTickle.js's 'daytickles-quick-tickle-dismissed'. Best-effort:
 // any read error, or a saved card that isn't showing, opens card 1.
 const DECK_CARD_KEY = 'daytickles-home-deck-card';
+// Sideways swipe (Task 3 H7): the deck only claims a drag once it has
+// moved this far sideways AND at least twice as far sideways as up or
+// down, so vertical drags still scroll the page and the card's list.
+// Past SWIPE_DISTANCE, or a quicker flick than SWIPE_VELOCITY, changes
+// the card; anything less springs back.
+const SWIPE_CLAIM_DX = 12;
+const SWIPE_DISTANCE = 70;
+const SWIPE_VELOCITY = 0.35;
 // Longest the deck waits for the saved card and its data before it shows
 // anyway, so a failed or slow fetch can't hold it back.
 const DECK_WAIT_MS = 3000;
@@ -156,34 +164,81 @@ export default function HomeDeck({ cards, width, dataSettled = true }) {
     AccessibilityInfo.announceForAccessibility(`Card ${nextIndex + 1} of ${count}: ${cards[nextIndex].title}`);
   }
 
+  // The front card's sideways offset while it follows a swipe (see the
+  // responder below). Declared before goTo, which resets it.
+  const dragX = useRef(new Animated.Value(0)).current;
+
   // direction: 1 = forward (next), -1 = back. Reduced motion: no flip,
-  // the card just changes.
+  // the card just changes. Returns true when it starts a change, false
+  // when it's ignored (same card, a flip already running, no cards).
   function goTo(nextIndex, direction) {
-    if (count === 0 || nextIndex === index || flipping.current) return;
+    if (count === 0 || nextIndex === index || flipping.current) return false;
     const nextKey = cards[nextIndex].key;
     if (reduceMotion) {
       choose(nextKey);
       announce(nextIndex);
-      return;
+      return true;
     }
     flipping.current = true;
     Animated.timing(flip, { toValue: direction, duration: FLIP_HALF_MS, useNativeDriver: true }).start(() => {
       choose(nextKey);
+      // The card is edge-on here, so a swiped card's offset can be reset
+      // unseen -- the next card turns in centred, and the swiped one
+      // never slides back against the swipe.
+      dragX.setValue(0);
       flip.setValue(-direction);
       Animated.timing(flip, { toValue: 0, duration: FLIP_HALF_MS, useNativeDriver: true }).start(() => {
         flipping.current = false;
       });
     });
     announce(nextIndex);
+    return true;
   }
 
   function goNext() {
-    goTo((index + 1) % count, 1);
+    return goTo((index + 1) % count, 1);
   }
 
   function goPrev() {
-    goTo((index - 1 + count) % count, -1);
+    return goTo((index - 1 + count) % count, -1);
   }
+
+  // The front card follows the finger sideways (not with reduced motion,
+  // where it just changes on release). The responder is made once, so it
+  // reads the latest render's values through this ref.
+  const latest = useRef(null);
+  latest.current = { goNext, goPrev, count, reduceMotion };
+  const swipe = useRef(
+    PanResponder.create({
+      // Capture: decided before the rows and the list see the move, but
+      // only for mostly-sideways moves, so taps and vertical scrolls
+      // still reach them.
+      onMoveShouldSetPanResponderCapture: (_, g) =>
+        latest.current.count > 1 &&
+        Math.abs(g.dx) > SWIPE_CLAIM_DX &&
+        Math.abs(g.dx) > 2 * Math.abs(g.dy),
+      // Once claimed, the page ScrollView can't take the drag back halfway.
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderMove: (_, g) => {
+        if (!latest.current.reduceMotion) dragX.setValue(g.dx);
+      },
+      onPanResponderRelease: (_, g) => {
+        const far = Math.abs(g.dx) > SWIPE_DISTANCE || Math.abs(g.vx) > SWIPE_VELOCITY;
+        // Swipe left = next card, right = previous. A started flip resets
+        // the offset itself, at the swap (see goTo).
+        const started = far && (g.dx < 0 ? latest.current.goNext() : latest.current.goPrev());
+        // Not far enough, or ignored (e.g. a flip already running): back
+        // to centre. With reduced motion the card never followed the
+        // finger, so this is a no-op there.
+        if (!started || latest.current.reduceMotion) {
+          Animated.spring(dragX, { toValue: 0, useNativeDriver: true, bounciness: 4 }).start();
+        }
+      },
+      onPanResponderTerminate: () => {
+        Animated.spring(dragX, { toValue: 0, useNativeDriver: true, bounciness: 4 }).start();
+      },
+    })
+  ).current;
 
   if (!front) return null;
   // Waiting: the deck's own space, empty, so the page doesn't jump when it
@@ -206,7 +261,7 @@ export default function HomeDeck({ cards, width, dataSettled = true }) {
 
   return (
     <View style={styles.wrap}>
-      <View style={[styles.stack, { width, height: deckHeight }]}>
+      <View style={[styles.stack, { width, height: deckHeight }]} {...swipe.panHandlers}>
         {behind.reverse().map(({ card, depth }) => {
           const fan = FAN[depth - 1];
           return (
@@ -232,7 +287,7 @@ export default function HomeDeck({ cards, width, dataSettled = true }) {
         <Animated.View
           style={[
             styles.card,
-            { backgroundColor: front.color, transform: [{ perspective: 1000 }, { rotateY }] },
+            { backgroundColor: front.color, transform: [{ perspective: 1000 }, { translateX: dragX }, { rotateY }] },
           ]}
         >
           <View style={styles.headerRow}>
