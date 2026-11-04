@@ -5,7 +5,9 @@ import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Home's flip-card deck (Task 3 H5): one card in front, the others fanned
-// behind it. It replaces the four stacked bottom sections. Plain RN
+// behind it. It replaces the four stacked bottom sections. A sideways
+// swipe either way brings the next card (the nearest one behind) forward;
+// the arrows and dots go to the previous, next or any card. Plain RN
 // Animated only -- no gesture or animation library.
 //
 // cards: [{ key, title, sub, subA11y, headerAction, headerRight, color, children }]
@@ -122,7 +124,8 @@ const DECK_CARD_KEY = 'daytickles-home-deck-card';
 // up to SWIPE_TILT_DEG. Released past SWIPE_FRACTION of the card's width,
 // or flicked faster than SWIPE_VELOCITY, it carries on off the deck
 // (SWIPE_OUT_MS, to SWIPE_OUT_EXTRA dp past its own width) and only then
-// does the next card come forward; anything less springs back.
+// does the next card -- the nearest one behind -- come forward, whichever
+// way it was swiped; anything less springs back.
 const SWIPE_CLAIM_DX = 12;
 const SWIPE_FRACTION = 0.25;
 const SWIPE_VELOCITY = 0.35;
@@ -294,14 +297,17 @@ export default function HomeDeck({ cards, width, dataSettled = true, fitHeight =
     return goTo((index - 1 + count) % count, -1);
   }
 
-  // A released swipe. towards: -1 = left (next card), 1 = right (previous
-  // card). The card slides the rest of the way off the deck first; only
-  // when it's gone does the order change. Reduced motion: no slide, the
-  // card just changes. Returns false when ignored (one card, or a flip or
-  // swipe already running).
+  // A released swipe. towards (-1 = left, 1 = right) is only the way the
+  // front card slides off; either way the NEXT card comes forward -- the
+  // nearest card behind (depth 1 in the fan), the one already peeking out.
+  // The card slides the rest of the way off the deck first; only when
+  // it's gone does the order change. Reduced motion: no slide, the card
+  // just changes to that same next card. Returns false when ignored (one
+  // card, or a flip or swipe already running). The arrows and dots still
+  // go back and forth (goNext, goPrev, goTo).
   function swipeAway(towards) {
     if (count < 2 || flipping.current) return false;
-    const nextIndex = towards < 0 ? (index + 1) % count : (index - 1 + count) % count;
+    const nextIndex = (index + 1) % count;
     const nextKey = cards[nextIndex].key;
     if (reduceMotion) {
       choose(nextKey);
@@ -348,8 +354,9 @@ export default function HomeDeck({ cards, width, dataSettled = true, fitHeight =
       onPanResponderRelease: (_, g) => {
         const L = latest.current;
         const far = Math.abs(g.dx) > L.width * SWIPE_FRACTION || Math.abs(g.vx) > SWIPE_VELOCITY;
-        // Swipe left = next card, right = previous (a flick with almost no
-        // distance goes by its speed's direction).
+        // The card slides off the way it was dragged (a flick with almost
+        // no distance goes by its speed's direction); either way the next
+        // card, the one behind it, comes forward (see swipeAway).
         const towards = Math.sign(g.dx) || Math.sign(g.vx);
         const started = far && towards !== 0 && L.swipeAway(towards);
         // Not far enough, or ignored (e.g. a flip already running): back
