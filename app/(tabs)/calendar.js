@@ -14,6 +14,7 @@ import { showAlert, showSaveFailed } from '../../lib/themedAlert';
 import { assignEntryGoal } from '../../lib/goalTagging';
 import GoalTagModal from '../../components/GoalTagModal';
 import { assignEntryTale, fetchMyTales, fetchTaleBadges } from '../../lib/tales';
+import { fetchDonePlacementsInRange, RNR_SLOT_LABELS } from '../../lib/rnrs';
 import TaleTagModal from '../../components/TaleTagModal';
 import NatureIcon from '../../components/NatureIcon';
 import ShareModal from '../../components/ShareModal';
@@ -42,6 +43,13 @@ const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const DAY_DOTS_SIZES = [9, 12, 15, 18];
 // Words for each DAY_DOTS_SIZES pick, for the grid cells' TalkBack label.
 const DAY_DOTS_SIZE_WORDS = ['small', 'medium', 'large', 'extra large'];
+// Routines and Reminders tiles marked Done are recorded here
+// automatically: a small neutral tick in the day cell's top-right corner
+// (absolutely placed, so the cell, Day Dot and Tickle dot don't move) and
+// a plain list in the day detail. No Vibe colour -- they aren't Tickles.
+const RNR_TICK_SIZE = 10;
+const RNR_TICK_INSET = 3;
+const RNR_DETAIL_ICON_SIZE = 16;
 
 const ENTRY_SELECT =
   'id, entry_date, text_content, like_count, tickle_nature, goal_id, tale_id, visibility, is_edited, created_at, user_id, entry_kind, local_photo_filename, media_url, profiles!tickle_entries_user_id_fkey(username, avatar_emoji, accent_theme, country, founding_member_number)';
@@ -112,6 +120,10 @@ export default function Calendar() {
   // too (that screen only ever renders answered rows; this grid also needs
   // to distinguish skipped from unanswered).
   const [dayDotsByDate, setDayDotsByDate] = useState({});
+  // 'YYYY-MM-DD' -> Done Routines and Reminders placements (each with a
+  // label and slot) for the month in view. Empty after a failed read, so
+  // the Calendar just shows no ticks.
+  const [rnrDoneByDate, setRnrDoneByDate] = useState({});
 
   const [goals, setGoals] = useState([]);
   const [pickerEntryId, setPickerEntryId] = useState(null);
@@ -216,6 +228,27 @@ export default function Calendar() {
     }
   }, [session, viewYear, viewMonth]);
 
+  // Done Routines and Reminders tiles for the month in view -- same
+  // (start, end) range and same reload moments as loadDayDotsMonth, read
+  // only (lib/rnrs.js fetchDonePlacementsInRange). A failed read clears
+  // the map: no ticks, no error, the rest of the Calendar as usual.
+  const loadRnrDoneMonth = useCallback(async () => {
+    if (!session) return;
+    const start = isoDate(viewYear, viewMonth, 1);
+    const end = isoDate(viewYear, viewMonth, new Date(viewYear, viewMonth + 1, 0).getDate());
+    const { data, error } = await fetchDonePlacementsInRange(session.user.id, start, end);
+    if (error) {
+      setRnrDoneByDate({});
+      return;
+    }
+    const byDate = {};
+    for (const p of data) {
+      if (!byDate[p.plan_date]) byDate[p.plan_date] = [];
+      byDate[p.plan_date].push(p);
+    }
+    setRnrDoneByDate(byDate);
+  }, [session, viewYear, viewMonth]);
+
   // Same reasoning as feed.js's own loadAwards -- only feed.js's
   // handleGiveAward can ever create an award row, and
   // awards are permanent once given, so this loads once per session
@@ -239,6 +272,7 @@ export default function Calendar() {
   useFocusEffect(useCallback(() => { loadFavorited(); }, [loadFavorited]));
   useFocusEffect(useCallback(() => { loadMonth(); }, [loadMonth]));
   useFocusEffect(useCallback(() => { loadDayDotsMonth(); }, [loadDayDotsMonth]));
+  useFocusEffect(useCallback(() => { loadRnrDoneMonth(); }, [loadRnrDoneMonth]));
   useFocusEffect(useCallback(() => { loadPinBoardData(); }, [loadPinBoardData]));
   useEffect(() => { loadAwards(); }, [loadAwards]);
 
@@ -648,6 +682,7 @@ export default function Calendar() {
   });
   const todayStr = isoDate(today.getFullYear(), today.getMonth(), today.getDate());
   const selectedDayDotsEntry = selectedDate ? dayDotsByDate[selectedDate] : null;
+  const selectedRnrDone = (selectedDate && rnrDoneByDate[selectedDate]) || [];
 
   function renderEntryCard(item) {
     return (
@@ -732,6 +767,10 @@ export default function Calendar() {
                 ];
                 if (dotEntry?.status === 'answered') a11yParts.push(`Day Dot ${DAY_DOTS_SIZE_WORDS[dotEntry.dotIndex]}`);
                 else if (dotEntry?.status === 'skipped') a11yParts.push('Day Dot skipped');
+                const rnrDone = rnrDoneByDate[dateStr]?.length || 0;
+                if (rnrDone > 0) {
+                  a11yParts.push(`${rnrDone} ${rnrDone === 1 ? 'Routine and Reminder' : 'Routines and Reminders'} done`);
+                }
 
                 return (
                   <TouchableOpacity
@@ -742,6 +781,20 @@ export default function Calendar() {
                     accessibilityLabel={a11yParts.join(', ')}
                     accessibilityState={{ selected: isSelected }}
                   >
+                    {/* Done Routines and Reminders: a small tick in the
+                        top-right corner, out of the layout flow. On the
+                        selected (accent) cell it takes the cell's text
+                        colour, like the other marks, so it stays visible. */}
+                    {rnrDone > 0 && (
+                      <Ionicons
+                        name="checkmark"
+                        size={RNR_TICK_SIZE}
+                        color={isSelected ? accentCardText : C.subtext}
+                        style={styles.rnrTick}
+                        accessible={false}
+                        importantForAccessibility="no"
+                      />
+                    )}
                     <Text
                       style={[
                         styles.dayLabel,
@@ -819,6 +872,29 @@ export default function Calendar() {
               <View style={styles.dayDotsDetailRow}>
                 <View style={[styles.dayDotsSkipMark, { backgroundColor: C.subtext }]} />
                 <Text style={styles.dayDotsDetailText}>Skipped</Text>
+              </View>
+            )}
+
+            {/* Done Routines and Reminders, from the month's data (no
+                extra read). Plain rows like the Day Dot line: not
+                Tickles, no Vibe colour, not tappable. */}
+            {selectedRnrDone.length > 0 && (
+              <View style={styles.rnrSection}>
+                <Text style={styles.rnrSectionTitle} accessibilityRole="header">Routines and Reminders</Text>
+                {selectedRnrDone.map((p) => (
+                  <View
+                    key={p.id}
+                    style={styles.rnrRow}
+                    accessible
+                    accessibilityLabel={`${p.label}, ${RNR_SLOT_LABELS[p.slot]}, done`}
+                  >
+                    <Ionicons name="checkmark-circle-outline" size={RNR_DETAIL_ICON_SIZE} color={C.subtext} />
+                    <Text style={styles.rnrRowText}>
+                      {p.label}
+                      <Text style={styles.rnrRowSlot}>{`  ${RNR_SLOT_LABELS[p.slot]}`}</Text>
+                    </Text>
+                  </View>
+                ))}
               </View>
             )}
 
@@ -976,6 +1052,16 @@ const styles = StyleSheet.create({
 
   dayDotsDetailRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
   dayDotsDetailText: { fontSize: 14, color: C.text, fontWeight: '600' },
+
+  // Done Routines and Reminders: corner tick in the day cell (out of the
+  // flow, so nothing in the cell moves) and the day detail's plain list,
+  // in the Day Dot line's look.
+  rnrTick: { position: 'absolute', top: RNR_TICK_INSET, right: RNR_TICK_INSET },
+  rnrSection: { marginBottom: 10 },
+  rnrSectionTitle: { fontSize: 13, fontWeight: '700', color: C.rustDark, marginBottom: 6 },
+  rnrRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 },
+  rnrRowText: { flexShrink: 1, fontSize: 14, color: C.text, fontWeight: '600' },
+  rnrRowSlot: { fontSize: 13, color: C.subtext, fontWeight: '400' },
 
   // Home's statPill look (card fill, accent border, borderRadius 999 so
   // it stays a pill at any height) at a 42dp tap height. minHeight, not
