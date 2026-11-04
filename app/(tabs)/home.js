@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { File } from 'expo-file-system';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { C, accentFor, NATURE_ORDER, NATURE_LABELS, VIBE_COLORS, VIBE_CARD_PALETTE, withAlpha } from '../../lib/theme';
+import { C, accentFor, NATURE_ORDER, NATURE_LABELS, VIBE_CARD_PALETTE, withAlpha } from '../../lib/theme';
 import {
   isThisWeek, isThisMonth, localDateString, toLocalDateString, parseLocalDateString,
   currentWeekStartISO, monthStartISO, DEFAULT_WEEK_START_DAY,
@@ -16,11 +16,13 @@ import { fetchFoundingMemberPaceStatus, fetchFoundingMemberOptInReminderStatus }
 import { flagEmoji } from '../../lib/country';
 import { initPinBoardDb, getPhotosForEntries } from '../../lib/pinBoardDb';
 import { fetchTokenBalance, fetchWishlistItems } from '../../lib/tokens';
-import { fetchFollowedTales } from '../../lib/tales';
+import { fetchFollowedTales, fetchMyTales } from '../../lib/tales';
 import { forgetQuickTickle, insertQuickTickle } from '../../lib/quickTickle';
 import { showSaveFailed } from '../../lib/themedAlert';
 import Button from '../../components/Button';
-import NewTickleButton, { TICKLE_BUTTON_SURFACE, TICKLE_BUTTON_HEIGHT } from '../../components/NewTickleButton';
+import NewTickleButton, {
+  TICKLE_BUTTON_SURFACE, HOME_BUTTON_GAP, HOME_BUTTON_HIT_SLOP, QUICK_BUTTON_SHAPE, QUICK_DOT_SIZE,
+} from '../../components/NewTickleButton';
 import VibeCard from '../../components/VibeCard';
 import NatureIcon from '../../components/NatureIcon';
 import InitialsAvatar from '../../components/InitialsAvatar';
@@ -33,7 +35,7 @@ import TesterFeedbackPill from '../../components/TesterFeedbackPill';
 import GoalTargetCircle from '../../components/GoalTargetCircle';
 import QuickTickleToast from '../../components/QuickTickleToast';
 import QuickTicklePopover from '../../components/QuickTicklePopover';
-import HomeDeck, { DECK_WIDTH, DECK_COLORS, DECK_TEXT, DECK_SUBTEXT, deckRowStyles } from '../../components/HomeDeck';
+import HomeDeck, { DECK_WIDTH, DECK_COLORS, DECK_TEXT, DECK_SUBTEXT, deckRowStyles, deckRowFill } from '../../components/HomeDeck';
 import {
   requestReminderPermission,
   scheduleDailyReminder,
@@ -42,6 +44,8 @@ import {
   cancelAwarenessCueSchedule,
 } from '../../lib/reminders';
 import { isReviewAvailable, requestReview } from '../../lib/rateUs';
+import { RNR_SLOTS, RNR_SLOT_LABELS } from '../../lib/rnrs';
+import { useRnrDay } from '../../lib/useRnrDay';
 
 // Caps Home's content on tablet/wide screens so it doesn't stretch
 // edge-to-edge -- wallpaper (painted by WallpaperBackground, behind
@@ -50,6 +54,48 @@ const HOME_CONTENT_MAX_WIDTH = 600;
 // styles.content's padding on each side; also used to work out the
 // content width the deck has to fit in.
 const HOME_SIDE_PADDING = 20;
+// Space (dp) between the buttons row (or the tester pill, when it shows)
+// and the front deck card. Nudge here.
+const DECK_GAP = 32;
+// Clear space (dp) between the deck's dots and arrows row and the top of
+// the tab bar, at the default text size. The deck's height flexes to
+// keep it (components/HomeDeck.js, DECK_MIN_HEIGHT / DECK_MAX_HEIGHT).
+const SPARE_ROOM = 20;
+// Multickles card: title and its Follow / Mine switch (pill chips).
+const MULTICKLES_CARD_TITLE = 'Multickles';
+const MULTICKLES_VIEWS = [
+  { key: 'follow', label: 'Follow' },
+  { key: 'mine', label: 'Mine' },
+];
+const MULTICKLES_CHIP_HEIGHT = 28;
+const MULTICKLES_CHIP_TAP_HEIGHT = 44;
+const MULTICKLES_CHIP_SLOP = (MULTICKLES_CHIP_TAP_HEIGHT - MULTICKLES_CHIP_HEIGHT) / 2;
+const MULTICKLES_CHIP_HIT_SLOP = { top: MULTICKLES_CHIP_SLOP, bottom: MULTICKLES_CHIP_SLOP };
+const MULTICKLES_CHIP_PADDING = 12;
+const MULTICKLES_CHIP_GAP = 8; // between the two chips
+const MULTICKLES_CHIP_FONT_SIZE = 14;
+const MULTICKLES_CHIP_SELECTED_FILL = '#FFF8EC';
+const MULTICKLES_CHIP_OUTLINE = 'rgba(255,248,236,0.22)';
+const MULTICKLES_CHIP_TEXT = '#FFF8EC';
+// Each deck card's solid row fill (see deckRowFill), worked out once.
+const ROW_FILL = Object.fromEntries(
+  Object.entries(DECK_COLORS).map(([key, color]) => [key, { backgroundColor: deckRowFill(color) }])
+);
+// Home's vertical gaps (dp), kept tight so the whole page fits above the
+// tab bar at the default text size.
+const TITLE_ROW_GAP = 4; // under the header row
+const PROFILE_ROW_GAP = 12; // under the profile row
+const VIBE_CARDS_GAP = 4; // under the Vibe cards
+const VIBE_LABELS_GAP = 10; // under the Vibe labels
+const MOJO_PADDING_V = 8; // Mojo Shared panel, top and bottom padding
+const MOJO_CAPTION_GAP = 6; // under "Mojo Shared"
+// "Mojo Shared" caption.
+const MOJO_CAPTION_FONT_SIZE = 14;
+const MOJO_CAPTION_COLOR = '#4A1F10';
+const MOJO_PILLS_GAP = 4; // between the Mojo pills and their labels
+const MOJO_PANEL_GAP = 12; // under the Mojo panel, above the buttons
+// Below the dots and arrows row, added to the tab bar's own height.
+const CONTENT_BOTTOM_EXTRA = 8;
 // How many Tickles the Remember this? card offers at most.
 const REMEMBER_MAX = 3;
 // Columns loadEntries reads, and a Quick Tickle's insert returns, so the
@@ -210,7 +256,13 @@ export default function Home() {
   const accent = accentFor(profile?.accent_theme);
   const tabBarHeight = useBottomTabBarHeight();
   const insets = useSafeAreaInsets();
-  const { width: windowWidth } = useWindowDimensions();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  // Flexible deck (see SPARE_ROOM): the page's measured height (the
+  // window height until it's measured), where the content column starts,
+  // and where the deck starts inside it -- all with the page at the top.
+  const [pageHeight, setPageHeight] = useState(0);
+  const [innerTop, setInnerTop] = useState(null);
+  const [deckTop, setDeckTop] = useState(null);
 
   // Reconciliation for Settings toggles that intentionally no longer call
   // setProfile()/refreshProfile() themselves (notify_on_likes,
@@ -242,6 +294,26 @@ export default function Home() {
   const [goalsLoaded, setGoalsLoaded] = useState(false);
   const [rewardsLoaded, setRewardsLoaded] = useState(false);
   const [followedTalesLoaded, setFollowedTalesLoaded] = useState(false);
+  // Multickles card: which list shows ('follow' or 'mine'). Kept in
+  // memory only (resets when Home is rebuilt), never stored on disk.
+  const [multicklesView, setMulticklesView] = useState('follow');
+  // The user's own Multickles (fetchMyTales), for the card's Mine list.
+  // myTalesState: 'loading' until the first read answers, then 'loaded'
+  // or 'error'.
+  const [myTales, setMyTales] = useState([]);
+  const [myTalesState, setMyTalesState] = useState('loading');
+  // Today's Routines and Reminders, for the deck's last card. Read only:
+  // the shared hook's load (the same one the pop-up and full page use),
+  // none of its write functions. enabled=false, so it only loads when
+  // loadRnrToday asks (Home focus, pull-down refresh). rnrLoaded: that
+  // load has finished (failed included -- the card then says so).
+  const rnrDay = useRnrDay(session?.user?.id, localDateString(0), false);
+  const [rnrLoaded, setRnrLoaded] = useState(false);
+  const reloadRnrDay = rnrDay.reload;
+  const loadRnrToday = useCallback(async () => {
+    await reloadRnrDay();
+    setRnrLoaded(true);
+  }, [reloadRnrDay]);
   const [madeMeSmileTotals, setMadeMeSmileTotals] = useState({ week: 0, month: 0, allTime: 0 });
   const [thoughtOfYouTotals, setThoughtOfYouTotals] = useState({ week: 0, month: 0, allTime: 0 });
   const [showGuide, setShowGuide] = useState(false);
@@ -514,6 +586,12 @@ export default function Home() {
 
   useFocusEffect(
     useCallback(() => {
+      loadRnrToday();
+    }, [loadRnrToday])
+  );
+
+  useFocusEffect(
+    useCallback(() => {
       loadCaptionShareTotals();
     }, [loadCaptionShareTotals])
   );
@@ -663,6 +741,24 @@ export default function Home() {
     }, [loadFollowedTales])
   );
 
+  // Read only, the same read as Manage Multickles (app/tales.js): every
+  // own Multickle, Ongoing first then Completed, newest first.
+  const loadMyTales = useCallback(async () => {
+    if (!session) return;
+    try {
+      setMyTales(await fetchMyTales(session.user.id, { throwOnError: true }));
+      setMyTalesState('loaded');
+    } catch {
+      setMyTalesState('error');
+    }
+  }, [session]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadMyTales();
+    }, [loadMyTales])
+  );
+
   // Pull-down refresh: re-runs Home's own focus loaders. Entries feed the
   // Vibe cards, Ripples pill, Remember this? and Goal pill counts; the
   // caption totals feed the two Mojo Shared pills. loadEntries never sets
@@ -678,6 +774,8 @@ export default function Home() {
         loadCaptionShareTotals(),
         loadRewards(),
         loadFollowedTales(),
+        loadMyTales(),
+        loadRnrToday(),
         loadPaceReminder(),
         loadOptInReminder(),
       ]);
@@ -969,10 +1067,10 @@ export default function Home() {
     }
   }
 
-  // The four bottom sections are now the four cards of one deck
-  // (components/HomeDeck.js). Each card's rows are what its old pill row
-  // showed, as vertical rows in cream on the card colour. Each row is its
-  // own touchable and opens what its pill opened.
+  // The four old bottom sections, plus Routines and Reminders, are the
+  // cards of one deck (components/HomeDeck.js). Each card's rows are what
+  // its old pill row showed, as vertical rows in cream on the card
+  // colour. Each row is its own touchable and opens what its pill opened.
 
   // One dashed, untappable row for a card with nothing to show. No text,
   // and hidden from screen readers so TalkBack doesn't announce it.
@@ -1014,7 +1112,7 @@ export default function Home() {
         return (
           <TouchableOpacity
             key={entry.id}
-            style={deckRowStyles.row}
+            style={[deckRowStyles.row, ROW_FILL.remember]}
             activeOpacity={0.7}
             onPress={() => goToEntryInFeed(entry.id)}
             accessibilityRole="button"
@@ -1077,7 +1175,7 @@ export default function Home() {
           // Name and cost in separate Texts so only the name truncates.
           <TouchableOpacity
             key={item.id}
-            style={deckRowStyles.row}
+            style={[deckRowStyles.row, ROW_FILL.rewards]}
             activeOpacity={0.7}
             onPress={() => router.push('/wishlist')}
             accessibilityRole="button"
@@ -1111,15 +1209,69 @@ export default function Home() {
     router.push({ pathname: '/tale', params: { id: tale.id } });
   }
 
+  // Follow / Mine switch at the right of the Multickles card's title, in
+  // the header row the Reward List button uses (it wraps under the title
+  // at large font scales). Only one is selected; Follow when Home opens.
+  function renderMulticklesSwitch() {
+    return (
+      <View style={styles.multicklesSwitch}>
+        {MULTICKLES_VIEWS.map(({ key, label }) => {
+          const selected = multicklesView === key;
+          return (
+            <TouchableOpacity
+              key={key}
+              onPress={() => setMulticklesView(key)}
+              hitSlop={MULTICKLES_CHIP_HIT_SLOP}
+              activeOpacity={0.7}
+              style={[styles.multicklesChip, selected ? styles.multicklesChipSelected : styles.multicklesChipIdle]}
+              accessibilityRole="button"
+              accessibilityLabel={label}
+              accessibilityState={{ selected }}
+            >
+              <Text style={[styles.multicklesChipText, selected && styles.multicklesChipTextSelected]}>{label}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    );
+  }
+
+  // Mine: the user's own ongoing Multickles (completed ones left out, as
+  // in Follow), in fetchMyTales' order, same row look as Follow. A tap
+  // opens the Multickle screen, as Manage Multickles' rows do.
+  function renderMyTaleRows() {
+    if (myTalesState === 'loading') return renderPlaceholderRow();
+    if (myTalesState === 'error') {
+      return <Text style={deckRowStyles.body}>Couldn't load your Multickles — please try again later.</Text>;
+    }
+    const ongoing = myTales.filter((t) => !t.completed_at);
+    if (ongoing.length === 0) return <Text style={deckRowStyles.body}>You have no ongoing Multickles.</Text>;
+    return ongoing.map((t) => (
+      <TouchableOpacity
+        key={t.id}
+        style={[deckRowStyles.row, ROW_FILL.multickles]}
+        activeOpacity={0.7}
+        onPress={() => router.push({ pathname: '/tale', params: { id: t.id } })}
+        accessibilityRole="button"
+        accessibilityLabel={`${t.title}. Opens Multickle.`}
+      >
+        <Text style={deckRowStyles.label} numberOfLines={1}>{t.title}</Text>
+      </TouchableOpacity>
+    ));
+  }
+
   function multicklesCard() {
     return {
       key: 'multickles',
-      title: 'Multickles you follow',
+      title: MULTICKLES_CARD_TITLE,
       color: DECK_COLORS.multickles,
-      children: followedTales.length === 0 ? renderPlaceholderRow() : followedTales.map((t) => (
+      headerRight: renderMulticklesSwitch(),
+      children: multicklesView === 'mine' ? renderMyTaleRows() : followedTales.length === 0 ? (
+        <Text style={deckRowStyles.body}>You are not following any Multickles yet.</Text>
+      ) : followedTales.map((t) => (
         <TouchableOpacity
           key={t.id}
-          style={deckRowStyles.row}
+          style={[deckRowStyles.row, ROW_FILL.multickles]}
           activeOpacity={0.7}
           onPress={() => openFollowedTale(t)}
           accessibilityRole="button"
@@ -1196,7 +1348,7 @@ export default function Home() {
         return (
           <TouchableOpacity
             key={g.id}
-            style={deckRowStyles.row}
+            style={[deckRowStyles.row, ROW_FILL.goals]}
             activeOpacity={0.7}
             onPress={() => router.push({ pathname: '/goal', params: { id: g.id } })}
             accessibilityRole="button"
@@ -1232,21 +1384,101 @@ export default function Home() {
     return { key: 'goals', title: 'Your Goals', color: DECK_COLORS.goals, children };
   }
 
-  // Card order: Remember this?, Your Goals, Your Rewards, Multickles you
-  // follow -- only the ones that are showing.
+  // Routines and Reminders: today's tiles under Morning, Afternoon and
+  // Evening -- only the slots with tiles, as in the pop-up
+  // (components/RnrsPopup.js). Read only: every row opens the full page,
+  // the same route as the pop-up's "Open Routines and Reminders". Done
+  // shows a tick, Skipped a faded label and dashed outline, like RnrTile.
+  // Nothing today: the full page's own line, and the pop-up's "Add a
+  // tile" row.
+  function openRnrs() {
+    router.navigate('/rnrs');
+  }
+
+  function rnrsCard() {
+    let children;
+    const placements = rnrDay.placements;
+    if (!rnrLoaded || (rnrDay.loading && placements.length === 0)) {
+      children = renderPlaceholderRow();
+    } else if (rnrDay.loadError && placements.length === 0) {
+      children = <Text style={deckRowStyles.body}>Couldn't load your tiles — please try again later.</Text>;
+    } else if (placements.length === 0) {
+      children = (
+        <>
+          <Text style={deckRowStyles.body}>Plan a few small things for each part of your day.</Text>
+          <TouchableOpacity
+            style={[deckRowStyles.row, ROW_FILL.rnrs]}
+            activeOpacity={0.7}
+            onPress={openRnrs}
+            accessibilityRole="button"
+            accessibilityLabel="Add a tile. Opens Routines and Reminders."
+          >
+            <Ionicons name="add" size={16} color={DECK_TEXT} />
+            <Text style={deckRowStyles.label} numberOfLines={1}>Add a tile</Text>
+          </TouchableOpacity>
+        </>
+      );
+    } else {
+      children = RNR_SLOTS.filter((s) => placements.some((p) => p.slot === s)).map((s) => (
+        <View key={s} style={styles.rnrSlot}>
+          <Text style={styles.rnrSlotLabel} accessibilityRole="header">{RNR_SLOT_LABELS[s]}</Text>
+          {placements.filter((p) => p.slot === s).map((p) => {
+            const done = p.status === 'done';
+            const skipped = p.status === 'skipped';
+            const stateWord = done ? ', done' : skipped ? ', skipped' : '';
+            return (
+              <TouchableOpacity
+                key={p.id}
+                style={[deckRowStyles.row, ROW_FILL.rnrs, skipped && styles.rnrRowSkipped]}
+                activeOpacity={0.7}
+                onPress={openRnrs}
+                accessibilityRole="button"
+                accessibilityLabel={`${p.label}, ${RNR_SLOT_LABELS[s]}${stateWord}. Opens Routines and Reminders.`}
+              >
+                {done && <Ionicons name="checkmark-circle" size={18} color={DECK_TEXT} />}
+                <Text style={[deckRowStyles.label, skipped && styles.rnrLabelSkipped]} numberOfLines={2}>{p.label}</Text>
+                {(done || skipped) && (
+                  <>
+                    <View style={deckRowStyles.spacer} />
+                    <Text style={styles.rnrState}>{done ? 'Done' : 'Skipped'}</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      ));
+    }
+    return { key: 'rnrs', title: 'Routines and Reminders', color: DECK_COLORS.rnrs, children };
+  }
+
+  // Card order: Remember this?, Your Goals, Your Rewards, Multickles,
+  // Routines and Reminders -- only the ones that are showing.
   const deckCards = [
     showRememberCard && rememberCard(),
     showGoalsCard && goalsCard(),
     showRedeemCard && rewardsCard(),
     showFollowedTalesCard && multicklesCard(),
+    rnrsCard(),
   ].filter(Boolean);
   // 322dp, or the content width when the screen is narrower (a 360dp
   // phone has 320dp between Home's side paddings).
   const deckWidth = Math.min(DECK_WIDTH, windowWidth - 2 * HOME_SIDE_PADDING, HOME_CONTENT_MAX_WIDTH);
+  // Room for the deck (cards + dots and arrows row): from its measured top
+  // down to the top of the tab bar, less SPARE_ROOM. The page runs under
+  // the floating tab bar, whose height includes the bottom safe-area
+  // inset; the top inset is in the content's top padding, so in innerTop.
+  // HomeDeck clamps the cards to DECK_MIN_HEIGHT..DECK_MAX_HEIGHT, and
+  // ignores this at large font scales. null until measured.
+  const deckFitHeight = innerTop == null || deckTop == null
+    ? null
+    : (pageHeight || windowHeight) - tabBarHeight - SPARE_ROOM - (innerTop + deckTop);
   // Every card's data is in: entries (loading), Goals, the Reward List
-  // while Tokens & Rewards is on, and followed Multickles. A failed fetch
-  // never sets its flag -- the deck's own 3s wait covers that.
-  const deckSettled = !loading && goalsLoaded && (!tokensEnabled || rewardsLoaded) && followedTalesLoaded;
+  // while Tokens & Rewards is on, followed Multickles, and today's
+  // Routines and Reminders. A failed fetch never sets its flag (except
+  // rnrLoaded, whose card shows its own error) -- the deck's own 3s wait
+  // covers that.
+  const deckSettled = !loading && goalsLoaded && (!tokensEnabled || rewardsLoaded) && followedTalesLoaded && rnrLoaded;
 
   // label is the short text under each pill; a11yName is what a screen
   // reader says, so the two "Polaroid" pills can still be told apart.
@@ -1263,6 +1495,7 @@ export default function Home() {
       style={styles.container}
       ref={scrollRef}
       keyboardShouldPersistTaps="handled"
+      onLayout={(e) => setPageHeight(e.nativeEvent.layout.height)}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[C.rust]} tintColor={C.rust} />
       }
@@ -1271,7 +1504,7 @@ export default function Home() {
         { paddingTop: insets.top + 12, paddingBottom: styles.content.paddingBottom + tabBarHeight },
       ]}
     >
-      <View style={styles.contentInner}>
+      <View style={styles.contentInner} onLayout={(e) => setInnerTop(e.nativeEvent.layout.y)}>
         <View style={styles.titleRow}>
           <Text style={styles.title} numberOfLines={1}>DayTickles</Text>
           <CornerNav style={styles.cornerNavInline} />
@@ -1407,25 +1640,30 @@ export default function Home() {
         </View>
         </View>
 
-        {/* New Tickle and the Quick Tickle circle share one look
-            (components/NewTickleButton.js), both 56dp tall. The popup
-            measures the circle when it opens, so it stays anchored above
-            it at this size. */}
-        <View style={styles.newTickleRow}>
-          <NewTickleButton onPress={() => router.push('/create')} style={styles.newTickleFlex} />
+        {/* New Tickle, then Quick Tickle at the far right. Both share
+            one slim pill look (components/NewTickleButton.js). The popup
+            measures the visible Quick Tickle pill when it opens, so it
+            stays anchored above it. */}
+        <View style={[styles.newTickleRow, { gap: HOME_BUTTON_GAP }]}>
+          <NewTickleButton home onPress={() => router.push('/create')} />
           <TouchableOpacity
             ref={quickDotRef}
             onPress={openQuickPopover}
             disabled={quickSaving}
             activeOpacity={0.8}
-            style={[TICKLE_BUTTON_SURFACE, styles.quickDot]}
+            hitSlop={HOME_BUTTON_HIT_SLOP}
+            style={[TICKLE_BUTTON_SURFACE, styles.quickDot, QUICK_BUTTON_SHAPE]}
             accessibilityRole="button"
             accessibilityLabel="Quick Tickle: log a Vibe in one tap"
             accessibilityState={{ expanded: quickPopoverOpen, disabled: quickSaving }}
           >
             <View style={styles.quickDotDots} accessible={false} importantForAccessibility="no-hide-descendants">
               {NATURE_ORDER.map((key) => (
-                <View key={key} style={[styles.quickDotDot, { backgroundColor: VIBE_COLORS[key] }]} accessible={false} />
+                <View
+                  key={key}
+                  style={{ width: QUICK_DOT_SIZE, height: QUICK_DOT_SIZE, borderRadius: QUICK_DOT_SIZE / 2, backgroundColor: VIBE_CARD_PALETTE.colors[key] }}
+                  accessible={false}
+                />
               ))}
             </View>
           </TouchableOpacity>
@@ -1449,8 +1687,8 @@ export default function Home() {
         {/* Mounted from the start (not after loading), so the deck holds
             its space while it waits for deckSettled. */}
         {deckCards.length > 0 && (
-          <View style={styles.bottomCards}>
-            <HomeDeck cards={deckCards} width={deckWidth} dataSettled={deckSettled} />
+          <View style={styles.bottomCards} onLayout={(e) => setDeckTop(e.nativeEvent.layout.y)}>
+            <HomeDeck cards={deckCards} width={deckWidth} dataSettled={deckSettled} fitHeight={deckFitHeight} />
           </View>
         )}
 
@@ -1488,10 +1726,10 @@ export default function Home() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: HOME_SIDE_PADDING, paddingBottom: 40, alignItems: 'center' },
+  content: { padding: HOME_SIDE_PADDING, paddingBottom: CONTENT_BOTTOM_EXTRA, alignItems: 'center' },
   contentInner: { width: '100%', maxWidth: HOME_CONTENT_MAX_WIDTH },
   titleRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: TITLE_ROW_GAP,
   },
   // Cancels CornerNav's own marginBottom (meant for when it stands alone
   // at the top of Tickle Stash/Calendar/Tickle Pics) now that it's nested inside
@@ -1500,7 +1738,7 @@ const styles = StyleSheet.create({
   // margin and an uneven height between the title text and the icons.
   cornerNavInline: { marginBottom: 0 },
   title: { fontSize: 20, fontWeight: 'bold', color: C.rustDark, flexShrink: 1 },
-  profileRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
+  profileRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: PROFILE_ROW_GAP },
   profileText: { fontSize: 16, color: C.text },
   returnedBanner: {
     backgroundColor: C.sparkleBg, borderRadius: 14,
@@ -1523,8 +1761,8 @@ const styles = StyleSheet.create({
   },
   paceReminderIcon: { marginRight: 10 },
 
-  vibeCardsRow: { flexDirection: 'row', gap: 12, marginBottom: 6 },
-  vibeLabelsRow: { flexDirection: 'row', gap: 12, marginBottom: 14 },
+  vibeCardsRow: { flexDirection: 'row', gap: 12, marginBottom: VIBE_CARDS_GAP },
+  vibeLabelsRow: { flexDirection: 'row', gap: 12, marginBottom: VIBE_LABELS_GAP },
   vibeLabel: {
     flex: 1, fontSize: 12, fontWeight: '600', color: C.subtext, textAlign: 'center',
   },
@@ -1534,9 +1772,10 @@ const styles = StyleSheet.create({
   // 20 as asked (Settings' own cards use 16).
   mojoPanel: {
     backgroundColor: withAlpha(C.subtext, 0.1), borderWidth: 1, borderColor: C.border,
-    borderRadius: 20, paddingTop: 10, paddingBottom: 10, paddingHorizontal: 12, marginBottom: 14,
+    borderRadius: 20, paddingTop: MOJO_PADDING_V, paddingBottom: MOJO_PADDING_V, paddingHorizontal: 12,
+    marginBottom: MOJO_PANEL_GAP,
   },
-  statPillsRow: { flexDirection: 'row', gap: 10, marginBottom: 6 },
+  statPillsRow: { flexDirection: 'row', gap: 10, marginBottom: MOJO_PILLS_GAP },
   statPillLabelsRow: { flexDirection: 'row', gap: 10 },
   statPillLabel: {
     flex: 1, fontSize: 11, fontWeight: '600', color: C.subtext, textAlign: 'center',
@@ -1553,7 +1792,8 @@ const styles = StyleSheet.create({
   },
   statPillNumber: { fontSize: 13, fontWeight: '700', color: C.text },
   statPillsCaption: {
-    fontSize: 11, fontWeight: '600', color: C.subtext, textAlign: 'center', marginBottom: 8,
+    fontSize: MOJO_CAPTION_FONT_SIZE, fontWeight: '600', color: MOJO_CAPTION_COLOR,
+    textAlign: 'center', marginBottom: MOJO_CAPTION_GAP,
   },
   statTooltip: {
     position: 'absolute', top: -34, left: -30, right: -30,
@@ -1565,17 +1805,17 @@ const styles = StyleSheet.create({
     paddingVertical: 4, paddingHorizontal: 10,
   },
 
-  // Centred: at a large font scale the New Tickle pill grows taller
-  // while the Quick Tickle circle stays 56dp.
-  newTickleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  newTickleFlex: { flex: 1 },
-  // Fill, border and shadow come from TICKLE_BUTTON_SURFACE.
-  quickDot: {
-    width: TICKLE_BUTTON_HEIGHT, height: TICKLE_BUTTON_HEIGHT, borderRadius: TICKLE_BUTTON_HEIGHT / 2,
-    alignItems: 'center', justifyContent: 'center',
+  // Right-aligned; gap set inline (HOME_BUTTON_GAP). Drawn above the deck
+  // (zIndex, plus elevation for Android), so a tilted card behind the
+  // front one never covers a button or takes its taps.
+  newTickleRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end',
+    zIndex: 10, elevation: 10,
   },
+  // Fill, border and shadow come from TICKLE_BUTTON_SURFACE; size from
+  // QUICK_BUTTON_SHAPE.
+  quickDot: { alignItems: 'center', justifyContent: 'center' },
   quickDotDots: { flexDirection: 'row', gap: 4 },
-  quickDotDot: { width: 8, height: 8, borderRadius: 4 },
   // Floats above the tab bar (bottom set inline), within Home's side
   // padding.
   quickToast: { position: 'absolute', left: HOME_SIDE_PADDING, right: HOME_SIDE_PADDING },
@@ -1584,8 +1824,31 @@ const styles = StyleSheet.create({
   quickStartTopGap: { marginTop: 12 },
   emptyText: { color: C.subtext, textAlign: 'center', marginTop: 12 },
 
-  // 40dp below the buttons (or the tester pill, when it shows).
-  bottomCards: { marginTop: 40 },
+  // DECK_GAP below the buttons (or the tester pill, when it shows).
+  bottomCards: { marginTop: DECK_GAP },
+
+  // Multickles card's Follow / Mine chips. Selected: solid cream with the
+  // card's own colour as text; not selected: the rows' cream outline.
+  multicklesSwitch: { flexShrink: 0, flexDirection: 'row', alignItems: 'center', gap: MULTICKLES_CHIP_GAP },
+  multicklesChip: {
+    height: MULTICKLES_CHIP_HEIGHT, borderRadius: MULTICKLES_CHIP_HEIGHT / 2,
+    paddingHorizontal: MULTICKLES_CHIP_PADDING, justifyContent: 'center', borderWidth: 1,
+  },
+  multicklesChipSelected: { backgroundColor: MULTICKLES_CHIP_SELECTED_FILL, borderColor: MULTICKLES_CHIP_SELECTED_FILL },
+  multicklesChipIdle: { backgroundColor: 'transparent', borderColor: MULTICKLES_CHIP_OUTLINE },
+  multicklesChipText: { fontSize: MULTICKLES_CHIP_FONT_SIZE, fontWeight: '600', color: MULTICKLES_CHIP_TEXT },
+  multicklesChipTextSelected: { color: DECK_COLORS.multickles },
+
+  // Routines and Reminders card: one block per slot (heading + rows, 8dp
+  // apart, like the list's own gap). Heading in the pop-up's slot-label
+  // type (13/700). Skipped rows: no fill, dashed outline, faded label.
+  rnrSlot: { gap: 8 },
+  rnrSlotLabel: { fontSize: 13, fontWeight: '700', color: DECK_SUBTEXT },
+  // The card's own colour, solid (not transparent), so it still reads as
+  // "no fill" but hides the corner circle like the other rows.
+  rnrRowSkipped: { backgroundColor: DECK_COLORS.rnrs, borderStyle: 'dashed' },
+  rnrLabelSkipped: { color: DECK_SUBTEXT },
+  rnrState: { flexShrink: 0, fontSize: 13, fontWeight: '700', color: DECK_SUBTEXT },
 
   // Goal rows: the Goal's own colour as a small dot with a faint cream
   // ring, so the darker Goal colours still read on the card.
