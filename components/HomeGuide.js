@@ -14,7 +14,7 @@ const STEPS = [
   },
   {
     title: 'More on Home',
-    body: "Below the Vibe cards, the Mojo Shared pills track your Polaroid shares and Ripples the same way — this week, this month, and all-time. Tap a pill to see exactly what it's counting.\n\nFurther down is a small deck of cards: Remember this?, Your Goals, Your Rewards (when Tokens & Rewards is on) and Multickles you follow. Use the arrows or the dots under the deck to move between them, or swipe the deck sideways. It opens on whichever card you left it on. Remember this? shows up to three older Tickles to revisit — tap one to open it. Your Goals shows how many Tickles you've tagged to each active Goal — tap one to see them all. Your Rewards shows your token balance and every reward on your Reward List, with a tick on the ones you have enough tokens for — tap a reward, or the Reward List button, to open your Reward List. Multickles you follow lists the ones that are still going, with a small sparkle on any that have a Tic you haven't seen yet.",
+    body: "Below the Vibe cards, the Mojo Shared pills track your Polaroid shares and Ripples the same way — this week, this month, and all-time. Tap a pill to see exactly what it's counting.\n\nFurther down is a small deck of cards: Remember this?, Your Goals, Your Rewards (when Tokens & Rewards is on), Multickles, and Routines and Reminders. Use the arrows or the dots under the deck to move between them, or swipe the deck sideways. It opens on whichever card you left it on. Remember this? shows up to three older Tickles to revisit — tap one to open it. Your Goals shows how many Tickles you've tagged to each active Goal — tap one to see them all. Your Rewards shows your token balance and every reward on your Reward List, with a tick on the ones you have enough tokens for — tap a reward, or the Reward List button, to open your Reward List. Multickles has two buttons at the top: Follow lists the ones you follow that are still going, with a small sparkle on any that have a Tic you haven't seen yet, and Mine lists your own ongoing ones. Routines and Reminders shows today's tiles; tap one to open Routines and Reminders.",
   },
   {
     title: 'New Tickle',
@@ -30,7 +30,7 @@ const STEPS = [
   },
   {
     title: 'Routines and Reminders',
-    body: "Tap the tick-circle button in the bottom bar to see today's tiles under Morning, Afternoon and Evening. Mark each one Done, Skip it, or Move it — to another part of the day or another day. It's up to you whether a tile is a routine or a reminder.\n\nTap Open Routines and Reminders to plan any day: add one of the ideas, one of your own tiles, or make a new one. Once a tile is Done, tap Log it if you'd like to log a Vibe for it. Nothing is logged unless you pick one.",
+    body: "Tap the tick-circle button in the bottom bar to see today's tiles under Morning, Afternoon and Evening. Mark each one Done, Skip it, or Move it — to another part of the day or another day. It's up to you whether a tile is a routine or a reminder. Today's tiles also show on the last card of Home's deck.\n\nTap Open Routines and Reminders to plan any day: add one of the ideas, one of your own tiles, or make a new one. Once a tile is Done, tap Log it if you'd like to log a Vibe for it. Nothing is logged unless you pick one.",
   },
   {
     title: 'Calendar',
