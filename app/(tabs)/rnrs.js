@@ -9,15 +9,12 @@ import { C, accentFor, darken, withAlpha } from '../../lib/theme';
 import { localDateString, parseLocalDateString, toLocalDateString } from '../../lib/week';
 import { RNR_SLOTS, RNR_SLOT_LABELS } from '../../lib/rnrs';
 import { useRnrDay } from '../../lib/useRnrDay';
-import { useRnrLogIt } from '../../lib/useRnrLogIt';
 import CornerNav from '../../components/CornerNav';
 import WallpaperBackground from '../../components/WallpaperBackground';
 import RnrTile from '../../components/RnrTile';
 import RnrMoveChooser from '../../components/RnrMoveChooser';
 import RnrDayPicker from '../../components/RnrDayPicker';
 import RnrAddPicker from '../../components/RnrAddPicker';
-import QuickTicklePopover from '../../components/QuickTicklePopover';
-import QuickTickleToast from '../../components/QuickTickleToast';
 
 // Routines and Reminders, the full page: plan small things for Morning,
 // Afternoon and Evening of any day (Today by default), and mark them
@@ -32,19 +29,15 @@ export default function RnrsPage() {
   const accentDark = darken(accentFor(profile?.accent_theme).card, 0.35);
   const [planDate, setPlanDate] = useState(() => localDateString());
   const day = useRnrDay(userId, planDate);
-  const logIt = useRnrLogIt(userId, { onLogged: (p) => day.dropLogIt(p.id) });
   const [moving, setMoving] = useState(null);
   const [dayPickerFor, setDayPickerFor] = useState(null);
   const [addSlot, setAddSlot] = useState(null);
 
   // Fresh on every visit (the pop-up may have changed today's tiles).
-  // Leaving closes the toast.
-  const { dismissToast } = logIt;
   const { reload } = day;
   useFocusEffect(
     useCallback(() => {
       reload();
-      return () => dismissToast();
     }, [reload])
   );
 
@@ -145,11 +138,9 @@ export default function RnrsPage() {
                     key={p.id}
                     placement={p}
                     accentDark={accentDark}
-                    showLogIt={day.logItIds.has(p.id)}
                     onSetStatus={day.setStatus}
                     onMoveTo={setMoving}
                     onMoveSlot={(pl, slot) => day.move(pl, { slot })}
-                    onLogIt={logIt.open}
                   />
                 ))}
                 <TouchableOpacity
@@ -165,7 +156,6 @@ export default function RnrsPage() {
             );
           })}
         </ScrollView>
-        <QuickTickleToast {...logIt.toastProps} style={[styles.toast, { bottom: tabBarHeight + 12 }]} />
       </WallpaperBackground>
 
       <RnrMoveChooser
@@ -192,7 +182,6 @@ export default function RnrsPage() {
         onClose={() => setDayPickerFor(null)}
       />
       <RnrAddPicker slot={addSlot} onAdd={handleAdd} onClose={() => setAddSlot(null)} />
-      <QuickTicklePopover {...logIt.popoverProps} />
     </>
   );
 }
@@ -236,6 +225,4 @@ const styles = StyleSheet.create({
     backgroundColor: withAlpha(C.card, 0.4),
   },
   addText: { fontSize: 13, fontWeight: '700' },
-  // Floats above the tab bar (bottom set inline), within the side padding.
-  toast: { position: 'absolute', left: 20, right: 20 },
 });

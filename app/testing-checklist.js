@@ -132,7 +132,7 @@ const SECTIONS = [
       { id: 'rnrs-move-slot', label: 'Move to another part of the same day' },
       { id: 'rnrs-move-day', label: 'Move to → Another day…, pick a day in the month grid, then find the tile on that day' },
       { id: 'rnrs-day-switcher', label: 'Use the previous/next day arrows and Back to today' },
-      { id: 'rnrs-log-it', label: 'After Done, tap Log it, pick a Vibe, and check Undo and Tickle it on the toast; closing the sheet logs nothing' },
+      { id: 'rnrs-calendar', label: 'Mark a tile Done, then open the Calendar: that day shows a small tick and a Routines and Reminders section listing it.' },
       { id: 'rnrs-weekly-summary', label: 'Weekly Summary shows "Routines and Reminders" only once something is Done this week' },
       { id: 'rnrs-talkback', label: 'TalkBack: tile actions (Done, Move to Morning/Afternoon/Evening, Skip) work, and focus returns to the bar button when the pop-up closes' },
       { id: 'rnrs-large-font', label: 'Check the pop-up, the page and the Home top bar at the largest font size' },

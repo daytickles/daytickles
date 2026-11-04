@@ -1,4 +1,3 @@
-import { useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { C, withAlpha } from '../lib/theme';
@@ -8,13 +7,14 @@ import { RNR_SLOTS, RNR_SLOT_LABELS } from '../lib/rnrs';
 // the full page. A transparent pill like Home's pill rows, with the
 // label on top and its choices under it:
 //   planned  -> Done, Move to, Skip
-//   done     -> a tick, a softened pill, "Done" (tap again to undo),
-//               Move to, and "Log it" while showLogIt is on
+//   done     -> a tick, a softened pill, and "Done" (tap again to undo).
+//               No Move to: a Done tile is recorded on its day in the
+//               Calendar, so it stays put until it's undone.
 //   skipped  -> faded label, dashed border, "Skipped" and Undo
 // The label itself also carries TalkBack actions (Done, Move to each
-// other slot, Skip), so the same jobs can be done from the tile alone.
-export default function RnrTile({ placement, accentDark, showLogIt, onSetStatus, onMoveTo, onMoveSlot, onLogIt }) {
-  const logItRef = useRef(null);
+// other slot, Skip -- not Move for a Done tile), so the same jobs can be
+// done from the tile alone.
+export default function RnrTile({ placement, accentDark, onSetStatus, onMoveTo, onMoveSlot }) {
   const { label, status, slot } = placement;
   const done = status === 'done';
   const skipped = status === 'skipped';
@@ -28,7 +28,7 @@ export default function RnrTile({ placement, accentDark, showLogIt, onSetStatus,
       : skipped
         ? { name: 'undoSkip', label: 'Undo skip' }
         : { name: 'done', label: 'Done' },
-    ...otherSlots.map((s) => ({ name: `move-${s}`, label: `Move to ${RNR_SLOT_LABELS[s]}` })),
+    ...(done ? [] : otherSlots.map((s) => ({ name: `move-${s}`, label: `Move to ${RNR_SLOT_LABELS[s]}` }))),
     ...(!done && !skipped ? [{ name: 'skip', label: 'Skip' }] : []),
   ];
 
@@ -37,19 +37,7 @@ export default function RnrTile({ placement, accentDark, showLogIt, onSetStatus,
     if (name === 'done') onSetStatus(placement, 'done');
     else if (name === 'undoDone' || name === 'undoSkip') onSetStatus(placement, 'planned');
     else if (name === 'skip') onSetStatus(placement, 'skipped');
-    else if (name.startsWith('move-')) onMoveSlot(placement, name.slice(5));
-  }
-
-  // Measured so the Vibe sheet opens anchored to the pill.
-  function handleLogIt() {
-    const node = logItRef.current;
-    if (!node?.measureInWindow) {
-      onLogIt(placement, null);
-      return;
-    }
-    node.measureInWindow((x, y, width, height) => {
-      onLogIt(placement, width > 0 ? { x, y, width, height } : null);
-    });
+    else if (name.startsWith('move-') && !done) onMoveSlot(placement, name.slice(5));
   }
 
   return (
@@ -93,31 +81,21 @@ export default function RnrTile({ placement, accentDark, showLogIt, onSetStatus,
               onPress={() => onSetStatus(placement, done ? 'planned' : 'done')}
               color={accentDark}
             />
-            <ActionButton
-              text="Move to"
-              a11yLabel={`Move ${label}`}
-              onPress={() => onMoveTo(placement)}
-              color={accentDark}
-            />
             {!done && (
-              <ActionButton
-                text="Skip"
-                a11yLabel={`Skip ${label}`}
-                onPress={() => onSetStatus(placement, 'skipped')}
-                color={accentDark}
-              />
-            )}
-            {done && showLogIt && (
-              <TouchableOpacity
-                ref={logItRef}
-                onPress={handleLogIt}
-                hitSlop={{ top: 6, bottom: 6 }}
-                style={[styles.logItPill, { borderColor: accentDark }]}
-                accessibilityRole="button"
-                accessibilityLabel={`Log it: log a Vibe for ${label}`}
-              >
-                <Text style={styles.logItText}>Log it</Text>
-              </TouchableOpacity>
+              <>
+                <ActionButton
+                  text="Move to"
+                  a11yLabel={`Move ${label}`}
+                  onPress={() => onMoveTo(placement)}
+                  color={accentDark}
+                />
+                <ActionButton
+                  text="Skip"
+                  a11yLabel={`Skip ${label}`}
+                  onPress={() => onSetStatus(placement, 'skipped')}
+                  color={accentDark}
+                />
+              </>
             )}
           </>
         )}
@@ -165,10 +143,4 @@ const styles = StyleSheet.create({
   },
   actionText: { fontSize: 13, fontWeight: '700' },
   skippedText: { fontSize: 13, color: C.subtext, paddingRight: 4 },
-  logItPill: {
-    minHeight: 32, justifyContent: 'center',
-    paddingHorizontal: 12, borderRadius: 16, borderWidth: 1,
-    backgroundColor: withAlpha(C.amberBg, 0.25), marginLeft: 2,
-  },
-  logItText: { fontSize: 12, fontWeight: '700', color: C.text },
 });

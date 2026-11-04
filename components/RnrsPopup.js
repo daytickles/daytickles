@@ -8,21 +8,18 @@ import { C, accentFor, darken } from '../lib/theme';
 import { localDateString, parseLocalDateString } from '../lib/week';
 import { RNR_SLOTS, RNR_SLOT_LABELS } from '../lib/rnrs';
 import { useRnrDay } from '../lib/useRnrDay';
-import { useRnrLogIt } from '../lib/useRnrLogIt';
 import Button from './Button';
 import RnrTile from './RnrTile';
 import RnrMoveChooser from './RnrMoveChooser';
 import RnrDayPicker from './RnrDayPicker';
-import QuickTicklePopover from './QuickTicklePopover';
-import QuickTickleToast from './QuickTickleToast';
 
 // The bottom bar's Routines and Reminders button opens this: today's
 // tiles under Morning, Afternoon and Evening, each with Done, Move to
 // and Skip, and a button into the full page (app/(tabs)/rnrs.js) for
 // adding tiles and planning other days. Close, Android Back and the
 // dimmed area close it. Loads fresh each time it opens. Edge to edge
-// (statusBarTranslucent + navigationBarTranslucent) like Quick Tickle's
-// popover, so a Log it pill measured in here lines up with that sheet.
+// (statusBarTranslucent + navigationBarTranslucent), with the safe-area
+// insets as padding.
 export default function RnrsPopup({ visible, onClose }) {
   const { session, profile } = useAuth();
   const insets = useSafeAreaInsets();
@@ -30,10 +27,6 @@ export default function RnrsPopup({ visible, onClose }) {
   const accentDark = darken(accentFor(profile?.accent_theme).card, 0.35);
   const today = localDateString();
   const day = useRnrDay(userId, today, visible);
-  const logIt = useRnrLogIt(userId, {
-    onLogged: (p) => day.dropLogIt(p.id),
-    beforeLeave: () => close({ leaving: true }),
-  });
   const [moving, setMoving] = useState(null);
   const [dayPickerFor, setDayPickerFor] = useState(null);
 
@@ -46,7 +39,6 @@ export default function RnrsPopup({ visible, onClose }) {
   // leaving: closing to go somewhere else, so the caller doesn't pull
   // TalkBack focus back to its button.
   function close({ leaving = false } = {}) {
-    logIt.dismissToast();
     setMoving(null);
     setDayPickerFor(null);
     onClose({ leaving });
@@ -127,11 +119,9 @@ export default function RnrsPopup({ visible, onClose }) {
                     key={p.id}
                     placement={p}
                     accentDark={accentDark}
-                    showLogIt={day.logItIds.has(p.id)}
                     onSetStatus={day.setStatus}
                     onMoveTo={setMoving}
                     onMoveSlot={(pl, slot) => day.move(pl, { slot })}
-                    onLogIt={logIt.open}
                   />
                 ))}
               </View>
@@ -144,8 +134,6 @@ export default function RnrsPopup({ visible, onClose }) {
             variant="secondary"
             style={styles.openButton}
           />
-
-          <QuickTickleToast {...logIt.toastProps} style={styles.toast} />
         </View>
       </View>
 
@@ -172,7 +160,6 @@ export default function RnrsPopup({ visible, onClose }) {
         }}
         onClose={() => setDayPickerFor(null)}
       />
-      <QuickTicklePopover {...logIt.popoverProps} />
     </Modal>
   );
 }
@@ -210,5 +197,4 @@ const styles = StyleSheet.create({
   slot: { gap: 8, marginTop: 8 },
   slotLabel: { fontSize: 13, fontWeight: '700', color: C.rustDark },
   openButton: { marginTop: 12 },
-  toast: { marginTop: 10 },
 });
