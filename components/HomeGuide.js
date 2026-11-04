@@ -30,11 +30,11 @@ const STEPS = [
   },
   {
     title: 'Routines and Reminders',
-    body: "Tap the tick-circle button in the bottom bar to see today's tiles under Morning, Afternoon and Evening. Mark each one Done, Skip it, or Move it — to another part of the day or another day. It's up to you whether a tile is a routine or a reminder. Today's tiles also show on the last card of Home's deck.\n\nTap Open Routines and Reminders to plan any day: add one of the ideas, one of your own tiles, or make a new one. Once a tile is Done, tap Log it if you'd like to log a Vibe for it. Nothing is logged unless you pick one.",
+    body: "Tap the tick-circle button in the bottom bar to see today's tiles under Morning, Afternoon and Evening. Mark each one Done, Skip it, or Move it — to another part of the day or another day. It's up to you whether a tile is a routine or a reminder. Today's tiles also show on the last card of Home's deck.\n\nTap Open Routines and Reminders to plan any day: add one of the ideas, one of your own tiles, or make a new one. Tiles you mark Done are recorded in the Calendar automatically, on that day. A Done tile can't be moved; tap Done again to undo it first if you need to.",
   },
   {
     title: 'Calendar',
-    body: "To open the Calendar, tap the calendar icon at the top of Home. Each day shows your Day Dot, or a small open circle if you wrote Tickles but didn't dot that day. Tap a day, then tap Tickles or Goals to see what you wrote. Tickles also shows how many of each Vibe.\n\nDot your day on the Tickle Stash, under Mine › My Day.",
+    body: "To open the Calendar, tap the calendar icon at the top of Home. Each day shows your Day Dot, or a small open circle if you wrote Tickles but didn't dot that day. Tap a day, then tap Tickles or Goals to see what you wrote. Tickles also shows how many of each Vibe. Tiles you mark Done in Routines and Reminders show on their day too: a small tick on the day, and a Routines and Reminders list when you tap it.\n\nDot your day on the Tickle Stash, under Mine › My Day.",
   },
   {
     title: 'Tickle Pics',
