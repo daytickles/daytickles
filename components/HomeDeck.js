@@ -8,14 +8,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // behind it. It replaces the four stacked bottom sections. Plain RN
 // Animated only -- no gesture or animation library.
 //
-// cards: [{ key, title, sub, subA11y, headerAction, color, children }]
-//   key          stable id ('remember' | 'goals' | 'rewards' | 'multickles')
+// cards: [{ key, title, sub, subA11y, headerAction, headerRight, color, children }]
+//   key          stable id ('remember' | 'goals' | 'rewards' | 'multickles' | 'rnrs')
 //   sub          optional sub line under the title
 //   headerAction optional { label, a11yLabel, onPress } -- a small button
 //                at the right of the header (Your Rewards' Reward List)
+//   headerRight  optional node at the right of the header, in the same
+//                wrapping row as the title and headerAction (Multickles'
+//                Follow / Mine); it should not shrink (flexShrink 0)
 //   children     the card's rows (scroll vertically inside the card)
 // The caller only passes the cards that are showing (e.g. no Your Rewards
-// while Tokens & Rewards is off), so the deck can hold 1 to 4.
+// while Tokens & Rewards is off), so the deck can hold 1 to 5.
 
 export const DECK_WIDTH = 322;
 // Height at font scale 1.0. It grows with the font scale, up to 1.6x
@@ -28,25 +31,84 @@ const DECK_MAX_GROWTH = 1.6;
 export function deckHeightFor(fontScale) {
   return Math.round(DECK_HEIGHT * Math.min(Math.max(fontScale || 1, 1), DECK_MAX_GROWTH));
 }
+// Flexible deck: at the default text size (font scale up to
+// DECK_FIT_MAX_FONT_SCALE) the cards take the room the caller gives
+// (fitHeight, less the dots and arrows row), clamped to DECK_MIN_HEIGHT
+// .. DECK_MAX_HEIGHT. Larger text keeps deckHeightFor's font-scaled
+// height and the page scrolls, as before.
+const DECK_MIN_HEIGHT = 200;
+const DECK_MAX_HEIGHT = 256;
+const DECK_FIT_MAX_FONT_SCALE = 1.15;
 export const DECK_COLORS = {
   remember: '#7A3B2A',
   goals: '#4B5A40',
   rewards: '#6B5420',
   multickles: '#425762',
+  rnrs: '#5B384E',
 };
 export const DECK_TEXT = '#FFF8EC';
 export const DECK_SUBTEXT = '#F1E4D0';
+// List rows are the card colour darkened by ROW_SHADE -- what black at
+// that opacity over the card gives -- but as a SOLID colour, so the
+// corner circle doesn't show through them. deckRowFill turns a card's
+// '#RRGGBB' colour into that row fill.
+const ROW_SHADE = 0.18;
+export function deckRowFill(cardHex) {
+  const c = cardHex.replace('#', '');
+  const ch = (i) => Math.round(parseInt(c.slice(i, i + 2), 16) * (1 - ROW_SHADE));
+  return `rgb(${ch(0)}, ${ch(2)}, ${ch(4)})`;
+}
 
 const DOT_ACTIVE = '#4A1F10';
 const DOT_INACTIVE = '#8F8678';
 const VEIL = '#1E0C06';
-// Fan for the cards behind the front one, nearest first: tilt, drop and
-// how dark the veil is.
+// Fan for the cards behind the front one, nearest first: shift (dp,
+// negative Y = up, so they peek out ABOVE the front card), tilt (degrees)
+// and how dark the veil is.
 const FAN = [
-  { rotate: '-3deg', translateY: 6, veil: 0.18 },
-  { rotate: '3.5deg', translateY: 10, veil: 0.3 },
-  { rotate: '-6deg', translateY: 14, veil: 0.42 },
+  { translateX: 14, translateY: -8, rotateDeg: 3, veil: 0.18 },
+  { translateX: -14, translateY: -14, rotateDeg: -4, veil: 0.3 },
+  { translateX: 8, translateY: -22, rotateDeg: 6, veil: 0.42 },
 ];
+// The cards behind are narrower than the front one: each side is inset
+// just enough that, after its shift and tilt, no back card reaches more
+// than BACK_CARD_MAX_OVERHANG dp past the front card's left or right
+// edge, and each card is at least BACK_CARD_INSET_STEP dp narrower per
+// side than the one in front of it.
+const BACK_CARD_MAX_OVERHANG = 6;
+const BACK_CARD_INSET_STEP = 2;
+// Deck card shadow (style prop boxShadow; no elevation on the cards).
+const DECK_CARD_SHADOW = '0 16px 30px -4px rgba(74,31,16,0.35)';
+// Outline on every card: same colour and thickness as the list rows'
+// outline (deckRowStyles.row). The card's padding is cut by the same
+// amount, so nothing inside moves.
+const CARD_BORDER_COLOR = 'rgba(255,248,236,0.22)';
+const CARD_BORDER_WIDTH = 1;
+const CARD_PADDING_TOP = 16;
+const CARD_PADDING_SIDE = 16;
+// Faint circle in each card's top-left corner, clipped by the card's
+// rounded corners (the card's own overflow: 'hidden'). Offsets are from
+// the card's outer top-left corner.
+const CORNER_CIRCLE_SIZE = 220;
+const CORNER_CIRCLE_ABOVE = 70;
+const CORNER_CIRCLE_LEFT = 60;
+const CORNER_CIRCLE_FILL = 'rgba(255,255,255,0.08)';
+
+// Per-side inset (dp) for each FAN card, for this deck size. A card w
+// wide and h tall, tilted by a, reaches (w/2)cos(a) + (h/2)sin(a) out
+// from its centre, plus its sideways shift.
+function backCardInsets(width, height) {
+  const insets = [];
+  for (const f of FAN) {
+    const a = (Math.abs(f.rotateDeg) * Math.PI) / 180;
+    const cos = Math.cos(a);
+    const reach = Math.abs(f.translateX) + (width / 2) * cos + (height / 2) * Math.sin(a);
+    const needed = Math.ceil((reach - width / 2 - BACK_CARD_MAX_OVERHANG) / cos);
+    const prev = insets.length ? insets[insets.length - 1] + BACK_CARD_INSET_STEP : 0;
+    insets.push(Math.max(0, needed, prev));
+  }
+  return insets;
+}
 // Half a flip (front card edge-on), in ms.
 const FLIP_HALF_MS = 140;
 // The card the deck was left on (its key), per phone -- same naming as
@@ -56,11 +118,17 @@ const DECK_CARD_KEY = 'daytickles-home-deck-card';
 // Sideways swipe (Task 3 H7): the deck only claims a drag once it has
 // moved this far sideways AND at least twice as far sideways as up or
 // down, so vertical drags still scroll the page and the card's list.
-// Past SWIPE_DISTANCE, or a quicker flick than SWIPE_VELOCITY, changes
-// the card; anything less springs back.
+// While dragged, the front card follows the finger one-to-one, tilting
+// up to SWIPE_TILT_DEG. Released past SWIPE_FRACTION of the card's width,
+// or flicked faster than SWIPE_VELOCITY, it carries on off the deck
+// (SWIPE_OUT_MS, to SWIPE_OUT_EXTRA dp past its own width) and only then
+// does the next card come forward; anything less springs back.
 const SWIPE_CLAIM_DX = 12;
-const SWIPE_DISTANCE = 70;
+const SWIPE_FRACTION = 0.25;
 const SWIPE_VELOCITY = 0.35;
+const SWIPE_OUT_MS = 180;
+const SWIPE_OUT_EXTRA = 40;
+const SWIPE_TILT_DEG = 4;
 // Longest the deck waits for the saved card and its data before it shows
 // anyway, so a failed or slow fetch can't hold it back.
 const DECK_WAIT_MS = 3000;
@@ -82,6 +150,20 @@ function useReduceMotion() {
     };
   }, []);
   return reduceMotion;
+}
+
+// The faint corner circle: decoration only, drawn first so the title,
+// rows and veil sit on top of it.
+function CornerCircle() {
+  return (
+    <View
+      style={styles.cornerCircle}
+      pointerEvents="none"
+      accessible={false}
+      importantForAccessibility="no-hide-descendants"
+      accessibilityElementsHidden
+    />
+  );
 }
 
 // Soft fade at the bottom of a card's list, in the card's own colour, so
@@ -106,11 +188,17 @@ function BottomFade({ color }) {
 // stays a blank space of its own size until that and the saved-card read
 // are both done (or DECK_WAIT_MS has passed), then opens once on the
 // right card -- so a card that loads late never makes it jump.
-export default function HomeDeck({ cards, width, dataSettled = true }) {
+// fitHeight (optional): the room from the top of the cards to where the
+// dots and arrows row must end. See the flexible-deck constants above.
+export default function HomeDeck({ cards, width, dataSettled = true, fitHeight = null }) {
   const reduceMotion = useReduceMotion();
   // useWindowDimensions' fontScale (same value as PixelRatio.getFontScale)
   // re-renders the deck if the font size changes while the app is open.
-  const deckHeight = deckHeightFor(useWindowDimensions().fontScale);
+  const fontScale = useWindowDimensions().fontScale || 1;
+  const fullHeight = deckHeightFor(fontScale);
+  const deckHeight = fitHeight != null && fontScale <= DECK_FIT_MAX_FONT_SCALE
+    ? Math.round(Math.min(DECK_MAX_HEIGHT, Math.max(DECK_MIN_HEIGHT, fitHeight - CONTROLS_SPACE)))
+    : fullHeight;
   // Which card is in front, by key, so a card that comes and goes (Your
   // Rewards with Tokens off) doesn't shift it onto the wrong card.
   const [activeKey, setActiveKey] = useState(null);
@@ -165,8 +253,11 @@ export default function HomeDeck({ cards, width, dataSettled = true }) {
   }
 
   // The front card's sideways offset while it follows a swipe (see the
-  // responder below). Declared before goTo, which resets it.
-  const dragX = useRef(new Animated.Value(0)).current;
+  // responder below). Declared before goTo, which resets it. State, not a
+  // ref: a finished swipe swaps in a fresh value at 0 in the SAME render
+  // that changes the card, so the swiped-off card can never flash back to
+  // the centre while the new card's content is still on its way.
+  const [dragX, setDragX] = useState(() => new Animated.Value(0));
 
   // direction: 1 = forward (next), -1 = back. Reduced motion: no flip,
   // the card just changes. Returns true when it starts a change, false
@@ -203,11 +294,40 @@ export default function HomeDeck({ cards, width, dataSettled = true }) {
     return goTo((index - 1 + count) % count, -1);
   }
 
+  // A released swipe. towards: -1 = left (next card), 1 = right (previous
+  // card). The card slides the rest of the way off the deck first; only
+  // when it's gone does the order change. Reduced motion: no slide, the
+  // card just changes. Returns false when ignored (one card, or a flip or
+  // swipe already running).
+  function swipeAway(towards) {
+    if (count < 2 || flipping.current) return false;
+    const nextIndex = towards < 0 ? (index + 1) % count : (index - 1 + count) % count;
+    const nextKey = cards[nextIndex].key;
+    if (reduceMotion) {
+      choose(nextKey);
+      announce(nextIndex);
+      return true;
+    }
+    flipping.current = true;
+    Animated.timing(dragX, {
+      toValue: towards * (width + SWIPE_OUT_EXTRA),
+      duration: SWIPE_OUT_MS,
+      useNativeDriver: true,
+    }).start(() => {
+      // Both in one render: the new front card, at a fresh centred offset.
+      setDragX(new Animated.Value(0));
+      choose(nextKey);
+      flipping.current = false;
+    });
+    announce(nextIndex);
+    return true;
+  }
+
   // The front card follows the finger sideways (not with reduced motion,
   // where it just changes on release). The responder is made once, so it
   // reads the latest render's values through this ref.
   const latest = useRef(null);
-  latest.current = { goNext, goPrev, count, reduceMotion };
+  latest.current = { swipeAway, count, reduceMotion, dragX, width };
   const swipe = useRef(
     PanResponder.create({
       // Capture: decided before the rows and the list see the move, but
@@ -217,25 +337,30 @@ export default function HomeDeck({ cards, width, dataSettled = true }) {
         latest.current.count > 1 &&
         Math.abs(g.dx) > SWIPE_CLAIM_DX &&
         Math.abs(g.dx) > 2 * Math.abs(g.dy),
-      // Once claimed, the page ScrollView can't take the drag back halfway.
+      // Once claimed, neither the page ScrollView nor the card's list can
+      // take the drag back halfway: no JS hand-over, and native scrolling
+      // is blocked while the deck holds the gesture.
       onPanResponderTerminationRequest: () => false,
+      onShouldBlockNativeResponder: () => true,
       onPanResponderMove: (_, g) => {
-        if (!latest.current.reduceMotion) dragX.setValue(g.dx);
+        if (!latest.current.reduceMotion) latest.current.dragX.setValue(g.dx);
       },
       onPanResponderRelease: (_, g) => {
-        const far = Math.abs(g.dx) > SWIPE_DISTANCE || Math.abs(g.vx) > SWIPE_VELOCITY;
-        // Swipe left = next card, right = previous. A started flip resets
-        // the offset itself, at the swap (see goTo).
-        const started = far && (g.dx < 0 ? latest.current.goNext() : latest.current.goPrev());
+        const L = latest.current;
+        const far = Math.abs(g.dx) > L.width * SWIPE_FRACTION || Math.abs(g.vx) > SWIPE_VELOCITY;
+        // Swipe left = next card, right = previous (a flick with almost no
+        // distance goes by its speed's direction).
+        const towards = Math.sign(g.dx) || Math.sign(g.vx);
+        const started = far && towards !== 0 && L.swipeAway(towards);
         // Not far enough, or ignored (e.g. a flip already running): back
         // to centre. With reduced motion the card never followed the
         // finger, so this is a no-op there.
-        if (!started || latest.current.reduceMotion) {
-          Animated.spring(dragX, { toValue: 0, useNativeDriver: true, bounciness: 4 }).start();
+        if (!started) {
+          Animated.spring(L.dragX, { toValue: 0, useNativeDriver: true, bounciness: 4 }).start();
         }
       },
       onPanResponderTerminate: () => {
-        Animated.spring(dragX, { toValue: 0, useNativeDriver: true, bounciness: 4 }).start();
+        Animated.spring(latest.current.dragX, { toValue: 0, useNativeDriver: true, bounciness: 4 }).start();
       },
     })
   ).current;
@@ -254,16 +379,24 @@ export default function HomeDeck({ cards, width, dataSettled = true }) {
   }
 
   const rotateY = flip.interpolate({ inputRange: [-1, 0, 1], outputRange: ['90deg', '0deg', '-90deg'] });
+  // Small tilt while the card is dragged, full at one card-width away.
+  const tilt = dragX.interpolate({
+    inputRange: [-width, 0, width],
+    outputRange: [`-${SWIPE_TILT_DEG}deg`, '0deg', `${SWIPE_TILT_DEG}deg`],
+    extrapolate: 'clamp',
+  });
   // The cards behind, in the order they'd come next, nearest last so it
   // draws on top of the farther ones.
   const behind = [];
   for (let d = 1; d < Math.min(count, FAN.length + 1); d++) behind.push({ card: cards[(index + d) % count], depth: d });
+  const insets = backCardInsets(width, deckHeight);
 
   return (
     <View style={styles.wrap}>
       <View style={[styles.stack, { width, height: deckHeight }]} {...swipe.panHandlers}>
         {behind.reverse().map(({ card, depth }) => {
           const fan = FAN[depth - 1];
+          const inset = insets[depth - 1];
           return (
             // Decoration only: not touchable, hidden from TalkBack.
             <View
@@ -274,12 +407,17 @@ export default function HomeDeck({ cards, width, dataSettled = true }) {
               accessibilityElementsHidden
               style={[
                 styles.card,
-                styles.backCard,
-                { backgroundColor: card.color, transform: [{ translateY: fan.translateY }, { rotate: fan.rotate }] },
+                {
+                  left: inset,
+                  right: inset,
+                  backgroundColor: card.color,
+                  transform: [{ translateX: fan.translateX }, { translateY: fan.translateY }, { rotate: `${fan.rotateDeg}deg` }],
+                },
               ]}
             >
+              <CornerCircle />
               <Text style={styles.title} numberOfLines={1}>{card.title}</Text>
-              <View style={[StyleSheet.absoluteFill, styles.veil, { opacity: fan.veil }]} />
+              <View style={[styles.veil, { opacity: fan.veil }]} />
             </View>
           );
         })}
@@ -287,9 +425,10 @@ export default function HomeDeck({ cards, width, dataSettled = true }) {
         <Animated.View
           style={[
             styles.card,
-            { backgroundColor: front.color, transform: [{ perspective: 1000 }, { translateX: dragX }, { rotateY }] },
+            { backgroundColor: front.color, transform: [{ perspective: 1000 }, { translateX: dragX }, { rotateY }, { rotate: tilt }] },
           ]}
         >
+          <CornerCircle />
           <View style={styles.headerRow}>
             <Text style={styles.title} numberOfLines={2} accessibilityRole="header">{front.title}</Text>
             {!!front.headerAction && (
@@ -303,6 +442,7 @@ export default function HomeDeck({ cards, width, dataSettled = true }) {
                 <Text style={styles.headerActionText} numberOfLines={1}>{front.headerAction.label}</Text>
               </TouchableOpacity>
             )}
+            {front.headerRight || null}
           </View>
           {!!front.sub && (
             <Text style={styles.sub} accessibilityLabel={front.subA11y || undefined}>{front.sub}</Text>
@@ -365,7 +505,9 @@ export const deckRowStyles = StyleSheet.create({
   row: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     minHeight: 48, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 14,
-    backgroundColor: 'rgba(0,0,0,0.18)', borderWidth: 1, borderColor: 'rgba(255,248,236,0.22)',
+    // See-through fallback only: callers add the card's solid
+    // deckRowFill so the corner circle stays behind the rows.
+    backgroundColor: `rgba(0,0,0,${ROW_SHADE})`, borderWidth: 1, borderColor: 'rgba(255,248,236,0.22)',
   },
   // Empty-card stand-in: same shape, no fill, dashed outline, no text.
   placeholder: {
@@ -384,11 +526,27 @@ const styles = StyleSheet.create({
   stack: { position: 'relative' },
   card: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: 24, paddingTop: 16, paddingHorizontal: 16, overflow: 'hidden',
-    shadowColor: '#1E0C06', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 5,
+    borderRadius: 24, overflow: 'hidden',
+    borderWidth: CARD_BORDER_WIDTH, borderColor: CARD_BORDER_COLOR,
+    paddingTop: CARD_PADDING_TOP - CARD_BORDER_WIDTH,
+    paddingHorizontal: CARD_PADDING_SIDE - CARD_BORDER_WIDTH,
+    // No elevation: drawing order is the JSX order (back cards first).
+    boxShadow: DECK_CARD_SHADOW,
   },
-  backCard: { elevation: 2 },
-  veil: { backgroundColor: VEIL },
+  // Covers the whole card, its outline included (absolute children are
+  // placed inside the border, hence the negative offsets).
+  veil: {
+    position: 'absolute',
+    top: -CARD_BORDER_WIDTH, left: -CARD_BORDER_WIDTH, right: -CARD_BORDER_WIDTH, bottom: -CARD_BORDER_WIDTH,
+    backgroundColor: VEIL,
+  },
+  cornerCircle: {
+    position: 'absolute',
+    top: -CORNER_CIRCLE_ABOVE - CARD_BORDER_WIDTH,
+    left: -CORNER_CIRCLE_LEFT - CARD_BORDER_WIDTH,
+    width: CORNER_CIRCLE_SIZE, height: CORNER_CIRCLE_SIZE, borderRadius: CORNER_CIRCLE_SIZE / 2,
+    backgroundColor: CORNER_CIRCLE_FILL,
+  },
   // Wraps: when the title and a header button (Reward List) don't fit on
   // one line, the button drops under the title instead of squeezing it.
   headerRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 10, rowGap: 8 },
