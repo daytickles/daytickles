@@ -7,8 +7,21 @@ import NatureIcon from './NatureIcon';
 // meaning is positional (left to right), not per-vibe, so one shared
 // string covers all three.
 const TOOLTIP_TEXT = 'This week | this month | all time';
+// The card's shadow (style prop boxShadow), in the card's own colour at
+// VIBE_SHADOW_ALPHA. No elevation, so the two don't double up.
+const VIBE_SHADOW_ALPHA = 0.6;
+const vibeShadow = (color) => `0 10px 20px -4px ${withAlpha(color, VIBE_SHADOW_ALPHA)}`;
+// Sizes (dp), trimmed so Home fits one screen at the default text size.
+// The height is a minimum, so a large font scale still grows the card.
+const VIBE_CARD_MIN_HEIGHT = 60;
+const ICON_CIRCLE_SIZE = 22;
+const ICON_SIZE = 14;
+const WEEK_FONT_SIZE = 18;
+const MONTH_FONT_SIZE = 14;
+const ALL_TIME_FONT_SIZE = 13;
+const BULB_GAP = 4; // space under the bulbs
 
-// Home Vibes card, compact version (Task 3 H1): 72dp tall, one line of
+// Home Vibes card, compact version (Task 3 H1): 60dp tall, one line of
 // numbers. Deliberately no text labels inside the card -- the vibe's own
 // label sits below the card, rendered by the caller. The two bulbs above
 // the card are unchanged.
@@ -52,9 +65,9 @@ export default function VibeCard({
       {/* Soft shadow tinted with the card's own colour. No overflow:
           'hidden' any more (the corner circle it clipped is gone), so the
           tooltip below could sit inside -- kept as a sibling anyway. */}
-      <View style={[styles.card, { backgroundColor: color, shadowColor: color }]}>
+      <View style={[styles.card, { backgroundColor: color, boxShadow: vibeShadow(color) }]}>
         <View style={[styles.iconCircle, { backgroundColor: withAlpha(textColor, 0.18) }]}>
-          <NatureIcon nature={nature} size={15} color={textColor} />
+          <NatureIcon nature={nature} size={ICON_SIZE} color={textColor} />
         </View>
         {/* One line, never wrapped or clipped: with 3-digit numbers (or a
             large font scale) the whole line shrinks to fit the card's
@@ -84,22 +97,21 @@ export default function VibeCard({
 
 const styles = StyleSheet.create({
   wrap: { flex: 1, alignItems: 'center' },
-  bulbRow: { flexDirection: 'row', gap: 8, marginBottom: 6 },
+  bulbRow: { flexDirection: 'row', gap: 8, marginBottom: BULB_GAP },
   card: {
-    width: '100%', minHeight: 72, borderRadius: 24,
+    width: '100%', minHeight: VIBE_CARD_MIN_HEIGHT, borderRadius: 24,
     paddingVertical: 8, paddingHorizontal: 6,
     alignItems: 'center', justifyContent: 'center', gap: 4,
-    // shadowColor is the card colour (inline). Android 9+ uses it with
-    // elevation; older Android shows a plain grey elevation shadow.
-    shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.35, shadowRadius: 6, elevation: 4,
+    // Shadow: boxShadow inline (vibeShadow above).
   },
   iconCircle: {
-    width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center',
+    width: ICON_CIRCLE_SIZE, height: ICON_CIRCLE_SIZE, borderRadius: ICON_CIRCLE_SIZE / 2,
+    alignItems: 'center', justifyContent: 'center',
   },
   numbersLine: { textAlign: 'center', alignSelf: 'stretch' },
-  weekNumber: { fontSize: 22, fontWeight: '700' },
-  monthNumber: { fontSize: 16, fontWeight: '600' },
-  allTimeNumber: { fontSize: 15, fontWeight: '500' },
+  weekNumber: { fontSize: WEEK_FONT_SIZE, fontWeight: '700' },
+  monthNumber: { fontSize: MONTH_FONT_SIZE, fontWeight: '600' },
+  allTimeNumber: { fontSize: ALL_TIME_FONT_SIZE, fontWeight: '500' },
   separator: { fontSize: 15, fontWeight: '400' },
   // Same visual treatment as home.js's own statTooltip/statTooltipText
   // (Tickles/Likes/Shares pills) -- kept as a separate copy here since
