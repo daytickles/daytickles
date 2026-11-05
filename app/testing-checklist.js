@@ -106,7 +106,6 @@ const SECTIONS = [
     title: 'Browsing',
     items: [
       { id: 'browse-stash-tabs', label: "Switch between Stash tabs (Mine, Fav's, Following, Rippled)" },
-      { id: 'browse-goal-pills', label: 'Use the Goal Pills filter on Mine' },
       { id: 'calendar-open-from-icon', label: 'Open the Calendar from the calendar icon at the top of Home (also on Tickle Stash and Tickle Pics; not shown on the Calendar itself)' },
       { id: 'calendar-no-token-circle', label: 'The token circle is gone from the top bar; your balance still shows next to Your Rewards on Home' },
       { id: 'browse-calendar-past-day', label: 'Browse the Calendar and tap into a past day' },

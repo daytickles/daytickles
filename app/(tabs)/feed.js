@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { fetchAwardedEntryTypes } from '../../lib/awards';
-import { C, accentFor, darken, lighten, vibeIconColor, NATURE_ORDER, NATURE_LABELS } from '../../lib/theme';
+import { C, accentFor, vibeIconColor, NATURE_ORDER, NATURE_LABELS } from '../../lib/theme';
 import { shareEntry, useShareStatus, sharePhotoOnlyEntry, SHARE_CAPTIONS } from '../../lib/sharing';
 import { alertCapBlocked, capFor, checkAndConsumeWeeklyCap, rippleFeatureFor } from '../../lib/freemiumCaps';
 import { showAlert, showSaveFailed } from '../../lib/themedAlert';
@@ -85,11 +85,11 @@ const MINE_EMPTY_LINE = 'Write about what made you smile today.';
 
 // Mine's My Day filter needs its own empty message rather than the
 // generic `mine` one above, so it can invite a first My Day entry.
-function getEmptyText(tab, natureFilter, goalFilter, taleFilter) {
+function getEmptyText(tab, natureFilter, taleFilter) {
   if (tab === 'following' && taleFilter) {
     return 'No Tics in this Blogbit yet.';
   }
-  if (tab === 'mine' && natureFilter === 'day_journal' && !goalFilter) {
+  if (tab === 'mine' && natureFilter === 'day_journal') {
     return 'Write your first My Day entry to see it here.';
   }
   return EMPTY_TEXT[tab];
@@ -182,18 +182,7 @@ export default function Feed() {
   const initialTab = TABS.some((t) => t.id === params.tab) ? params.tab : 'mine';
   const [tab, setTab] = useState(initialTab);
   const [natureFilter, setNatureFilter] = useState('all');
-  // Mine-only, mutually exclusive with natureFilter rather than merged
-  // into it -- a goal_id filter mixes every nature together (including
-  // My Day), which a single shared enum couldn't express alongside
-  // natureFilter's own 'all'/'received'/'given'/'self'/'day_journal'
-  // values without overloading what each one means. null = no Goal
-  // filter active. Picking a Goal chip doesn't touch natureFilter's own
-  // value (so it's remembered if the Goal filter is later cleared) --
-  // the nature row's selected-chip highlight instead checks
-  // `!goalFilter` too, so nothing in that row LOOKS selected while a
-  // Goal filter is active.
-  const [goalFilter, setGoalFilter] = useState(null);
-  // Following-only counterpart to goalFilter: a followed Multickle's id,
+  // Following-only filter: a followed Multickle's id,
   // or null for the tab's normal account-based list. tale_follows is
   // independent of following the author, so with a pill selected the
   // list is that Multickle's public Tics from anyone -- the one place a
@@ -569,7 +558,7 @@ export default function Feed() {
 
   const loadFeed = useCallback(async () => {
     if (!session) return;
-    const loadKey = `${tab}:${natureFilter}:${goalFilter}:${taleFilter}`;
+    const loadKey = `${tab}:${natureFilter}:${taleFilter}`;
     const isTabChange = loadKey !== lastLoadedKeyRef.current;
     lastLoadedKeyRef.current = loadKey;
     // Show the spinner for a genuine tab/filter switch, or when there's
@@ -663,14 +652,7 @@ export default function Feed() {
       // (reached by tapping an entry on Home) is where you read your
       // own entries in full regardless of sharing status.
       query = query.eq('user_id', session.user.id);
-      // A Goal filter overrides the nature filter entirely rather than
-      // combining with it -- every nature (including My Day) mixed
-      // together for that one goal, per the Goal chips spec. natureFilter
-      // itself is left untouched in state either way, so whichever nature
-      // chip was last picked is still there once the Goal filter clears.
-      if (goalFilter) {
-        query = query.eq('goal_id', goalFilter);
-      } else if (natureFilter !== 'all') {
+      if (natureFilter !== 'all') {
         query = query.eq('tickle_nature', natureFilter);
       }
     } else {
@@ -691,7 +673,7 @@ export default function Feed() {
     // likedIds isn't used to filter any query above — it's a dependency
     // purely so a like/unlike triggers this refetch, pulling like_count
     // fresh from the DB rather than ever computing it locally.
-  }, [session, tab, natureFilter, goalFilter, taleFilter, followedIds, favoritedIds, likedIds]);
+  }, [session, tab, natureFilter, taleFilter, followedIds, favoritedIds, likedIds]);
 
   useFocusEffect(
     useCallback(() => {
@@ -775,7 +757,7 @@ export default function Feed() {
   useEffect(() => {
     if (highlightedEntryId) return;
     listRef.current?.scrollToOffset({ offset: 0, animated: true });
-  }, [tab, natureFilter, goalFilter, taleFilter]);
+  }, [tab, natureFilter, taleFilter]);
 
   function handleTabPress(tabId) {
     setTab(tabId);
@@ -931,15 +913,6 @@ export default function Feed() {
   // — they only ever appear read-only, on entries already tagged before
   // achievement (resolved via goalsById above, achieved or not).
   const activeGoals = goals.filter((g) => !g.achieved_at);
-  // Goal filter chip row only -- active goals always before achieved
-  // ones, rather than interleaved in whatever order `goals` itself
-  // comes back in. A plain stable sort on "is achieved" (0/1) preserves
-  // each group's existing relative order (the query's own
-  // created_at-descending, newest first) with no secondary key needed -- Array.sort is
-  // spec-guaranteed stable since ES2019. Scoped to this local variable,
-  // not applied to `goals` itself, so goalsById/activeGoals/GoalTagModal
-  // above are all untouched.
-  const goalFilterChips = [...goals].sort((a, b) => (a.achieved_at ? 1 : 0) - (b.achieved_at ? 1 : 0));
 
   async function assignGoal(entryId, goalId) {
     const currentGoalId = entries.find((e) => e.id === entryId)?.goal_id ?? null;
@@ -1297,17 +1270,11 @@ export default function Feed() {
       {tab === 'mine' && (
         <View style={styles.natureFilterRow}>
           {NATURE_FILTERS.map((f) => {
-            const selected = !goalFilter && natureFilter === f.id;
+            const selected = natureFilter === f.id;
             return (
               <TouchableOpacity
                 key={f.id}
-                onPress={() => {
-                  // Picking any nature chip (including "All") always clears
-                  // an active Goal filter -- the two are mutually exclusive,
-                  // never combined (see goalFilter's own comment above).
-                  setGoalFilter(null);
-                  setNatureFilter(f.id);
-                }}
+                onPress={() => setNatureFilter(f.id)}
                 hitSlop={BUTTON_HIT_SLOP}
                 style={[styles.natureFilterChip, selected && styles.natureFilterChipActive]}
                 accessibilityRole="button"
@@ -1331,77 +1298,9 @@ export default function Feed() {
         </View>
       )}
 
-      {/* Goal filter chips -- horizontal ScrollView rather than
-          flexWrap or truncating the row itself: the nature row above
-          already uses ~95% of its available width with five short fixed
-          labels (measured on-device), and goal labels are free user text
-          up to 60 characters, so a plain wrapping row risked silently
-          clipping or pushing chips off-screen. Hidden entirely when there
-          are no goals at all -- an empty scrollable row would just be
-          clutter for anyone who's never created one. Shows every goal
-          (`goals`, not `activeGoals`) including achieved ones,
-          unconditionally and with no visual distinction -- same
-          precedent as Calendar's Goals view, which draws its day-dots
-          from the full list too. */}
-      {tab === 'mine' && goals.length > 0 && (
-        <View style={styles.goalFilterWrap}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.goalFilterRow}
-            style={styles.goalFilterScroll}
-          >
-            {goalFilterChips.map((g) => (
-              <TouchableOpacity
-                key={g.id}
-                onPress={() => setGoalFilter(g.id)}
-                hitSlop={BUTTON_HIT_SLOP}
-                style={[styles.goalFilterChip, goalFilter === g.id && styles.goalFilterChipActive]}
-              >
-                {/* Same lighten(0.6)/checkmark-darken(0.4) formula as
-                    goals.js/GoalTagModal/EntryCard's own achieved-goal
-                    dots -- dot-only here (label/background untouched),
-                    matching EntryCard's scope rather than goals.js's
-                    fuller treatment (which also mutes the label). Icon
-                    size scaled down from those dots' own size:10 on a
-                    14-16px dot (~0.65x diameter) to size:6 here, since
-                    this dot is only 8px -- a literal size:10 checkmark
-                    would overflow it. */}
-                <View
-                  style={[
-                    styles.goalFilterDot,
-                    { backgroundColor: g.achieved_at ? lighten(g.color, 0.6) : g.color },
-                  ]}
-                >
-                  {!!g.achieved_at && (
-                    <Ionicons name="checkmark" size={6} color={darken(g.color, 0.4)} />
-                  )}
-                </View>
-                <Text
-                  style={[
-                    styles.goalFilterLabel,
-                    // A retired Goal gets the italic mute
-                    // (goalFilterLabelMuted), since the label is the same
-                    // colour as every chip here. Applied before the
-                    // selected-state override below so a selected retired
-                    // Goal still gets cream text on dusk blue.
-                    !!g.achieved_at && styles.goalFilterLabelMuted,
-                    goalFilter === g.id && styles.goalFilterLabelActive,
-                  ]}
-                  numberOfLines={1}
-                  ellipsizeMode="tail"
-                >
-                  {g.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-      )}
-
-      {/* Multickle pills -- one per followed Multickle, same chip
-          family and scroll quirks as the Goal pills above (see
-          goalFilterWrap). Unlike Goal chips, re-tapping the selected
+      {/* Multickle pills -- one per followed Multickle. The goalFilter*
+          styles are named after the Goal pills Mine used to have; see
+          goalFilterWrap for the scroll quirks. Re-tapping the selected
           pill clears it, since there's no other chip row on Following
           to clear it with. Nothing renders when none are followed. */}
       {tab === 'following' && followedTales.length > 0 && (
@@ -1442,7 +1341,7 @@ export default function Feed() {
         </View>
       )}
 
-      {tab === 'mine' && !goalFilter && natureFilter === 'day_journal' && dayDots && (
+      {tab === 'mine' && natureFilter === 'day_journal' && dayDots && (
         <DayDotsCard
           accentColor={accentFor(profile?.accent_theme).card}
           phase={dayDots.phase}
@@ -1485,9 +1384,9 @@ export default function Feed() {
           }, 50);
         }}
         ListEmptyComponent={!loading && (
-          // Unfiltered Mine: no Vibe or My Day chip ('all'), no Goal chip.
+          // Unfiltered Mine: no Vibe or My Day chip ('all').
           // (Multickle pills only exist on Following.)
-          tab === 'mine' && natureFilter === 'all' && !goalFilter ? (
+          tab === 'mine' && natureFilter === 'all' ? (
             <View style={styles.emptyState}>
               <Ionicons
                 name="leaf-outline"
@@ -1501,7 +1400,7 @@ export default function Feed() {
               <NewTickleButton home onPress={() => router.push('/create')} style={styles.emptyButton} />
             </View>
           ) : (
-            <Text style={styles.emptyText}>{getEmptyText(tab, natureFilter, goalFilter, taleFilter)}</Text>
+            <Text style={styles.emptyText}>{getEmptyText(tab, natureFilter, taleFilter)}</Text>
           )
         )}
       />
@@ -1627,10 +1526,6 @@ const styles = StyleSheet.create({
   // Selected Goal / Multickle chip: same dusk blue + cream as the active
   // tab (Task 3 S1b), not the accent theme.
   goalFilterChipActive: { backgroundColor: TAB_INK, borderColor: TAB_INK },
-  goalFilterDot: {
-    width: 8, height: 8, borderRadius: 4, flexShrink: 0,
-    alignItems: 'center', justifyContent: 'center',
-  },
   goalFilterLabel: { fontSize: 11, fontWeight: '600', color: TAB_INK, flexShrink: 1 },
   goalFilterLabelActive: { color: TAB_INK_TEXT },
   // Retired Goal / completed Multickle chips: the same readable colour as
