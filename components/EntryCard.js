@@ -22,6 +22,16 @@ function formatEntryDate(entryDate) {
   });
 }
 
+// "9:14 AM" (the phone's own locale and time zone) from created_at, for
+// the Quick Tickle row. null when there's no usable timestamp, so the row
+// shows the date alone.
+function formatEntryTime(createdAt) {
+  if (!createdAt) return null;
+  const d = new Date(createdAt);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+
 // Deterministic per-entry tilt for the photo-only Polaroid render below --
 // same idea as PolaroidCard's own rotationFor, but string-safe since
 // item.id here is a cloud tickle_entries uuid, not pinned_photos' numeric
@@ -155,6 +165,155 @@ export default function EntryCard({
         { text: 'Cancel', style: 'cancel' },
         { text: 'Delete', style: 'destructive', onPress: () => onDelete?.(item) },
       ]
+    );
+  }
+
+  // Edit / Multickle / Share / Delete. Shared by the full card and the
+  // Quick Tickle row below.
+  const menuModal = (
+    <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
+      <TouchableOpacity style={styles.menuBackdrop} activeOpacity={1} onPress={() => setMenuOpen(false)}>
+        <TouchableOpacity activeOpacity={1} style={styles.menuSheet} onPress={() => {}}>
+          {/* Deliberately absent for a photo-only entry -- there's no
+              text to edit, and re-picking the Vibe as a kind of "edit"
+              was raised but never resolved either way (see the spec's
+              own open item on this), so this stays simply omitted
+              rather than guessing at that behavior. */}
+          {!isPhotoOnly && (
+            <TouchableOpacity
+              style={styles.menuRow}
+              onPress={() => {
+                setMenuOpen(false);
+                openEdit();
+              }}
+            >
+              <Ionicons name="pencil-outline" size={18} color={C.text} />
+              <Text style={styles.menuRowLabel}>Edit</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Tagging only applies to Ripples, but an already-tagged
+              entry keeps its tag across Un-Ripple, so it stays
+              reachable then too -- TaleTagModal itself only offers
+              "Remove" for a private entry. */}
+          {(item.visibility === 'public' || !!item.tale_id) && (
+            <TouchableOpacity
+              style={styles.menuRow}
+              onPress={() => {
+                setMenuOpen(false);
+                onPickTale?.(item.id);
+              }}
+            >
+              {/* Change shows the tagged Multickle's own icon; Add has
+                  no Multickle yet, so it keeps the generic book. */}
+              <Ionicons
+                name={item.tale_id && taleBadge ? taleBadge.icon : 'book-outline'}
+                size={18}
+                color={C.text}
+              />
+              <Text style={styles.menuRowLabel}>{item.tale_id ? 'Change Blogbit…' : 'Add to a Blogbit…'}</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Hidden for a Quick Tickle -- it has no words to share yet. */}
+          {!isQuick && (
+            <TouchableOpacity
+              style={styles.menuRow}
+              onPress={() => {
+                setMenuOpen(false);
+                onShare?.(item.id);
+              }}
+            >
+              <Ionicons name="share-outline" size={18} color={C.text} />
+              <Text style={styles.menuRowLabel}>Share</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity
+            style={styles.menuRow}
+            onPress={() => {
+              setMenuOpen(false);
+              confirmDelete();
+            }}
+          >
+            <Ionicons name="trash-outline" size={18} color={C.rust} />
+            <Text style={[styles.menuRowLabel, styles.menuRowLabelDestructive]}>Delete</Text>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
+  );
+
+  // A Quick Tickle is one slim row instead of the full card:
+  // [QT mark] [Vibe dot] [Vibe name / date · time] [Tickle it + X] [⋯].
+  // Same list slot (onLayout, highlight, CARD_SPACING below), so
+  // scroll-to-entry, pull-to-refresh and delete work as for any card.
+  // Ripple, Share, the star and likes stay hidden, as before. The row
+  // wraps: when the text and the controls don't fit on one line (a
+  // narrow phone, a large font size) the controls drop to a second line
+  // at the right, and the row grows taller -- nothing is clipped.
+  if (isQuick) {
+    const vibeName = item.tickle_nature ? NATURE_LABELS[item.tickle_nature] : null;
+    const dateText = formatEntryDate(item.entry_date);
+    const timeText = formatEntryTime(item.created_at);
+    const spoken = ['Quick Tickle', vibeName, dateText, timeText].filter(Boolean).join(', ');
+    return (
+      <View style={[styles.quickRowCard, isHighlighted && styles.highlightedCard]} onLayout={onLayout}>
+        <View style={styles.quickRowMain} accessible accessibilityLabel={spoken}>
+          <View style={styles.quickDot}>
+            {/* Capped like GoalTargetCircle's count, so "QT" stays inside the fixed 28dp circle. */}
+            <Text style={styles.quickDotLabel} maxFontSizeMultiplier={1.3}>QT</Text>
+          </View>
+          {!!item.tickle_nature && (
+            <View style={[styles.quickVibeDot, { backgroundColor: vibeIconColor(item.tickle_nature) }]} />
+          )}
+          <View style={styles.quickRowText}>
+            {!!vibeName && <Text style={styles.vibeName} numberOfLines={1}>{vibeName}</Text>}
+            <Text style={styles.quickRowWhen}>{timeText ? `${dateText} · ${timeText}` : dateText}</Text>
+          </View>
+        </View>
+        {showMineActions && (
+          <View style={styles.quickRowActions}>
+            {tickleItDismissed === false && (
+              <>
+                <TouchableOpacity
+                  onPress={openEdit}
+                  hitSlop={BUTTON_HIT_SLOP}
+                  style={styles.tickleItPill}
+                  accessibilityRole="button"
+                  accessibilityLabel="Tickle it"
+                >
+                  <Text style={styles.tickleItLabel}>Tickle it</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={dismissTickleIt}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  style={styles.tickleItDismiss}
+                  accessibilityRole="button"
+                  accessibilityLabel="Dismiss Tickle it for this Quick Tickle"
+                >
+                  <Ionicons name="close" size={14} color={C.subtext} />
+                </TouchableOpacity>
+              </>
+            )}
+            {/* Once "Tickle it" has been dismissed, a plain label in
+                its place: text only, not pressable. */}
+            {tickleItDismissed === true && (
+              <Text style={[styles.entryDate, styles.quickLabel]}>Quick Tickled!</Text>
+            )}
+            <TouchableOpacity
+              onPress={() => setMenuOpen(true)}
+              hitSlop={LINK_HIT_SLOP}
+              style={[styles.linkTarget, styles.quickRowMenu]}
+              accessibilityRole="button"
+              accessibilityLabel="More options"
+            >
+              <Ionicons name="ellipsis-vertical" size={16} color={C.subtext} />
+            </TouchableOpacity>
+          </View>
+        )}
+        {menuModal}
+      </View>
     );
   }
 
@@ -373,47 +532,7 @@ export default function EntryCard({
               Tickle in every way. Plain, fully untruncated
               text_content, same as every other entry type already
               gets here. */}
-          {isQuick ? (
-            <View style={styles.quickRow}>
-              <View
-                style={styles.quickDot}
-                accessible
-                accessibilityLabel="Quick Tickle"
-              >
-                {/* Capped like GoalTargetCircle's count, so "QT" stays inside the fixed 28dp circle. */}
-                <Text style={styles.quickDotLabel} maxFontSizeMultiplier={1.3}>QT</Text>
-              </View>
-              {showMineActions && tickleItDismissed === false && (
-                <>
-                  <TouchableOpacity
-                    onPress={openEdit}
-                    hitSlop={BUTTON_HIT_SLOP}
-                    style={styles.tickleItPill}
-                    accessibilityRole="button"
-                    accessibilityLabel="Tickle it"
-                  >
-                    <Text style={styles.tickleItLabel}>Tickle it</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={dismissTickleIt}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    style={styles.tickleItDismiss}
-                    accessibilityRole="button"
-                    accessibilityLabel="Dismiss Tickle it for this Quick Tickle"
-                  >
-                    <Ionicons name="close" size={14} color={C.subtext} />
-                  </TouchableOpacity>
-                </>
-              )}
-              {/* Once "Tickle it" has been dismissed, a plain label in
-                  its place: text only, not pressable. */}
-              {showMineActions && tickleItDismissed === true && (
-                <Text style={[styles.entryDate, styles.quickLabel]}>Quick Tickled!</Text>
-              )}
-            </View>
-          ) : (
-            <Text style={styles.entryText}>{item.text_content}</Text>
-          )}
+          <Text style={styles.entryText}>{item.text_content}</Text>
           {/* Below the text (Task 3 S3). Tickle-a-Photo display change --
               a linked photo that
               came from the "Tickle" button on a Tickle Pics photo
@@ -611,77 +730,7 @@ export default function EntryCard({
         </View>
       </View>
 
-      <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
-        <TouchableOpacity style={styles.menuBackdrop} activeOpacity={1} onPress={() => setMenuOpen(false)}>
-          <TouchableOpacity activeOpacity={1} style={styles.menuSheet} onPress={() => {}}>
-            {/* Deliberately absent for a photo-only entry -- there's no
-                text to edit, and re-picking the Vibe as a kind of "edit"
-                was raised but never resolved either way (see the spec's
-                own open item on this), so this stays simply omitted
-                rather than guessing at that behavior. */}
-            {!isPhotoOnly && (
-              <TouchableOpacity
-                style={styles.menuRow}
-                onPress={() => {
-                  setMenuOpen(false);
-                  openEdit();
-                }}
-              >
-                <Ionicons name="pencil-outline" size={18} color={C.text} />
-                <Text style={styles.menuRowLabel}>Edit</Text>
-              </TouchableOpacity>
-            )}
-
-            {/* Tagging only applies to Ripples, but an already-tagged
-                entry keeps its tag across Un-Ripple, so it stays
-                reachable then too -- TaleTagModal itself only offers
-                "Remove" for a private entry. */}
-            {(item.visibility === 'public' || !!item.tale_id) && (
-              <TouchableOpacity
-                style={styles.menuRow}
-                onPress={() => {
-                  setMenuOpen(false);
-                  onPickTale?.(item.id);
-                }}
-              >
-                {/* Change shows the tagged Multickle's own icon; Add has
-                    no Multickle yet, so it keeps the generic book. */}
-                <Ionicons
-                  name={item.tale_id && taleBadge ? taleBadge.icon : 'book-outline'}
-                  size={18}
-                  color={C.text}
-                />
-                <Text style={styles.menuRowLabel}>{item.tale_id ? 'Change Blogbit…' : 'Add to a Blogbit…'}</Text>
-              </TouchableOpacity>
-            )}
-
-            {/* Hidden for a Quick Tickle -- it has no words to share yet. */}
-            {!isQuick && (
-              <TouchableOpacity
-                style={styles.menuRow}
-                onPress={() => {
-                  setMenuOpen(false);
-                  onShare?.(item.id);
-                }}
-              >
-                <Ionicons name="share-outline" size={18} color={C.text} />
-                <Text style={styles.menuRowLabel}>Share</Text>
-              </TouchableOpacity>
-            )}
-
-            <TouchableOpacity
-              style={styles.menuRow}
-              onPress={() => {
-                setMenuOpen(false);
-                confirmDelete();
-              }}
-            >
-              <Ionicons name="trash-outline" size={18} color={C.rust} />
-              <Text style={[styles.menuRowLabel, styles.menuRowLabelDestructive]}>Delete</Text>
-            </TouchableOpacity>
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </Modal>
+      {menuModal}
     </View>
   );
 }
@@ -801,12 +850,30 @@ const styles = StyleSheet.create({
   menuRowLabel: { fontSize: 15, color: C.text },
   menuRowLabelDestructive: { color: C.rust },
   entryText: { fontSize: 15, color: C.text, lineHeight: 20 },
-  // Quick Tickle body: QT mark, then the "Tickle it" pill and its dismiss
-  // X. The pill is transparent with a 1.5dp INK outline and INK label;
-  // 40dp tall like Home's pills. The mark is a 28dp filled INK circle
-  // with a white "QT", so it doesn't read as a button. It isn't
-  // pressable.
-  quickRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  // Quick Tickle row (one per Quick Tickle, instead of the full card):
+  // the card's warm-white surface with a hairline sand edge, no shadow,
+  // a smaller radius, at least 48dp tall. Same CARD_SPACING below it as a
+  // card, so list height maths and scroll-to-entry don't change. Wraps:
+  // the controls drop under the text when they don't fit beside it.
+  quickRowCard: {
+    flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 8, rowGap: 4,
+    minHeight: 48, paddingVertical: 6, paddingHorizontal: 10, marginBottom: CARD_SPACING,
+    backgroundColor: CARD_FILL, borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: CARD_LINE,
+  },
+  quickRowMain: { flexDirection: 'row', alignItems: 'center', gap: 6, flexGrow: 1, flexShrink: 1 },
+  quickVibeDot: { width: 12, height: 12, borderRadius: 6 },
+  quickRowText: { flexShrink: 1 },
+  quickRowWhen: { fontSize: 11, color: C.subtext },
+  // marginLeft auto keeps the controls at the right edge, also when they
+  // have wrapped onto their own line.
+  quickRowActions: { flexDirection: 'row', alignItems: 'center', gap: 8, marginLeft: 'auto' },
+  // 2dp more than the gap, so the X's 10dp slop meets the ⋯ target
+  // without overlapping it.
+  quickRowMenu: { marginLeft: 2 },
+  // The QT mark: a 28dp filled INK circle with a white "QT", so it doesn't
+  // read as a button. It isn't pressable. The "Tickle it" pill is
+  // transparent with a 1.5dp INK outline and INK label.
   quickDot: {
     width: 28, height: 28, borderRadius: 14, backgroundColor: INK,
     alignItems: 'center', justifyContent: 'center',
