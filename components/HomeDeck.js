@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, Accessi
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { BUTTON_HEIGHT, BUTTON_HIT_SLOP, BUTTON_RADIUS } from '../lib/buttonSize';
 
 // Home's flip-card deck (Task 3 H5): one card in front, the others fanned
 // behind it. It replaces the four stacked bottom sections. A sideways
@@ -442,7 +443,7 @@ export default function HomeDeck({ cards, width, dataSettled = true, fitHeight =
               <TouchableOpacity
                 onPress={front.headerAction.onPress}
                 style={styles.headerAction}
-                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                hitSlop={BUTTON_HIT_SLOP}
                 accessibilityRole="button"
                 accessibilityLabel={front.headerAction.a11yLabel || front.headerAction.label}
               >
@@ -560,9 +561,10 @@ const styles = StyleSheet.create({
   // Sized to its text (flexBasis auto) so the row can tell when to wrap;
   // still takes the spare width, and shrinks only when alone on a line.
   title: { flexGrow: 1, flexShrink: 1, flexBasis: 'auto', fontSize: 18, fontWeight: '700', color: DECK_TEXT },
+  // The app-wide pill height (lib/buttonSize.js), 44dp to tap.
   headerAction: {
-    flexShrink: 0, minHeight: 32, justifyContent: 'center',
-    paddingHorizontal: 12, borderRadius: 16,
+    flexShrink: 0, minHeight: BUTTON_HEIGHT, justifyContent: 'center',
+    paddingHorizontal: 12, borderRadius: BUTTON_RADIUS,
     borderWidth: 1, borderColor: 'rgba(255,248,236,0.6)',
   },
   headerActionText: { fontSize: 13, fontWeight: '600', color: DECK_TEXT },

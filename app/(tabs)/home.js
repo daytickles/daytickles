@@ -45,6 +45,7 @@ import {
 } from '../../lib/reminders';
 import { isReviewAvailable, requestReview } from '../../lib/rateUs';
 import { RNR_SLOTS, RNR_SLOT_LABELS } from '../../lib/rnrs';
+import { BUTTON_HEIGHT, BUTTON_HIT_SLOP } from '../../lib/buttonSize';
 import { useRnrDay } from '../../lib/useRnrDay';
 
 // Caps Home's content on tablet/wide screens so it doesn't stretch
@@ -67,10 +68,9 @@ const MULTICKLES_VIEWS = [
   { key: 'follow', label: 'Follow' },
   { key: 'mine', label: 'Mine' },
 ];
-const MULTICKLES_CHIP_HEIGHT = 28;
-const MULTICKLES_CHIP_TAP_HEIGHT = 44;
-const MULTICKLES_CHIP_SLOP = (MULTICKLES_CHIP_TAP_HEIGHT - MULTICKLES_CHIP_HEIGHT) / 2;
-const MULTICKLES_CHIP_HIT_SLOP = { top: MULTICKLES_CHIP_SLOP, bottom: MULTICKLES_CHIP_SLOP };
+// The app-wide pill (lib/buttonSize.js): 30dp, 44dp to tap.
+const MULTICKLES_CHIP_HEIGHT = BUTTON_HEIGHT;
+const MULTICKLES_CHIP_HIT_SLOP = BUTTON_HIT_SLOP;
 const MULTICKLES_CHIP_PADDING = 12;
 const MULTICKLES_CHIP_GAP = 8; // between the two chips
 const MULTICKLES_CHIP_FONT_SIZE = 14;
@@ -1617,6 +1617,7 @@ export default function Home() {
           {STAT_PILLS.map((pill) => (
             <TouchableOpacity
               key={pill.key}
+              hitSlop={BUTTON_HIT_SLOP}
               style={[styles.statPill, { borderColor: accent.card }]}
               activeOpacity={0.7}
               onPress={() => showStatTooltip(pill.key)}
@@ -1788,7 +1789,8 @@ const styles = StyleSheet.create({
     // a genuine pill regardless of exact content-driven height, without
     // having to hardcode that height ourselves.
     borderRadius: 999,
-    paddingVertical: 6,
+    // The app-wide pill height (lib/buttonSize.js), 44dp to tap.
+    minHeight: BUTTON_HEIGHT,
   },
   statPillNumber: { fontSize: 13, fontWeight: '700', color: C.text },
   statPillsCaption: {
@@ -1831,7 +1833,7 @@ const styles = StyleSheet.create({
   // card's own colour as text; not selected: the rows' cream outline.
   multicklesSwitch: { flexShrink: 0, flexDirection: 'row', alignItems: 'center', gap: MULTICKLES_CHIP_GAP },
   multicklesChip: {
-    height: MULTICKLES_CHIP_HEIGHT, borderRadius: MULTICKLES_CHIP_HEIGHT / 2,
+    minHeight: MULTICKLES_CHIP_HEIGHT, borderRadius: MULTICKLES_CHIP_HEIGHT / 2,
     paddingHorizontal: MULTICKLES_CHIP_PADDING, justifyContent: 'center', borderWidth: 1,
   },
   multicklesChipSelected: { backgroundColor: MULTICKLES_CHIP_SELECTED_FILL, borderColor: MULTICKLES_CHIP_SELECTED_FILL },
