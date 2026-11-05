@@ -882,7 +882,8 @@ export default function Feed() {
     setAwardEntryId(null);
 
     // High Five soft cap (lib/freemiumCaps.js) -- every award row counts
-    // as one, so two types on the same entry cost two.
+    // as one. There's one High Five per person per post (awards'
+    // unique (entry_id, user_id)).
     const capResult = await checkAndConsumeWeeklyCap(profile, 'highFivesGiven');
     if (capResult.blocked) {
       alertCapBlocked(capResult, profile);
