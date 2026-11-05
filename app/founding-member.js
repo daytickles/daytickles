@@ -9,6 +9,7 @@ import Button from '../components/Button';
 import WallpaperBackground from '../components/WallpaperBackground';
 import MojicianInfoModal from '../components/MojicianInfoModal';
 import { showAlert } from '../lib/themedAlert';
+import { BUTTON_HEIGHT, BUTTON_HIT_SLOP } from '../lib/buttonSize';
 import {
   MONTHLY_REQUIREMENTS,
   checkpointWindow,
@@ -398,6 +399,7 @@ export default function FoundingMember() {
             </View>
 
             <Button
+              size="main"
               title={savingOptIn ? 'Joining…' : 'Join Moji Quest'}
               onPress={handleOptIn}
               disabled={savingOptIn}
@@ -446,7 +448,7 @@ export default function FoundingMember() {
                   ? `${badgeNumber} reserved — finish your 6 months to keep it`
                   : `${referralCount}/2 referred`}
               </Text>
-              <TouchableOpacity onPress={shareReferralCode} style={styles.sharePill} activeOpacity={0.8}>
+              <TouchableOpacity onPress={shareReferralCode} hitSlop={BUTTON_HIT_SLOP} style={styles.sharePill} activeOpacity={0.8}>
                 <Ionicons name="share-social-outline" size={14} color={C.tealText} />
                 <Text style={styles.sharePillText}>Share my code</Text>
               </TouchableOpacity>
@@ -549,7 +551,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     alignSelf: 'flex-start',
     backgroundColor: C.card, borderRadius: 999, borderWidth: 1, borderColor: C.teal,
-    paddingVertical: 8, paddingHorizontal: 16, marginTop: 12,
+    minHeight: BUTTON_HEIGHT, paddingHorizontal: 16, marginTop: 12,
   },
   sharePillText: { fontSize: 14, fontWeight: '600', color: C.tealText },
 

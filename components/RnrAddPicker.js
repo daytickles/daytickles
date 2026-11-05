@@ -8,6 +8,11 @@ import {
   STARTER_TILES, RNR_SLOT_LABELS, RNR_TILE_MAX_LENGTH,
   fetchMyTiles, createTile, renameTile, archiveTile,
 } from '../lib/rnrs';
+import { BUTTON_HEIGHT, BUTTON_HIT_SLOP, BUTTON_RADIUS } from '../lib/buttonSize';
+
+// A tile of your own sits 2dp above its Rename / Delete row (44dp tall),
+// so its bottom slop is limited to that gap; the top keeps the full 7.
+const MY_TILE_PILL_HIT_SLOP = { top: BUTTON_HIT_SLOP.top, bottom: 2 };
 
 // Add a tile to one slot of a day. Three parts, top to bottom:
 //   Make a new tile -- a text field (80 characters) and Add. It sits at
@@ -162,6 +167,7 @@ export default function RnrAddPicker({ slot, onAdd, onClose }) {
                 <TouchableOpacity
                   key={t.key}
                   onPress={() => onAdd({ starterKey: t.key })}
+                  hitSlop={BUTTON_HIT_SLOP}
                   style={[styles.pill, { borderColor: accentDark }]}
                   accessibilityRole="button"
                   accessibilityLabel={`Add ${t.label}`}
@@ -199,6 +205,7 @@ export default function RnrAddPicker({ slot, onAdd, onClose }) {
                   <>
                     <TouchableOpacity
                       onPress={() => onAdd({ tileId: t.id })}
+                      hitSlop={MY_TILE_PILL_HIT_SLOP}
                       style={[styles.pill, { borderColor: accentDark }]}
                       accessibilityRole="button"
                       accessibilityLabel={`Add ${t.label}`}
@@ -258,11 +265,14 @@ const styles = StyleSheet.create({
   },
   smallButtonText: { fontSize: 14, fontWeight: '700' },
   disabled: { opacity: 0.5 },
-  pillWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  // Home's goalPill shape.
+  // 14 between wrapped lines, so the pills' 7dp tap-area slops meet
+  // without overlapping; 6 between pills on a line (no side slop).
+  pillWrap: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 14, columnGap: 6 },
+  // The app-wide pill height (lib/buttonSize.js), 44dp to tap. A little
+  // vertical padding (4) because a long tile name can wrap to two lines.
   pill: {
-    alignSelf: 'flex-start', minHeight: 40, maxWidth: '100%', justifyContent: 'center',
-    paddingVertical: 8, paddingHorizontal: 12, borderRadius: 20, borderWidth: 1,
+    alignSelf: 'flex-start', minHeight: BUTTON_HEIGHT, maxWidth: '100%', justifyContent: 'center',
+    paddingVertical: 4, paddingHorizontal: 12, borderRadius: BUTTON_RADIUS, borderWidth: 1,
   },
   pillText: { fontSize: 13, fontWeight: '600', color: C.text },
   loader: { marginVertical: 8 },

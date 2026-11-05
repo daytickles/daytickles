@@ -12,6 +12,7 @@ import { C, NATURE_LABELS, withAlpha } from '../lib/theme';
 import { showAlert, showSaveFailed } from '../lib/themedAlert';
 import { flagEmoji } from '../lib/country';
 import { compareChapters, taleIconName } from '../lib/tales';
+import { BUTTON_HEIGHT, BUTTON_HIT_SLOP, BUTTON_RADIUS } from '../lib/buttonSize';
 import { initPinBoardDb, getPhotosForEntries } from '../lib/pinBoardDb';
 import InitialsAvatar from '../components/InitialsAvatar';
 import FoundingMemberBadge from '../components/FoundingMemberBadge';
@@ -289,6 +290,7 @@ export default function Tale() {
             {isOwner ? (
               !tale.completed_at && (
                 <TouchableOpacity
+                  hitSlop={BUTTON_HIT_SLOP}
                   style={[styles.actionButton, mutating && styles.actionButtonDisabled]}
                   onPress={confirmComplete}
                   disabled={mutating}
@@ -301,6 +303,7 @@ export default function Tale() {
               // only), but an existing follower can still unfollow --
               // so this only disables the not-yet-following state.
               <TouchableOpacity
+                hitSlop={BUTTON_HIT_SLOP}
                 style={[
                   styles.actionButton,
                   isFollowing && styles.actionButtonActive,
@@ -356,8 +359,10 @@ const styles = StyleSheet.create({
   statusPillTextComplete: { color: C.tealText },
   statusMeta: { fontSize: 12, color: C.subtext },
 
+  // The app-wide pill height (lib/buttonSize.js), 44dp to tap.
   actionButton: {
-    marginTop: 14, marginBottom: 18, paddingVertical: 10, borderRadius: 20, alignItems: 'center',
+    marginTop: 14, marginBottom: 18, minHeight: BUTTON_HEIGHT, justifyContent: 'center',
+    borderRadius: BUTTON_RADIUS, alignItems: 'center',
     backgroundColor: C.card, borderWidth: 1, borderColor: C.rust,
   },
   actionButtonActive: { backgroundColor: C.rust },

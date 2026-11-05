@@ -9,6 +9,7 @@ import { C, accentFor, darken, withAlpha } from '../../lib/theme';
 import { localDateString, parseLocalDateString, toLocalDateString } from '../../lib/week';
 import { RNR_SLOTS, RNR_SLOT_LABELS } from '../../lib/rnrs';
 import { useRnrDay } from '../../lib/useRnrDay';
+import { BUTTON_HEIGHT, BUTTON_HIT_SLOP, BUTTON_RADIUS } from '../../lib/buttonSize';
 import CornerNav from '../../components/CornerNav';
 import WallpaperBackground from '../../components/WallpaperBackground';
 import RnrTile from '../../components/RnrTile';
@@ -145,6 +146,7 @@ export default function RnrsPage() {
                 ))}
                 <TouchableOpacity
                   onPress={() => setAddSlot(s)}
+                  hitSlop={BUTTON_HIT_SLOP}
                   style={styles.addPill}
                   accessibilityRole="button"
                   accessibilityLabel={`Add a tile to ${RNR_SLOT_LABELS[s]}`}
@@ -218,10 +220,11 @@ const styles = StyleSheet.create({
   // Home's cardLabel type.
   slotLabel: { fontSize: 13, fontWeight: '700', color: C.rustDark },
   // Home's goalPill shape; dashed like its empty-section placeholder.
+  // The app-wide pill height (lib/buttonSize.js), 44dp to tap.
   addPill: {
     alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 4,
-    minHeight: 40, paddingVertical: 8, paddingHorizontal: 14,
-    borderRadius: 20, borderWidth: 1, borderStyle: 'dashed', borderColor: C.subtext,
+    minHeight: BUTTON_HEIGHT, paddingHorizontal: 14,
+    borderRadius: BUTTON_RADIUS, borderWidth: 1, borderStyle: 'dashed', borderColor: C.subtext,
     backgroundColor: withAlpha(C.card, 0.4),
   },
   addText: { fontSize: 13, fontWeight: '700' },

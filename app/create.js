@@ -18,6 +18,7 @@ import { alertCapBlocked, checkAndConsumeWeeklyCap, rippleFeatureFor } from '../
 import { makePhotoTicklePublic, makePhotoTicklePrivate } from '../lib/photoTickleStorage';
 import { showAlert } from '../lib/themedAlert';
 import { assignEntryTale, fetchMyTales } from '../lib/tales';
+import { BUTTON_HEIGHT, BUTTON_HIT_SLOP, BUTTON_RADIUS } from '../lib/buttonSize';
 
 const MAX_LEN = 500;
 
@@ -403,6 +404,7 @@ export default function Create() {
               return (
                 <TouchableOpacity
                   key={t.id}
+                  hitSlop={BUTTON_HIT_SLOP}
                   style={[styles.taleRow, selected && styles.taleRowSelected]}
                   onPress={() => {
                     Keyboard.dismiss();
@@ -424,6 +426,7 @@ export default function Create() {
 
       {!!status && <Text style={styles.status}>{status}</Text>}
       <Button
+        size="main"
         title={saving ? 'Saving...' : 'Save'}
         onPress={handleSave}
         disabled={saving}
@@ -475,16 +478,19 @@ const styles = StyleSheet.create({
   // scrolling so every choice is visible. maxWidth caps a long title so
   // only it truncates.
   taleSection: { marginTop: -12, marginBottom: 24 },
-  talePillsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+  // 14 between wrapped lines, so the pills' 7dp tap-area slops meet
+  // without overlapping; 6 between pills on a line (no side slop).
+  talePillsWrap: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 14, columnGap: 6, marginTop: 8 },
+  // The app-wide pill height (lib/buttonSize.js), 44dp to tap.
   taleRow: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    minHeight: 40, maxWidth: 240, paddingVertical: 8, paddingHorizontal: 12,
-    borderRadius: 20, borderWidth: 1,
+    minHeight: BUTTON_HEIGHT, maxWidth: 240, paddingHorizontal: 12,
+    borderRadius: BUTTON_RADIUS, borderWidth: 1,
     backgroundColor: withAlpha(C.amberBg, 0.25), borderColor: C.amberDark,
   },
   // A 2dp C.rust border marks the pick (with the checkmark); padding
   // drops by the extra 1dp so the pill doesn't grow.
-  taleRowSelected: { borderWidth: 2, borderColor: C.rust, paddingVertical: 7, paddingHorizontal: 11 },
+  taleRowSelected: { borderWidth: 2, borderColor: C.rust, paddingHorizontal: 11 },
   taleRowLabel: { flexShrink: 1, fontSize: 12, fontWeight: '600', color: C.text },
   status: { marginBottom: 12, color: C.error, textAlign: 'center' },
   // Same shadow as Home's own New Tickle button (home.js's

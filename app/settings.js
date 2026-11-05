@@ -27,6 +27,11 @@ import {
 import { isReviewAvailable, requestReview } from '../lib/rateUs';
 import { hasPinSet, clearPin } from '../lib/pinLock';
 import { deleteAccount } from '../lib/deleteAccount';
+import { BUTTON_HEIGHT, BUTTON_HIT_SLOP, BUTTON_RADIUS } from '../lib/buttonSize';
+
+// The Delete Account text link (about 26dp tall): 7 above (it sits 14dp
+// under Sign Out, whose own slop is 7) and 11 below makes it 44dp to tap.
+const DELETE_ACCOUNT_LINK_HIT_SLOP = { top: 7, bottom: 11 };
 
 // 0=Sunday..6=Saturday, matching lib/week.js/profiles.week_start_day's
 // own convention -- no translation needed between this list and what
@@ -825,7 +830,7 @@ export default function Settings() {
         <View style={styles.spacer} />
 
         <Button title="Manage Goals" onPress={() => router.push('/goals')} variant="secondary" />
-        <View style={styles.spacer} />
+        <View style={styles.buttonSpacer} />
         <Button title="Manage Multickles" onPress={() => router.push('/tales')} variant="secondary" />
       </View>
 
@@ -1014,6 +1019,7 @@ export default function Settings() {
                 const selected = (awarenessCue.type || 'vibrate') === option.value;
                 return (
                   <TouchableOpacity
+                    hitSlop={BUTTON_HIT_SLOP}
                     key={option.value}
                     onPress={() => handlePickAwarenessCueType(option.value)}
                     disabled={savingAwarenessCueOption || testingAwarenessCueSound}
@@ -1038,6 +1044,7 @@ export default function Settings() {
                 const selected = (awarenessCue.frequencyMode || 'loose') === option.value;
                 return (
                   <TouchableOpacity
+                    hitSlop={BUTTON_HIT_SLOP}
                     key={option.value}
                     onPress={() => handlePickAwarenessCueFrequencyMode(option.value)}
                     disabled={savingAwarenessCueOption}
@@ -1085,6 +1092,7 @@ export default function Settings() {
                   (awarenessCue.windowEndMinute ?? 1140) === preset.endMinute;
                 return (
                   <TouchableOpacity
+                    hitSlop={BUTTON_HIT_SLOP}
                     key={preset.key}
                     onPress={() => handlePickAwarenessCueWindow(preset)}
                     disabled={savingAwarenessCueOption}
@@ -1121,6 +1129,7 @@ export default function Settings() {
             <View style={{ height: 8 }} />
             <View style={styles.optionPillRow}>
               <TouchableOpacity
+                hitSlop={BUTTON_HIT_SLOP}
                 onPress={() => setChangingPreviewerAnswer(true)}
                 accessibilityRole="button"
                 accessibilityLabel="Change your closed testing preview answer"
@@ -1140,6 +1149,7 @@ export default function Settings() {
               const selected = previewerInterest === option.value;
               return (
                 <TouchableOpacity
+                  hitSlop={BUTTON_HIT_SLOP}
                   key={option.value}
                   onPress={() => handlePickPreviewerInterest(option.value)}
                   disabled={savingPreviewerInterest}
@@ -1160,19 +1170,19 @@ export default function Settings() {
       </View>
 
       <Button title="How DayTickles works" onPress={() => setShowGuide(true)} variant="secondary" />
-      <View style={styles.spacer} />
+      <View style={styles.buttonSpacer} />
       <Button title="About DayTickles" onPress={() => setShowAbout(true)} variant="secondary" />
-      <View style={styles.spacer} />
+      <View style={styles.buttonSpacer} />
       <Button title="Privacy Policy" onPress={() => Linking.openURL('https://daytickles.app/privacy')} variant="secondary" />
-      <View style={styles.spacer} />
+      <View style={styles.buttonSpacer} />
       <Button title="Rate Us" onPress={handleRateUs} variant="secondary" />
-      <View style={styles.spacer} />
+      <View style={styles.buttonSpacer} />
       <Button
         title="Feedback"
         onPress={() => Linking.openURL('mailto:feedback@daytickles.com')}
         variant="secondary"
       />
-      <View style={styles.spacer} />
+      <View style={styles.buttonSpacer} />
       <Button title="Backup & Restore Photos" onPress={() => router.push('/photo-backup')} variant="secondary" />
       <Text style={styles.explainerText}>
         Save your Tickle Pics and private photos to a file, so you don't lose them if you switch devices.
@@ -1180,9 +1190,9 @@ export default function Settings() {
       <View style={styles.spacer} />
 
       <Button title="Sign Out" onPress={signOut} variant="secondary" />
-      <View style={styles.spacer} />
+      <View style={styles.buttonSpacer} />
 
-      <TouchableOpacity onPress={confirmDeleteAccount} style={styles.deleteAccountLink}>
+      <TouchableOpacity onPress={confirmDeleteAccount} hitSlop={DELETE_ACCOUNT_LINK_HIT_SLOP} style={styles.deleteAccountLink}>
         <Text style={styles.deleteAccountLinkText}>Delete Account</Text>
       </TouchableOpacity>
 
@@ -1252,9 +1262,12 @@ const styles = StyleSheet.create({
   vibeGoalLabel: { flex: 1, fontSize: 15, color: C.text },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   stepperValue: { fontSize: 15, fontWeight: '600', color: C.text, minWidth: 28, textAlign: 'center' },
-  optionPillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  // 14 between wrapped lines, so the pills' 7dp tap-area slops meet
+  // without overlapping; 8 between pills on a line (no side slop).
+  optionPillRow: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 14, columnGap: 8 },
+  // The app-wide pill height (lib/buttonSize.js), 44dp to tap.
   optionPill: {
-    paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20,
+    minHeight: BUTTON_HEIGHT, justifyContent: 'center', paddingHorizontal: 14, borderRadius: BUTTON_RADIUS,
     borderWidth: 1, borderColor: C.border, backgroundColor: C.card,
   },
   optionPillText: { fontSize: 13, fontWeight: '600', color: C.text },
@@ -1265,6 +1278,9 @@ const styles = StyleSheet.create({
   countryValue: { fontSize: 15, color: C.text },
   explainerText: { fontSize: 12, color: C.subtext, lineHeight: 16 },
   spacer: { height: 12 },
+  // Between two stacked buttons: 14, so their 7dp tap-area slops
+  // (lib/buttonSize.js) meet without overlapping.
+  buttonSpacer: { height: 14 },
   deleteAccountLink: { alignItems: 'center', paddingVertical: 4 },
   deleteAccountLinkText: {
     fontSize: 13, color: C.subtext, fontWeight: '600', textDecorationLine: 'underline',

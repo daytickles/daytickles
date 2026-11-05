@@ -15,6 +15,7 @@ import { assignEntryGoal } from '../../lib/goalTagging';
 import GoalTagModal from '../../components/GoalTagModal';
 import { assignEntryTale, fetchMyTales, fetchTaleBadges } from '../../lib/tales';
 import { fetchDonePlacementsInRange, RNR_SLOT_LABELS } from '../../lib/rnrs';
+import { BUTTON_HEIGHT, BUTTON_HIT_SLOP } from '../../lib/buttonSize';
 import TaleTagModal from '../../components/TaleTagModal';
 import NatureIcon from '../../components/NatureIcon';
 import ShareModal from '../../components/ShareModal';
@@ -907,6 +908,7 @@ export default function Calendar() {
                 return (
                   <TouchableOpacity
                     key={pill.key}
+                    hitSlop={BUTTON_HIT_SLOP}
                     style={[
                       styles.dayPill,
                       { borderColor: accentCard },
@@ -1064,13 +1066,14 @@ const styles = StyleSheet.create({
   rnrRowSlot: { fontSize: 13, color: C.subtext, fontWeight: '400' },
 
   // Home's statPill look (card fill, accent border, borderRadius 999 so
-  // it stays a pill at any height) at a 42dp tap height. minHeight, not
-  // height, so the label can wrap to two lines at large font scales;
-  // the row stretches both pills to the taller one.
+  // it stays a pill at any height) at the app-wide pill height (30dp,
+  // 44dp to tap; lib/buttonSize.js). minHeight, not height, so the label
+  // can wrap to two lines at large font scales; the row stretches both
+  // pills to the taller one.
   dayPillsRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
   dayPill: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    minHeight: 42, paddingVertical: 6, paddingHorizontal: 12,
+    minHeight: BUTTON_HEIGHT, paddingHorizontal: 12,
     backgroundColor: C.card, borderWidth: 1.5, borderRadius: 999,
   },
   dayPillOpen: { borderWidth: 2 },
