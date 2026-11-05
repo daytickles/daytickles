@@ -3,18 +3,21 @@ import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity
 import { File } from 'expo-file-system';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
-import { C, accentFor, SAVED_ENTRY_DOT_SIZE, textOn, withAlpha, darken, lighten, NATURE_ORDER, NATURE_LABELS, VIBE_COLORS, vibeIconColor, AWARD_TYPES, AWARD_HAND_ICON, awardLabelFor } from '../lib/theme';
-import { currentWeekStartDate, currentWeekStartISO, currentWeekDates, localDateString, DEFAULT_WEEK_START_DAY } from '../lib/week';
-import { initPinBoardDb, getPinnedPhotoCountSince, getPhotoShareCountSince, getPhotosForEntries } from '../lib/pinBoardDb';
-import { flagEmoji } from '../lib/country';
-import WallpaperBackground from '../components/WallpaperBackground';
-import NatureIcon from '../components/NatureIcon';
-import GoalTargetCircle from '../components/GoalTargetCircle';
-import AwardBadges from '../components/AwardBadges';
-import { fetchAwardedEntryTypes } from '../lib/awards';
-import { countDoneSince } from '../lib/rnrs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
+import { C, accentFor, SAVED_ENTRY_DOT_SIZE, textOn, withAlpha, darken, lighten, NATURE_ORDER, NATURE_LABELS, VIBE_COLORS, vibeIconColor, AWARD_TYPES, AWARD_HAND_ICON, awardLabelFor } from '../../lib/theme';
+import { currentWeekStartDate, currentWeekStartISO, currentWeekDates, localDateString, DEFAULT_WEEK_START_DAY } from '../../lib/week';
+import { initPinBoardDb, getPinnedPhotoCountSince, getPhotoShareCountSince, getPhotosForEntries } from '../../lib/pinBoardDb';
+import { flagEmoji } from '../../lib/country';
+import WallpaperBackground from '../../components/WallpaperBackground';
+import CornerNav from '../../components/CornerNav';
+import NatureIcon from '../../components/NatureIcon';
+import GoalTargetCircle from '../../components/GoalTargetCircle';
+import AwardBadges from '../../components/AwardBadges';
+import { fetchAwardedEntryTypes } from '../../lib/awards';
+import { countDoneSince } from '../../lib/rnrs';
 
 // Same relative progression as DayDotsCard.js's own DOT_SIZES
 // (22/30/38/46 there), scaled down for this row-of-7's tighter,
@@ -64,6 +67,8 @@ function weekdayLabel(date) {
 
 export default function WeeklySummary() {
   const { session, profile } = useAuth();
+  const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
   const accent = accentFor(profile?.accent_theme);
   const weekStartDay = profile?.week_start_day ?? DEFAULT_WEEK_START_DAY;
 
@@ -377,12 +382,16 @@ export default function WeeklySummary() {
   return (
     <WallpaperBackground>
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Text style={styles.backLink}>‹ Back</Text>
-        </TouchableOpacity>
-
-        <Text style={styles.title}>Weekly Summary</Text>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top + 12, paddingBottom: styles.content.paddingBottom + tabBarHeight },
+        ]}
+      >
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>Weekly Summary</Text>
+          <CornerNav style={styles.cornerNavInline} />
+        </View>
         <Text style={styles.weekRange}>{formatWeekRange(weekStartDate)}</Text>
         {!loading && loadError && (
           <Text style={styles.loadErrorText}>Some of this week's numbers couldn't load — please try again later.</Text>
@@ -731,9 +740,16 @@ export default function WeeklySummary() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: 20, paddingTop: 60, paddingBottom: 40 },
-  backLink: { fontSize: 16, color: C.rust, marginBottom: 16 },
-  title: { fontSize: 22, fontWeight: 'bold', color: C.rustDark },
+  content: { padding: 20, paddingBottom: 40 },
+  // Same title row as the Calendar's: the title (wraps to a second line
+  // if it doesn't fit) and the CornerNav icons on the right. No bottom
+  // margin: the week range under it keeps the gap the title had.
+  titleRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+  },
+  // Cancels CornerNav's own marginBottom inside titleRow (as on Calendar).
+  cornerNavInline: { marginBottom: 0 },
+  title: { fontSize: 22, fontWeight: 'bold', color: C.rustDark, flexShrink: 1 },
   weekRange: { fontSize: 13, color: C.subtext, marginTop: 2, marginBottom: 20 },
   loader: { marginTop: 40 },
   loadErrorText: { fontSize: 13, color: C.error, marginTop: -12, marginBottom: 16 },

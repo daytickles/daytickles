@@ -103,6 +103,37 @@ export default function TabsLayout() {
           href: null,
         }}
       />
+      {/* The other CornerNav destinations, the same way: out of the bar,
+          opened from their CornerNav icons, so the top row and this bar
+          stay on screen. Routes and deep links are unchanged. */}
+      <Tabs.Screen
+        name="weekly-summary"
+        options={{
+          title: 'Weekly Summary',
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="notifications"
+        options={{
+          title: 'Notifications',
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="founding-member"
+        options={{
+          title: 'Moji Quest',
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: 'Settings',
+          href: null,
+        }}
+      />
       <Tabs.Screen
         name="pinboard"
         options={{

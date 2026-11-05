@@ -1,12 +1,15 @@
 import { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, RefreshControl } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
-import { useAuth } from '../contexts/AuthContext';
-import { useNotifications } from '../contexts/NotificationsContext';
-import { supabase } from '../lib/supabase';
-import { C, AWARD_TYPES, awardLabelFor } from '../lib/theme';
-import { flagEmoji } from '../lib/country';
-import WallpaperBackground from '../components/WallpaperBackground';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { useAuth } from '../../contexts/AuthContext';
+import { useNotifications } from '../../contexts/NotificationsContext';
+import { supabase } from '../../lib/supabase';
+import { C, AWARD_TYPES, awardLabelFor } from '../../lib/theme';
+import { flagEmoji } from '../../lib/country';
+import WallpaperBackground from '../../components/WallpaperBackground';
+import CornerNav from '../../components/CornerNav';
 
 function formatTimestamp(createdAt) {
   return new Date(createdAt).toLocaleDateString('en-US', {
@@ -66,6 +69,8 @@ function notificationAccent(n) {
 export default function Notifications() {
   const { session } = useAuth();
   const { refreshUnreadCount } = useNotifications();
+  const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -153,15 +158,11 @@ export default function Notifications() {
 
   return (
     <WallpaperBackground>
-      <View style={styles.container}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Text style={styles.backLink}>‹ Back</Text>
-        </TouchableOpacity>
-
-        <Text style={styles.title}>Notifications</Text>
+      <View style={[styles.container, { paddingTop: insets.top + 12 }]}>
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>Notifications</Text>
+          <CornerNav style={styles.cornerNavInline} />
+        </View>
 
         {loading && <ActivityIndicator color={C.rust} style={styles.loader} />}
 
@@ -170,7 +171,7 @@ export default function Notifications() {
           data={notifications}
           keyExtractor={(item) => String(item.id)}
           renderItem={renderNotification}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingBottom: styles.listContent.paddingBottom + tabBarHeight }]}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[C.rust]} tintColor={C.rust} />
           }
@@ -188,9 +189,16 @@ export default function Notifications() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 60, paddingHorizontal: 20 },
-  backLink: { fontSize: 16, color: C.rust, marginBottom: 16 },
-  title: { fontSize: 22, fontWeight: 'bold', color: C.rustDark, marginBottom: 16 },
+  container: { flex: 1, paddingHorizontal: 20 },
+  // Same title row as the Calendar's: the title (wraps to a second line
+  // if it doesn't fit) and the CornerNav icons on the right. Its 16dp
+  // bottom margin is the gap the title used to have.
+  titleRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16,
+  },
+  // Cancels CornerNav's own marginBottom inside titleRow (as on Calendar).
+  cornerNavInline: { marginBottom: 0 },
+  title: { fontSize: 22, fontWeight: 'bold', color: C.rustDark, flexShrink: 1 },
 
   loader: { marginTop: 12 },
   list: { flex: 1 },

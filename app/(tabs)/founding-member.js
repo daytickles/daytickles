@@ -1,15 +1,18 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Share, Switch } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { router, useFocusEffect } from 'expo-router';
-import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
-import { C, accentFor, darken, textOn, withAlpha } from '../lib/theme';
-import Button from '../components/Button';
-import WallpaperBackground from '../components/WallpaperBackground';
-import MojicianInfoModal from '../components/MojicianInfoModal';
-import { showAlert } from '../lib/themedAlert';
-import { BUTTON_HEIGHT, BUTTON_HIT_SLOP } from '../lib/buttonSize';
+import { useFocusEffect } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
+import { C, accentFor, darken, textOn, withAlpha } from '../../lib/theme';
+import Button from '../../components/Button';
+import WallpaperBackground from '../../components/WallpaperBackground';
+import CornerNav from '../../components/CornerNav';
+import MojicianInfoModal from '../../components/MojicianInfoModal';
+import { showAlert } from '../../lib/themedAlert';
+import { BUTTON_HEIGHT, BUTTON_HIT_SLOP } from '../../lib/buttonSize';
 import {
   MONTHLY_REQUIREMENTS,
   checkpointWindow,
@@ -19,7 +22,7 @@ import {
   optOutOfFoundingMember,
   optInToFoundingMember,
   OPT_IN_COOLDOWN_DAYS,
-} from '../lib/foundingMember';
+} from '../../lib/foundingMember';
 
 function formatBadge(number) {
   return number ? `MOJI${number}` : null;
@@ -42,6 +45,8 @@ function daysRemainingToOptIn(createdAt) {
 
 export default function FoundingMember() {
   const { session, profile, refreshProfile } = useAuth();
+  const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
   const accentDark = darken(accentFor(profile?.accent_theme).card, 0.35);
 
   const [loading, setLoading] = useState(true);
@@ -305,19 +310,23 @@ export default function FoundingMember() {
   return (
     <WallpaperBackground>
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Text style={styles.backLink}>‹ Back</Text>
-        </TouchableOpacity>
-
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top + 12, paddingBottom: styles.content.paddingBottom + tabBarHeight },
+        ]}
+      >
         <View style={styles.titleRow}>
-          <Text style={styles.title}>Be a Moji</Text>
-          <TouchableOpacity
-            onPress={() => setMojicianInfoOpen(true)}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons name="information-circle-outline" size={20} color={C.subtext} />
-          </TouchableOpacity>
+          <View style={styles.titleGroup}>
+            <Text style={styles.title}>Be a Moji</Text>
+            <TouchableOpacity
+              onPress={() => setMojicianInfoOpen(true)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="information-circle-outline" size={20} color={C.subtext} />
+            </TouchableOpacity>
+          </View>
+          <CornerNav style={styles.cornerNavInline} />
         </View>
 
         {loading ? (
@@ -513,10 +522,17 @@ export default function FoundingMember() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: 20, paddingTop: 60, paddingBottom: 40 },
-  backLink: { fontSize: 16, color: C.rust, marginBottom: 16 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 20 },
-  title: { fontSize: 22, fontWeight: 'bold', color: C.rustDark },
+  content: { padding: 20, paddingBottom: 40 },
+  // Same title row as the Calendar's: the title with its info icon on the
+  // left (the title wraps to a second line if it doesn't fit) and the
+  // CornerNav icons on the right. Keeps the 20dp gap below it.
+  titleRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 20,
+  },
+  titleGroup: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 },
+  // Cancels CornerNav's own marginBottom inside titleRow (as on Calendar).
+  cornerNavInline: { marginBottom: 0 },
+  title: { fontSize: 22, fontWeight: 'bold', color: C.rustDark, flexShrink: 1 },
   subheading: { fontSize: 15, fontWeight: '600', color: C.rustDark, marginBottom: 16 },
   loader: { marginTop: 40 },
   sectionLabel: { fontSize: 14, fontWeight: '700', color: C.subtext, marginBottom: 8 },

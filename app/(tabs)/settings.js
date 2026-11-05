@@ -2,32 +2,35 @@ import { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Switch, StyleSheet, ScrollView, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { supabase } from '../lib/supabase';
-import { useAuth } from '../contexts/AuthContext';
-import { C, ACCENT_THEMES, accentFor, darken, textOn, withAlpha, NATURE_ORDER } from '../lib/theme';
-import { showAlert, showSaveFailed } from '../lib/themedAlert';
-import { DEFAULT_WEEK_START_DAY } from '../lib/week';
-import { allowedAccentThemeIds, alertCapBlocked, capFor } from '../lib/freemiumCaps';
-import { flagEmoji, countryNameFor } from '../lib/country';
-import Button from '../components/Button';
-import HomeGuide from '../components/HomeGuide';
-import AboutModal from '../components/AboutModal';
-import CountryPickerModal from '../components/CountryPickerModal';
-import PinSetupModal from '../components/PinSetupModal';
-import DeleteAccountModal from '../components/DeleteAccountModal';
-import NatureIcon from '../components/NatureIcon';
-import WallpaperBackground from '../components/WallpaperBackground';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../contexts/AuthContext';
+import { C, ACCENT_THEMES, accentFor, darken, textOn, withAlpha, NATURE_ORDER } from '../../lib/theme';
+import { showAlert, showSaveFailed } from '../../lib/themedAlert';
+import { DEFAULT_WEEK_START_DAY } from '../../lib/week';
+import { allowedAccentThemeIds, alertCapBlocked, capFor } from '../../lib/freemiumCaps';
+import { flagEmoji, countryNameFor } from '../../lib/country';
+import Button from '../../components/Button';
+import HomeGuide from '../../components/HomeGuide';
+import AboutModal from '../../components/AboutModal';
+import CountryPickerModal from '../../components/CountryPickerModal';
+import PinSetupModal from '../../components/PinSetupModal';
+import DeleteAccountModal from '../../components/DeleteAccountModal';
+import NatureIcon from '../../components/NatureIcon';
+import WallpaperBackground from '../../components/WallpaperBackground';
+import CornerNav from '../../components/CornerNav';
 import {
   requestReminderPermission,
   scheduleDailyReminder,
   cancelDailyReminder,
   cancelAwarenessCueSchedule,
   sendAwarenessCueTestCue,
-} from '../lib/reminders';
-import { isReviewAvailable, requestReview } from '../lib/rateUs';
-import { hasPinSet, clearPin } from '../lib/pinLock';
-import { deleteAccount } from '../lib/deleteAccount';
-import { BUTTON_HEIGHT, BUTTON_HIT_SLOP, BUTTON_RADIUS } from '../lib/buttonSize';
+} from '../../lib/reminders';
+import { isReviewAvailable, requestReview } from '../../lib/rateUs';
+import { hasPinSet, clearPin } from '../../lib/pinLock';
+import { deleteAccount } from '../../lib/deleteAccount';
+import { BUTTON_HEIGHT, BUTTON_HIT_SLOP, BUTTON_RADIUS } from '../../lib/buttonSize';
 
 // The Delete Account text link (about 26dp tall): 7 above (it sits 14dp
 // under Sign Out, whose own slop is 7) and 11 below makes it 44dp to tap.
@@ -101,6 +104,8 @@ function buildGoalValues(profile) {
 
 export default function Settings() {
   const { profile, setProfile, refreshProfile } = useAuth();
+  const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
   const accentDark = darken(accentFor(profile?.accent_theme).card, 0.35);
   // Accent colors this account's age tier allows (lib/freemiumCaps.js).
   const allowedThemeIds = profile ? allowedAccentThemeIds(profile) : ACCENT_THEMES.map((t) => t.id);
@@ -255,8 +260,9 @@ export default function Settings() {
     // the actual cause of the Home guide's stacking-Modal bug).
     // dismissAll() first pops every pushed screen back to the stack's
     // root before replace swaps that root for /login, so nothing
-    // survives sign-out.
-    router.dismissAll();
+    // survives sign-out. Settings is a tab now, so there may be nothing
+    // pushed to dismiss: only dismiss when something can be.
+    if (router.canDismiss()) router.dismissAll();
     router.replace('/login');
   }
 
@@ -289,7 +295,7 @@ export default function Settings() {
     setShowDeleteConfirm(false);
     await clearLocalDeviceState();
     await supabase.auth.signOut().catch(() => {});
-    router.dismissAll();
+    if (router.canDismiss()) router.dismissAll();
     router.replace('/login');
   }
 
@@ -746,15 +752,17 @@ export default function Settings() {
 
   return (
     <WallpaperBackground>
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <TouchableOpacity
-        onPress={() => router.back()}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-      >
-        <Text style={styles.backLink}>‹ Back</Text>
-      </TouchableOpacity>
-
-      <Text style={styles.title}>Settings</Text>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={[
+        styles.content,
+        { paddingTop: insets.top + 12, paddingBottom: styles.content.paddingBottom + tabBarHeight },
+      ]}
+    >
+      <View style={styles.titleRow}>
+        <Text style={styles.title}>Settings</Text>
+        <CornerNav style={styles.cornerNavInline} />
+      </View>
 
       <View style={styles.card}>
         <Text style={styles.label}>Accent colour</Text>
@@ -1226,9 +1234,16 @@ export default function Settings() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: 20, paddingTop: 60, paddingBottom: 40 },
-  backLink: { fontSize: 16, color: C.rust, marginBottom: 16 },
-  title: { fontSize: 22, fontWeight: 'bold', color: C.rustDark, marginBottom: 24 },
+  content: { padding: 20, paddingBottom: 40 },
+  // Same title row as the Calendar's: the title (wraps to a second line
+  // if it doesn't fit) and the CornerNav icons on the right. Its 24dp
+  // bottom margin is the gap the title used to have.
+  titleRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24,
+  },
+  // Cancels CornerNav's own marginBottom inside titleRow (as on Calendar).
+  cornerNavInline: { marginBottom: 0 },
+  title: { fontSize: 22, fontWeight: 'bold', color: C.rustDark, flexShrink: 1 },
   card: {
     borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 16,
     backgroundColor: withAlpha(C.subtext, 0.1), borderColor: C.border,

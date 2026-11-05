@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useFocusEffect, usePathname } from 'expo-router';
-import { C } from '../lib/theme';
+import { C, accentFor, darken } from '../lib/theme';
 import { useNotifications } from '../contexts/NotificationsContext';
 import { useAuth } from '../contexts/AuthContext';
 import CountBadge from './CountBadge';
@@ -18,13 +18,27 @@ const TOP_BAR_HIT_SLOP = { top: 12, bottom: 12, left: 8, right: 8 };
 // page. These used to live only in Home's own header row; now that the
 // other screens are peer tabs rather than screens only reached via Home,
 // they need to be reachable from all of them. Calendar is no longer in
-// the bottom bar, so its icon here is the way in; it isn't shown on the
-// Calendar screen itself. The token balance that used to lead this row
-// now shows only in Home's "Your Rewards - you can redeem" header.
+// the bottom bar, so its icon here is the way in. Every destination here
+// is a hidden tab, so this row and the bottom bar stay on screen; the
+// icon for the screen you are on is shown in the accent colour (selected)
+// and does nothing when tapped. The token balance that used to lead this
+// row now shows only in Home's "Your Rewards - you can redeem" header.
 export default function CornerNav({ style }) {
   const { unreadCount, refreshUnreadCount } = useNotifications();
   const { profile, refreshProfile } = useAuth();
-  const onCalendar = usePathname() === '/calendar';
+  const pathname = usePathname();
+  // The darker accent shade the app uses for accent-coloured controls on
+  // cream (3.9-4.7:1 across the five themes; the raw accents are ~2:1).
+  const activeColor = darken(accentFor(profile?.accent_theme).card, 0.35);
+  const colorFor = (route) => (pathname === route ? activeColor : C.subtext);
+  // Selected icon: no navigation and no press fade; spoken as selected.
+  const go = (route) => (pathname === route ? undefined : () => router.navigate(route));
+  const pressProps = (route) => ({
+    onPress: go(route),
+    activeOpacity: pathname === route ? 1 : 0.2,
+    accessibilityRole: 'button',
+    accessibilityState: { selected: pathname === route },
+  });
 
   // "Taking part" off just stops surfacing the icon (progress keeps
   // counting underneath -- see lib/foundingMember.js); the failure-seen
@@ -61,43 +75,44 @@ export default function CornerNav({ style }) {
 
   return (
     <View style={[styles.row, style]}>
-      {!onCalendar && (
-        <TouchableOpacity
-          onPress={() => router.navigate('/calendar')}
-          hitSlop={TOP_BAR_HIT_SLOP}
-          accessibilityRole="button"
-          accessibilityLabel="Calendar"
-        >
-          <Ionicons name="calendar-outline" size={20} color={C.subtext} />
-        </TouchableOpacity>
-      )}
       <TouchableOpacity
-        onPress={() => router.push('/weekly-summary')}
+        {...pressProps('/calendar')}
         hitSlop={TOP_BAR_HIT_SLOP}
+        accessibilityLabel="Calendar"
       >
-        <Ionicons name="stats-chart-outline" size={20} color={C.subtext} />
+        <Ionicons name="calendar-outline" size={20} color={colorFor('/calendar')} />
       </TouchableOpacity>
       <TouchableOpacity
-        onPress={() => router.push('/notifications')}
+        {...pressProps('/weekly-summary')}
+        hitSlop={TOP_BAR_HIT_SLOP}
+        accessibilityLabel="Weekly Summary"
+      >
+        <Ionicons name="stats-chart-outline" size={20} color={colorFor('/weekly-summary')} />
+      </TouchableOpacity>
+      <TouchableOpacity
+        {...pressProps('/notifications')}
         style={styles.bellButton}
         hitSlop={TOP_BAR_HIT_SLOP}
+        accessibilityLabel={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
       >
-        <Ionicons name="notifications-outline" size={20} color={C.subtext} />
+        <Ionicons name="notifications-outline" size={20} color={colorFor('/notifications')} />
         <CountBadge count={unreadCount} />
       </TouchableOpacity>
       {showFoundingMember && (
         <TouchableOpacity
-          onPress={() => router.push('/founding-member')}
+          {...pressProps('/founding-member')}
           hitSlop={TOP_BAR_HIT_SLOP}
+          accessibilityLabel="Moji Quest"
         >
-          <MaterialCommunityIcons name="crown-outline" size={20} color={C.subtext} />
+          <MaterialCommunityIcons name="crown-outline" size={20} color={colorFor('/founding-member')} />
         </TouchableOpacity>
       )}
       <TouchableOpacity
-        onPress={() => router.push('/settings')}
+        {...pressProps('/settings')}
         hitSlop={TOP_BAR_HIT_SLOP}
+        accessibilityLabel="Settings"
       >
-        <Text style={styles.settingsLink}>⚙</Text>
+        <Text style={[styles.settingsLink, { color: colorFor('/settings') }]}>⚙</Text>
       </TouchableOpacity>
     </View>
   );
