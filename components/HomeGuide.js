@@ -121,11 +121,11 @@ export default function HomeGuide({ visible, onClose }) {
 
           <View style={styles.navRow}>
             {index > 0 ? (
-              <Button title="Back" variant="secondary" onPress={handleBack} />
+              <Button size="main" title="Back" variant="secondary" onPress={handleBack} />
             ) : (
               <View style={styles.navSpacer} />
             )}
-            <Button title={isLast ? 'Done' : 'Next'} variant="primary" onPress={handleNext} />
+            <Button size="main" title={isLast ? 'Done' : 'Next'} variant="primary" onPress={handleNext} />
           </View>
         </View>
       </View>

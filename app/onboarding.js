@@ -143,6 +143,7 @@ export default function Onboarding() {
       />
 
       <Button
+        size="main"
         title={saving ? 'Saving...' : 'Continue'}
         onPress={handleSave}
         disabled={saving}

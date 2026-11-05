@@ -392,6 +392,7 @@ export default function Goals() {
           {renderWeeklyTargetRow(weeklyTarget, setWeeklyTarget, false)}
 
           <Button
+            size="main"
             title={saving ? 'Adding...' : 'Add Goal'}
             onPress={handleAdd}
             disabled={saving}

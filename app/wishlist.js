@@ -176,6 +176,7 @@ export default function Wishlist() {
               </TouchableOpacity>
             </View>
             <Button
+              size="main"
               title="Redeem"
               onPress={() => confirmRedeem(item)}
               disabled={!affordable || mutating}
@@ -223,6 +224,7 @@ export default function Wishlist() {
         </View>
 
         <Button
+          size="main"
           title={saving ? 'Adding...' : 'Add Reward'}
           onPress={handleAdd}
           disabled={saving}

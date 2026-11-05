@@ -154,6 +154,7 @@ export default function PhotoBackup() {
           <View style={styles.spacer} />
 
           <Button
+            size="main"
             title={exporting ? 'Creating backup…' : 'Create Backup File'}
             onPress={handleExport}
             disabled={exporting || importing}
@@ -212,7 +213,7 @@ export default function PhotoBackup() {
                 {new Date(pickedManifest.exportedAt).toLocaleDateString()}.
               </Text>
               <View style={{ height: 12 }} />
-              <Button title="Import" onPress={confirmImport} />
+              <Button size="main" title="Import" onPress={confirmImport} />
             </>
           )}
           {importing && importProgress && (

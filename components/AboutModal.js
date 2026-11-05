@@ -72,7 +72,7 @@ export default function AboutModal({ visible, onClose, showGuideLink }) {
           </ScrollView>
 
           <View style={styles.navRow}>
-            <Button title="Got it" variant="primary" onPress={onClose} />
+            <Button size="main" title="Got it" variant="primary" onPress={onClose} />
           </View>
         </View>
       </View>

@@ -47,7 +47,7 @@ export default function PhotoTickleDisclosureModal({ visible, onDismiss, isDayJo
             a backup outside DayTickles. This happens automatically — you won't be asked again.
           </Text>
           <View style={styles.navRow}>
-            <Button title="Got it" variant="primary" onPress={onDismiss} />
+            <Button size="main" title="Got it" variant="primary" onPress={onDismiss} />
           </View>
         </View>
       </View>

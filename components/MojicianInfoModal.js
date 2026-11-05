@@ -22,7 +22,7 @@ export default function MojicianInfoModal({ visible, onDismiss }) {
             spreading mojo in everyday life.
           </Text>
           <View style={styles.navRow}>
-            <Button title="Got it" variant="primary" onPress={onDismiss} />
+            <Button size="main" title="Got it" variant="primary" onPress={onDismiss} />
           </View>
         </View>
       </View>

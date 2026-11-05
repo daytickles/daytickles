@@ -305,6 +305,7 @@ export default function Tales() {
           })}
         </View>
         <Button
+          size="main"
           title={saving ? 'Starting...' : 'Start Multickle'}
           onPress={handleAdd}
           disabled={saving}
