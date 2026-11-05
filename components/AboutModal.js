@@ -8,7 +8,7 @@ const FEATURES = [
   'Set gentle goals to notice more of the good, find balance where needed.',
   'Discover the moments that made others smile, and smile with them.',
   'Favourite the Tickles that mean the most, and follow people whose moments inspire you.',
-  'Ripple a Tickle to share it, and give a High Five to the ones you have favourited.',
+  'Ripple a Tickle to share it, and give a High Five to any Rippled Tickle.',
   'Earn tokens from your Goals and spend them on rewards from your own Reward List.',
   'Turn a string of Ripples into a Multickle others can follow as it unfolds.',
   'Revisit your memories anytime through your personal calendar.',

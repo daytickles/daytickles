@@ -22,7 +22,7 @@ const STEPS = [
   },
   {
     title: 'Tickle Stash',
-    body: "The Tickle Stash has four tabs: Mine, Favs, Following, and Rippled. Under Mine, a row of Goal pills lets you filter at a glance — tap one to see every entry tagged to that Goal.\n\nLike a Tickle with the thumbs-up, or save it to your favourites with the star.\n\nOnce you've favourited a Tickle, you can give it recognition with a High Five: LOL, Well said!, Awesome!, Feeling it!, Made my day! or Epic!\n\nUse the three-dot menu on your own Tickles for Share, Delete or Edit (not on photo-only Tickles), and — once a Tickle is Rippled — to add it to a Multickle. To make a Tickle public, use the Ripple / Un-Ripple label on the card instead.",
+    body: "The Tickle Stash has four tabs: Mine, Favs, Following, and Rippled. Under Mine, a row of Goal pills lets you filter at a glance — tap one to see every entry tagged to that Goal.\n\nLike a Tickle with the thumbs-up, or save it to your favourites with the star.\n\nYou can give any Rippled Tickle recognition with a High Five: LOL, Well said!, Awesome!, Feeling it!, Made my day! or Epic!\n\nUse the three-dot menu on your own Tickles for Share, Delete or Edit (not on photo-only Tickles), and — once a Tickle is Rippled — to add it to a Multickle. To make a Tickle public, use the Ripple / Un-Ripple label on the card instead.",
   },
   {
     title: 'Multickles',
