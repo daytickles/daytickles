@@ -61,7 +61,7 @@ const INK = '#425762';
 const CARD_FILL = '#FFFDF7';
 const CARD_LINE = '#EADFCB';
 const VIBE_ICON_SIZE = 16;
-// Link row (star, likes, Share, Goal, Ripple / High Five, ⋯): each
+// Link row (star, likes, Share, Goal, Ripple / High Five hand, ⋯): each
 // control is LINK_TARGET_HEIGHT tall, and LINK_HIT_SLOP adds 6dp above
 // and below so the tap area stays 44dp tall. The bottom slop stays
 // inside the card's 14dp padding.
@@ -567,27 +567,29 @@ export default function EntryCard({
               </Text>
             </TouchableOpacity>
           )}
-          {/* Give-High-Five CTA (Task 3 S6): "High Five" with its hand,
-              in dusk blue, where Ripple sits on your own Tickles -- the
+          {/* Give-High-Five CTA (Task 3 S6): its hand icon alone (the
+              spoken label says "Give a high five"), in dusk blue, the
+              same 44dp icon box as Share and the menu, where Ripple sits
+              on your own Tickles -- the
               two never show together (High Five needs someone else's
-              Tickle, Ripple your own). Shown only once you've starred it
-              and while you haven't given your own award yet (once you
-              have, the public badge in the header already shows that
-              type's coloured hand).
+              Tickle, Ripple your own). Shown on every Rippled (public)
+              Tickle of someone else's -- no star needed -- while you
+              haven't given your own award yet (once you have, the
+              public badge in the header already shows that type's
+              coloured hand; one High Five per person per post).
               Never on your own entry -- blocked here and server-side by
               migration 0020's prevent_self_award trigger, the same
               defence-in-depth shape as the like button's !isOwnEntry
               gate. My Day entries are eligible, like any Tickle. */}
-          {isFavorited && !isOwnEntry && !awardType && (
+          {!isOwnEntry && !awardType && item.visibility === 'public' && (
             <TouchableOpacity
               onPress={() => onGiveAward?.(item.id)}
               hitSlop={LINK_HIT_SLOP}
-              style={[styles.linkTarget, styles.labelAction]}
+              style={styles.linkTarget}
               accessibilityRole="button"
               accessibilityLabel="Give a high five"
             >
               <Ionicons name="hand-right-outline" size={16} color={INK} />
-              <Text style={styles.labelActionText} maxFontSizeMultiplier={1.5}>High Five</Text>
             </TouchableOpacity>
           )}
           {/* Edit / Multickle / Share / Delete live in this menu (the
@@ -843,7 +845,7 @@ const styles = StyleSheet.create({
   // tall (minHeight, so taller content at a large font size still
   // grows); LINK_HIT_SLOP brings the tap area to 44dp tall.
   linkTarget: { minWidth: 44, minHeight: LINK_TARGET_HEIGHT, alignItems: 'center', justifyContent: 'center' },
-  // Icon + label (Ripple, High Five), padded so the label isn't flush to
+  // Icon + label (Ripple), padded so the label isn't flush to
   // its target.
   labelAction: { flexDirection: 'row', gap: 4, paddingHorizontal: 8 },
   labelActionText: { fontSize: 13, fontWeight: '600', color: INK },
