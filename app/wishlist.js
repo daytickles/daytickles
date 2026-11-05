@@ -21,8 +21,30 @@ import WallpaperBackground from '../components/WallpaperBackground';
 const WISHLIST_ICONS = [
   'gift-outline', 'cafe-outline', 'film-outline', 'game-controller-outline',
   'ice-cream-outline', 'book-outline', 'shirt-outline', 'airplane-outline',
+  'pizza-outline', 'bed-outline', 'ticket-outline', 'dice-outline',
+  'flower-outline', 'ribbon-outline',
 ];
 const FALLBACK_ICON = WISHLIST_ICONS[0];
+// Spoken name for each icon swatch in the picker.
+const WISHLIST_ICON_LABELS = {
+  'gift-outline': 'Gift',
+  'cafe-outline': 'Coffee',
+  'film-outline': 'Film',
+  'game-controller-outline': 'Games',
+  'ice-cream-outline': 'Ice cream',
+  'book-outline': 'Book',
+  'shirt-outline': 'Clothes',
+  'airplane-outline': 'Travel',
+  'pizza-outline': 'Pizza',
+  'bed-outline': 'Time off',
+  'ticket-outline': 'Outing',
+  'dice-outline': 'Dice game',
+  'flower-outline': 'Flower',
+  'ribbon-outline': 'Ribbon',
+};
+// The swatches are 36dp with a 4dp margin; 4dp of slop on every side
+// makes each one 44dp to tap, meeting (not overlapping) its neighbours'.
+const SWATCH_HIT_SLOP = { top: 4, bottom: 4, left: 4, right: 4 };
 
 export default function Wishlist() {
   const { session, profile } = useAuth();
@@ -217,6 +239,10 @@ export default function Wishlist() {
                 setIcon(icon === name ? null : name);
               }}
               style={[styles.swatch, icon === name && { borderColor: accentDark }]}
+              hitSlop={SWATCH_HIT_SLOP}
+              accessibilityRole="button"
+              accessibilityLabel={WISHLIST_ICON_LABELS[name]}
+              accessibilityState={{ selected: icon === name }}
             >
               <Ionicons name={name} size={20} color={C.rust} />
             </TouchableOpacity>
