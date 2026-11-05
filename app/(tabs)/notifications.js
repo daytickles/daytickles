@@ -6,65 +6,19 @@ import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
 import { supabase } from '../../lib/supabase';
-import { C, AWARD_TYPES, awardLabelFor } from '../../lib/theme';
-import { flagEmoji } from '../../lib/country';
+import { C } from '../../lib/theme';
+import { showSaveFailed } from '../../lib/themedAlert';
 import WallpaperBackground from '../../components/WallpaperBackground';
 import CornerNav from '../../components/CornerNav';
+import {
+  buildNotificationItems,
+  NotificationSheetHeader,
+  NotificationSheetRow,
+} from '../../components/NotificationRow';
 
-function formatTimestamp(createdAt) {
-  return new Date(createdAt).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
-}
-
-// The type column is a Postgres check constraint ('like' | 'comment' |
-// 'streak_milestone' | 'favorite' | 'award' | 'tale_chapter', see
-// migration 0020 for favorite/award and 0067 for tale_chapter). Nothing
-// creates 'comment' or 'streak_milestone' rows (no comments UI; the
-// streak feature is retired), so they fall through to the generic line.
-function notificationText(n) {
-  const flag = n.profiles?.country ? ` ${flagEmoji(n.profiles.country)}` : '';
-  const actorName = n.profiles?.username ? `${n.profiles.username}${flag}` : 'Someone';
-  const entryText = n.tickle_entries?.text_content;
-
-  switch (n.type) {
-    case 'like':
-      return entryText ? `${actorName} liked your Tickle: ${entryText}` : `${actorName} liked your Tickle`;
-    case 'favorite':
-      return entryText ? `${actorName} favourited your Tickle: ${entryText}` : `${actorName} favourited your Tickle`;
-    // Names the preset (— "Epic!") via awardLabelFor; an unknown type
-    // (e.g. one added by a newer build) just reads "a High Five".
-    case 'award': {
-      const awardLabel = awardLabelFor(n.award_type);
-      const highFive = awardLabel ? `a High Five — "${awardLabel}"` : 'a High Five';
-      return entryText
-        ? `${actorName} gave you ${highFive}: ${entryText}`
-        : `${actorName} gave you ${highFive}`;
-    }
-    // Migration 0067 -- one row per follower of a Tale, written by the
-    // handle_tale_chapter_visible trigger when a chapter goes live.
-    case 'tale_chapter':
-      return n.tales?.title
-        ? `${actorName} added a new Tic to "${n.tales.title}"`
-        : `${actorName} added a new Tic to a Blogbit you follow`;
-    default:
-      return 'New notification';
-  }
-}
-
-// Left-border accent, distinct per type -- favorite/award/tale_chapter
-// get one; like keeps the plain unaccented row it's always had. Award reuses that specific award's own hue-verified color
-// (lib/theme.js's AWARD_TYPES) rather than inventing a fourth, since the
-// notification and the on-card icon should read as the same thing.
-function notificationAccent(n) {
-  if (n.type === 'favorite') return C.teal;
-  if (n.type === 'award') return AWARD_TYPES[n.award_type]?.color || null;
-  if (n.type === 'tale_chapter') return C.rust;
-  return null;
-}
+// The Mark all as read link's text is about 18dp tall; 13dp above and
+// below brings it to 44dp to tap.
+const MARK_ALL_HIT_SLOP = { top: 13, bottom: 13, left: 8, right: 8 };
 
 export default function Notifications() {
   const { session } = useAuth();
@@ -85,7 +39,7 @@ export default function Notifications() {
     const { data, error } = await supabase
       .from('notifications')
       .select(
-        'id, type, award_type, tale_id, is_read, created_at, entry_id, actor_id, tickle_entries(text_content), tales(title), profiles!notifications_actor_id_fkey(username, avatar_emoji, country)'
+        'id, type, award_type, tale_id, is_read, created_at, entry_id, actor_id, tickle_entries(text_content), tales(title, icon), profiles!notifications_actor_id_fkey(username, avatar_emoji, country)'
       )
       .eq('recipient_id', session.user.id)
       .order('created_at', { ascending: false });
@@ -102,7 +56,7 @@ export default function Notifications() {
   );
 
   // Read-only, like the focus load: nothing is marked read here (only
-  // tapping a row does that, in handlePress).
+  // tapping a row, in handlePress, or Mark all as read does that).
   async function handleRefresh() {
     setRefreshing(true);
     try {
@@ -136,24 +90,33 @@ export default function Notifications() {
     }
   }
 
-  function renderNotification({ item }) {
-    const accent = notificationAccent(item);
-    return (
-      <TouchableOpacity
-        style={[
-          styles.row,
-          !item.is_read && styles.rowUnread,
-          accent && { borderLeftWidth: 4, borderLeftColor: accent },
-        ]}
-        onPress={() => handlePress(item)}
-      >
-        {!item.is_read && <View style={styles.unreadDot} />}
-        <View style={styles.rowBody}>
-          <Text style={[styles.rowText, !item.is_read && styles.rowTextUnread]}>{notificationText(item)}</Text>
-          <Text style={styles.rowDate}>{formatTimestamp(item.created_at)}</Text>
-        </View>
-      </TouchableOpacity>
-    );
+  // Marks every unread notification read: the list first, then one
+  // update; on success the badge recounts, on failure the list is put
+  // back and the usual "couldn't save" alert shows. The existing update
+  // policy (recipient only) already allows this.
+  async function handleMarkAllRead() {
+    const previous = notifications;
+    setNotifications((prev) => prev.map((x) => (x.is_read ? x : { ...x, is_read: true })));
+    const { error } = await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('recipient_id', session.user.id)
+      .eq('is_read', false);
+    if (error) {
+      setNotifications(previous);
+      showSaveFailed();
+    } else {
+      refreshUnreadCount();
+    }
+  }
+
+  const unreadInList = notifications.filter((x) => !x.is_read).length;
+  const items = buildNotificationItems(notifications);
+
+  function renderItem({ item }) {
+    return item.kind === 'header'
+      ? <NotificationSheetHeader item={item} />
+      : <NotificationSheetRow item={item} onPress={handlePress} />;
   }
 
   return (
@@ -164,13 +127,27 @@ export default function Notifications() {
           <CornerNav style={styles.cornerNavInline} />
         </View>
 
+        {unreadInList > 0 && (
+          <View style={styles.unreadLine}>
+            <Text style={styles.unreadCount}>{unreadInList} unread</Text>
+            <TouchableOpacity
+              onPress={handleMarkAllRead}
+              hitSlop={MARK_ALL_HIT_SLOP}
+              accessibilityRole="button"
+              accessibilityLabel="Mark all as read"
+            >
+              <Text style={styles.markAll}>Mark all as read</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {loading && <ActivityIndicator color={C.rust} style={styles.loader} />}
 
         <FlatList
           style={styles.list}
-          data={notifications}
-          keyExtractor={(item) => String(item.id)}
-          renderItem={renderNotification}
+          data={items}
+          keyExtractor={(item) => item.key}
+          renderItem={renderItem}
           contentContainerStyle={[styles.listContent, { paddingBottom: styles.listContent.paddingBottom + tabBarHeight }]}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[C.rust]} tintColor={C.rust} />
@@ -205,17 +182,14 @@ const styles = StyleSheet.create({
   listContent: { paddingBottom: 40 },
   emptyText: { color: C.subtext, textAlign: 'center', marginTop: 24 },
 
-  row: {
-    flexDirection: 'row', alignItems: 'flex-start',
-    backgroundColor: C.card, borderRadius: 16, padding: 14, marginBottom: 10,
+  // "N unread" and the Mark all as read link, between the title row and
+  // the sheet.
+  unreadLine: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12,
+    // 6dp lower than the title row's 16dp gap, so the link's 13dp tap
+    // slop doesn't reach the top-row icons' own.
+    marginTop: 6, marginBottom: 12,
   },
-  rowUnread: { backgroundColor: C.sparkleBg },
-  unreadDot: {
-    width: 8, height: 8, borderRadius: 4, backgroundColor: C.teal,
-    marginRight: 10, marginTop: 6,
-  },
-  rowBody: { flex: 1 },
-  rowText: { fontSize: 14, color: C.text, lineHeight: 20 },
-  rowTextUnread: { fontWeight: '700', color: C.rustDark },
-  rowDate: { fontSize: 12, color: C.subtext, marginTop: 6 },
+  unreadCount: { fontSize: 13, color: C.subtext, flexShrink: 1 },
+  markAll: { fontSize: 13, fontWeight: '700', color: C.rustDark, textDecorationLine: 'underline' },
 });
