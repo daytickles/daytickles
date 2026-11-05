@@ -19,6 +19,14 @@ function rotationFor(id) {
   return `${((id % 5) - 2) * 1.5}deg`;
 }
 
+// Tap areas, as close to 44dp tall as this small card allows. The corner
+// icons (18dp, 12dp from the photo's edge) get 12 above and 13 below
+// (about 43dp). The caption buttons get 13 below; their top stays 10 so
+// it stays clear of the Vibe icons just above. The Vibe icons keep their
+// own slop (8): more would reach the caption buttons.
+const CORNER_ICON_HIT_SLOP = { top: 12, bottom: 13, left: 10, right: 10 };
+const CAPTION_HIT_SLOP = { top: 10, bottom: 13, left: 10, right: 10 };
+
 // tickled and onTickle are fully independent of each other, per design:
 // the button always works regardless of the badge's state, since one
 // photo can link to many entries over time.
@@ -55,7 +63,7 @@ export default function PolaroidCard({ photo, tickled, onPress, onTickle, onVibe
       <View style={styles.photoWrap}>
         <TouchableOpacity
           onPress={() => onRequestDelete?.(photo)}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          hitSlop={CORNER_ICON_HIT_SLOP}
           style={styles.deleteButton}
         >
           <Ionicons name="trash-outline" size={12} color={C.rust} />
@@ -63,7 +71,7 @@ export default function PolaroidCard({ photo, tickled, onPress, onTickle, onVibe
 
         <TouchableOpacity
           onPress={handleSavePress}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          hitSlop={CORNER_ICON_HIT_SLOP}
           style={styles.downloadButton}
         >
           <Ionicons name={saved ? 'checkmark' : 'download-outline'} size={12} color={C.rust} />
@@ -118,14 +126,14 @@ export default function PolaroidCard({ photo, tickled, onPress, onTickle, onVibe
         <View style={styles.captionActions}>
           <TouchableOpacity
             onPress={onTickle}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            hitSlop={CAPTION_HIT_SLOP}
             style={styles.tickleButton}
           >
             <Text style={styles.tickleButtonText}>Tickle</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={onShare}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            hitSlop={CAPTION_HIT_SLOP}
             style={styles.shareIconButton}
             accessibilityRole="button"
             accessibilityLabel="Share as a polaroid"

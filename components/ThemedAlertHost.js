@@ -4,6 +4,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { C, accentFor, darken, textOn } from '../lib/theme';
 import { registerAlertHost } from '../lib/themedAlert';
 
+// The Cancel text link (about 27dp tall): 8 above (it sits 12dp under
+// the last button) and 9 below makes it 44dp to tap.
+const CANCEL_HIT_SLOP = { top: 8, bottom: 9 };
+
 // The app's one popup for every alert, replacing native Alert.alert --
 // triggered through lib/themedAlert.js's showAlert(). Cream, centred,
 // stacked-button look taken from DeletePhotoModal (the existing "themed
@@ -101,7 +105,7 @@ export default function ThemedAlertHost() {
             })}
 
             {cancels.map((b, i) => (
-              <TouchableOpacity key={`c${i}`} onPress={() => handlePress(b)} style={styles.cancel}>
+              <TouchableOpacity key={`c${i}`} onPress={() => handlePress(b)} hitSlop={CANCEL_HIT_SLOP} style={styles.cancel}>
                 <Text style={styles.cancelText}>{b.text}</Text>
               </TouchableOpacity>
             ))}

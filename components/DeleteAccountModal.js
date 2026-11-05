@@ -16,6 +16,11 @@ import { C } from '../lib/theme';
 
 const CONFIRM_WORD = 'DELETE';
 
+// The Cancel text link (about 19dp tall): 12 above (it sits 12dp under
+// the Delete button) and 13 below (inside the sheet's 24dp padding)
+// makes it 44dp to tap.
+const CANCEL_HIT_SLOP = { top: 12, bottom: 13 };
+
 export default function DeleteAccountModal({ visible, deleting, error, onConfirm, onCancel }) {
   const [input, setInput] = useState('');
   const canConfirm = input.trim() === CONFIRM_WORD;
@@ -62,7 +67,7 @@ export default function DeleteAccountModal({ visible, deleting, error, onConfirm
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={handleCancel} style={styles.cancel} disabled={deleting}>
+          <TouchableOpacity onPress={handleCancel} hitSlop={CANCEL_HIT_SLOP} style={styles.cancel} disabled={deleting}>
             <Text style={styles.cancelText}>Cancel</Text>
           </TouchableOpacity>
         </TouchableOpacity>

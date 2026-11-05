@@ -36,6 +36,11 @@ const COPY = {
   },
 };
 
+// The Cancel text link (about 19dp tall): 12 above (it sits 12dp under
+// the Delete button) and 13 below (inside the sheet's 24dp padding)
+// makes it 44dp to tap.
+const CANCEL_HIT_SLOP = { top: 12, bottom: 13 };
+
 // Same Modal/backdrop/sheet/destructive-button shape as DeleteAccountModal
 // — deliberately without its typed-confirmation gate, which that
 // component's own comment reserves for the account-wide irreversible
@@ -54,7 +59,7 @@ export default function DeletePhotoModal({ visible, scenario = 'plain', onConfir
             <Text style={styles.deleteButtonText}>{button}</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={onCancel} style={styles.cancel}>
+          <TouchableOpacity onPress={onCancel} hitSlop={CANCEL_HIT_SLOP} style={styles.cancel}>
             <Text style={styles.cancelText}>Cancel</Text>
           </TouchableOpacity>
         </TouchableOpacity>

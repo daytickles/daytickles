@@ -7,6 +7,11 @@ import { useNotifications } from '../contexts/NotificationsContext';
 import { useAuth } from '../contexts/AuthContext';
 import CountBadge from './CountBadge';
 
+// The top-bar icons are 20dp with 16dp between them: 12 above and below
+// makes them 44dp tall to tap; the sides stay at 8 (half the gap), so
+// neighbouring icons' tap areas meet without overlapping.
+const TOP_BAR_HIT_SLOP = { top: 12, bottom: 12, left: 8, right: 8 };
+
 // Shared Calendar / Weekly Summary / Notifications / Founding Member /
 // Settings row, rendered identically at the top of the tab screens (Home,
 // Tickle Stash, Tickle Pics, Calendar) and the Routines and Reminders
@@ -59,7 +64,7 @@ export default function CornerNav({ style }) {
       {!onCalendar && (
         <TouchableOpacity
           onPress={() => router.navigate('/calendar')}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          hitSlop={TOP_BAR_HIT_SLOP}
           accessibilityRole="button"
           accessibilityLabel="Calendar"
         >
@@ -68,14 +73,14 @@ export default function CornerNav({ style }) {
       )}
       <TouchableOpacity
         onPress={() => router.push('/weekly-summary')}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        hitSlop={TOP_BAR_HIT_SLOP}
       >
         <Ionicons name="stats-chart-outline" size={20} color={C.subtext} />
       </TouchableOpacity>
       <TouchableOpacity
         onPress={() => router.push('/notifications')}
         style={styles.bellButton}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        hitSlop={TOP_BAR_HIT_SLOP}
       >
         <Ionicons name="notifications-outline" size={20} color={C.subtext} />
         <CountBadge count={unreadCount} />
@@ -83,14 +88,14 @@ export default function CornerNav({ style }) {
       {showFoundingMember && (
         <TouchableOpacity
           onPress={() => router.push('/founding-member')}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          hitSlop={TOP_BAR_HIT_SLOP}
         >
           <MaterialCommunityIcons name="crown-outline" size={20} color={C.subtext} />
         </TouchableOpacity>
       )}
       <TouchableOpacity
         onPress={() => router.push('/settings')}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        hitSlop={TOP_BAR_HIT_SLOP}
       >
         <Text style={styles.settingsLink}>⚙</Text>
       </TouchableOpacity>
