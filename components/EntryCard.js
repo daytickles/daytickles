@@ -11,6 +11,7 @@ import FoundingMemberBadge from './FoundingMemberBadge';
 import NatureIcon from './NatureIcon';
 import AwardBadges from './AwardBadges';
 import { BUTTON_HEIGHT, BUTTON_HIT_SLOP, BUTTON_RADIUS } from '../lib/buttonSize';
+import { DECK_COLORS, DECK_TEXT } from './HomeDeck';
 
 function formatEntryDate(entryDate) {
   return new Date(`${entryDate}T00:00:00Z`).toLocaleDateString('en-US', {
@@ -254,13 +255,13 @@ export default function EntryCard({
           onPress={() => router.push({ pathname: '/tale', params: { id: taleBadge.taleId } })}
           hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
           style={styles.taleChip}
+          accessibilityRole="button"
+          accessibilityLabel={`${taleBadge.title}, Blogbit${taleBadge.chapterNumber == null ? ', not Rippled' : ''}${taleBadge.completed ? ', complete' : ''}`}
         >
-          <Ionicons name={taleBadge.icon} size={12} color={C.rust} />
+          <Ionicons name={taleBadge.icon} size={12} color={DECK_TEXT} />
           <Text style={styles.taleChipTitle} numberOfLines={1}>{taleBadge.title}</Text>
-          <Text style={styles.taleChipMeta}>
-            {taleBadge.chapterNumber != null ? `· Tic ${taleBadge.chapterNumber}` : '· not Rippled'}
-          </Text>
-          {taleBadge.completed && <Ionicons name="checkmark-circle" size={12} color={C.subtext} />}
+          {taleBadge.chapterNumber == null && <Text style={styles.taleChipMeta}>· not Rippled</Text>}
+          {taleBadge.completed && <Ionicons name="checkmark-circle" size={12} color={DECK_TEXT} />}
         </TouchableOpacity>
       )}
       {isPhotoOnly ? (
@@ -827,14 +828,16 @@ const styles = StyleSheet.create({
   },
   // alignSelf flex-start so the chip hugs its content instead of
   // stretching the full row; the title is the only part that shrinks,
-  // so a long Tale title truncates without ever clipping "· Tic N".
+  // so a long Tale title truncates without ever clipping "· not Rippled".
+  // Filled with Home's Blogbits card colour, cream text (7.18:1). The 1dp
+  // border stays, in the fill colour, so the chip keeps its size.
   taleChip: {
     flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', maxWidth: '100%',
     paddingVertical: 3, paddingHorizontal: 8, borderRadius: 10, marginBottom: 6,
-    backgroundColor: C.sparkleBg, borderWidth: 1, borderColor: C.border,
+    backgroundColor: DECK_COLORS.multickles, borderWidth: 1, borderColor: DECK_COLORS.multickles,
   },
-  taleChipTitle: { fontSize: 11, fontWeight: '600', color: C.rustDark, flexShrink: 1 },
-  taleChipMeta: { fontSize: 11, fontWeight: '600', color: C.subtext },
+  taleChipTitle: { fontSize: 11, fontWeight: '600', color: DECK_TEXT, flexShrink: 1 },
+  taleChipMeta: { fontSize: 11, fontWeight: '600', color: DECK_TEXT },
   // Below the text, about 110dp tall, rounded.
   linkedPhotoStrip: {
     width: '100%', height: 110, borderRadius: 16, overflow: 'hidden', marginTop: 8,
