@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, AccessibilityInfo, useWindowDimensions, PanResponder } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, AccessibilityInfo, useWindowDimensions, PanResponder, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BUTTON_HEIGHT, BUTTON_HIT_SLOP, BUTTON_RADIUS } from '../lib/buttonSize';
+import { TILE_SOURCE, TILE_SIZE as WALLPAPER_TILE_SIZE, OPACITY as WALLPAPER_OPACITY } from './TiledWallpaper';
 
 // Home's flip-card deck (Task 3 H5): one card in front, the others fanned
 // behind it. It replaces the four stacked bottom sections. A sideways
@@ -96,6 +97,27 @@ const CORNER_CIRCLE_SIZE = 220;
 const CORNER_CIRCLE_ABOVE = 70;
 const CORNER_CIRCLE_LEFT = 60;
 const CORNER_CIRCLE_FILL = 'rgba(255,255,255,0.08)';
+// Wallpaper tiles inside the corner circle, at the page background's own
+// tile size and opacity (components/TiledWallpaper.js). Only the part of
+// the circle inside the card can show: in the circle's own coordinates
+// that starts at (CORNER_CIRCLE_LEFT, CORNER_CIRCLE_ABOVE), the card's
+// outer top-left corner, and runs to the circle's far edge. The grid
+// starts there and covers just that area (2 x 2 tiles at today's sizes).
+const CORNER_TILES = (() => {
+  const cols = Math.ceil((CORNER_CIRCLE_SIZE - CORNER_CIRCLE_LEFT) / WALLPAPER_TILE_SIZE);
+  const rows = Math.ceil((CORNER_CIRCLE_SIZE - CORNER_CIRCLE_ABOVE) / WALLPAPER_TILE_SIZE);
+  const tiles = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      tiles.push({
+        key: `${r}-${c}`,
+        left: CORNER_CIRCLE_LEFT + c * WALLPAPER_TILE_SIZE,
+        top: CORNER_CIRCLE_ABOVE + r * WALLPAPER_TILE_SIZE,
+      });
+    }
+  }
+  return tiles;
+})();
 
 // Per-side inset (dp) for each FAN card, for this deck size. A card w
 // wide and h tall, tilted by a, reaches (w/2)cos(a) + (h/2)sin(a) out
@@ -166,7 +188,11 @@ function CornerCircle() {
       accessible={false}
       importantForAccessibility="no-hide-descendants"
       accessibilityElementsHidden
-    />
+    >
+      {CORNER_TILES.map((t) => (
+        <Image key={t.key} source={TILE_SOURCE} style={[styles.cornerTile, { left: t.left, top: t.top }]} />
+      ))}
+    </View>
   );
 }
 
@@ -554,6 +580,14 @@ const styles = StyleSheet.create({
     left: -CORNER_CIRCLE_LEFT - CARD_BORDER_WIDTH,
     width: CORNER_CIRCLE_SIZE, height: CORNER_CIRCLE_SIZE, borderRadius: CORNER_CIRCLE_SIZE / 2,
     backgroundColor: CORNER_CIRCLE_FILL,
+    // Clips the wallpaper tiles to the circle (the card clips the rest).
+    overflow: 'hidden',
+  },
+  // Same size and strength as the page background's tiles.
+  cornerTile: {
+    position: 'absolute',
+    width: WALLPAPER_TILE_SIZE, height: WALLPAPER_TILE_SIZE,
+    opacity: WALLPAPER_OPACITY,
   },
   // Wraps: when the title and a header button (Reward List) don't fit on
   // one line, the button drops under the title instead of squeezing it.

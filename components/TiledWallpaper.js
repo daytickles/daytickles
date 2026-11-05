@@ -18,9 +18,12 @@
 import { useState } from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 
-const TILE_SIZE = 120;
-const OPACITY = 0.15;
-const TILE_SOURCE = require('../assets/backgrounds/tickle_wallpaper_tile.png');
+// Exported so the Home deck's corner circles (components/HomeDeck.js)
+// draw the same tile at the same size and strength, and follow it if
+// it's ever swapped.
+export const TILE_SIZE = 120;
+export const OPACITY = 0.15;
+export const TILE_SOURCE = require('../assets/backgrounds/tickle_wallpaper_tile.png');
 
 export default function TiledWallpaper() {
   const [size, setSize] = useState(null);
