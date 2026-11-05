@@ -1,5 +1,6 @@
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { BUTTON_HEIGHT, BUTTON_HIT_SLOP, BUTTON_FONT_SIZE, BUTTON_PADDING_X } from '../lib/buttonSize';
 
 // The New Tickle / Quick Tickle button look (Task 3 H4): warm white fill,
 // a 1.5dp dusk-blue border and a soft warm shadow. Fixed colours --
@@ -26,17 +27,16 @@ export const TICKLE_BUTTON_SURFACE = {
 
 // Home's two buttons: slim pills, New Tickle ("+" and the words) on the
 // left, Quick Tickle (three Vibe dots) at the far right, HOME_BUTTON_GAP
-// apart. Each keeps a HOME_TAP_HEIGHT-tall tap area through hitSlop.
-const HOME_PILL_HEIGHT = 30;
-const HOME_TAP_HEIGHT = 44;
-const HOME_PILL_SLOP = (HOME_TAP_HEIGHT - HOME_PILL_HEIGHT) / 2;
+// apart. Sizes come from lib/buttonSize.js (the app-wide pill); each
+// keeps a 44dp-tall tap area through hitSlop.
+const HOME_PILL_HEIGHT = BUTTON_HEIGHT;
 const HOME_PILL_ICON_SIZE = 16;
-const HOME_PILL_FONT_SIZE = 14;
-const HOME_PILL_PADDING = 16;
+const HOME_PILL_FONT_SIZE = BUTTON_FONT_SIZE;
+const HOME_PILL_PADDING = BUTTON_PADDING_X;
 const HOME_PILL_ICON_GAP = 6;
 const QUICK_PILL_WIDTH = 64;
 export const HOME_BUTTON_GAP = 10;
-export const HOME_BUTTON_HIT_SLOP = { top: HOME_PILL_SLOP, bottom: HOME_PILL_SLOP };
+export const HOME_BUTTON_HIT_SLOP = BUTTON_HIT_SLOP;
 export const QUICK_BUTTON_SHAPE = {
   width: QUICK_PILL_WIDTH, height: HOME_PILL_HEIGHT, borderRadius: HOME_PILL_HEIGHT / 2,
 };
