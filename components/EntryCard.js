@@ -61,6 +61,12 @@ const INK = '#425762';
 const CARD_FILL = '#FFFDF7';
 const CARD_LINE = '#EADFCB';
 const VIBE_ICON_SIZE = 16;
+// Link row (star, likes, Share, Goal, Ripple / High Five, ⋯): each
+// control is LINK_TARGET_HEIGHT tall, and LINK_HIT_SLOP adds 6dp above
+// and below so the tap area stays 44dp tall. The bottom slop stays
+// inside the card's 14dp padding.
+const LINK_TARGET_HEIGHT = 32;
+const LINK_HIT_SLOP = { top: 6, bottom: 6 };
 
 // Extracted from feed.js's original renderEntry — same markup, same
 // styles, same tab==='mine'-gated actions (now `showMineActions`), same
@@ -399,7 +405,7 @@ export default function EntryCard({
               {/* Once "Tickle it" has been dismissed, a plain label in
                   its place: text only, not pressable. */}
               {showMineActions && tickleItDismissed === true && (
-                <Text style={[styles.entryDate, styles.quickLabel]}>Quick Tickle!</Text>
+                <Text style={[styles.entryDate, styles.quickLabel]}>Quick Tickled!</Text>
               )}
             </View>
           ) : (
@@ -453,6 +459,7 @@ export default function EntryCard({
         <View style={styles.linkGroup}>
           <TouchableOpacity
             onPress={() => onToggleFavorite?.(item.id)}
+            hitSlop={LINK_HIT_SLOP}
             style={styles.linkTarget}
             accessibilityRole="button"
             accessibilityLabel={isFavorited ? 'Remove star' : 'Star this Tickle'}
@@ -468,6 +475,7 @@ export default function EntryCard({
           {!isOwnEntry && (
             <TouchableOpacity
               onPress={() => onToggleLike?.(item.id)}
+              hitSlop={LINK_HIT_SLOP}
               style={[styles.linkTarget, styles.likeButton]}
               accessibilityRole="button"
               accessibilityLabel={`${isLiked ? 'Unlike' : 'Like'}, ${likeCount} like${likeCount === 1 ? '' : 's'}`}
@@ -487,6 +495,7 @@ export default function EntryCard({
           {showMineActions && !isQuick && (
             <TouchableOpacity
               onPress={() => onShare?.(item.id)}
+              hitSlop={LINK_HIT_SLOP}
               style={styles.linkTarget}
               accessibilityRole="button"
               accessibilityLabel="Share"
@@ -503,6 +512,7 @@ export default function EntryCard({
           {hasLinkedPhoto && !isPhotoOnly && !photoUri && (
             <TouchableOpacity
               onPress={() => onOpenPhoto?.(item.id)}
+              hitSlop={LINK_HIT_SLOP}
               style={styles.linkTarget}
               accessibilityRole="button"
               accessibilityLabel="Open linked photo"
@@ -517,6 +527,7 @@ export default function EntryCard({
           {showMineActions && (
             <TouchableOpacity
               onPress={() => onPickGoal?.(item.id)}
+              hitSlop={LINK_HIT_SLOP}
               style={styles.linkTarget}
               accessibilityRole="button"
               accessibilityLabel={taggedGoal ? `Goal: ${taggedGoal.label}. Change Goal` : 'Tag to a Goal'}
@@ -545,6 +556,7 @@ export default function EntryCard({
           {showMineActions && !(isQuick && item.visibility !== 'public') && (
             <TouchableOpacity
               onPress={() => onToggleVisibility?.(item)}
+              hitSlop={LINK_HIT_SLOP}
               style={[styles.linkTarget, styles.labelAction]}
               accessibilityRole="button"
               accessibilityLabel={item.visibility === 'public' ? 'Un-Ripple' : 'Ripple'}
@@ -569,6 +581,7 @@ export default function EntryCard({
           {isFavorited && !isOwnEntry && !awardType && (
             <TouchableOpacity
               onPress={() => onGiveAward?.(item.id)}
+              hitSlop={LINK_HIT_SLOP}
               style={[styles.linkTarget, styles.labelAction]}
               accessibilityRole="button"
               accessibilityLabel="Give a high five"
@@ -582,6 +595,7 @@ export default function EntryCard({
           {showMineActions && (
             <TouchableOpacity
               onPress={() => setMenuOpen(true)}
+              hitSlop={LINK_HIT_SLOP}
               style={styles.linkTarget}
               accessibilityRole="button"
               accessibilityLabel="More options"
@@ -736,8 +750,11 @@ const styles = StyleSheet.create({
   publicAwardStripe: {
     borderLeftWidth: 4, borderLeftColor: AWARD_BADGE_COLOR,
   },
+  // See-through, so no shadow: on Android an elevation shadow shows
+  // through a translucent fill as a grey cast.
   awardWash: {
     backgroundColor: withAlpha(AWARD_BADGE_COLOR, 0.14), borderWidth: 1, borderColor: AWARD_BADGE_COLOR,
+    shadowOpacity: 0, elevation: 0,
   },
   // Vibe circle + name (shrinks first) on the left, date on the right.
   headerRow: {
@@ -818,12 +835,14 @@ const styles = StyleSheet.create({
   linkedPhotoStripImage: { width: '100%', height: '100%' },
 
   entryDate: { flexShrink: 0, fontSize: 12, color: C.subtext },
-  linkDivider: { height: 1, backgroundColor: CARD_LINE, marginTop: 12, marginBottom: 4 },
+  linkDivider: { height: 1, backgroundColor: CARD_LINE, marginTop: 8, marginBottom: 2 },
   // Two groups pushed to either edge; wraps at a large font scale.
   linkRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' },
   linkGroup: { flexDirection: 'row', alignItems: 'center' },
-  // Every link-row control: at least 44 x 44dp.
-  linkTarget: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  // Every link-row control: at least 44dp wide and LINK_TARGET_HEIGHT
+  // tall (minHeight, so taller content at a large font size still
+  // grows); LINK_HIT_SLOP brings the tap area to 44dp tall.
+  linkTarget: { minWidth: 44, minHeight: LINK_TARGET_HEIGHT, alignItems: 'center', justifyContent: 'center' },
   // Icon + label (Ripple, High Five), padded so the label isn't flush to
   // its target.
   labelAction: { flexDirection: 'row', gap: 4, paddingHorizontal: 8 },
