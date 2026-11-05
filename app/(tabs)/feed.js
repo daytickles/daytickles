@@ -36,6 +36,7 @@ import { pickFromLibrary, pickImageFileByName } from '../../lib/pinBoardPhotos';
 import { useShareCard } from '../../lib/useShareCard';
 import { getLastOpened, setLastOpened } from '../../lib/feedLastOpened';
 import { forgetQuickTickle } from '../../lib/quickTickle';
+import { BUTTON_HEIGHT, BUTTON_TAP_HEIGHT, BUTTON_HIT_SLOP, BUTTON_RADIUS } from '../../lib/buttonSize';
 import { makePhotoTicklePublic, makePhotoTicklePrivate, deletePhotoTickleMedia } from '../../lib/photoTickleStorage';
 
 // Tab pills (Task 3 S1): dusk blue with cream text when active, warm
@@ -167,6 +168,11 @@ async function countNewSince(tabId, since, followeeIds) {
 function dividerLabel(tabId, count) {
   return `${count} new Tickle${count === 1 ? '' : 's'}`;
 }
+
+// The "‹ Back" text link (about 21dp tall): 14 above (only the title is
+// above it), 9 below (it sits 16dp above the tab pills, whose own slop
+// is 7), so it's 44dp to tap without reaching the tabs.
+const BACK_LINK_HIT_SLOP = { top: 14, bottom: 9, left: 10, right: 10 };
 
 export default function Feed() {
   const { session, profile } = useAuth();
@@ -1265,7 +1271,7 @@ export default function Feed() {
       {highlightedEntryId && (
         <TouchableOpacity
           onPress={() => router.back()}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          hitSlop={BACK_LINK_HIT_SLOP}
         >
           <Text style={styles.backLink}>‹ Back</Text>
         </TouchableOpacity>
@@ -1276,6 +1282,7 @@ export default function Feed() {
           <TouchableOpacity
             key={t.id}
             onPress={() => handleTabPress(t.id)}
+            hitSlop={BUTTON_HIT_SLOP}
             style={[styles.tabButton, tab === t.id && styles.tabButtonActive]}
             accessibilityRole="button"
             accessibilityLabel={t.label}
@@ -1301,6 +1308,7 @@ export default function Feed() {
                   setGoalFilter(null);
                   setNatureFilter(f.id);
                 }}
+                hitSlop={BUTTON_HIT_SLOP}
                 style={[styles.natureFilterChip, selected && styles.natureFilterChipActive]}
                 accessibilityRole="button"
                 accessibilityLabel={f.a11yLabel ?? f.label}
@@ -1347,6 +1355,7 @@ export default function Feed() {
               <TouchableOpacity
                 key={g.id}
                 onPress={() => setGoalFilter(g.id)}
+                hitSlop={BUTTON_HIT_SLOP}
                 style={[styles.goalFilterChip, goalFilter === g.id && styles.goalFilterChipActive]}
               >
                 {/* Same lighten(0.6)/checkmark-darken(0.4) formula as
@@ -1409,6 +1418,7 @@ export default function Feed() {
                 <TouchableOpacity
                   key={t.id}
                   onPress={() => setTaleFilter(isSelected ? null : t.id)}
+                  hitSlop={BUTTON_HIT_SLOP}
                   style={[styles.goalFilterChip, isSelected && styles.goalFilterChipActive]}
                 >
                   <Ionicons name={t.icon} size={12} color={isSelected ? TAB_INK_TEXT : C.rust} />
@@ -1488,7 +1498,7 @@ export default function Feed() {
               />
               <Text style={styles.emptyTitle} accessibilityRole="header">{MINE_EMPTY_TITLE}</Text>
               <Text style={styles.emptyLine}>{MINE_EMPTY_LINE}</Text>
-              <NewTickleButton onPress={() => router.push('/create')} style={styles.emptyButton} />
+              <NewTickleButton home onPress={() => router.push('/create')} style={styles.emptyButton} />
             </View>
           ) : (
             <Text style={styles.emptyText}>{getEmptyText(tab, natureFilter, goalFilter, taleFilter)}</Text>
@@ -1549,7 +1559,8 @@ const styles = StyleSheet.create({
 
   tabRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16 },
   tabButton: {
-    flex: 1, paddingVertical: 10, borderRadius: 20, position: 'relative',
+    // The app-wide pill (lib/buttonSize.js): 30dp minHeight, 44dp tap.
+    flex: 1, minHeight: BUTTON_HEIGHT, justifyContent: 'center', borderRadius: BUTTON_RADIUS, position: 'relative',
     alignItems: 'center', backgroundColor: TAB_FILL, borderWidth: 1, borderColor: TAB_LINE,
   },
   tabButtonActive: { backgroundColor: TAB_INK, borderColor: TAB_INK },
@@ -1558,11 +1569,11 @@ const styles = StyleSheet.create({
 
   // Nested one level in from tabRow above: content-sized chips rather
   // than flex:1, so this reads as a refinement of Mine, not a second peer
-  // tab row. 40dp tall, at least 48dp wide, so each icon chip is an easy
-  // target.
+  // tab row. The app-wide pill height (30dp, 44dp to tap), at least 48dp
+  // wide, so each icon chip is an easy target.
   natureFilterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 16 },
   natureFilterChip: {
-    minHeight: 40, minWidth: 48, paddingHorizontal: 14, borderRadius: 20,
+    minHeight: BUTTON_HEIGHT, minWidth: 48, paddingHorizontal: 14, borderRadius: BUTTON_RADIUS,
     alignItems: 'center', justifyContent: 'center',
     backgroundColor: C.bg, borderWidth: 1, borderColor: C.border,
   },
@@ -1578,19 +1589,25 @@ const styles = StyleSheet.create({
   // guaranteed-fresh bundle, not a caching artifact). Wrapping it in a
   // plain View that itself has the fixed height, with the ScrollView
   // just told to fill that wrapper (flex:1 below), is the documented
-  // workaround. 34 isn't a guess -- natureFilterChip's own identical
-  // paddingVertical/borderWidth/fontSize measured at 80px tall
-  // on-device (1080x2400 @ 3x DPR = 26.7dp), and 34 gives ~7dp of
-  // headroom above that for font-scale/rendering variance. This is the
-  // one row in this file that needs an explicit height at all --
-  // every other filter row here is a plain View, which sizes to
-  // content correctly with no such quirk.
-  goalFilterWrap: { height: 34, marginBottom: 16 },
+  // workaround. The chips are the app-wide 30dp pill; the wrapper is the
+  // full 44dp tap height (BUTTON_TAP_HEIGHT), because a hitSlop never
+  // reaches past its parent's bounds -- so the chips' 7dp slop fits
+  // inside it. The -7 top margin and 16 - 7 bottom margin keep the
+  // visible gaps above and below the chips at 16dp, like the other
+  // rows, and leave headroom for a larger font size. This is the one
+  // row in this file that needs an explicit height at all -- every other
+  // filter row here is a plain View, which sizes to content correctly
+  // with no such quirk.
+  goalFilterWrap: {
+    height: BUTTON_TAP_HEIGHT,
+    marginTop: -BUTTON_HIT_SLOP.top,
+    marginBottom: 16 - BUTTON_HIT_SLOP.bottom,
+  },
   goalFilterScroll: { flex: 1 },
   // alignItems: 'center' is also load-bearing, not cosmetic -- without
   // it this row defaults to RN's 'stretch' cross-axis alignment same as
   // any other row, but inside a horizontal ScrollView specifically that
-  // stretches each chip to fill the wrapper's 34dp height rather than
+  // stretches each chip to fill the wrapper's 44dp height rather than
   // sizing each chip to its own content.
   goalFilterRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingRight: 8 },
   // Same paddingVertical/Horizontal/borderRadius/border as
@@ -1604,7 +1621,7 @@ const styles = StyleSheet.create({
   goalFilterChip: {
     flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 0,
     maxWidth: 160, overflow: 'hidden',
-    paddingVertical: 5, paddingHorizontal: 12, borderRadius: 12,
+    minHeight: BUTTON_HEIGHT, paddingHorizontal: 12, borderRadius: BUTTON_RADIUS,
     backgroundColor: TAB_FILL, borderWidth: 1, borderColor: TAB_LINE,
   },
   // Selected Goal / Multickle chip: same dusk blue + cream as the active

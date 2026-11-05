@@ -10,6 +10,7 @@ import InitialsAvatar from './InitialsAvatar';
 import FoundingMemberBadge from './FoundingMemberBadge';
 import NatureIcon from './NatureIcon';
 import AwardBadges from './AwardBadges';
+import { BUTTON_HEIGHT, BUTTON_HIT_SLOP, BUTTON_RADIUS } from '../lib/buttonSize';
 
 function formatEntryDate(entryDate) {
   return new Date(`${entryDate}T00:00:00Z`).toLocaleDateString('en-US', {
@@ -385,6 +386,7 @@ export default function EntryCard({
                 <>
                   <TouchableOpacity
                     onPress={openEdit}
+                    hitSlop={BUTTON_HIT_SLOP}
                     style={styles.tickleItPill}
                     accessibilityRole="button"
                     accessibilityLabel="Tickle it"
@@ -740,8 +742,11 @@ const styles = StyleSheet.create({
   missingStepText: { fontSize: 11, color: C.subtext, textAlign: 'center' },
   // Tucked under Find by name, the step it explains.
   missingSearchHint: { fontSize: 11, color: C.subtext, textAlign: 'center', marginTop: -2 },
+  // The app-wide pill height (lib/buttonSize.js); its own 8dp hitSlop
+  // (set inline) already makes the tap area more than 44dp.
   relinkButton: {
-    paddingVertical: 6, paddingHorizontal: 14, borderRadius: 14, backgroundColor: C.sparkleBg,
+    minHeight: BUTTON_HEIGHT, justifyContent: 'center', paddingHorizontal: 14, borderRadius: BUTTON_RADIUS,
+    backgroundColor: C.sparkleBg,
   },
   relinkButtonText: { fontSize: 12, fontWeight: '600', color: C.sparkleText },
   polaroidCaptionStrip: { paddingTop: 8, paddingHorizontal: 2 },
@@ -806,9 +811,10 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   quickDotLabel: { fontSize: 10, fontWeight: '700', color: C.card },
+  // The app-wide pill height (lib/buttonSize.js), 44dp to tap.
   tickleItPill: {
-    minHeight: 40, paddingVertical: 8, paddingHorizontal: 14, justifyContent: 'center',
-    borderRadius: 20, borderWidth: 1.5, borderColor: INK, backgroundColor: 'transparent',
+    minHeight: BUTTON_HEIGHT, paddingHorizontal: 14, justifyContent: 'center',
+    borderRadius: BUTTON_RADIUS, borderWidth: 1.5, borderColor: INK, backgroundColor: 'transparent',
   },
   tickleItLabel: { fontSize: 12, fontWeight: '600', color: INK },
   // entryDate's type; shrinks and wraps rather than pushing the row at
