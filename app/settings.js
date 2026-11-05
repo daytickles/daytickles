@@ -263,7 +263,7 @@ export default function Settings() {
   function confirmDeleteAccount() {
     showAlert(
       'Delete your account?',
-      "This permanently deletes your account and everything in it — your Tickles, likes, follows, Goals, Multickles, rewards and tokens, High Fives, shared photos and Day Dots. There's no way to undo this.",
+      "This permanently deletes your account and everything in it — your Tickles, likes, follows, Goals, Blogbits, rewards and tokens, High Fives, shared photos and Day Dots. There's no way to undo this.",
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Continue', style: 'destructive', onPress: () => setShowDeleteConfirm(true) },
@@ -831,7 +831,7 @@ export default function Settings() {
 
         <Button title="Manage Goals" onPress={() => router.push('/goals')} variant="secondary" />
         <View style={styles.buttonSpacer} />
-        <Button title="Manage Multickles" onPress={() => router.push('/tales')} variant="secondary" />
+        <Button title="Manage Blogbits" onPress={() => router.push('/tales')} variant="secondary" />
       </View>
 
       <View style={styles.card}>

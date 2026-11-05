@@ -82,8 +82,8 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="rnrs"
         options={{
-          title: 'Routines and Reminders',
-          tabBarAccessibilityLabel: "Routines and Reminders, today's tiles",
+          title: 'Nudges & Notes',
+          tabBarAccessibilityLabel: "Nudges & Notes, today's tiles",
           tabBarIcon: ({ color, size }) => <Ionicons name="checkmark-circle-outline" color={color} size={size} />,
           tabBarButton: (props) => (
             <Pressable

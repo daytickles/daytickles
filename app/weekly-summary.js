@@ -581,10 +581,10 @@ export default function WeeklySummary() {
 
             {rnrsDone > 0 && (
               <>
-                <Text style={styles.sectionLabel}>Routines and Reminders</Text>
+                <Text style={styles.sectionLabel}>Nudges & Notes</Text>
                 <View style={styles.rnrsCard}>
                   <Text style={styles.rnrsCardText}>
-                    You did {rnrsDone} {rnrsDone === 1 ? 'Routine or Reminder' : 'Routines and Reminders'} this week.
+                    You did {rnrsDone} {rnrsDone === 1 ? 'Nudge or Note' : 'Nudges & Notes'} this week.
                   </Text>
                 </View>
               </>

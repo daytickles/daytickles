@@ -46,7 +46,7 @@ function notificationText(n) {
     case 'tale_chapter':
       return n.tales?.title
         ? `${actorName} added a new Tic to "${n.tales.title}"`
-        : `${actorName} added a new Tic to a Multickle you follow`;
+        : `${actorName} added a new Tic to a Blogbit you follow`;
     default:
       return 'New notification';
   }

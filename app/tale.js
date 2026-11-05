@@ -192,7 +192,7 @@ export default function Tale() {
     setMutating(false);
     if (error) {
       console.warn('Multickle complete failed', error);
-      showAlert("Couldn't complete this Multickle", 'Please try again.');
+      showAlert("Couldn't complete this Blogbit", 'Please try again.');
     } else {
       await loadTale();
     }
@@ -251,7 +251,7 @@ export default function Tale() {
 
         {!loading && !tale && (
           <Text style={styles.emptyText}>
-            {loadError ? "Couldn't load this Multickle — please try again later." : "This Multickle isn't available anymore."}
+            {loadError ? "Couldn't load this Blogbit — please try again later." : "This Blogbit isn't available anymore."}
           </Text>
         )}
 
@@ -313,7 +313,7 @@ export default function Tale() {
                 disabled={!!tale.completed_at && !isFollowing}
               >
                 <Text style={[styles.actionButtonText, isFollowing && styles.actionButtonTextActive]}>
-                  {isFollowing ? 'Following this Multickle' : 'Follow this Multickle'}
+                  {isFollowing ? 'Following this Blogbit' : 'Follow this Blogbit'}
                 </Text>
               </TouchableOpacity>
             )}

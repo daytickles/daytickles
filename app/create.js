@@ -270,7 +270,7 @@ export default function Create() {
         console.warn('handleSave: Multickle tag failed', taleError);
         setSaving(false);
         showAlert(
-          "Couldn't update the Multickle",
+          "Couldn't update the Blogbit",
           'Your Tickle was saved. You can try again from its ⋯ menu.',
           [{ text: 'OK', onPress: () => router.back() }]
         );
@@ -395,8 +395,8 @@ export default function Create() {
       )}
 
       {shareToFeed && taleOptions.length > 0 && (
-        <View style={styles.taleSection} accessibilityRole="radiogroup" accessibilityLabel="Connect to a Multickle">
-          <Text style={styles.label}>Connect to a Multickle</Text>
+        <View style={styles.taleSection} accessibilityRole="radiogroup" accessibilityLabel="Connect to a Blogbit">
+          <Text style={styles.label}>Connect to a Blogbit</Text>
           <View style={styles.talePillsWrap}>
             {taleOptions.map((t) => {
               const selected = t.id === selectedTaleId;

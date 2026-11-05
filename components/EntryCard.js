@@ -650,7 +650,7 @@ export default function EntryCard({
                   size={18}
                   color={C.text}
                 />
-                <Text style={styles.menuRowLabel}>{item.tale_id ? 'Change Multickle…' : 'Add to a Multickle…'}</Text>
+                <Text style={styles.menuRowLabel}>{item.tale_id ? 'Change Blogbit…' : 'Add to a Blogbit…'}</Text>
               </TouchableOpacity>
             )}
 

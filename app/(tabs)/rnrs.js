@@ -87,7 +87,7 @@ export default function RnrsPage() {
             >
               <Ionicons name="chevron-back" size={24} color={C.subtext} />
             </TouchableOpacity>
-            <Text style={styles.title} accessibilityRole="header">Routines and Reminders</Text>
+            <Text style={styles.title} accessibilityRole="header">Nudges & Notes</Text>
           </View>
           <Text style={styles.subtitle}>Plan a few small things for each part of your day.</Text>
 

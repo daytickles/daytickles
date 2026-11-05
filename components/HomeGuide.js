@@ -14,7 +14,7 @@ const STEPS = [
   },
   {
     title: 'More on Home',
-    body: "Below the Vibe cards, the Mojo Shared pills track your Polaroid shares and Ripples the same way — this week, this month, and all-time. Tap a pill to see exactly what it's counting.\n\nFurther down is a small deck of cards: Remember this?, Your Goals, Your Rewards (when Tokens & Rewards is on), Multickles, and Routines and Reminders. Use the arrows or the dots under the deck to move between them, or swipe the deck sideways. It opens on whichever card you left it on. Remember this? shows up to three older Tickles to revisit — tap one to open it. Your Goals shows how many Tickles you've tagged to each active Goal — tap one to see them all. Your Rewards shows your token balance and every reward on your Reward List, with a tick on the ones you have enough tokens for — tap a reward, or the Reward List button, to open your Reward List. Multickles has two buttons at the top: Follow lists the ones you follow that are still going, with a small sparkle on any that have a Tic you haven't seen yet, and Mine lists your own ongoing ones. Routines and Reminders shows today's tiles; tap one to open Routines and Reminders.",
+    body: "Below the Vibe cards, the Mojo Shared pills track your Polaroid shares and Ripples the same way — this week, this month, and all-time. Tap a pill to see exactly what it's counting.\n\nFurther down is a small deck of cards: Remember this?, Your Goals, Your Rewards (when Tokens & Rewards is on), Blogbits, and Nudges & Notes. Use the arrows or the dots under the deck to move between them, or swipe the deck sideways. It opens on whichever card you left it on. Remember this? shows up to three older Tickles to revisit — tap one to open it. Your Goals shows how many Tickles you've tagged to each active Goal — tap one to see them all. Your Rewards shows your token balance and every reward on your Reward List, with a tick on the ones you have enough tokens for — tap a reward, or the Reward List button, to open your Reward List. Blogbits has two buttons at the top: Follow lists the ones you follow that are still going, with a small sparkle on any that have a Tic you haven't seen yet, and Mine lists your own ongoing ones. Nudges & Notes shows today's tiles; tap one to open Nudges & Notes.",
   },
   {
     title: 'New Tickle',
@@ -22,19 +22,19 @@ const STEPS = [
   },
   {
     title: 'Tickle Stash',
-    body: "The Tickle Stash has four tabs: Mine, Favs, Following, and Rippled. Under Mine, a row of Goal pills lets you filter at a glance — tap one to see every entry tagged to that Goal.\n\nLike a Tickle with the thumbs-up, or save it to your favourites with the star.\n\nYou can give any Rippled Tickle recognition with a High Five: LOL, Well said!, Awesome!, Feeling it!, Made my day! or Epic!\n\nUse the three-dot menu on your own Tickles for Share, Delete or Edit (not on photo-only Tickles), and — once a Tickle is Rippled — to add it to a Multickle. To make a Tickle public, use the Ripple / Un-Ripple label on the card instead.",
+    body: "The Tickle Stash has four tabs: Mine, Favs, Following, and Rippled. Under Mine, a row of Goal pills lets you filter at a glance — tap one to see every entry tagged to that Goal.\n\nLike a Tickle with the thumbs-up, or save it to your favourites with the star.\n\nYou can give any Rippled Tickle recognition with a High Five: LOL, Well said!, Awesome!, Feeling it!, Made my day! or Epic!\n\nUse the three-dot menu on your own Tickles for Share, Delete or Edit (not on photo-only Tickles), and — once a Tickle is Rippled — to add it to a Blogbit. To make a Tickle public, use the Ripple / Un-Ripple label on the card instead.",
   },
   {
-    title: 'Multickles',
-    body: "Turn a string of Rippled Tickles into a Multickle — a named, ongoing story other users can recognise and follow as it unfolds. Start one from Manage Multickles in Settings, then add Tics by tagging any Rippled Tickle to it from its three-dot menu.\n\nEach Tic carries a small Multickle chip, on Tickle Stash and Calendar, showing its place in the story. Tap it to open the Multickle and see every Tic in order, plus a Follow button of its own — separate from following the author.\n\nMark a Multickle as complete once its story is finished. No new Tics can be added after that, but everything already there stays exactly as it is.",
+    title: 'Blogbits',
+    body: "Turn a string of Rippled Tickles into a Blogbit — a named, ongoing story other users can recognise and follow as it unfolds. Start one from Manage Blogbits in Settings, then add Tics by tagging any Rippled Tickle to it from its three-dot menu.\n\nEach Tic carries a small Blogbit chip, on Tickle Stash and Calendar, showing its place in the story. Tap it to open the Blogbit and see every Tic in order, plus a Follow button of its own — separate from following the author.\n\nMark a Blogbit as complete once its story is finished. No new Tics can be added after that, but everything already there stays exactly as it is.",
   },
   {
-    title: 'Routines and Reminders',
-    body: "Tap the tick-circle button in the bottom bar to see today's tiles under Morning, Afternoon and Evening. Mark each one Done, Skip it, or Move it — to another part of the day or another day. It's up to you whether a tile is a routine or a reminder. Today's tiles also show on the last card of Home's deck.\n\nTap Open Routines and Reminders to plan any day: add one of the ideas, one of your own tiles, or make a new one. Tiles you mark Done are recorded in the Calendar automatically, on that day. A Done tile can't be moved; tap Done again to undo it first if you need to.",
+    title: 'Nudges & Notes',
+    body: "Tap the tick-circle button in the bottom bar to see today's tiles under Morning, Afternoon and Evening. Mark each one Done, Skip it, or Move it — to another part of the day or another day. It's up to you whether a tile is a nudge or a note. Today's tiles also show on the last card of Home's deck.\n\nTap Open Nudges & Notes to plan any day: add one of the ideas, one of your own tiles, or make a new one. Tiles you mark Done are recorded in the Calendar automatically, on that day. A Done tile can't be moved; tap Done again to undo it first if you need to.",
   },
   {
     title: 'Calendar',
-    body: "To open the Calendar, tap the calendar icon at the top of Home. Each day shows your Day Dot, or a small open circle if you wrote Tickles but didn't dot that day. Tap a day, then tap Tickles or Goals to see what you wrote. Tickles also shows how many of each Vibe. Tiles you mark Done in Routines and Reminders show on their day too: a small tick on the day, and a Routines and Reminders list when you tap it.\n\nDot your day on the Tickle Stash, under Mine › My Day.",
+    body: "To open the Calendar, tap the calendar icon at the top of Home. Each day shows your Day Dot, or a small open circle if you wrote Tickles but didn't dot that day. Tap a day, then tap Tickles or Goals to see what you wrote. Tickles also shows how many of each Vibe. Tiles you mark Done in Nudges & Notes show on their day too: a small tick on the day, and a Nudges & Notes list when you tap it.\n\nDot your day on the Tickle Stash, under Mine › My Day.",
   },
   {
     title: 'Tickle Pics',
@@ -58,7 +58,7 @@ const STEPS = [
   },
   {
     title: 'Settings',
-    body: "Make DayTickles yours in Settings: pick an Accent colour, your Country, and the day your week starts on. Turn on PIN lock to keep the app private, or the Daily reminder for a nudge at 08:00 and 20:00.\n\nThe bell in the top bar lists your likes, favourites, High Fives and new Tics.",
+    body: "Make DayTickles yours in Settings: pick an Accent colour, your Country, and the day your week starts on. Turn on PIN lock to keep the app private, or the Daily reminder for a prompt at 08:00 and 20:00.\n\nThe bell in the top bar lists your likes, favourites, High Fives and new Tics.",
   },
 ];
 

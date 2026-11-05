@@ -49,11 +49,11 @@ const SECTIONS = [
     ],
   },
   {
-    title: 'Multickles',
+    title: 'Blogbits',
     items: [
       { id: 'multickle-start-icon', label: 'Start one with an icon' },
       { id: 'multickle-tag-rippled', label: 'Tag a Rippled Tickle to it' },
-      { id: 'multickle-follow-other', label: "Follow someone else's Multickle" },
+      { id: 'multickle-follow-other', label: "Follow someone else's Blogbit" },
       { id: 'multickle-following-pills', label: "Check the Following tab pills (filter works, shows other authors' Tics)" },
       { id: 'multickle-complete', label: 'Mark one Complete' },
       { id: 'multickle-ongoing-cap', label: 'Confirm the ongoing cap blocks correctly once at the limit' },
@@ -71,7 +71,7 @@ const SECTIONS = [
   {
     title: 'Notifications',
     items: [
-      { id: 'notif-trigger', label: 'Trigger one (e.g. have someone Ripple a Tic on a Multickle you follow)' },
+      { id: 'notif-trigger', label: 'Trigger one (e.g. have someone Ripple a Tic on a Blogbit you follow)' },
       { id: 'notif-tap', label: 'Tap it' },
     ],
   },
@@ -119,11 +119,11 @@ const SECTIONS = [
     ],
   },
   {
-    title: 'Routines and Reminders',
+    title: 'Nudges & Notes',
     items: [
       { id: 'rnrs-popup-open', label: "Tap the tick-circle button in the bottom bar: today's pop-up opens (Close, Back and the dimmed area all close it)" },
       { id: 'rnrs-popup-empty', label: 'With no tiles today, the pop-up shows the dashed placeholder and Add a tile' },
-      { id: 'rnrs-open-page', label: 'Open Routines and Reminders from the pop-up; the page opens with the button shown as selected' },
+      { id: 'rnrs-open-page', label: 'Open Nudges & Notes from the pop-up; the page opens with the button shown as selected' },
       { id: 'rnrs-add-idea', label: 'Add an idea tile to Morning, Afternoon and Evening' },
       { id: 'rnrs-make-tile', label: 'Make a new tile (try the 80-character limit) and see it in My tiles' },
       { id: 'rnrs-rename-delete', label: 'Rename one of your tiles, then delete it; a day it was already on keeps it' },
@@ -132,8 +132,8 @@ const SECTIONS = [
       { id: 'rnrs-move-slot', label: 'Move to another part of the same day' },
       { id: 'rnrs-move-day', label: 'Move to → Another day…, pick a day in the month grid, then find the tile on that day' },
       { id: 'rnrs-day-switcher', label: 'Use the previous/next day arrows and Back to today' },
-      { id: 'rnrs-calendar', label: 'Mark a tile Done, then open the Calendar: that day shows a small tick and a Routines and Reminders section listing it.' },
-      { id: 'rnrs-weekly-summary', label: 'Weekly Summary shows "Routines and Reminders" only once something is Done this week' },
+      { id: 'rnrs-calendar', label: 'Mark a tile Done, then open the Calendar: that day shows a small tick and a Nudges & Notes section listing it.' },
+      { id: 'rnrs-weekly-summary', label: 'Weekly Summary shows "Nudges & Notes" only once something is Done this week' },
       { id: 'rnrs-talkback', label: 'TalkBack: tile actions (Done, Move to Morning/Afternoon/Evening, Skip) work, and focus returns to the bar button when the pop-up closes' },
       { id: 'rnrs-large-font', label: 'Check the pop-up, the page and the Home top bar at the largest font size' },
     ],

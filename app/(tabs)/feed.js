@@ -87,7 +87,7 @@ const MINE_EMPTY_LINE = 'Write about what made you smile today.';
 // generic `mine` one above, so it can invite a first My Day entry.
 function getEmptyText(tab, natureFilter, goalFilter, taleFilter) {
   if (tab === 'following' && taleFilter) {
-    return 'No Tics in this Multickle yet.';
+    return 'No Tics in this Blogbit yet.';
   }
   if (tab === 'mine' && natureFilter === 'day_journal' && !goalFilter) {
     return 'Write your first My Day entry to see it here.';
@@ -953,7 +953,7 @@ export default function Feed() {
     const { error } = await assignEntryTale({ entryId, taleId, currentTaleId, setEntries });
     if (error) {
       console.warn('Multickle tag failed', error);
-      showAlert("Couldn't update the Multickle", 'Please try again.');
+      showAlert("Couldn't update the Blogbit", 'Please try again.');
     }
   }
 

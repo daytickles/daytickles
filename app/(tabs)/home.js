@@ -63,7 +63,7 @@ const DECK_GAP = 32;
 // keep it (components/HomeDeck.js, DECK_MIN_HEIGHT / DECK_MAX_HEIGHT).
 const SPARE_ROOM = 20;
 // Multickles card: title and its Follow / Mine switch (pill chips).
-const MULTICKLES_CARD_TITLE = 'Multickles';
+const MULTICKLES_CARD_TITLE = 'Blogbits';
 const MULTICKLES_VIEWS = [
   { key: 'follow', label: 'Follow' },
   { key: 'mine', label: 'Mine' },
@@ -1242,10 +1242,10 @@ export default function Home() {
   function renderMyTaleRows() {
     if (myTalesState === 'loading') return renderPlaceholderRow();
     if (myTalesState === 'error') {
-      return <Text style={deckRowStyles.body}>Couldn't load your Multickles — please try again later.</Text>;
+      return <Text style={deckRowStyles.body}>Couldn't load your Blogbits — please try again later.</Text>;
     }
     const ongoing = myTales.filter((t) => !t.completed_at);
-    if (ongoing.length === 0) return <Text style={deckRowStyles.body}>You have no ongoing Multickles.</Text>;
+    if (ongoing.length === 0) return <Text style={deckRowStyles.body}>You have no ongoing Blogbits.</Text>;
     return ongoing.map((t) => (
       <TouchableOpacity
         key={t.id}
@@ -1253,7 +1253,7 @@ export default function Home() {
         activeOpacity={0.7}
         onPress={() => router.push({ pathname: '/tale', params: { id: t.id } })}
         accessibilityRole="button"
-        accessibilityLabel={`${t.title}. Opens Multickle.`}
+        accessibilityLabel={`${t.title}. Opens Blogbit.`}
       >
         <Text style={deckRowStyles.label} numberOfLines={1}>{t.title}</Text>
       </TouchableOpacity>
@@ -1267,7 +1267,7 @@ export default function Home() {
       color: DECK_COLORS.multickles,
       headerRight: renderMulticklesSwitch(),
       children: multicklesView === 'mine' ? renderMyTaleRows() : followedTales.length === 0 ? (
-        <Text style={deckRowStyles.body}>You are not following any Multickles yet.</Text>
+        <Text style={deckRowStyles.body}>You are not following any Blogbits yet.</Text>
       ) : followedTales.map((t) => (
         <TouchableOpacity
           key={t.id}
@@ -1277,8 +1277,8 @@ export default function Home() {
           accessibilityRole="button"
           accessibilityLabel={
             t.newAt
-              ? `${t.title}, new Tic added ${relativeTimeLabel(t.newAt)}. Opens Multickle.`
-              : `${t.title}. Opens Multickle.`
+              ? `${t.title}, new Tic added ${relativeTimeLabel(t.newAt)}. Opens Blogbit.`
+              : `${t.title}. Opens Blogbit.`
           }
         >
           {/* Unread indicator. Hidden from screen readers -- the row's
@@ -1411,7 +1411,7 @@ export default function Home() {
             activeOpacity={0.7}
             onPress={openRnrs}
             accessibilityRole="button"
-            accessibilityLabel="Add a tile. Opens Routines and Reminders."
+            accessibilityLabel="Add a tile. Opens Nudges & Notes."
           >
             <Ionicons name="add" size={16} color={DECK_TEXT} />
             <Text style={deckRowStyles.label} numberOfLines={1}>Add a tile</Text>
@@ -1433,7 +1433,7 @@ export default function Home() {
                 activeOpacity={0.7}
                 onPress={openRnrs}
                 accessibilityRole="button"
-                accessibilityLabel={`${p.label}, ${RNR_SLOT_LABELS[s]}${stateWord}. Opens Routines and Reminders.`}
+                accessibilityLabel={`${p.label}, ${RNR_SLOT_LABELS[s]}${stateWord}. Opens Nudges & Notes.`}
               >
                 {done && <Ionicons name="checkmark-circle" size={18} color={DECK_TEXT} />}
                 <Text style={[deckRowStyles.label, skipped && styles.rnrLabelSkipped]} numberOfLines={2}>{p.label}</Text>
@@ -1449,7 +1449,7 @@ export default function Home() {
         </View>
       ));
     }
-    return { key: 'rnrs', title: 'Routines and Reminders', color: DECK_COLORS.rnrs, children };
+    return { key: 'rnrs', title: 'Nudges & Notes', color: DECK_COLORS.rnrs, children };
   }
 
   // Card order: Remember this?, Your Goals, Your Rewards, Multickles,

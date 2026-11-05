@@ -97,7 +97,7 @@ export default function Tales() {
 
   async function handleAdd() {
     if (!title.trim()) {
-      setStatus('Give your Multickle a title.');
+      setStatus('Give your Blogbit a title.');
       return;
     }
 
@@ -179,8 +179,8 @@ export default function Tales() {
 
   function confirmDelete(tale) {
     showAlert(
-      'Delete Multickle?',
-      `"${tale.title}" will be removed, along with its followers. Its Tics aren't deleted — they stay as regular Ripples, just no longer part of a Multickle.`,
+      'Delete Blogbit?',
+      `"${tale.title}" will be removed, along with its followers. Its Tics aren't deleted — they stay as regular Ripples, just no longer part of a Blogbit.`,
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Delete', style: 'destructive', onPress: () => handleDelete(tale.id) },
@@ -250,12 +250,12 @@ export default function Tales() {
         <Text style={[styles.backLink, (saving || mutating) && styles.linkDisabled]}>‹ Back</Text>
       </TouchableOpacity>
 
-      <Text style={styles.title}>Multickle Moments</Text>
+      <Text style={styles.title}>Blogbit Moments</Text>
       <Text style={styles.description}>
-        A Multickle is an experience that's bigger than a single Tickle — a string of moments, a weekend
+        A Blogbit is an experience that's bigger than a single Tickle — a string of moments, a weekend
         away, a special occasion, an adventure, or simply a collection of moments that belong together. Give
-        your Multickle a name here, then tag Rippled Tickles to it by going to ⋯ on the Tickle and
-        selecting the Multickle tag you want to attach it to. Other users can then follow your Multickle to
+        your Blogbit a name here, then tag Rippled Tickles to it by going to ⋯ on the Tickle and
+        selecting the Blogbit tag you want to attach it to. Other users can then follow your Blogbit to
         see it unfold.
       </Text>
 
@@ -263,7 +263,7 @@ export default function Tales() {
 
       {!loading && tales.length === 0 && (
         <Text style={styles.empty}>
-          {loadError ? "Couldn't load your Multickles — please try again later." : 'No Multickles yet — start one below.'}
+          {loadError ? "Couldn't load your Blogbits — please try again later." : 'No Blogbits yet — start one below.'}
         </Text>
       )}
 
@@ -306,7 +306,7 @@ export default function Tales() {
         </View>
         <Button
           size="main"
-          title={saving ? 'Starting...' : 'Start Multickle'}
+          title={saving ? 'Starting...' : 'Start Blogbit'}
           onPress={handleAdd}
           disabled={saving}
           variant="secondary"

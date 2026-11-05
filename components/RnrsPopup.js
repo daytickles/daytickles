@@ -129,7 +129,7 @@ export default function RnrsPopup({ visible, onClose }) {
           </ScrollView>
 
           <Button
-            title="Open Routines and Reminders"
+            title="Open Nudges & Notes"
             onPress={openFullPage}
             variant="secondary"
             style={styles.openButton}

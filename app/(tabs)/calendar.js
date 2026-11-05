@@ -595,7 +595,7 @@ export default function Calendar() {
     const { error } = await assignEntryTale({ entryId, taleId, currentTaleId, setEntries: setDayEntries });
     if (error) {
       console.warn('Multickle tag failed', error);
-      showAlert("Couldn't update the Multickle", 'Please try again.');
+      showAlert("Couldn't update the Blogbit", 'Please try again.');
     }
   }
 
@@ -770,7 +770,7 @@ export default function Calendar() {
                 else if (dotEntry?.status === 'skipped') a11yParts.push('Day Dot skipped');
                 const rnrDone = rnrDoneByDate[dateStr]?.length || 0;
                 if (rnrDone > 0) {
-                  a11yParts.push(`${rnrDone} ${rnrDone === 1 ? 'Routine and Reminder' : 'Routines and Reminders'} done`);
+                  a11yParts.push(`${rnrDone} ${rnrDone === 1 ? 'Nudge or Note' : 'Nudges & Notes'} done`);
                 }
 
                 return (
@@ -881,7 +881,7 @@ export default function Calendar() {
                 Tickles, no Vibe colour, not tappable. */}
             {selectedRnrDone.length > 0 && (
               <View style={styles.rnrSection}>
-                <Text style={styles.rnrSectionTitle} accessibilityRole="header">Routines and Reminders</Text>
+                <Text style={styles.rnrSectionTitle} accessibilityRole="header">Nudges & Notes</Text>
                 {selectedRnrDone.map((p) => (
                   <View
                     key={p.id}

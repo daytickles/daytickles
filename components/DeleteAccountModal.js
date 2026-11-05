@@ -38,7 +38,7 @@ export default function DeleteAccountModal({ visible, deleting, error, onConfirm
           <Text style={styles.title}>Delete your account</Text>
           <Text style={styles.body}>
             This permanently deletes your account and everything in it — your Tickles, likes,
-            follows, Goals, Multickles, rewards and tokens, High Fives, shared photos and Day Dots.
+            follows, Goals, Blogbits, rewards and tokens, High Fives, shared photos and Day Dots.
             There is no recovery. Type DELETE to confirm.
           </Text>
 
