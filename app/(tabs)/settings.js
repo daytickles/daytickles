@@ -20,6 +20,7 @@ import DeleteAccountModal from '../../components/DeleteAccountModal';
 import NatureIcon from '../../components/NatureIcon';
 import WallpaperBackground from '../../components/WallpaperBackground';
 import CornerNav from '../../components/CornerNav';
+import SettingsSection from '../../components/SettingsSection';
 import {
   requestReminderPermission,
   scheduleDailyReminder,
@@ -94,6 +95,12 @@ const AWARENESS_CUE_WINDOW_PRESETS = [
 // and write through this same local state object rather than needing
 // separate handlers.
 const GOAL_PREFIXES = ['daily_goal_', 'weekly_goal_'];
+// The Vibe Targets card's two periods; value is the column prefix
+// (daily_goal_<vibe> / weekly_goal_<vibe>).
+const VIBE_TARGET_PERIODS = [
+  { value: 'daily', label: 'Daily' },
+  { value: 'weekly', label: 'Weekly' },
+];
 
 function buildGoalValues(profile) {
   return Object.fromEntries(
@@ -115,6 +122,11 @@ export default function Settings() {
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [savingTheme, setSavingTheme] = useState(null);
   const [savingHomePalette, setSavingHomePalette] = useState(null);
+  // Which Settings sections are open: all start closed. Kept while the
+  // app is open, not saved.
+  const [openSections, setOpenSections] = useState({});
+  // The Vibe Targets card's Daily | Weekly switch.
+  const [vibeTargetPeriod, setVibeTargetPeriod] = useState('daily');
   const [savingWeekStartDay, setSavingWeekStartDay] = useState(null);
   const [savingNotifyOnLikes, setSavingNotifyOnLikes] = useState(false);
   const [savingCountry, setSavingCountry] = useState(false);
@@ -325,6 +337,10 @@ export default function Settings() {
 
   // Home colours: same press / save / revert as handlePickTheme, with no
   // tier check (every set is free). Stores the set's id ('classic' too).
+  function toggleSection(key) {
+    setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
+  }
+
   async function handlePickHomePalette(paletteId) {
     if (!profile || paletteId === homePaletteFor(profile).id) return;
     const previous = profile;
@@ -786,386 +802,6 @@ export default function Settings() {
         <CornerNav style={styles.cornerNavInline} />
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>Accent colour</Text>
-        <View style={styles.swatchRow}>
-          {ACCENT_THEMES.map((theme) => {
-            const selected = profile?.accent_theme === theme.id;
-            // Still shown, just dimmed + padlocked -- tapping explains why.
-            // The current theme is never shown locked even if it's past
-            // this tier's allowance (grandfathered, stays applied).
-            const locked = !selected && !allowedThemeIds.includes(theme.id);
-            return (
-              <TouchableOpacity
-                key={theme.id}
-                onPress={() => handlePickTheme(theme.id)}
-                disabled={savingTheme !== null}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <View
-                  style={[
-                    styles.swatch,
-                    { backgroundColor: theme.card },
-                    selected && { borderColor: accentDark },
-                    locked && styles.swatchLocked,
-                  ]}
-                >
-                  {selected && <Ionicons name="checkmark" size={18} color={textOn(theme.card)} />}
-                  {locked && <Ionicons name="lock-closed" size={16} color={textOn(theme.card)} />}
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-        <View style={styles.spacer} />
-
-        <Text style={styles.label}>Week starts on</Text>
-        <View style={styles.weekDayRow}>
-          {WEEK_START_OPTIONS.map((option) => {
-            const selected = (profile?.week_start_day ?? DEFAULT_WEEK_START_DAY) === option.day;
-            return (
-              <TouchableOpacity
-                key={option.day}
-                onPress={() => handlePickWeekStartDay(option.day)}
-                disabled={savingWeekStartDay !== null}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <View style={[styles.daySwatch, selected && { backgroundColor: accentDark, borderColor: accentDark }]}>
-                  {selected ? (
-                    <Ionicons name="checkmark" size={16} color={textOn(accentDark)} />
-                  ) : (
-                    <Text style={styles.daySwatchLabel}>{option.label}</Text>
-                  )}
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-        <View style={styles.spacer} />
-
-        <Text style={styles.label}>Country</Text>
-        <TouchableOpacity
-          style={styles.countryRow}
-          onPress={() => setShowCountryPicker(true)}
-          disabled={savingCountry}
-        >
-          <Text style={styles.countryValue}>
-            {profile?.country ? `${flagEmoji(profile.country)}  ${countryNameFor(profile.country)}` : 'Not set'}
-          </Text>
-        </TouchableOpacity>
-        <Text style={styles.explainerText}>
-          Purely social — shows a flag next to your name so others can see roughly where you're
-          tickling from. Never required, and you can change or clear it anytime.
-        </Text>
-        <View style={styles.spacer} />
-
-        <Button title="Manage Goals" onPress={() => router.push('/goals')} variant="secondary" />
-        <View style={styles.buttonSpacer} />
-        <Button title="Manage Blogbits" onPress={() => router.push('/tales')} variant="secondary" />
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.label}>Home colours</Text>
-        {HOME_PALETTES.map((palette) => {
-          const selected = homePaletteFor(profile).id === palette.id;
-          return (
-            <TouchableOpacity
-              key={palette.id}
-              onPress={() => handlePickHomePalette(palette.id)}
-              disabled={savingHomePalette !== null}
-              style={[styles.paletteRow, selected && { borderColor: accentDark }]}
-              accessibilityRole="radio"
-              accessibilityState={{ selected, disabled: savingHomePalette !== null }}
-              accessibilityLabel={`${palette.name}, five colours${selected ? ', selected' : ''}`}
-            >
-              <View style={styles.paletteDots}>
-                {HOME_PALETTE_SLOTS.map((slot) => (
-                  <View key={slot} style={[styles.paletteDot, { backgroundColor: palette.deck[slot] }]} />
-                ))}
-              </View>
-              <Text style={styles.paletteName}>{palette.name}</Text>
-              {selected && <Ionicons name="checkmark" size={18} color={accentDark} />}
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      <View style={styles.card}>
-        <View style={styles.toggleRow}>
-          <Text style={styles.toggleLabel}>Tokens & Rewards</Text>
-          <Switch
-            value={tokensEnabled}
-            onValueChange={handleToggleTokens}
-            disabled={savingTokensEnabled}
-            trackColor={{ false: C.border, true: accentDark }}
-            thumbColor={C.card}
-          />
-        </View>
-        <Text style={styles.explainerText}>
-          Earn tokens by tagging Tickles to a token-enabled Goal, then spend them on rewards you
-          set up yourself. Off hides this everywhere, regardless of your balance or any Goal's own
-          toggle.
-        </Text>
-        <View style={styles.spacer} />
-        <Button
-          title="Manage Reward List"
-          onPress={() => router.push('/wishlist')}
-          variant="secondary"
-          disabled={!tokensEnabled}
-        />
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.label}>Daily Vibe Targets</Text>
-        <Text style={styles.explainerText}>
-          Optional — set a daily target for any Vibe and its daily lightbulb lights up on Home once you hit it
-          that day.
-        </Text>
-        <View style={{ height: 8 }} />
-        {NATURE_ORDER.map((key) => {
-          const column = `daily_goal_${key}`;
-          const value = goalValues[column] || null;
-          const saving = savingGoal === column;
-          return (
-            <View key={key} style={styles.vibeGoalRow}>
-              <NatureIcon nature={key} size={18} color={C.subtext} style={styles.vibeGoalIcon} />
-              <Text style={styles.vibeGoalLabel}>{NATURE_LABELS[key]}</Text>
-              <View style={styles.stepper}>
-                <TouchableOpacity
-                  onPress={() => handleAdjustGoal(column, -1)}
-                  disabled={saving || !value}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <Ionicons name="remove-circle-outline" size={20} color={value ? C.text : C.faint} />
-                </TouchableOpacity>
-                <Text style={styles.stepperValue}>{value || 'Off'}</Text>
-                <TouchableOpacity
-                  onPress={() => handleAdjustGoal(column, 1)}
-                  disabled={saving}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <Ionicons name="add-circle-outline" size={20} color={C.text} />
-                </TouchableOpacity>
-              </View>
-            </View>
-          );
-        })}
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.label}>Weekly Vibe Targets</Text>
-        <Text style={styles.explainerText}>
-          Optional — set a weekly target for any Vibe and its weekly lightbulb lights up on Home once
-          you hit it that week.
-        </Text>
-        <View style={{ height: 8 }} />
-        {NATURE_ORDER.map((key) => {
-          const column = `weekly_goal_${key}`;
-          const value = goalValues[column] || null;
-          const saving = savingGoal === column;
-          return (
-            <View key={key} style={styles.vibeGoalRow}>
-              <NatureIcon nature={key} size={18} color={C.subtext} style={styles.vibeGoalIcon} />
-              <Text style={styles.vibeGoalLabel}>{NATURE_LABELS[key]}</Text>
-              <View style={styles.stepper}>
-                <TouchableOpacity
-                  onPress={() => handleAdjustGoal(column, -1)}
-                  disabled={saving || !value}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <Ionicons name="remove-circle-outline" size={20} color={value ? C.text : C.faint} />
-                </TouchableOpacity>
-                <Text style={styles.stepperValue}>{value || 'Off'}</Text>
-                <TouchableOpacity
-                  onPress={() => handleAdjustGoal(column, 1)}
-                  disabled={saving}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <Ionicons name="add-circle-outline" size={20} color={C.text} />
-                </TouchableOpacity>
-              </View>
-            </View>
-          );
-        })}
-      </View>
-
-      <View style={styles.card}>
-        <View style={styles.toggleRow}>
-          <Text style={styles.toggleLabel}>Daily reminder</Text>
-          <Switch
-            value={dailyReminderEnabled}
-            onValueChange={handleToggleDailyReminder}
-            disabled={savingDailyReminder}
-            trackColor={{ false: C.border, true: accentDark }}
-            thumbColor={C.card}
-          />
-        </View>
-        <Text style={styles.explainerText}>
-          Two gentle nudges a day: one at 08:00 and a "How was your day?" at 20:00.
-        </Text>
-        {reminderPermissionDenied && (
-          <Text style={styles.explainerText}>
-            Notifications permission was denied — enable it for DayTickles in your device settings
-            to get the daily reminder.
-          </Text>
-        )}
-        <View style={styles.spacer} />
-
-        <View style={styles.toggleRow}>
-          <Text style={styles.toggleLabel}>Notify me of new likes</Text>
-          <Switch
-            value={notifyOnLikes}
-            onValueChange={handleToggleNotifyOnLikes}
-            disabled={savingNotifyOnLikes}
-            trackColor={{ false: C.border, true: accentDark }}
-            thumbColor={C.card}
-          />
-        </View>
-        <Text style={styles.explainerText}>
-          Controls push notifications only — likes always show up in your notification list
-          either way.
-        </Text>
-        <View style={styles.spacer} />
-
-        <View style={styles.toggleRow}>
-          <Text style={styles.toggleLabel}>PIN lock</Text>
-          <Switch
-            value={pinEnabled}
-            onValueChange={handleTogglePinLock}
-            disabled={togglingPinLock}
-            trackColor={{ false: C.border, true: accentDark }}
-            thumbColor={C.card}
-          />
-        </View>
-        <Text style={styles.explainerText}>
-          Locks the app behind a PIN (with biometrics as a shortcut) every time it's opened or
-          resumed from the background. Stored only on this device, never sent anywhere.
-        </Text>
-      </View>
-
-      <View style={styles.card}>
-        <View style={styles.toggleRow}>
-          <Text style={styles.toggleLabel}>Awareness Cue</Text>
-          <Switch
-            value={awarenessCue.enabled}
-            onValueChange={handleToggleAwarenessCue}
-            disabled={savingAwarenessCue}
-            trackColor={{ false: C.border, true: accentDark }}
-            thumbColor={C.card}
-          />
-        </View>
-        <Text style={styles.explainerText}>
-          A private vibration or sound burst a few times a day, at random moments — a personal
-          nudge to notice what's happening right now. It shows only the app name: no message, no
-          response expected.
-        </Text>
-        {cuePermissionDenied && (
-          <Text style={styles.explainerText}>
-            Notifications permission was denied — enable it for DayTickles in your device settings
-            to get Awareness Cue.
-          </Text>
-        )}
-        <View style={{ height: 8 }} />
-
-        {awarenessCue.enabled && (
-          <>
-            <Text style={styles.label}>Cue type</Text>
-            <View style={styles.optionPillRow}>
-              {AWARENESS_CUE_TYPE_OPTIONS.map((option) => {
-                const selected = (awarenessCue.type || 'vibrate') === option.value;
-                return (
-                  <TouchableOpacity
-                    hitSlop={BUTTON_HIT_SLOP}
-                    key={option.value}
-                    onPress={() => handlePickAwarenessCueType(option.value)}
-                    disabled={savingAwarenessCueOption || testingAwarenessCueSound}
-                  >
-                    <View style={[styles.optionPill, selected && { backgroundColor: accentDark, borderColor: accentDark }]}>
-                      <Text style={[styles.optionPillText, selected && { color: textOn(accentDark) }]}>
-                        {option.label}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-            {testingAwarenessCueSound && (
-              <Text style={styles.explainerText}>Testing sound — one moment…</Text>
-            )}
-            <View style={styles.spacer} />
-
-            <Text style={styles.label}>Frequency</Text>
-            <View style={styles.optionPillRow}>
-              {AWARENESS_CUE_FREQUENCY_OPTIONS.map((option) => {
-                const selected = (awarenessCue.frequencyMode || 'loose') === option.value;
-                return (
-                  <TouchableOpacity
-                    hitSlop={BUTTON_HIT_SLOP}
-                    key={option.value}
-                    onPress={() => handlePickAwarenessCueFrequencyMode(option.value)}
-                    disabled={savingAwarenessCueOption}
-                  >
-                    <View style={[styles.optionPill, selected && { backgroundColor: accentDark, borderColor: accentDark }]}>
-                      <Text style={[styles.optionPillText, selected && { color: textOn(accentDark) }]}>
-                        {option.label}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-            <View style={styles.spacer} />
-
-            {awarenessCue.frequencyMode === 'exact' && (
-              <>
-                <Text style={styles.label}>How many times a day</Text>
-                <View style={styles.stepper}>
-                  <TouchableOpacity
-                    onPress={() => handleAdjustAwarenessCueCount(-1)}
-                    disabled={savingAwarenessCueOption || (awarenessCue.count || AWARENESS_CUE_DEFAULT_COUNT) <= AWARENESS_CUE_MIN_COUNT}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  >
-                    <Ionicons name="remove-circle-outline" size={20} color={C.text} />
-                  </TouchableOpacity>
-                  <Text style={styles.stepperValue}>{awarenessCue.count || AWARENESS_CUE_DEFAULT_COUNT}</Text>
-                  <TouchableOpacity
-                    onPress={() => handleAdjustAwarenessCueCount(1)}
-                    disabled={savingAwarenessCueOption || (awarenessCue.count || AWARENESS_CUE_DEFAULT_COUNT) >= AWARENESS_CUE_MAX_COUNT}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  >
-                    <Ionicons name="add-circle-outline" size={20} color={C.text} />
-                  </TouchableOpacity>
-                </View>
-                <View style={styles.spacer} />
-              </>
-            )}
-
-            <Text style={styles.label}>Active window</Text>
-            <View style={styles.optionPillRow}>
-              {AWARENESS_CUE_WINDOW_PRESETS.map((preset) => {
-                const selected =
-                  (awarenessCue.windowStartMinute ?? 420) === preset.startMinute &&
-                  (awarenessCue.windowEndMinute ?? 1140) === preset.endMinute;
-                return (
-                  <TouchableOpacity
-                    hitSlop={BUTTON_HIT_SLOP}
-                    key={preset.key}
-                    onPress={() => handlePickAwarenessCueWindow(preset)}
-                    disabled={savingAwarenessCueOption}
-                  >
-                    <View style={[styles.optionPill, selected && { backgroundColor: accentDark, borderColor: accentDark }]}>
-                      <Text style={[styles.optionPillText, selected && { color: textOn(accentDark) }]}>
-                        {preset.label}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </>
-        )}
-      </View>
-
       {/* TEMP previewer yes/no - remove before production. */}
       <View style={styles.card}>
         <Text style={styles.label}>Closed testing preview</Text>
@@ -1225,32 +861,410 @@ export default function Settings() {
         )}
       </View>
 
-      <Button title="How DayTickles works" onPress={() => setShowGuide(true)} variant="secondary" />
-      <View style={styles.buttonSpacer} />
-      <Button title="About DayTickles" onPress={() => setShowAbout(true)} variant="secondary" />
-      <View style={styles.buttonSpacer} />
-      <Button title="Privacy Policy" onPress={() => Linking.openURL('https://daytickles.app/privacy')} variant="secondary" />
-      <View style={styles.buttonSpacer} />
-      <Button title="Rate Us" onPress={handleRateUs} variant="secondary" />
-      <View style={styles.buttonSpacer} />
-      <Button
-        title="Feedback"
-        onPress={() => Linking.openURL('mailto:feedback@daytickles.com')}
-        variant="secondary"
-      />
-      <View style={styles.buttonSpacer} />
-      <Button title="Backup & Restore Photos" onPress={() => router.push('/photo-backup')} variant="secondary" />
-      <Text style={styles.explainerText}>
-        Save your Tickle Pics and private photos to a file, so you don't lose them if you switch devices.
-      </Text>
-      <View style={styles.spacer} />
+      <SettingsSection title="Look and feel" open={!!openSections.look} onToggle={() => toggleSection('look')}>
+        <View style={[styles.card, styles.cardInSection]}>
+          <Text style={styles.label}>Accent colour</Text>
+          <View style={styles.swatchRow}>
+            {ACCENT_THEMES.map((theme) => {
+              const selected = profile?.accent_theme === theme.id;
+              // Still shown, just dimmed + padlocked -- tapping explains why.
+              // The current theme is never shown locked even if it's past
+              // this tier's allowance (grandfathered, stays applied).
+              const locked = !selected && !allowedThemeIds.includes(theme.id);
+              return (
+                <TouchableOpacity
+                  key={theme.id}
+                  onPress={() => handlePickTheme(theme.id)}
+                  disabled={savingTheme !== null}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <View
+                    style={[
+                      styles.swatch,
+                      { backgroundColor: theme.card },
+                      selected && { borderColor: accentDark },
+                      locked && styles.swatchLocked,
+                    ]}
+                  >
+                    {selected && <Ionicons name="checkmark" size={18} color={textOn(theme.card)} />}
+                    {locked && <Ionicons name="lock-closed" size={16} color={textOn(theme.card)} />}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+        <View style={[styles.card, styles.cardInSection]}>
+          <Text style={styles.label}>Home colours</Text>
+          {HOME_PALETTES.map((palette) => {
+            const selected = homePaletteFor(profile).id === palette.id;
+            return (
+              <TouchableOpacity
+                key={palette.id}
+                onPress={() => handlePickHomePalette(palette.id)}
+                disabled={savingHomePalette !== null}
+                style={[styles.paletteRow, selected && { borderColor: accentDark }]}
+                accessibilityRole="radio"
+                accessibilityState={{ selected, disabled: savingHomePalette !== null }}
+                accessibilityLabel={`${palette.name}, five colours${selected ? ', selected' : ''}`}
+              >
+                <View style={styles.paletteDots}>
+                  {HOME_PALETTE_SLOTS.map((slot) => (
+                    <View key={slot} style={[styles.paletteDot, { backgroundColor: palette.deck[slot] }]} />
+                  ))}
+                </View>
+                <Text style={styles.paletteName}>{palette.name}</Text>
+                {selected && <Ionicons name="checkmark" size={18} color={accentDark} />}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+        <View style={[styles.card, styles.cardInSection]}>
+          <Text style={styles.label}>Country</Text>
+          <TouchableOpacity
+            style={styles.countryRow}
+            onPress={() => setShowCountryPicker(true)}
+            disabled={savingCountry}
+          >
+            <Text style={styles.countryValue}>
+              {profile?.country ? `${flagEmoji(profile.country)}  ${countryNameFor(profile.country)}` : 'Not set'}
+            </Text>
+          </TouchableOpacity>
+          <Text style={styles.explainerText}>
+            Purely social — shows a flag next to your name so others can see roughly where you're
+            tickling from. Never required, and you can change or clear it anytime.
+          </Text>
+        </View>
+      </SettingsSection>
 
-      <Button title="Sign Out" onPress={signOut} variant="secondary" />
-      <View style={styles.buttonSpacer} />
+      <SettingsSection title="Your week" open={!!openSections.week} onToggle={() => toggleSection('week')}>
+        <View style={[styles.card, styles.cardInSection]}>
+          <Text style={styles.label}>Week starts on</Text>
+          <View style={styles.weekDayRow}>
+            {WEEK_START_OPTIONS.map((option) => {
+              const selected = (profile?.week_start_day ?? DEFAULT_WEEK_START_DAY) === option.day;
+              return (
+                <TouchableOpacity
+                  key={option.day}
+                  onPress={() => handlePickWeekStartDay(option.day)}
+                  disabled={savingWeekStartDay !== null}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <View style={[styles.daySwatch, selected && { backgroundColor: accentDark, borderColor: accentDark }]}>
+                    {selected ? (
+                      <Ionicons name="checkmark" size={16} color={textOn(accentDark)} />
+                    ) : (
+                      <Text style={styles.daySwatchLabel}>{option.label}</Text>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+        <View style={[styles.card, styles.cardInSection]}>
+          <Text style={styles.label}>Vibe Targets</Text>
+          <View style={styles.periodSwitch}>
+            {VIBE_TARGET_PERIODS.map((period) => {
+              const selected = vibeTargetPeriod === period.value;
+              return (
+                <TouchableOpacity
+                  key={period.value}
+                  onPress={() => setVibeTargetPeriod(period.value)}
+                  style={[styles.periodOption, selected && { backgroundColor: accentDark, borderColor: accentDark }]}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected }}
+                  accessibilityLabel={period.label}
+                >
+                  <Text style={[styles.periodOptionText, selected && { color: textOn(accentDark) }]}>{period.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          {vibeTargetPeriod === 'daily' ? (
+            <Text style={styles.explainerText}>
+              Optional — set a daily target for any Vibe and its daily lightbulb lights up on Home once you hit it
+              that day.
+            </Text>
+          ) : (
+            <Text style={styles.explainerText}>
+              Optional — set a weekly target for any Vibe and its weekly lightbulb lights up on Home once
+              you hit it that week.
+            </Text>
+          )}
+          <View style={{ height: 8 }} />
+          {NATURE_ORDER.map((key) => {
+            const column = `${vibeTargetPeriod}_goal_${key}`;
+            const value = goalValues[column] || null;
+            const saving = savingGoal === column;
+            return (
+              <View key={key} style={styles.vibeGoalRow}>
+                <NatureIcon nature={key} size={18} color={C.subtext} style={styles.vibeGoalIcon} />
+                <Text style={styles.vibeGoalLabel}>{NATURE_LABELS[key]}</Text>
+                <View style={styles.stepper}>
+                  <TouchableOpacity
+                    onPress={() => handleAdjustGoal(column, -1)}
+                    disabled={saving || !value}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Ionicons name="remove-circle-outline" size={20} color={value ? C.text : C.faint} />
+                  </TouchableOpacity>
+                  <Text style={styles.stepperValue}>{value || 'Off'}</Text>
+                  <TouchableOpacity
+                    onPress={() => handleAdjustGoal(column, 1)}
+                    disabled={saving}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Ionicons name="add-circle-outline" size={20} color={C.text} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      </SettingsSection>
 
-      <TouchableOpacity onPress={confirmDeleteAccount} hitSlop={DELETE_ACCOUNT_LINK_HIT_SLOP} style={styles.deleteAccountLink}>
-        <Text style={styles.deleteAccountLinkText}>Delete Account</Text>
-      </TouchableOpacity>
+      <SettingsSection title="Goals and Rewards" open={!!openSections.goals} onToggle={() => toggleSection('goals')}>
+        <View style={[styles.card, styles.cardInSection]}>
+          <Button title="Manage Goals" onPress={() => router.push('/goals')} variant="secondary" />
+          <View style={styles.buttonSpacer} />
+          <Button title="Manage Blogbits" onPress={() => router.push('/tales')} variant="secondary" />
+        </View>
+        <View style={[styles.card, styles.cardInSection]}>
+          <View style={styles.toggleRow}>
+            <Text style={styles.toggleLabel}>Tokens & Rewards</Text>
+            <Switch
+              value={tokensEnabled}
+              onValueChange={handleToggleTokens}
+              disabled={savingTokensEnabled}
+              trackColor={{ false: C.border, true: accentDark }}
+              thumbColor={C.card}
+            />
+          </View>
+          <Text style={styles.explainerText}>
+            Earn tokens by tagging Tickles to a token-enabled Goal, then spend them on rewards you
+            set up yourself. Off hides this everywhere, regardless of your balance or any Goal's own
+            toggle.
+          </Text>
+          <View style={styles.spacer} />
+          <Button
+            title="Manage Reward List"
+            onPress={() => router.push('/wishlist')}
+            variant="secondary"
+            disabled={!tokensEnabled}
+          />
+        </View>
+      </SettingsSection>
+
+      <SettingsSection title="Reminders and privacy" open={!!openSections.reminders} onToggle={() => toggleSection('reminders')}>
+        <View style={[styles.card, styles.cardInSection]}>
+          <View style={styles.toggleRow}>
+            <Text style={styles.toggleLabel}>Daily reminder</Text>
+            <Switch
+              value={dailyReminderEnabled}
+              onValueChange={handleToggleDailyReminder}
+              disabled={savingDailyReminder}
+              trackColor={{ false: C.border, true: accentDark }}
+              thumbColor={C.card}
+            />
+          </View>
+          <Text style={styles.explainerText}>
+            Two gentle nudges a day: one at 08:00 and a "How was your day?" at 20:00.
+          </Text>
+          {reminderPermissionDenied && (
+            <Text style={styles.explainerText}>
+              Notifications permission was denied — enable it for DayTickles in your device settings
+              to get the daily reminder.
+            </Text>
+          )}
+        </View>
+        <View style={[styles.card, styles.cardInSection]}>
+          <View style={styles.toggleRow}>
+            <Text style={styles.toggleLabel}>Awareness Cue</Text>
+            <Switch
+              value={awarenessCue.enabled}
+              onValueChange={handleToggleAwarenessCue}
+              disabled={savingAwarenessCue}
+              trackColor={{ false: C.border, true: accentDark }}
+              thumbColor={C.card}
+            />
+          </View>
+          <Text style={styles.explainerText}>
+            A private vibration or sound burst a few times a day, at random moments — a personal
+            nudge to notice what's happening right now. It shows only the app name: no message, no
+            response expected.
+          </Text>
+          {cuePermissionDenied && (
+            <Text style={styles.explainerText}>
+              Notifications permission was denied — enable it for DayTickles in your device settings
+              to get Awareness Cue.
+            </Text>
+          )}
+          <View style={{ height: 8 }} />
+
+          {awarenessCue.enabled && (
+            <>
+              <Text style={styles.label}>Cue type</Text>
+              <View style={styles.optionPillRow}>
+                {AWARENESS_CUE_TYPE_OPTIONS.map((option) => {
+                  const selected = (awarenessCue.type || 'vibrate') === option.value;
+                  return (
+                    <TouchableOpacity
+                      hitSlop={BUTTON_HIT_SLOP}
+                      key={option.value}
+                      onPress={() => handlePickAwarenessCueType(option.value)}
+                      disabled={savingAwarenessCueOption || testingAwarenessCueSound}
+                    >
+                      <View style={[styles.optionPill, selected && { backgroundColor: accentDark, borderColor: accentDark }]}>
+                        <Text style={[styles.optionPillText, selected && { color: textOn(accentDark) }]}>
+                          {option.label}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              {testingAwarenessCueSound && (
+                <Text style={styles.explainerText}>Testing sound — one moment…</Text>
+              )}
+              <View style={styles.spacer} />
+
+              <Text style={styles.label}>Frequency</Text>
+              <View style={styles.optionPillRow}>
+                {AWARENESS_CUE_FREQUENCY_OPTIONS.map((option) => {
+                  const selected = (awarenessCue.frequencyMode || 'loose') === option.value;
+                  return (
+                    <TouchableOpacity
+                      hitSlop={BUTTON_HIT_SLOP}
+                      key={option.value}
+                      onPress={() => handlePickAwarenessCueFrequencyMode(option.value)}
+                      disabled={savingAwarenessCueOption}
+                    >
+                      <View style={[styles.optionPill, selected && { backgroundColor: accentDark, borderColor: accentDark }]}>
+                        <Text style={[styles.optionPillText, selected && { color: textOn(accentDark) }]}>
+                          {option.label}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              <View style={styles.spacer} />
+
+              {awarenessCue.frequencyMode === 'exact' && (
+                <>
+                  <Text style={styles.label}>How many times a day</Text>
+                  <View style={styles.stepper}>
+                    <TouchableOpacity
+                      onPress={() => handleAdjustAwarenessCueCount(-1)}
+                      disabled={savingAwarenessCueOption || (awarenessCue.count || AWARENESS_CUE_DEFAULT_COUNT) <= AWARENESS_CUE_MIN_COUNT}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
+                      <Ionicons name="remove-circle-outline" size={20} color={C.text} />
+                    </TouchableOpacity>
+                    <Text style={styles.stepperValue}>{awarenessCue.count || AWARENESS_CUE_DEFAULT_COUNT}</Text>
+                    <TouchableOpacity
+                      onPress={() => handleAdjustAwarenessCueCount(1)}
+                      disabled={savingAwarenessCueOption || (awarenessCue.count || AWARENESS_CUE_DEFAULT_COUNT) >= AWARENESS_CUE_MAX_COUNT}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
+                      <Ionicons name="add-circle-outline" size={20} color={C.text} />
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.spacer} />
+                </>
+              )}
+
+              <Text style={styles.label}>Active window</Text>
+              <View style={styles.optionPillRow}>
+                {AWARENESS_CUE_WINDOW_PRESETS.map((preset) => {
+                  const selected =
+                    (awarenessCue.windowStartMinute ?? 420) === preset.startMinute &&
+                    (awarenessCue.windowEndMinute ?? 1140) === preset.endMinute;
+                  return (
+                    <TouchableOpacity
+                      hitSlop={BUTTON_HIT_SLOP}
+                      key={preset.key}
+                      onPress={() => handlePickAwarenessCueWindow(preset)}
+                      disabled={savingAwarenessCueOption}
+                    >
+                      <View style={[styles.optionPill, selected && { backgroundColor: accentDark, borderColor: accentDark }]}>
+                        <Text style={[styles.optionPillText, selected && { color: textOn(accentDark) }]}>
+                          {preset.label}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </>
+          )}
+        </View>
+        <View style={[styles.card, styles.cardInSection]}>
+          <View style={styles.toggleRow}>
+            <Text style={styles.toggleLabel}>Notify me of new likes</Text>
+            <Switch
+              value={notifyOnLikes}
+              onValueChange={handleToggleNotifyOnLikes}
+              disabled={savingNotifyOnLikes}
+              trackColor={{ false: C.border, true: accentDark }}
+              thumbColor={C.card}
+            />
+          </View>
+          <Text style={styles.explainerText}>
+            Controls push notifications only — likes always show up in your notification list
+            either way.
+          </Text>
+          <View style={styles.spacer} />
+
+          <View style={styles.toggleRow}>
+            <Text style={styles.toggleLabel}>PIN lock</Text>
+            <Switch
+              value={pinEnabled}
+              onValueChange={handleTogglePinLock}
+              disabled={togglingPinLock}
+              trackColor={{ false: C.border, true: accentDark }}
+              thumbColor={C.card}
+            />
+          </View>
+          <Text style={styles.explainerText}>
+            Locks the app behind a PIN (with biometrics as a shortcut) every time it's opened or
+            resumed from the background. Stored only on this device, never sent anywhere.
+          </Text>
+        </View>
+      </SettingsSection>
+
+      <SettingsSection title="Help and about" open={!!openSections.help} onToggle={() => toggleSection('help')}>
+        <Button title="How DayTickles works" onPress={() => setShowGuide(true)} variant="secondary" />
+        <View style={styles.buttonSpacer} />
+        <Button title="About DayTickles" onPress={() => setShowAbout(true)} variant="secondary" />
+        <View style={styles.buttonSpacer} />
+        <Button title="Privacy Policy" onPress={() => Linking.openURL('https://daytickles.app/privacy')} variant="secondary" />
+        <View style={styles.buttonSpacer} />
+        <Button title="Rate Us" onPress={handleRateUs} variant="secondary" />
+        <View style={styles.buttonSpacer} />
+        <Button
+          title="Feedback"
+          onPress={() => Linking.openURL('mailto:feedback@daytickles.com')}
+          variant="secondary"
+        />
+        <View style={styles.buttonSpacer} />
+      </SettingsSection>
+
+      <SettingsSection title="Account" open={!!openSections.account} onToggle={() => toggleSection('account')}>
+        <Button title="Backup & Restore Photos" onPress={() => router.push('/photo-backup')} variant="secondary" />
+        <Text style={styles.explainerText}>
+          Save your Tickle Pics and private photos to a file, so you don't lose them if you switch devices.
+        </Text>
+        <View style={styles.spacer} />
+
+        <Button title="Sign Out" onPress={signOut} variant="secondary" />
+        <View style={styles.buttonSpacer} />
+
+        <TouchableOpacity onPress={confirmDeleteAccount} hitSlop={DELETE_ACCOUNT_LINK_HIT_SLOP} style={styles.deleteAccountLink}>
+          <Text style={styles.deleteAccountLinkText}>Delete Account</Text>
+        </TouchableOpacity>
+      </SettingsSection>
 
       <HomeGuide visible={showGuide} onClose={() => setShowGuide(false)} />
       <AboutModal visible={showAbout} onClose={() => setShowAbout(false)} />
@@ -1297,6 +1311,17 @@ const styles = StyleSheet.create({
     backgroundColor: withAlpha(C.subtext, 0.1), borderColor: C.border,
   },
   label: { fontSize: 14, color: C.subtext, marginBottom: 10 },
+  // Cards inside a section sit 12dp apart (16 elsewhere).
+  cardInSection: { marginBottom: 12 },
+  // Vibe Targets: the Daily | Weekly switch. Each option is at least 44dp
+  // tall (minHeight) and its label wraps at a large font size.
+  periodSwitch: { flexDirection: 'row', gap: 8, marginBottom: 10 },
+  periodOption: {
+    flex: 1, minHeight: 44, paddingHorizontal: 12, paddingVertical: 8,
+    alignItems: 'center', justifyContent: 'center',
+    borderRadius: 22, borderWidth: 1, borderColor: C.border, backgroundColor: C.card,
+  },
+  periodOptionText: { fontSize: 14, fontWeight: '600', color: C.text, textAlign: 'center' },
   swatchRow: { flexDirection: 'row', gap: 14 },
   swatch: {
     width: 40, height: 40, borderRadius: 20,
