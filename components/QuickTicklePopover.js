@@ -3,11 +3,11 @@ import { View, Text, StyleSheet, TouchableOpacity, Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NATURE_ORDER, NATURE_LABELS, VIBE_CARD_PALETTES } from '../lib/theme';
 import NatureIcon from './NatureIcon';
+import { useHomePalette } from '../lib/homePalette';
 
-// The pop-up always uses the muted Vibe set (sage / dusk / ochre with
-// cream icons), read from lib/theme.js's VIBE_CARD_PALETTES -- not from
-// VIBE_CARD_PALETTE, the Vibe cards' switch -- so it looks the same
-// whichever palette Home's cards use.
+// The pop-up's Vibe colours follow the chosen Home colour set (the same
+// colours as Home's Vibe cards, lib/homePalette.js); the icons on them stay
+// the muted set's cream, which every set keeps.
 const MUTED = VIBE_CARD_PALETTES.muted;
 
 const INK = '#425762';
@@ -42,6 +42,7 @@ const POINTER_INSET = 16;
 // not its parent, so TalkBack reaches each of them separately.
 export default function QuickTicklePopover({ visible, anchor, onPick, onClose, saving }) {
   const insets = useSafeAreaInsets();
+  const { vibe } = useHomePalette();
   // The Modal's own size, and the sheet's laid-out height (it grows with
   // font scale).
   const [modalSize, setModalSize] = useState(null);
@@ -144,7 +145,7 @@ export default function QuickTicklePopover({ visible, anchor, onPick, onClose, s
           </View>
           <View style={styles.rows}>
             {NATURE_ORDER.map((key) => {
-              const color = MUTED.colors[key];
+              const color = vibe[key];
               return (
                 <TouchableOpacity
                   key={key}

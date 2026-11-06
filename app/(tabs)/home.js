@@ -35,7 +35,8 @@ import TesterFeedbackPill from '../../components/TesterFeedbackPill';
 import GoalTargetCircle from '../../components/GoalTargetCircle';
 import QuickTickleToast from '../../components/QuickTickleToast';
 import QuickTicklePopover from '../../components/QuickTicklePopover';
-import HomeDeck, { DECK_WIDTH, DECK_COLORS, DECK_TEXT, DECK_SUBTEXT, deckRowStyles, deckRowFill } from '../../components/HomeDeck';
+import HomeDeck, { DECK_WIDTH, DECK_TEXT, DECK_SUBTEXT, deckRowStyles } from '../../components/HomeDeck';
+import { useHomePalette } from '../../lib/homePalette';
 import {
   requestReminderPermission,
   scheduleDailyReminder,
@@ -77,10 +78,6 @@ const MULTICKLES_CHIP_FONT_SIZE = 14;
 const MULTICKLES_CHIP_SELECTED_FILL = '#FFF8EC';
 const MULTICKLES_CHIP_OUTLINE = 'rgba(255,248,236,0.22)';
 const MULTICKLES_CHIP_TEXT = '#FFF8EC';
-// Each deck card's solid row fill (see deckRowFill), worked out once.
-const ROW_FILL = Object.fromEntries(
-  Object.entries(DECK_COLORS).map(([key, color]) => [key, { backgroundColor: deckRowFill(color) }])
-);
 // Home's vertical gaps (dp), kept tight so the whole page fits above the
 // tab bar at the default text size.
 const TITLE_ROW_GAP = 4; // under the header row
@@ -254,6 +251,9 @@ function computeReturnedFromGap(entries) {
 export default function Home() {
   const { session, profile, refreshProfile } = useAuth();
   const accent = accentFor(profile?.accent_theme);
+  // The chosen Home colour set (lib/homePalette.js): deck card colours,
+  // their row fills (worked out once per set) and the Vibe card colours.
+  const { deck: deckColors, vibe: vibeColors, rowFill } = useHomePalette();
   const tabBarHeight = useBottomTabBarHeight();
   const insets = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
@@ -1094,7 +1094,7 @@ export default function Home() {
     return {
       key: 'remember',
       title: !remember || remember.isFallback ? 'Your latest Tickle' : 'Remember this?',
-      color: DECK_COLORS.remember,
+      color: deckColors.remember,
       children: !remember ? renderPlaceholderRow() : remember.entries.map((entry) => {
         const isPhotoOnly = entry.entry_kind === 'photo_only';
         const photoUri = isPhotoOnly ? linkedPhotoUris.get(entry.id) || null : null;
@@ -1112,7 +1112,7 @@ export default function Home() {
         return (
           <TouchableOpacity
             key={entry.id}
-            style={[deckRowStyles.row, ROW_FILL.remember]}
+            style={[deckRowStyles.row, rowFill.remember]}
             activeOpacity={0.7}
             onPress={() => goToEntryInFeed(entry.id)}
             accessibilityRole="button"
@@ -1163,7 +1163,7 @@ export default function Home() {
       title: 'Your Rewards',
       sub: balanceText,
       subA11y,
-      color: DECK_COLORS.rewards,
+      color: deckColors.rewards,
       headerAction: { label: 'Reward List', a11yLabel: 'Open Reward List', onPress: () => router.push('/wishlist') },
       children: rewardItems.length === 0 ? renderPlaceholderRow() : rewardItems.map((item) => {
         const canRedeem = item.cost <= tokenBalance;
@@ -1175,7 +1175,7 @@ export default function Home() {
           // Name and cost in separate Texts so only the name truncates.
           <TouchableOpacity
             key={item.id}
-            style={[deckRowStyles.row, ROW_FILL.rewards]}
+            style={[deckRowStyles.row, rowFill.rewards]}
             activeOpacity={0.7}
             onPress={() => router.push('/wishlist')}
             accessibilityRole="button"
@@ -1188,7 +1188,7 @@ export default function Home() {
             {/* Hollow cream ring below the cost, solid cream with a tick
                 in the card colour once affordable. */}
             <View style={[styles.rewardCircle, canRedeem && styles.rewardCircleFilled]}>
-              {canRedeem && <Ionicons name="checkmark" size={13} color={DECK_COLORS.rewards} />}
+              {canRedeem && <Ionicons name="checkmark" size={13} color={deckColors.rewards} />}
             </View>
           </TouchableOpacity>
         );
@@ -1228,7 +1228,7 @@ export default function Home() {
               accessibilityLabel={label}
               accessibilityState={{ selected }}
             >
-              <Text style={[styles.multicklesChipText, selected && styles.multicklesChipTextSelected]}>{label}</Text>
+              <Text style={[styles.multicklesChipText, selected && { color: deckColors.multickles }]}>{label}</Text>
             </TouchableOpacity>
           );
         })}
@@ -1249,7 +1249,7 @@ export default function Home() {
     return ongoing.map((t) => (
       <TouchableOpacity
         key={t.id}
-        style={[deckRowStyles.row, ROW_FILL.multickles]}
+        style={[deckRowStyles.row, rowFill.multickles]}
         activeOpacity={0.7}
         onPress={() => router.push({ pathname: '/tale', params: { id: t.id } })}
         accessibilityRole="button"
@@ -1264,14 +1264,14 @@ export default function Home() {
     return {
       key: 'multickles',
       title: MULTICKLES_CARD_TITLE,
-      color: DECK_COLORS.multickles,
+      color: deckColors.multickles,
       headerRight: renderMulticklesSwitch(),
       children: multicklesView === 'mine' ? renderMyTaleRows() : followedTales.length === 0 ? (
         <Text style={deckRowStyles.body}>You are not following any Blogbits yet.</Text>
       ) : followedTales.map((t) => (
         <TouchableOpacity
           key={t.id}
-          style={[deckRowStyles.row, ROW_FILL.multickles]}
+          style={[deckRowStyles.row, rowFill.multickles]}
           activeOpacity={0.7}
           onPress={() => openFollowedTale(t)}
           accessibilityRole="button"
@@ -1348,7 +1348,7 @@ export default function Home() {
         return (
           <TouchableOpacity
             key={g.id}
-            style={[deckRowStyles.row, ROW_FILL.goals]}
+            style={[deckRowStyles.row, rowFill.goals]}
             activeOpacity={0.7}
             onPress={() => router.push({ pathname: '/goal', params: { id: g.id } })}
             accessibilityRole="button"
@@ -1372,7 +1372,7 @@ export default function Home() {
                 size={22}
                 accessible={false}
                 color={DECK_TEXT}
-                tickColor={DECK_COLORS.goals}
+                tickColor={deckColors.goals}
               />
             ) : (
               <Text style={deckRowStyles.meta}>{count}</Text>
@@ -1381,7 +1381,7 @@ export default function Home() {
         );
       });
     }
-    return { key: 'goals', title: 'Your Goals', color: DECK_COLORS.goals, children };
+    return { key: 'goals', title: 'Your Goals', color: deckColors.goals, children };
   }
 
   // Routines and Reminders: today's tiles under Morning, Afternoon and
@@ -1407,7 +1407,7 @@ export default function Home() {
         <>
           <Text style={deckRowStyles.body}>Plan a few small things for each part of your day.</Text>
           <TouchableOpacity
-            style={[deckRowStyles.row, ROW_FILL.rnrs]}
+            style={[deckRowStyles.row, rowFill.rnrs]}
             activeOpacity={0.7}
             onPress={openRnrs}
             accessibilityRole="button"
@@ -1429,7 +1429,7 @@ export default function Home() {
             return (
               <TouchableOpacity
                 key={p.id}
-                style={[deckRowStyles.row, ROW_FILL.rnrs, skipped && styles.rnrRowSkipped]}
+                style={[deckRowStyles.row, rowFill.rnrs, skipped && [styles.rnrRowSkipped, { backgroundColor: deckColors.rnrs }]]}
                 activeOpacity={0.7}
                 onPress={openRnrs}
                 accessibilityRole="button"
@@ -1449,7 +1449,7 @@ export default function Home() {
         </View>
       ));
     }
-    return { key: 'rnrs', title: 'Nudges & Notes', color: DECK_COLORS.rnrs, children };
+    return { key: 'rnrs', title: 'Nudges & Notes', color: deckColors.rnrs, children };
   }
 
   // Card order: Remember this?, Your Goals, Your Rewards, Multickles,
@@ -1590,7 +1590,7 @@ export default function Home() {
             <VibeCard
               key={key}
               nature={key}
-              color={VIBE_CARD_PALETTE.colors[key]}
+              color={vibeColors[key]}
               textColor={VIBE_CARD_PALETTE.text}
               lit={isVibeLit(key)}
               litWeekly={isVibeLitWeekly(key)}
@@ -1662,7 +1662,7 @@ export default function Home() {
               {NATURE_ORDER.map((key) => (
                 <View
                   key={key}
-                  style={{ width: QUICK_DOT_SIZE, height: QUICK_DOT_SIZE, borderRadius: QUICK_DOT_SIZE / 2, backgroundColor: VIBE_CARD_PALETTE.colors[key] }}
+                  style={{ width: QUICK_DOT_SIZE, height: QUICK_DOT_SIZE, borderRadius: QUICK_DOT_SIZE / 2, backgroundColor: vibeColors[key] }}
                   accessible={false}
                 />
               ))}
@@ -1839,16 +1839,16 @@ const styles = StyleSheet.create({
   multicklesChipSelected: { backgroundColor: MULTICKLES_CHIP_SELECTED_FILL, borderColor: MULTICKLES_CHIP_SELECTED_FILL },
   multicklesChipIdle: { backgroundColor: 'transparent', borderColor: MULTICKLES_CHIP_OUTLINE },
   multicklesChipText: { fontSize: MULTICKLES_CHIP_FONT_SIZE, fontWeight: '600', color: MULTICKLES_CHIP_TEXT },
-  multicklesChipTextSelected: { color: DECK_COLORS.multickles },
 
   // Routines and Reminders card: one block per slot (heading + rows, 8dp
   // apart, like the list's own gap). Heading in the pop-up's slot-label
   // type (13/700). Skipped rows: no fill, dashed outline, faded label.
   rnrSlot: { gap: 8 },
   rnrSlotLabel: { fontSize: 13, fontWeight: '700', color: DECK_SUBTEXT },
-  // The card's own colour, solid (not transparent), so it still reads as
-  // "no fill" but hides the corner circle like the other rows.
-  rnrRowSkipped: { backgroundColor: DECK_COLORS.rnrs, borderStyle: 'dashed' },
+  // Filled inline with the card's own colour (from the chosen set), solid
+  // (not transparent), so it still reads as "no fill" but hides the corner
+  // circle like the other rows.
+  rnrRowSkipped: { borderStyle: 'dashed' },
   rnrLabelSkipped: { color: DECK_SUBTEXT },
   rnrState: { flexShrink: 0, fontSize: 13, fontWeight: '700', color: DECK_SUBTEXT },
 

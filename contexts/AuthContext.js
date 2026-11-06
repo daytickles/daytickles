@@ -13,6 +13,7 @@ const AuthContext = createContext(null);
 // whether anything the UI cares about changed.
 const RENDER_RELEVANT_FIELDS = [
   'accent_theme',
+  'home_palette',
   'home_guide_seen',
   'username',
   'onboarded',

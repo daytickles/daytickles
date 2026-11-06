@@ -11,7 +11,8 @@ import FoundingMemberBadge from './FoundingMemberBadge';
 import NatureIcon from './NatureIcon';
 import AwardBadges from './AwardBadges';
 import { BUTTON_HEIGHT, BUTTON_HIT_SLOP, BUTTON_RADIUS } from '../lib/buttonSize';
-import { DECK_COLORS, DECK_TEXT } from './HomeDeck';
+import { DECK_TEXT } from './HomeDeck';
+import { useHomePalette } from '../lib/homePalette';
 
 function formatEntryDate(entryDate) {
   return new Date(`${entryDate}T00:00:00Z`).toLocaleDateString('en-US', {
@@ -136,6 +137,9 @@ export default function EntryCard({
   // (onToggleVisibility/onDelete/router push for edit), so there's
   // nothing a parent screen needs to coordinate across cards.
   const [menuOpen, setMenuOpen] = useState(false);
+  // The Blogbit chip's fill: the Blogbits colour of the viewer's chosen
+  // Home colour set (the same for every card, whoever wrote it).
+  const blogbitColor = useHomePalette().deck.multickles;
   // A Quick Tickle (lib/quickTickle.js): the owner's own text-less,
   // photo-less Tickle. Its body is a QT dot plus a "Tickle it" pill
   // (dismissable per phone); Ripple and Share stay hidden until it has
@@ -413,7 +417,7 @@ export default function EntryCard({
         <TouchableOpacity
           onPress={() => router.push({ pathname: '/tale', params: { id: taleBadge.taleId } })}
           hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-          style={styles.taleChip}
+          style={[styles.taleChip, { backgroundColor: blogbitColor, borderColor: blogbitColor }]}
           accessibilityRole="button"
           accessibilityLabel={`${taleBadge.title}, Blogbit${taleBadge.chapterNumber == null ? ', not Rippled' : ''}${taleBadge.completed ? ', complete' : ''}`}
         >
@@ -896,12 +900,13 @@ const styles = StyleSheet.create({
   // alignSelf flex-start so the chip hugs its content instead of
   // stretching the full row; the title is the only part that shrinks,
   // so a long Tale title truncates without ever clipping "· not Rippled".
-  // Filled with Home's Blogbits card colour, cream text (7.18:1). The 1dp
-  // border stays, in the fill colour, so the chip keeps its size.
+  // Filled (inline) with the Blogbits colour of the chosen Home colour
+  // set, cream text (7.2:1 or more on every set). The 1dp border stays,
+  // in the fill colour, so the chip keeps its size.
   taleChip: {
     flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', maxWidth: '100%',
     paddingVertical: 3, paddingHorizontal: 8, borderRadius: 10, marginBottom: 6,
-    backgroundColor: DECK_COLORS.multickles, borderWidth: 1, borderColor: DECK_COLORS.multickles,
+    borderWidth: 1,
   },
   taleChipTitle: { fontSize: 11, fontWeight: '600', color: DECK_TEXT, flexShrink: 1 },
   taleChipMeta: { fontSize: 11, fontWeight: '600', color: DECK_TEXT },

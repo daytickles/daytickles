@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { C, AWARD_TYPES, AWARD_HAND_ICON, AWARD_BADGE_COLOR, awardLabelFor, withAlpha } from '../lib/theme';
 import { flagEmoji } from '../lib/country';
 import { taleIconName } from '../lib/tales';
-import { DECK_COLORS } from './HomeDeck';
+import { useHomePalette } from '../lib/homePalette';
 
 // Any type without its own wording (or a row whose wording comes out
 // empty) gets this line, so no row is ever blank.
@@ -69,19 +69,20 @@ export function notificationBody(n) {
 }
 
 // Icon and colour per type: High Five = its award's own colour; the rest
-// from Home's deck colours (like = Goals, favourite = Rewards, Blogbit =
+// from the chosen Home colour set's deck colours (`deck`, from
+// lib/homePalette.js: like = Goals, favourite = Rewards, Blogbit =
 // Blogbits). Unknown types get a plain bell in the subtext colour.
-function notificationIcon(n) {
+function notificationIcon(n, deck) {
   switch (n.type) {
     case 'award':
       return { kind: 'ion', name: AWARD_HAND_ICON, color: AWARD_TYPES[n.award_type]?.color || AWARD_BADGE_COLOR };
     case 'like':
-      return { kind: 'ion', name: 'thumbs-up', color: DECK_COLORS.goals };
+      return { kind: 'ion', name: 'thumbs-up', color: deck.goals };
     case 'favorite':
       // The same ★ glyph the Tickle cards' star uses.
-      return { kind: 'star', color: DECK_COLORS.rewards };
+      return { kind: 'star', color: deck.rewards };
     case 'tale_chapter':
-      return { kind: 'ion', name: taleIconName(n.tales?.icon), color: DECK_COLORS.multickles };
+      return { kind: 'ion', name: taleIconName(n.tales?.icon), color: deck.multickles };
     default:
       return { kind: 'ion', name: 'notifications-outline', color: C.subtext };
   }
@@ -166,7 +167,8 @@ export function NotificationSheetRow({ item, onPress }) {
   const unread = !n.is_read;
   const title = notificationTitle(n);
   const body = notificationBody(n);
-  const icon = notificationIcon(n);
+  const { deck } = useHomePalette();
+  const icon = notificationIcon(n, deck);
   const label = [title, unread ? 'unread' : 'read', item.spoken].filter(Boolean).join(', ');
   return (
     <TouchableOpacity
