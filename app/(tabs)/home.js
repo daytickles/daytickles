@@ -1498,6 +1498,54 @@ export default function Home() {
     { key: 'ripples', icon: 'eye-outline', value: `${weekRipples} | ${monthRipples} | ${totalRipples}`, tooltip: "Ripples · week / month / all-time", label: 'Ripples', a11yName: 'Ripples' },
   ];
 
+  // Home's New Tickle row, drawn by TesterFeedbackPill (renderRow).
+  // test is null for everyone but a tester with ideas today: then the
+  // row is exactly New Tickle and Quick Tickle, right-aligned, as before.
+  // For a tester (TEMPORARY) it is { pill, onButtonsLayout }: pill is the
+  // "Test Ideas" or "Test" pill when one fits to the left of the two
+  // buttons, or null when neither does (TesterFeedbackPill then shows it
+  // on its own line under the row); onButtonsLayout reports the two
+  // buttons' natural width, which that fit check needs.
+  function renderNewTickleRow(test) {
+    const buttons = (
+      <>
+        <NewTickleButton home onPress={() => router.push('/create')} />
+        <TouchableOpacity
+          ref={quickDotRef}
+          onPress={openQuickPopover}
+          disabled={quickSaving}
+          activeOpacity={0.8}
+          hitSlop={HOME_BUTTON_HIT_SLOP}
+          style={[TICKLE_BUTTON_SURFACE, styles.quickDot, QUICK_BUTTON_SHAPE]}
+          accessibilityRole="button"
+          accessibilityLabel="Quick Tickle: log a Vibe in one tap"
+          accessibilityState={{ expanded: quickPopoverOpen, disabled: quickSaving }}
+        >
+          <View style={styles.quickDotDots} accessible={false} importantForAccessibility="no-hide-descendants">
+            {NATURE_ORDER.map((key) => (
+              <View
+                key={key}
+                style={{ width: QUICK_DOT_SIZE, height: QUICK_DOT_SIZE, borderRadius: QUICK_DOT_SIZE / 2, backgroundColor: vibeColors[key] }}
+                accessible={false}
+              />
+            ))}
+          </View>
+        </TouchableOpacity>
+      </>
+    );
+    if (!test) {
+      return <View style={[styles.newTickleRow, { gap: HOME_BUTTON_GAP }]}>{buttons}</View>;
+    }
+    return (
+      <View style={[styles.newTickleRow, { gap: HOME_BUTTON_GAP }]}>
+        {test.pill}
+        <View style={[styles.newTickleButtons, { gap: HOME_BUTTON_GAP }]} onLayout={test.onButtonsLayout}>
+          {buttons}
+        </View>
+      </View>
+    );
+  }
+
   return (
     <>
     <WallpaperBackground>
@@ -1654,32 +1702,10 @@ export default function Home() {
         {/* New Tickle, then Quick Tickle at the far right. Both share
             one slim pill look (components/NewTickleButton.js). The popup
             measures the visible Quick Tickle pill when it opens, so it
-            stays anchored above it. */}
-        <View style={[styles.newTickleRow, { gap: HOME_BUTTON_GAP }]}>
-          <NewTickleButton home onPress={() => router.push('/create')} />
-          <TouchableOpacity
-            ref={quickDotRef}
-            onPress={openQuickPopover}
-            disabled={quickSaving}
-            activeOpacity={0.8}
-            hitSlop={HOME_BUTTON_HIT_SLOP}
-            style={[TICKLE_BUTTON_SURFACE, styles.quickDot, QUICK_BUTTON_SHAPE]}
-            accessibilityRole="button"
-            accessibilityLabel="Quick Tickle: log a Vibe in one tap"
-            accessibilityState={{ expanded: quickPopoverOpen, disabled: quickSaving }}
-          >
-            <View style={styles.quickDotDots} accessible={false} importantForAccessibility="no-hide-descendants">
-              {NATURE_ORDER.map((key) => (
-                <View
-                  key={key}
-                  style={{ width: QUICK_DOT_SIZE, height: QUICK_DOT_SIZE, borderRadius: QUICK_DOT_SIZE / 2, backgroundColor: vibeColors[key] }}
-                  accessible={false}
-                />
-              ))}
-            </View>
-          </TouchableOpacity>
-        </View>
-        <TesterFeedbackPill scrollRef={scrollRef} />
+            stays anchored above it. For testers (TEMPORARY), the Test
+            Ideas (or Test) pill sits to their left; the row is drawn by
+            TesterFeedbackPill so its panel can open under the whole row. */}
+        <TesterFeedbackPill scrollRef={scrollRef} renderRow={renderNewTickleRow} />
 
         {loading && <ActivityIndicator color={C.rust} style={styles.loader} />}
 
@@ -1825,6 +1851,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end',
     zIndex: 10, elevation: 10,
   },
+  // New Tickle and Quick Tickle as one natural-width group, for the
+  // tester row only (renderNewTickleRow) -- measured for the Test Ideas
+  // fit check, never squeezed.
+  newTickleButtons: { flexDirection: 'row', alignItems: 'center', flexShrink: 0 },
   // Fill, border and shadow come from TICKLE_BUTTON_SURFACE; size from
   // QUICK_BUTTON_SHAPE.
   quickDot: { alignItems: 'center', justifyContent: 'center' },

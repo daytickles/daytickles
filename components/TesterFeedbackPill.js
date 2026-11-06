@@ -1,16 +1,18 @@
 // components/TesterFeedbackPill.js
 //
-// TEMPORARY (closed testing) -- the "Test ideas for today" pill under
-// Home's New Tickle button. Remove this file, lib/testerFeedback.js
+// TEMPORARY (closed testing) -- the "Test Ideas" pill on Home's New
+// Tickle row. Remove this file, lib/testerFeedback.js
 // (incl. fetchTodayMessage) and the home.js lines before public release
 // (feedback_pill_audit.md section 9; tables from migrations 0070 and
 // 0071 -- feedback_day_messages -- dropped by a later migration).
 //
-// Entirely self-contained: it loads on its own focus (nothing in Home
-// awaits it) and renders nothing at all when there are no tasks --
-// which is what a non-tester, a day without tasks and a failed load all
-// look like. Answers save on every tap (optimistic), only ever to the
-// tester's own feedback_answers rows; never to profiles.
+// Self-contained: it loads on its own focus (nothing in Home awaits
+// it). Home passes renderRow, which draws the New Tickle row: the plain
+// row when there are no tasks -- what a non-tester, a day without tasks
+// and a failed load all get -- else with the pill on it when it fits.
+// The open panel goes full width under that row. Answers save on every tap
+// (optimistic), only ever to the tester's own feedback_answers rows;
+// never to profiles.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Keyboard } from 'react-native';
@@ -19,6 +21,8 @@ import { useFocusEffect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { fetchTodayTasks, fetchTodayMessage, saveAnswer } from '../lib/testerFeedback';
 import { C, withAlpha } from '../lib/theme';
+import { BUTTON_HEIGHT } from '../lib/buttonSize';
+import { HOME_BUTTON_GAP, HOME_BUTTON_HIT_SLOP } from './NewTickleButton';
 
 // Deliberately not a theme token -- this pill should read as "not part
 // of the app" and go away with it.
@@ -37,7 +41,12 @@ const NOTE_KEYBOARD_GAP = 56;
 // scrollRef: Home's main ScrollView. This app runs edge-to-edge, so
 // Android doesn't resize the window for the keyboard; instead the note
 // box asks that ScrollView to scroll it clear of the keyboard.
-export default function TesterFeedbackPill({ scrollRef }) {
+// renderRow(test): Home's New Tickle row. test is null when there is no
+// pill today (the plain row), else { pill, onButtonsLayout } -- pill is
+// the "Test Ideas" or "Test" row pill when one fits on the row, or null
+// when neither does (it then shows here, on its own line under the row,
+// with its full label). See home.js renderNewTickleRow.
+export default function TesterFeedbackPill({ scrollRef, renderRow }) {
   const { session } = useAuth();
   const userId = session?.user.id;
   // [{ id, title, detail, answer, note, draft, error }] -- `note` is the
@@ -49,6 +58,13 @@ export default function TesterFeedbackPill({ scrollRef }) {
   // Task id whose note box should take focus on mount: only when the
   // tester has just picked Problem, never for a note loaded from the DB.
   const [focusNoteFor, setFocusNoteFor] = useState(null);
+  // Natural widths (dp) for the row fit check: the whole row, Home's two
+  // buttons, and the "Test Ideas" and "Test" row pills (measured from
+  // hidden copies). 0 = not measured yet, which counts as "doesn't fit".
+  const [rowWidth, setRowWidth] = useState(0);
+  const [buttonsWidth, setButtonsWidth] = useState(0);
+  const [ideasPillWidth, setIdeasPillWidth] = useState(0);
+  const [testPillWidth, setTestPillWidth] = useState(0);
 
   const loadSeq = useRef(0);
   const messageSeq = useRef(0);
@@ -179,7 +195,7 @@ export default function TesterFeedbackPill({ scrollRef }) {
     save(task.id, last.answer, last.note);
   }
 
-  if (tasks.length === 0) return null;
+  if (tasks.length === 0) return renderRow(null);
 
   const count = tasks.length;
   // Derived, never stored: every one of today's tasks has an answer (a
@@ -189,32 +205,79 @@ export default function TesterFeedbackPill({ scrollRef }) {
   // NOT collapse when this flips, so a last-moment Problem still gets
   // its note box.
   const complete = tasks.every((t) => !!t.answer);
+  const tick = complete ? ' ✓' : '';
+  // Three steps, first that fits wins: "Test Ideas" on the row, "Test"
+  // on the row, else its own line under the row with the full label (as
+  // before). A row label fits when that pill, the gap and both buttons
+  // fit at their natural widths, so nothing is ever squeezed. Re-checked
+  // whenever a width changes (rotation, font size, the ✓ appearing).
+  const fits = (pillWidth) =>
+    rowWidth > 0 && buttonsWidth > 0 && pillWidth > 0 &&
+    pillWidth + HOME_BUTTON_GAP + buttonsWidth <= rowWidth + 0.5;
+  let rowLabel = null;
+  if (fits(ideasPillWidth)) rowLabel = `Test Ideas${tick}`;
+  else if (fits(testPillWidth)) rowLabel = `Test${tick}`;
+  const pillA11y = {
+    accessibilityRole: 'button',
+    accessibilityState: { expanded: open },
+    accessibilityLabel: complete
+      ? 'Test ideas for today, all answered. Thank you.'
+      : `Test ideas for today, ${count} idea${count === 1 ? '' : 's'}.`,
+  };
+  const textStyle = [styles.pillText, complete && styles.pillTextDone];
+  // On the row: New Tickle's height and corners, no chevron.
+  const rowPillStyle = [styles.pill, complete && styles.pillDone, styles.pillInRow];
+  // Hidden copies of both row pills, only to measure their natural
+  // widths at the current font size. Never seen, tapped or read out.
+  const measurer = (label, onWidth) => (
+    <View
+      style={[rowPillStyle, styles.measure]}
+      pointerEvents="none"
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      onLayout={(e) => onWidth(e.nativeEvent.layout.width)}
+    >
+      <Text style={textStyle}>{label}</Text>
+    </View>
+  );
   return (
-    <View style={styles.wrap}>
-      <TouchableOpacity
-        style={[styles.pill, complete && styles.pillDone]}
-        activeOpacity={0.8}
-        onPress={() => setOpen((v) => !v)}
-        accessibilityRole="button"
-        accessibilityState={{ expanded: open }}
-        accessibilityLabel={
-          complete
-            ? 'Test ideas for today, all answered. Thank you.'
-            : `Test ideas for today, ${count} idea${count === 1 ? '' : 's'}.`
-        }
-      >
-        <Text style={[styles.pillText, complete && styles.pillTextDone]}>
-          {complete ? 'Test ideas for today ✓' : 'Test ideas for today'}
-        </Text>
-        <Ionicons
-          name={open ? 'chevron-up' : 'chevron-down'}
-          size={18}
-          color={complete ? C.text : C.amberText}
-        />
-      </TouchableOpacity>
+    <View style={styles.wrap} onLayout={(e) => setRowWidth(e.nativeEvent.layout.width)}>
+      {renderRow({
+        pill: rowLabel && (
+          <TouchableOpacity
+            style={rowPillStyle}
+            activeOpacity={0.8}
+            hitSlop={HOME_BUTTON_HIT_SLOP}
+            onPress={() => setOpen((v) => !v)}
+            {...pillA11y}
+          >
+            <Text style={textStyle} numberOfLines={1}>{rowLabel}</Text>
+          </TouchableOpacity>
+        ),
+        onButtonsLayout: (e) => setButtonsWidth(e.nativeEvent.layout.width),
+      })}
+      {!rowLabel && (
+        <TouchableOpacity
+          style={[styles.pill, complete && styles.pillDone, styles.pillOwnLine]}
+          activeOpacity={0.8}
+          onPress={() => setOpen((v) => !v)}
+          {...pillA11y}
+        >
+          <Text style={textStyle}>{`Test ideas for today${tick}`}</Text>
+          <Ionicons
+            name={open ? 'chevron-up' : 'chevron-down'}
+            size={18}
+            color={complete ? C.text : C.amberText}
+          />
+        </TouchableOpacity>
+      )}
+
+      {measurer(`Test Ideas${tick}`, setIdeasPillWidth)}
+      {measurer(`Test${tick}`, setTestPillWidth)}
 
       {/* In-flow, never absolute: opening it pushes Home's cards down
-          instead of covering them (and catching their taps). */}
+          instead of covering them (and catching their taps). Full width,
+          under the whole row. */}
       {open && (
         <View style={styles.panel}>
           {!!message && <Text style={styles.message}>{message}</Text>}
@@ -308,9 +371,10 @@ export default function TesterFeedbackPill({ scrollRef }) {
 }
 
 const styles = StyleSheet.create({
-  // marginTop only -- whatever follows (loader, QuickStartCard, the
-  // bottom cards) already brings its own 12dp top margin.
-  wrap: { marginTop: 12 },
+  // The row plus the panel. Drawn above the deck like Home's own row
+  // (zIndex, plus elevation for Android) -- the row's own zIndex only
+  // counts inside this View.
+  wrap: { zIndex: 10, elevation: 10 },
   pill: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     minHeight: 44, paddingVertical: 10, paddingHorizontal: 20,
@@ -320,6 +384,17 @@ const styles = StyleSheet.create({
   // All answered: same shape and size, calm beige instead of the yellow.
   pillDone: { backgroundColor: C.sparkleBg, borderColor: withAlpha(OUTLINE, 0.5) },
   pillTextDone: { color: C.text },
+  // On the row: New Tickle's height and corner shape (lib/buttonSize.js;
+  // minHeight, so a large font size grows it), side padding 14, filling
+  // the room left of New Tickle. Fill, border and text stay the pill's.
+  pillInRow: {
+    flexGrow: 1, minHeight: BUTTON_HEIGHT, borderRadius: BUTTON_HEIGHT / 2,
+    paddingVertical: 0, paddingHorizontal: 14,
+  },
+  // On its own line: full width, 12dp under the row (as before).
+  pillOwnLine: { marginTop: 12 },
+  // The hidden measuring copies: out of the flow, natural width.
+  measure: { position: 'absolute', top: 0, left: 0, opacity: 0 },
   thanks: {
     fontSize: 13, color: C.text, lineHeight: 18, marginBottom: 4,
     backgroundColor: C.sparkleBg, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 10,
