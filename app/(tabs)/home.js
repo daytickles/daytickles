@@ -280,8 +280,8 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   // Pull-down refresh spinner, separate from `loading` (see handleRefresh).
   const [refreshing, setRefreshing] = useState(false);
-  // A failed load shows its own message instead of the new-user empty
-  // state (and Quick start), which would wrongly read as "no Tickles".
+  // A failed load shows its own message, and hides Quick start, so an
+  // account whose Tickles just didn't load isn't treated as having none.
   const [loadError, setLoadError] = useState(false);
   const [goals, setGoals] = useState([]);
   // Map<entryId, uri> -- resolved display image for every currently-
@@ -1741,12 +1741,8 @@ export default function Home() {
           <QuickStartCard onDismiss={handleDismissQuickStart} style={styles.quickStartTopGap} />
         )}
 
-        {!loading && entries.length === 0 && (
-          <Text style={styles.emptyText}>
-            {loadError
-              ? "Couldn't load your Tickles — please try again later."
-              : 'No Tickles yet — write about what made you smile today.'}
-          </Text>
+        {!loading && entries.length === 0 && loadError && (
+          <Text style={styles.emptyText}>Couldn't load your Tickles — please try again later.</Text>
         )}
 
         {/* Mounted from the start (not after loading), so the deck holds
