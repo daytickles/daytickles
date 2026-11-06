@@ -107,7 +107,7 @@ const SECTIONS = [
     items: [
       { id: 'browse-stash-tabs', label: "Switch between Stash tabs (Mine, Fav's, Following, Rippled)" },
       { id: 'calendar-open-from-icon', label: 'Open the Calendar from the calendar icon at the top of Home (also on Tickle Stash and Tickle Pics; not shown on the Calendar itself)' },
-      { id: 'calendar-no-token-circle', label: 'The token circle is gone from the top bar; your balance still shows next to Your Rewards on Home' },
+      { id: 'calendar-no-token-circle', label: 'The token circle is gone from the top bar; your balance still shows next to My Rewards on Home' },
       { id: 'browse-calendar-past-day', label: 'Browse the Calendar and tap into a past day' },
       { id: 'calendar-day-marks', label: 'Calendar: check a month with Day Dots answered, skipped and missing (open circle on days with Tickles only)' },
       { id: 'calendar-pills-open-close', label: 'Calendar: tap a day, open and close the Tickles and Goals pills' },
@@ -115,6 +115,7 @@ const SECTIONS = [
       { id: 'calendar-delete-updates', label: 'Calendar: delete a Tickle or change its Goal from the day list, and check the pill counts update' },
       { id: 'calendar-large-font', label: 'Calendar: check the pills and grid at the largest font size' },
       { id: 'browse-weekly-summary', label: 'Open Your Week' },
+      { id: 'deck-plus-buttons', label: 'On Home, the Your Goals, My Rewards, Blogbits and Nudges & Notes cards each have a + that opens the matching screen; Remember this? has none.' },
     ],
   },
   {

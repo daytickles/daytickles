@@ -36,7 +36,9 @@ import GoalTargetCircle from '../../components/GoalTargetCircle';
 import QuickTickleToast from '../../components/QuickTickleToast';
 import QuickTicklePopover from '../../components/QuickTicklePopover';
 import RnrsPopup from '../../components/RnrsPopup';
-import HomeDeck, { DECK_WIDTH, DECK_TEXT, DECK_SUBTEXT, deckRowStyles } from '../../components/HomeDeck';
+import HomeDeck, {
+  DECK_WIDTH, DECK_TEXT, DECK_SUBTEXT, deckRowStyles, HEADER_ADD_SIZE, HEADER_ADD_ICON_SIZE, HEADER_ADD_HIT_SLOP,
+} from '../../components/HomeDeck';
 import { useHomePalette } from '../../lib/homePalette';
 import {
   requestReminderPermission,
@@ -1147,13 +1149,13 @@ export default function Home() {
     };
   }
 
-  // Your Rewards: every reward on the Reward List, in fetchWishlistItems'
+  // My Rewards: every reward on the Reward List, in fetchWishlistItems'
   // cost-ascending order, each with a circle that fills once the balance
   // reaches its cost. Rewards are repeatable (redeeming never removes
   // one, see migration 0065). Redeeming itself stays on the Reward List
   // with its own confirmation -- every row, the out-of-reach ones
-  // included, just opens it, as does the Reward List button in the
-  // header. The token total is the sub line; its screen-reader label
+  // included, just opens it, as does the + in the header's corner. The
+  // token total is the sub line; its screen-reader label
   // names only the affordable rewards, and reads just the balance when
   // none are. With no rewards at all, a placeholder row.
   const affordableRewards = tokensEnabled ? rewardItems.filter((i) => i.cost <= tokenBalance) : [];
@@ -1170,11 +1172,11 @@ export default function Home() {
       : `${balanceText}. You can redeem ${joinNames(affordableRewards.map((i) => i.label))}.`;
     return {
       key: 'rewards',
-      title: 'Your Rewards',
+      title: 'My Rewards',
       sub: balanceText,
       subA11y,
       color: deckColors.rewards,
-      headerAction: { label: 'Reward List', a11yLabel: 'Open Reward List', onPress: () => router.push('/wishlist') },
+      headerAdd: { a11yLabel: 'Add a reward. Opens Reward List.', onPress: () => router.push('/wishlist') },
       children: rewardItems.length === 0 ? renderPlaceholderRow() : rewardItems.map((item) => {
         const canRedeem = item.cost <= tokenBalance;
         const short = item.cost - tokenBalance;
@@ -1219,9 +1221,11 @@ export default function Home() {
     router.push({ pathname: '/tale', params: { id: tale.id } });
   }
 
-  // Follow / Mine switch at the right of the Multickles card's title, in
-  // the header row the Reward List button uses (it wraps under the title
-  // at large font scales). Only one is selected; Follow when Home opens.
+  // Follow / Mine switch at the right of the Blogbits card's title, in
+  // the card's wrapping header row (it wraps under the title at large
+  // font scales), then a round + that opens Manage Blogbits to start
+  // one. Only Follow or Mine is selected; Follow when Home opens. The +
+  // stays in this group, so it wraps with them.
   function renderMulticklesSwitch() {
     return (
       <View style={styles.multicklesSwitch}>
@@ -1242,6 +1246,16 @@ export default function Home() {
             </TouchableOpacity>
           );
         })}
+        <TouchableOpacity
+          onPress={() => router.push('/tales')}
+          hitSlop={HEADER_ADD_HIT_SLOP}
+          activeOpacity={0.7}
+          style={[styles.multicklesChip, styles.multicklesChipIdle, styles.multicklesAdd]}
+          accessibilityRole="button"
+          accessibilityLabel="Create a Blogbit"
+        >
+          <Ionicons name="add" size={HEADER_ADD_ICON_SIZE} color={MULTICKLES_CHIP_TEXT} />
+        </TouchableOpacity>
       </View>
     );
   }
@@ -1312,7 +1326,8 @@ export default function Home() {
   // (app/goal.js). With no active Goals, a gentle prompt instead -- but
   // before the first entry a placeholder row, so a brand-new account isn't
   // shown two calls to action at once (QuickStartCard already covers that
-  // state). Before the first entry the card also waits for the Goals to
+  // state). The header's + (Add a Goal) shows in every state all the
+  // same. Before the first entry the card also waits for the Goals to
   // load, and stays hidden after a failed entries load, where every row's
   // count would wrongly read 0.
   const showGoalsCard = entries.length > 0 || (!loadError && (activeGoals.length > 0 || goalsLoaded));
@@ -1320,7 +1335,7 @@ export default function Home() {
   // Every card shows once its data is in, a placeholder row standing in
   // when it's empty. Your latest Tickle waits on the entries load (the
   // caller's !loading) and is hidden after a failed one, which shows its
-  // own "Couldn't load" text instead. Your Rewards stays hidden while
+  // own "Couldn't load" text instead. My Rewards stays hidden while
   // Tokens & Rewards is off.
   const showRememberCard = !!remember || !loadError;
   const showRedeemCard = tokensEnabled && rewardsLoaded;
@@ -1391,7 +1406,13 @@ export default function Home() {
         );
       });
     }
-    return { key: 'goals', title: 'Your Goals', color: deckColors.goals, children };
+    return {
+      key: 'goals',
+      title: 'Your Goals',
+      color: deckColors.goals,
+      headerAdd: { a11yLabel: 'Add a Goal', onPress: () => router.push('/goals') },
+      children,
+    };
   }
 
   // Routines and Reminders: today's tiles under Morning, Afternoon and
@@ -1399,8 +1420,9 @@ export default function Home() {
   // (components/RnrsPopup.js). Read only here: every tile row opens that
   // pop-up, where Done, Move and Skip are. Done shows a tick, Skipped a
   // faded label and dashed outline, like RnrTile. Nothing today: the full
-  // page's own line, and the pop-up's "Add a tile" row, which opens the
-  // full page like the pop-up's.
+  // page's own line, and an "Add a Nudge or Note" row (the pop-up's says
+  // "Add a tile"), which opens the full page like the pop-up's. The +
+  // in the header opens the full page too, always.
   function openRnrs() {
     router.navigate('/rnrs');
   }
@@ -1421,10 +1443,10 @@ export default function Home() {
             activeOpacity={0.7}
             onPress={openRnrs}
             accessibilityRole="button"
-            accessibilityLabel="Add a tile. Opens Nudges & Notes."
+            accessibilityLabel="Add a Nudge or Note. Opens Nudges & Notes."
           >
             <Ionicons name="add" size={16} color={DECK_TEXT} />
-            <Text style={deckRowStyles.label} numberOfLines={1}>Add a tile</Text>
+            <Text style={deckRowStyles.label} numberOfLines={2}>Add a Nudge or Note</Text>
           </TouchableOpacity>
         </>
       );
@@ -1459,10 +1481,16 @@ export default function Home() {
         </View>
       ));
     }
-    return { key: 'rnrs', title: 'Nudges & Notes', color: deckColors.rnrs, children };
+    return {
+      key: 'rnrs',
+      title: 'Nudges & Notes',
+      color: deckColors.rnrs,
+      headerAdd: { a11yLabel: 'Add a Nudge or Note', onPress: openRnrs },
+      children,
+    };
   }
 
-  // Card order: Remember this?, Your Goals, Your Rewards, Multickles,
+  // Card order: Remember this?, Your Goals, My Rewards, Blogbits,
   // Routines and Reminders -- only the ones that are showing.
   const deckCards = [
     showRememberCard && rememberCard(),
@@ -1880,6 +1908,12 @@ const styles = StyleSheet.create({
   multicklesChipSelected: { backgroundColor: MULTICKLES_CHIP_SELECTED_FILL, borderColor: MULTICKLES_CHIP_SELECTED_FILL },
   multicklesChipIdle: { backgroundColor: 'transparent', borderColor: MULTICKLES_CHIP_OUTLINE },
   multicklesChipText: { fontSize: MULTICKLES_CHIP_FONT_SIZE, fontWeight: '600', color: MULTICKLES_CHIP_TEXT },
+  // The + after Follow / Mine: the chips' height as a circle, same as the
+  // + in the other cards' header corners (HomeDeck's HEADER_ADD_SIZE).
+  multicklesAdd: {
+    flexShrink: 0, width: HEADER_ADD_SIZE, minHeight: HEADER_ADD_SIZE, height: HEADER_ADD_SIZE,
+    borderRadius: HEADER_ADD_SIZE / 2, paddingHorizontal: 0, alignItems: 'center',
+  },
 
   // Routines and Reminders card: one block per slot (heading + rows, 8dp
   // apart, like the list's own gap). Heading in the pop-up's slot-label

@@ -12,16 +12,20 @@ import { TILE_SOURCE, TILE_SIZE as WALLPAPER_TILE_SIZE, OPACITY as WALLPAPER_OPA
 // the arrows and dots go to the previous, next or any card. Plain RN
 // Animated only -- no gesture or animation library.
 //
-// cards: [{ key, title, sub, subA11y, headerAction, headerRight, color, children }]
+// cards: [{ key, title, sub, subA11y, headerAction, headerRight, headerAdd, color, children }]
 //   key          stable id ('remember' | 'goals' | 'rewards' | 'multickles' | 'rnrs')
 //   sub          optional sub line under the title
-//   headerAction optional { label, a11yLabel, onPress } -- a small button
-//                at the right of the header (Your Rewards' Reward List)
+//   headerAction optional { label, a11yLabel, onPress } -- a small text
+//                button at the right of the title (no card uses it now)
 //   headerRight  optional node at the right of the header, in the same
-//                wrapping row as the title and headerAction (Multickles'
-//                Follow / Mine); it should not shrink (flexShrink 0)
+//                wrapping row as the title and headerAction (Blogbits'
+//                Follow / Mine / +); it should not shrink (flexShrink 0)
+//   headerAdd    optional { a11yLabel, onPress } -- a round + button in
+//                the header's right corner, outside the wrapping row, so
+//                a long title goes to 2 lines instead of moving it (Your
+//                Goals, My Rewards, Nudges & Notes). Front card only.
 //   children     the card's rows (scroll vertically inside the card)
-// The caller only passes the cards that are showing (e.g. no Your Rewards
+// The caller only passes the cards that are showing (e.g. no My Rewards
 // while Tokens & Rewards is off), so the deck can hold 1 to 5.
 
 export const DECK_WIDTH = 322;
@@ -90,6 +94,12 @@ const CARD_BORDER_COLOR = 'rgba(255,248,236,0.22)';
 const CARD_BORDER_WIDTH = 1;
 const CARD_PADDING_TOP = 16;
 const CARD_PADDING_SIDE = 16;
+// The header's round + button (headerAdd): 30dp circle, 18dp icon,
+// 7dp hitSlop all round for a 44x44dp tap area. Exported so Blogbits'
+// + beside Follow / Mine (home.js) is the same size.
+export const HEADER_ADD_SIZE = 30;
+export const HEADER_ADD_ICON_SIZE = 18;
+export const HEADER_ADD_HIT_SLOP = { top: 7, bottom: 7, left: 7, right: 7 };
 // Faint circle in each card's top-left corner, clipped by the card's
 // rounded corners (the card's own overflow: 'hidden'). Offsets are from
 // the card's outer top-left corner.
@@ -463,20 +473,33 @@ export default function HomeDeck({ cards, width, dataSettled = true, fitHeight =
           ]}
         >
           <CornerCircle />
-          <View style={styles.headerRow}>
-            <Text style={styles.title} numberOfLines={2} accessibilityRole="header">{front.title}</Text>
-            {!!front.headerAction && (
+          <View style={styles.header}>
+            <View style={styles.headerRow}>
+              <Text style={styles.title} numberOfLines={2} accessibilityRole="header">{front.title}</Text>
+              {!!front.headerAction && (
+                <TouchableOpacity
+                  onPress={front.headerAction.onPress}
+                  style={styles.headerAction}
+                  hitSlop={BUTTON_HIT_SLOP}
+                  accessibilityRole="button"
+                  accessibilityLabel={front.headerAction.a11yLabel || front.headerAction.label}
+                >
+                  <Text style={styles.headerActionText} numberOfLines={1}>{front.headerAction.label}</Text>
+                </TouchableOpacity>
+              )}
+              {front.headerRight || null}
+            </View>
+            {!!front.headerAdd && (
               <TouchableOpacity
-                onPress={front.headerAction.onPress}
-                style={styles.headerAction}
-                hitSlop={BUTTON_HIT_SLOP}
+                onPress={front.headerAdd.onPress}
+                style={styles.headerAdd}
+                hitSlop={HEADER_ADD_HIT_SLOP}
                 accessibilityRole="button"
-                accessibilityLabel={front.headerAction.a11yLabel || front.headerAction.label}
+                accessibilityLabel={front.headerAdd.a11yLabel}
               >
-                <Text style={styles.headerActionText} numberOfLines={1}>{front.headerAction.label}</Text>
+                <Ionicons name="add" size={HEADER_ADD_ICON_SIZE} color={DECK_TEXT} />
               </TouchableOpacity>
             )}
-            {front.headerRight || null}
           </View>
           {!!front.sub && (
             <Text style={styles.sub} accessibilityLabel={front.subA11y || undefined}>{front.sub}</Text>
@@ -589,9 +612,19 @@ const styles = StyleSheet.create({
     width: WALLPAPER_TILE_SIZE, height: WALLPAPER_TILE_SIZE,
     opacity: WALLPAPER_OPACITY,
   },
-  // Wraps: when the title and a header button (Reward List) don't fit on
-  // one line, the button drops under the title instead of squeezing it.
-  headerRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 10, rowGap: 8 },
+  // The wrapping row (title and its buttons) beside the corner + button.
+  // flex-start: the + lines up with the title's first line.
+  header: { flexDirection: 'row', alignItems: 'flex-start', columnGap: 10 },
+  // Wraps: when the title and a header button (Follow / Mine) don't fit
+  // on one line, the button drops under the title instead of squeezing it.
+  headerRow: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 10, rowGap: 8 },
+  // Round + in the corner: drawn 30dp, laid out 24dp (marginVertical -3)
+  // so the header is no taller than the title alone.
+  headerAdd: {
+    flexShrink: 0, width: HEADER_ADD_SIZE, height: HEADER_ADD_SIZE, borderRadius: HEADER_ADD_SIZE / 2,
+    marginVertical: -3, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: 'rgba(255,248,236,0.6)',
+  },
   // Sized to its text (flexBasis auto) so the row can tell when to wrap;
   // still takes the spare width, and shrinks only when alone on a line.
   title: { flexGrow: 1, flexShrink: 1, flexBasis: 'auto', fontSize: 18, fontWeight: '700', color: DECK_TEXT },
