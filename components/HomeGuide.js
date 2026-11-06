@@ -53,8 +53,8 @@ const STEPS = [
     body: "Tap the crown — in the top bar on any tab — to see your Moji Quest invite. Opting in starts your 6-month Quest — the clock doesn't start until you do, and missing the opt-in window closes the opportunity for good. Complete the Quest and you'll become a Mojician: lifetime membership and a unique Moji ID while they last.",
   },
   {
-    title: 'Weekly Summary',
-    body: "Tap the chart icon — in the top bar on any tab — to open your Weekly Summary: your week's Tickles, likes and shares, your most-liked Tickle of the last 7 days, Weekly Vibes and My Day, Day Dots, Goal targets reached and Goals achieved, connections, High Fives, and your Tickle Pics activity.",
+    title: 'Your Week',
+    body: "Tap the chart icon — in the top bar on any tab — to open Your Week: your week's Tickles, likes and shares, your most-liked Tickle of the last 7 days, Weekly Vibes and My Day, Day Dots, Goal targets reached and Goals achieved, connections, High Fives, and your Tickle Pics activity.",
   },
   {
     title: 'Settings',

@@ -114,7 +114,7 @@ const SECTIONS = [
       { id: 'calendar-vibe-chips', label: 'Calendar: Tickles pill shows the right count for each Vibe and My Day' },
       { id: 'calendar-delete-updates', label: 'Calendar: delete a Tickle or change its Goal from the day list, and check the pill counts update' },
       { id: 'calendar-large-font', label: 'Calendar: check the pills and grid at the largest font size' },
-      { id: 'browse-weekly-summary', label: 'Open the Weekly Summary' },
+      { id: 'browse-weekly-summary', label: 'Open Your Week' },
     ],
   },
   {
@@ -132,7 +132,7 @@ const SECTIONS = [
       { id: 'rnrs-move-day', label: 'Move to → Another day…, pick a day in the month grid, then find the tile on that day' },
       { id: 'rnrs-day-switcher', label: 'Use the previous/next day arrows and Back to today' },
       { id: 'rnrs-calendar', label: 'Mark a tile Done, then open the Calendar: that day shows a small tick and a Nudges & Notes section listing it.' },
-      { id: 'rnrs-weekly-summary', label: 'Weekly Summary shows "Nudges & Notes" only once something is Done this week' },
+      { id: 'rnrs-weekly-summary', label: 'Your Week shows "Nudges & Notes" only once something is Done this week' },
       { id: 'rnrs-talkback', label: 'TalkBack: tile actions (Done, Move to Morning/Afternoon/Evening, Skip) work, and focus returns to the bar button when the pop-up closes' },
       { id: 'rnrs-large-font', label: 'Check the pop-up, the page and the Home top bar at the largest font size' },
     ],
@@ -153,9 +153,9 @@ const SECTIONS = [
   {
     title: 'Daily Vibe targets',
     items: [
-      { id: 'vibe-target-set-daily', label: 'Set a daily target for a Vibe (Settings → Daily Vibe Targets, + / − stepper)' },
+      { id: 'vibe-target-set-daily', label: 'Set a daily target for a Vibe (Settings → Your week → Vibe Targets, + / − stepper)' },
       { id: 'vibe-target-daily-bulb', label: "Hit it today and see that Vibe's daily lightbulb light up on its Home card" },
-      { id: 'vibe-target-weekly', label: 'Set a weekly target too (Settings → Weekly Vibe Targets) and see its weekly lightbulb light up once hit' },
+      { id: 'vibe-target-weekly', label: 'Set a weekly target too (Settings → Your week → Vibe Targets) and see its weekly lightbulb light up once hit' },
     ],
   },
   {
