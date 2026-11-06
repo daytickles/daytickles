@@ -85,7 +85,7 @@ export default function CornerNav({ style }) {
       <TouchableOpacity
         {...pressProps('/weekly-summary')}
         hitSlop={TOP_BAR_HIT_SLOP}
-        accessibilityLabel="Weekly Summary"
+        accessibilityLabel="Your Week"
       >
         <Ionicons name="stats-chart-outline" size={20} color={colorFor('/weekly-summary')} />
       </TouchableOpacity>

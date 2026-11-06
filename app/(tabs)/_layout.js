@@ -109,7 +109,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="weekly-summary"
         options={{
-          title: 'Weekly Summary',
+          title: 'Your Week',
           href: null,
         }}
       />

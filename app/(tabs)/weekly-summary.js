@@ -389,7 +389,7 @@ export default function WeeklySummary() {
         ]}
       >
         <View style={styles.titleRow}>
-          <Text style={styles.title}>Weekly Summary</Text>
+          <Text style={styles.title}>Your Week</Text>
           <CornerNav style={styles.cornerNavInline} />
         </View>
         <Text style={styles.weekRange}>{formatWeekRange(weekStartDate)}</Text>
