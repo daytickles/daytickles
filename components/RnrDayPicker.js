@@ -10,8 +10,10 @@ const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 // "Another day..." for Move to: a small month grid like the Calendar's,
 // in plain JS (no date-picker module). The tile's current day is shown
 // but can't be picked; today is outlined. Close, Android Back and the
-// dimmed area close it without moving anything.
-export default function RnrDayPicker({ visible, currentDate, onPick, onClose }) {
+// dimmed area close it without moving anything. title: the heading;
+// Move to leaves the default, the full page's calendar button passes
+// "Pick a date".
+export default function RnrDayPicker({ visible, currentDate, onPick, onClose, title = 'Move to another day' }) {
   const { profile } = useAuth();
   const accentDark = darken(accentFor(profile?.accent_theme).card, 0.35);
   const weekStartDay = profile?.week_start_day ?? DEFAULT_WEEK_START_DAY;
@@ -49,7 +51,7 @@ export default function RnrDayPicker({ visible, currentDate, onPick, onClose }) 
           accessibilityLabel="Close"
         />
         <View style={styles.sheet}>
-          <Text style={styles.title} accessibilityRole="header">Move to another day</Text>
+          <Text style={styles.title} accessibilityRole="header">{title}</Text>
           <View style={styles.monthRow}>
             <TouchableOpacity
               onPress={() => goToMonth(-1)}

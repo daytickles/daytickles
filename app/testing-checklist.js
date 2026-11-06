@@ -131,6 +131,7 @@ const SECTIONS = [
       { id: 'rnrs-move-slot', label: 'Move to another part of the same day' },
       { id: 'rnrs-move-day', label: 'Move to → Another day…, pick a day in the month grid, then find the tile on that day' },
       { id: 'rnrs-day-switcher', label: 'Use the previous/next day arrows and Back to today' },
+      { id: 'rnrs-pick-date', label: 'On the Nudges & Notes page, tap the calendar button, pick a date next month, and add a tile there; then use Back to today' },
       { id: 'rnrs-calendar', label: 'Mark a tile Done, then open the Calendar: that day shows a small tick and a Nudges & Notes section listing it.' },
       { id: 'rnrs-weekly-summary', label: 'Your Week shows "Nudges & Notes" only once something is Done this week' },
       { id: 'rnrs-talkback', label: 'TalkBack: tile actions (Done, Move to Morning/Afternoon/Evening, Skip) work' },

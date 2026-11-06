@@ -32,6 +32,9 @@ export default function RnrsPage() {
   const day = useRnrDay(userId, planDate);
   const [moving, setMoving] = useState(null);
   const [dayPickerFor, setDayPickerFor] = useState(null);
+  // The calendar button's own grid, apart from Move to's (dayPickerFor),
+  // so the two can't interfere.
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [addSlot, setAddSlot] = useState(null);
 
   // Fresh on every visit (the pop-up may have changed today's tiles).
@@ -112,6 +115,14 @@ export default function RnrsPage() {
             >
               <Ionicons name="chevron-forward" size={22} color={C.subtext} />
             </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setDatePickerOpen(true)}
+              style={styles.dayNav}
+              accessibilityRole="button"
+              accessibilityLabel="Pick a date"
+            >
+              <Ionicons name="calendar-outline" size={22} color={C.subtext} />
+            </TouchableOpacity>
           </View>
           {!isToday && (
             <TouchableOpacity
@@ -182,6 +193,16 @@ export default function RnrsPage() {
           day.move(p, { planDate: dateStr });
         }}
         onClose={() => setDayPickerFor(null)}
+      />
+      <RnrDayPicker
+        visible={datePickerOpen}
+        title="Pick a date"
+        currentDate={planDate}
+        onPick={(dateStr) => {
+          setDatePickerOpen(false);
+          setPlanDate(dateStr);
+        }}
+        onClose={() => setDatePickerOpen(false)}
       />
       <RnrAddPicker slot={addSlot} onAdd={handleAdd} onClose={() => setAddSlot(null)} />
     </>
