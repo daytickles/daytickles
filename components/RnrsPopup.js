@@ -13,7 +13,7 @@ import RnrTile from './RnrTile';
 import RnrMoveChooser from './RnrMoveChooser';
 import RnrDayPicker from './RnrDayPicker';
 
-// The bottom bar's Routines and Reminders button opens this: today's
+// Home's Nudges & Notes card (its tile rows) opens this: today's
 // tiles under Morning, Afternoon and Evening, each with Done, Move to
 // and Skip, and a button into the full page (app/(tabs)/rnrs.js) for
 // adding tiles and planning other days. Close, Android Back and the
@@ -36,8 +36,8 @@ export default function RnrsPopup({ visible, onClose }) {
   const bySlot = Object.fromEntries(RNR_SLOTS.map((s) => [s, day.placements.filter((p) => p.slot === s)]));
   const isEmpty = day.placements.length === 0;
 
-  // leaving: closing to go somewhere else, so the caller doesn't pull
-  // TalkBack focus back to its button.
+  // leaving: closing to go somewhere else (the full page), so the caller
+  // can skip what it does on a plain close (Home's card reload).
   function close({ leaving = false } = {}) {
     setMoving(null);
     setDayPickerFor(null);

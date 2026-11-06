@@ -1,10 +1,8 @@
-import { useRef, useState } from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { AccessibilityInfo, Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { C, lighten, withAlpha } from '../../lib/theme';
-import RnrsPopup from '../../components/RnrsPopup';
 
 // Roughly midway between C.text and C.subtext -- distinct enough from
 // the inactive icons' C.subtext to still show which tab is selected,
@@ -18,23 +16,7 @@ const tabBarInactiveColor = '#888780';
 const TAB_BAR_BACKING = withAlpha(C.bg, 0.85);
 
 export default function TabsLayout() {
-  // The Routines and Reminders button opens today's pop-up instead of
-  // switching tab; the full page (rnrs.js) is reached from inside it.
-  const [rnrsOpen, setRnrsOpen] = useState(false);
-  const rnrsButtonRef = useRef(null);
-
-  // TalkBack focus back on the button once the pop-up has closed -- unless
-  // it closed to go somewhere (the full page, or Tickle it).
-  function closeRnrs({ leaving } = {}) {
-    setRnrsOpen(false);
-    if (leaving) return;
-    setTimeout(() => {
-      if (rnrsButtonRef.current) AccessibilityInfo.sendAccessibilityEvent(rnrsButtonRef.current, 'focus');
-    }, 300);
-  }
-
   return (
-    <>
     <Tabs
       screenOptions={{
         headerShown: false,
@@ -76,22 +58,15 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, size }) => <Ionicons name="list-outline" color={color} size={size} />,
         }}
       />
-      {/* Routines and Reminders. Its own button (tabBarButton) opens the
-          today pop-up rather than this page; the pop-up's "Open Routines
-          and Reminders" navigates here, which shows it as selected. */}
+      {/* Nudges & Notes: an ordinary tab, opening the full page. Today's
+          pop-up (components/RnrsPopup.js) opens from Home's Nudges & Notes
+          card. */}
       <Tabs.Screen
         name="rnrs"
         options={{
           title: 'Nudges & Notes',
-          tabBarAccessibilityLabel: "Nudges & Notes, today's tiles",
+          tabBarAccessibilityLabel: 'Nudges & Notes',
           tabBarIcon: ({ color, size }) => <Ionicons name="checkmark-circle-outline" color={color} size={size} />,
-          tabBarButton: (props) => (
-            <Pressable
-              {...props}
-              ref={rnrsButtonRef}
-              onPress={() => setRnrsOpen(true)}
-            />
-          ),
         }}
       />
       {/* Calendar is out of the bar: opened from the calendar icon in
@@ -143,7 +118,5 @@ export default function TabsLayout() {
         }}
       />
     </Tabs>
-    <RnrsPopup visible={rnrsOpen} onClose={closeRnrs} />
-    </>
   );
 }

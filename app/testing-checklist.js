@@ -120,9 +120,9 @@ const SECTIONS = [
   {
     title: 'Nudges & Notes',
     items: [
-      { id: 'rnrs-popup-open', label: "Tap the tick-circle button in the bottom bar: today's pop-up opens (Close, Back and the dimmed area all close it)" },
-      { id: 'rnrs-popup-empty', label: 'With no tiles today, the pop-up shows the dashed placeholder and Add a tile' },
-      { id: 'rnrs-open-page', label: 'Open Nudges & Notes from the pop-up; the page opens with the button shown as selected' },
+      { id: 'rnrs-popup-open', label: "Tap a tile on Home's Nudges & Notes card: today's pop-up opens (Close, Back and the dimmed area all close it)" },
+      { id: 'rnrs-popup-empty', label: "Move the last of today's tiles to another day: the pop-up shows the dashed placeholder and Add a tile" },
+      { id: 'rnrs-open-page', label: 'Tap the tick-circle button in the bottom bar, and Open Nudges & Notes in the pop-up: the page opens with the button shown as selected' },
       { id: 'rnrs-add-idea', label: 'Add an idea tile to Morning, Afternoon and Evening' },
       { id: 'rnrs-make-tile', label: 'Make a new tile (try the 80-character limit) and see it in My tiles' },
       { id: 'rnrs-rename-delete', label: 'Rename one of your tiles, then delete it; a day it was already on keeps it' },
@@ -133,7 +133,7 @@ const SECTIONS = [
       { id: 'rnrs-day-switcher', label: 'Use the previous/next day arrows and Back to today' },
       { id: 'rnrs-calendar', label: 'Mark a tile Done, then open the Calendar: that day shows a small tick and a Nudges & Notes section listing it.' },
       { id: 'rnrs-weekly-summary', label: 'Your Week shows "Nudges & Notes" only once something is Done this week' },
-      { id: 'rnrs-talkback', label: 'TalkBack: tile actions (Done, Move to Morning/Afternoon/Evening, Skip) work, and focus returns to the bar button when the pop-up closes' },
+      { id: 'rnrs-talkback', label: 'TalkBack: tile actions (Done, Move to Morning/Afternoon/Evening, Skip) work' },
       { id: 'rnrs-large-font', label: 'Check the pop-up, the page and the Home top bar at the largest font size' },
     ],
   },

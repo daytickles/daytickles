@@ -35,6 +35,7 @@ import TesterFeedbackPill from '../../components/TesterFeedbackPill';
 import GoalTargetCircle from '../../components/GoalTargetCircle';
 import QuickTickleToast from '../../components/QuickTickleToast';
 import QuickTicklePopover from '../../components/QuickTicklePopover';
+import RnrsPopup from '../../components/RnrsPopup';
 import HomeDeck, { DECK_WIDTH, DECK_TEXT, DECK_SUBTEXT, deckRowStyles } from '../../components/HomeDeck';
 import { useHomePalette } from '../../lib/homePalette';
 import {
@@ -314,6 +315,15 @@ export default function Home() {
     await reloadRnrDay();
     setRnrLoaded(true);
   }, [reloadRnrDay]);
+  // Today's pop-up (components/RnrsPopup.js), opened from the card's tile
+  // rows. A Modal doesn't change Home's focus, so closing it reloads the
+  // card here -- unless it closed to go to the full page, where coming
+  // back to Home reloads it anyway.
+  const [rnrsPopupOpen, setRnrsPopupOpen] = useState(false);
+  function closeRnrsPopup({ leaving } = {}) {
+    setRnrsPopupOpen(false);
+    if (!leaving) loadRnrToday();
+  }
   const [madeMeSmileTotals, setMadeMeSmileTotals] = useState({ week: 0, month: 0, allTime: 0 });
   const [thoughtOfYouTotals, setThoughtOfYouTotals] = useState({ week: 0, month: 0, allTime: 0 });
   const [showGuide, setShowGuide] = useState(false);
@@ -1386,11 +1396,11 @@ export default function Home() {
 
   // Routines and Reminders: today's tiles under Morning, Afternoon and
   // Evening -- only the slots with tiles, as in the pop-up
-  // (components/RnrsPopup.js). Read only: every row opens the full page,
-  // the same route as the pop-up's "Open Routines and Reminders". Done
-  // shows a tick, Skipped a faded label and dashed outline, like RnrTile.
-  // Nothing today: the full page's own line, and the pop-up's "Add a
-  // tile" row.
+  // (components/RnrsPopup.js). Read only here: every tile row opens that
+  // pop-up, where Done, Move and Skip are. Done shows a tick, Skipped a
+  // faded label and dashed outline, like RnrTile. Nothing today: the full
+  // page's own line, and the pop-up's "Add a tile" row, which opens the
+  // full page like the pop-up's.
   function openRnrs() {
     router.navigate('/rnrs');
   }
@@ -1431,9 +1441,9 @@ export default function Home() {
                 key={p.id}
                 style={[deckRowStyles.row, rowFill.rnrs, skipped && [styles.rnrRowSkipped, { backgroundColor: deckColors.rnrs }]]}
                 activeOpacity={0.7}
-                onPress={openRnrs}
+                onPress={() => setRnrsPopupOpen(true)}
                 accessibilityRole="button"
-                accessibilityLabel={`${p.label}, ${RNR_SLOT_LABELS[s]}${stateWord}. Opens Nudges & Notes.`}
+                accessibilityLabel={`${p.label}, ${RNR_SLOT_LABELS[s]}${stateWord}. Opens today's tiles.`}
               >
                 {done && <Ionicons name="checkmark-circle" size={18} color={DECK_TEXT} />}
                 <Text style={[deckRowStyles.label, skipped && styles.rnrLabelSkipped]} numberOfLines={2}>{p.label}</Text>
@@ -1705,6 +1715,7 @@ export default function Home() {
       onTimeout={handleQuickToastTimeout}
       style={[styles.quickToast, { bottom: tabBarHeight + 12 }]}
     />
+    <RnrsPopup visible={rnrsPopupOpen} onClose={closeRnrsPopup} />
     </WallpaperBackground>
 
     {/* Quick Tickle's Vibe popover, anchored to the dot. */}
