@@ -31,6 +31,7 @@ import { isReviewAvailable, requestReview } from '../../lib/rateUs';
 import { hasPinSet, clearPin } from '../../lib/pinLock';
 import { deleteAccount } from '../../lib/deleteAccount';
 import { BUTTON_HEIGHT, BUTTON_HIT_SLOP, BUTTON_RADIUS } from '../../lib/buttonSize';
+import { HOME_PALETTES, HOME_PALETTE_SLOTS, homePaletteFor } from '../../lib/homePalette';
 
 // The Delete Account text link (about 26dp tall): 7 above (it sits 14dp
 // under Sign Out, whose own slop is 7) and 11 below makes it 44dp to tap.
@@ -113,6 +114,7 @@ export default function Settings() {
   const [showAbout, setShowAbout] = useState(false);
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [savingTheme, setSavingTheme] = useState(null);
+  const [savingHomePalette, setSavingHomePalette] = useState(null);
   const [savingWeekStartDay, setSavingWeekStartDay] = useState(null);
   const [savingNotifyOnLikes, setSavingNotifyOnLikes] = useState(false);
   const [savingCountry, setSavingCountry] = useState(false);
@@ -312,6 +314,26 @@ export default function Settings() {
 
     const { error } = await supabase.from('profiles').update({ accent_theme: themeId }).eq('id', profile.id);
     setSavingTheme(null);
+
+    if (error) {
+      setProfile(previous);
+      showSaveFailed();
+    } else {
+      refreshProfile();
+    }
+  }
+
+  // Home colours: same press / save / revert as handlePickTheme, with no
+  // tier check (every set is free). Stores the set's id ('classic' too).
+  async function handlePickHomePalette(paletteId) {
+    if (!profile || paletteId === homePaletteFor(profile).id) return;
+    const previous = profile;
+
+    setProfile({ ...profile, home_palette: paletteId });
+    setSavingHomePalette(paletteId);
+
+    const { error } = await supabase.from('profiles').update({ home_palette: paletteId }).eq('id', profile.id);
+    setSavingHomePalette(null);
 
     if (error) {
       setProfile(previous);
@@ -843,6 +865,32 @@ export default function Settings() {
       </View>
 
       <View style={styles.card}>
+        <Text style={styles.label}>Home colours</Text>
+        {HOME_PALETTES.map((palette) => {
+          const selected = homePaletteFor(profile).id === palette.id;
+          return (
+            <TouchableOpacity
+              key={palette.id}
+              onPress={() => handlePickHomePalette(palette.id)}
+              disabled={savingHomePalette !== null}
+              style={[styles.paletteRow, selected && { borderColor: accentDark }]}
+              accessibilityRole="radio"
+              accessibilityState={{ selected, disabled: savingHomePalette !== null }}
+              accessibilityLabel={`${palette.name}, five colours${selected ? ', selected' : ''}`}
+            >
+              <View style={styles.paletteDots}>
+                {HOME_PALETTE_SLOTS.map((slot) => (
+                  <View key={slot} style={[styles.paletteDot, { backgroundColor: palette.deck[slot] }]} />
+                ))}
+              </View>
+              <Text style={styles.paletteName}>{palette.name}</Text>
+              {selected && <Ionicons name="checkmark" size={18} color={accentDark} />}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      <View style={styles.card}>
         <View style={styles.toggleRow}>
           <Text style={styles.toggleLabel}>Tokens & Rewards</Text>
           <Switch
@@ -1256,6 +1304,18 @@ const styles = StyleSheet.create({
     borderWidth: 2, borderColor: 'transparent',
   },
   swatchLocked: { opacity: 0.35 },
+  // Home colours: one row per set (at least 44dp tall), the set's five deck
+  // colours as 16dp dots, its name, and a tick plus an accent ring on the
+  // chosen one. The ring is always 2dp (transparent when not chosen), so
+  // nothing shifts when the choice changes.
+  paletteRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    minHeight: 44, paddingVertical: 8, paddingHorizontal: 10, marginBottom: 6,
+    borderRadius: 12, borderWidth: 2, borderColor: 'transparent',
+  },
+  paletteDots: { flexDirection: 'row', gap: 4 },
+  paletteDot: { width: 16, height: 16, borderRadius: 8 },
+  paletteName: { flex: 1, fontSize: 15, color: C.text },
   // Narrower gap than swatchRow -- 7 day options vs 5 accent colors
   // need to fit the same content width.
   weekDayRow: { flexDirection: 'row', gap: 8 },
