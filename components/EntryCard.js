@@ -14,11 +14,14 @@ import { BUTTON_HEIGHT, BUTTON_HIT_SLOP, BUTTON_RADIUS } from '../lib/buttonSize
 import { DECK_TEXT } from './HomeDeck';
 import { useHomePalette } from '../lib/homePalette';
 
-function formatEntryDate(entryDate) {
+// dropCurrentYear (the Quick Tickle row): "Nov 1" for an entry from this
+// year, "Nov 1, 2025" for any other year.
+function formatEntryDate(entryDate, { dropCurrentYear = false } = {}) {
+  const sameYear = dropCurrentYear && Number(String(entryDate).slice(0, 4)) === new Date().getFullYear();
   return new Date(`${entryDate}T00:00:00Z`).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
-    year: 'numeric',
+    ...(sameYear ? {} : { year: 'numeric' }),
     timeZone: 'UTC',
   });
 }
@@ -80,6 +83,12 @@ const VIBE_ICON_SIZE = 16;
 // inside the card's 14dp padding.
 const LINK_TARGET_HEIGHT = 32;
 const LINK_HIT_SLOP = { top: 6, bottom: 6 };
+// Quick Tickle row: the QT mark, the Goal dot and the gap between them
+// and the text. The "Tickle it" line is indented by these so it starts
+// where the text does.
+const QUICK_MARK_SIZE = 28;
+const QUICK_GOAL_DOT_SIZE = 12;
+const QUICK_MAIN_GAP = 6;
 
 // Extracted from feed.js's original renderEntry — same markup, same
 // styles, same tab==='mine'-gated actions (now `showMineActions`), same
@@ -172,12 +181,27 @@ export default function EntryCard({
     );
   }
 
+  // Quick Tickle: its Goal's colour for the row's dot and the menu's Goal
+  // item (lightened for an achieved Goal, as on the full card), and the
+  // menu heading "Vibe name · Goal name".
+  const quickVibeName = item.tickle_nature ? NATURE_LABELS[item.tickle_nature] : null;
+  const quickGoalColor = taggedGoal
+    ? (taggedGoal.achieved_at ? lighten(taggedGoal.color, 0.6) : taggedGoal.color)
+    : null;
+  const quickMenuHeading = [quickVibeName, taggedGoal?.label].filter(Boolean).join(' · ');
+
   // Edit / Multickle / Share / Delete. Shared by the full card and the
   // Quick Tickle row below.
   const menuModal = (
     <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
       <TouchableOpacity style={styles.menuBackdrop} activeOpacity={1} onPress={() => setMenuOpen(false)}>
         <TouchableOpacity activeOpacity={1} style={styles.menuSheet} onPress={() => {}}>
+          {/* Quick Tickle only: what this one is ("Vibe · Goal"), since
+              its slim row shows no Vibe colour. */}
+          {isQuick && !!quickMenuHeading && (
+            <Text style={styles.menuHeading}>{quickMenuHeading}</Text>
+          )}
+
           {/* Deliberately absent for a photo-only entry -- there's no
               text to edit, and re-picking the Vibe as a kind of "edit"
               was raised but never resolved either way (see the spec's
@@ -193,6 +217,25 @@ export default function EntryCard({
             >
               <Ionicons name="pencil-outline" size={18} color={C.text} />
               <Text style={styles.menuRowLabel}>Edit</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Quick Tickle only (its slim row has no Goal dot to tap):
+              the same Goal picker and save as the full card's Goal dot.
+              The icon is that dot -- the Goal's colour, or the dashed
+              empty ring. */}
+          {isQuick && (
+            <TouchableOpacity
+              style={styles.menuRow}
+              onPress={() => {
+                setMenuOpen(false);
+                onPickGoal?.(item.id);
+              }}
+            >
+              <View style={styles.menuGoalIcon}>
+                <View style={[styles.goalDot, quickGoalColor ? { backgroundColor: quickGoalColor } : styles.goalDotEmpty]} />
+              </View>
+              <Text style={styles.menuRowLabel}>{taggedGoal ? 'Change Goal' : 'Add Goal'}</Text>
             </TouchableOpacity>
           )}
 
@@ -249,57 +292,73 @@ export default function EntryCard({
   );
 
   // A Quick Tickle is one slim row instead of the full card:
-  // [QT mark] [Vibe dot] [Vibe name / date · time] [Tickle it + X] [⋯].
-  // Same list slot (onLayout, highlight, CARD_SPACING below), so
-  // scroll-to-entry, pull-to-refresh and delete work as for any card.
-  // Ripple, Share, the star and likes stay hidden, as before. The row
-  // wraps: when the text and the controls don't fit on one line (a
-  // narrow phone, a large font size) the controls drop to a second line
-  // at the right, and the row grows taller -- nothing is clipped.
+  // [QT mark] [Goal dot, only with a Goal] [Vibe name / date · time] [⋯],
+  // and, while "Tickle it" is showing, the "Tickle it" pill and its X on
+  // their own line under the text. Same list slot (onLayout, highlight,
+  // CARD_SPACING below), so scroll-to-entry, pull-to-refresh and delete
+  // work as for any card. Ripple, Share, the star and likes stay hidden,
+  // as before. The row wraps: when the text and the controls don't fit on
+  // one line (a narrow phone, a large font size) the controls drop to a
+  // second line at the right, and the row grows taller -- nothing is
+  // clipped.
   if (isQuick) {
-    const vibeName = item.tickle_nature ? NATURE_LABELS[item.tickle_nature] : null;
-    const dateText = formatEntryDate(item.entry_date);
+    const dateText = formatEntryDate(item.entry_date, { dropCurrentYear: true });
     const timeText = formatEntryTime(item.created_at);
-    const spoken = ['Quick Tickle', vibeName, dateText, timeText].filter(Boolean).join(', ');
+    const spoken = [
+      'Quick Tickle',
+      quickVibeName,
+      taggedGoal ? `Goal: ${taggedGoal.label}` : null,
+      dateText,
+      timeText,
+    ].filter(Boolean).join(', ');
+    const pillShowing = showMineActions && tickleItDismissed === false;
+    // The pill line starts where the text does: after the QT mark, and
+    // after the Goal dot when there is one.
+    const textInset = QUICK_MARK_SIZE + QUICK_MAIN_GAP + (quickGoalColor ? QUICK_GOAL_DOT_SIZE + QUICK_MAIN_GAP : 0);
     return (
-      <View style={[styles.quickRowCard, isHighlighted && styles.highlightedCard]} onLayout={onLayout}>
-        <View style={styles.quickRowMain} accessible accessibilityLabel={spoken}>
-          <View style={styles.quickDot}>
-            {/* Capped like GoalTargetCircle's count, so "QT" stays inside the fixed 28dp circle. */}
-            <Text style={styles.quickDotLabel} maxFontSizeMultiplier={1.3}>QT</Text>
+      <View
+        style={[styles.quickRowCard, pillShowing && styles.quickRowCardTop, isHighlighted && styles.highlightedCard]}
+        onLayout={onLayout}
+      >
+        <View style={styles.quickRowBody}>
+          <View style={styles.quickRowMain} accessible accessibilityLabel={spoken}>
+            <View style={styles.quickDot}>
+              {/* Capped like GoalTargetCircle's count, so "QT" stays inside the fixed 28dp circle. */}
+              <Text style={styles.quickDotLabel} maxFontSizeMultiplier={1.3}>QT</Text>
+            </View>
+            {!!quickGoalColor && (
+              <View style={[styles.quickVibeDot, { backgroundColor: quickGoalColor }]} />
+            )}
+            <View style={styles.quickRowText}>
+              {!!quickVibeName && <Text style={styles.vibeName} numberOfLines={1}>{quickVibeName}</Text>}
+              <Text style={styles.quickRowWhen}>{timeText ? `${dateText} · ${timeText}` : dateText}</Text>
+            </View>
           </View>
-          {!!item.tickle_nature && (
-            <View style={[styles.quickVibeDot, { backgroundColor: vibeIconColor(item.tickle_nature) }]} />
+          {pillShowing && (
+            <View style={[styles.quickPillRow, { marginLeft: textInset }]}>
+              <TouchableOpacity
+                onPress={openEdit}
+                hitSlop={BUTTON_HIT_SLOP}
+                style={styles.tickleItPill}
+                accessibilityRole="button"
+                accessibilityLabel="Tickle it"
+              >
+                <Text style={styles.tickleItLabel}>Tickle it</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={dismissTickleIt}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={styles.tickleItDismiss}
+                accessibilityRole="button"
+                accessibilityLabel="Dismiss Tickle it for this Quick Tickle"
+              >
+                <Ionicons name="close" size={14} color={C.subtext} />
+              </TouchableOpacity>
+            </View>
           )}
-          <View style={styles.quickRowText}>
-            {!!vibeName && <Text style={styles.vibeName} numberOfLines={1}>{vibeName}</Text>}
-            <Text style={styles.quickRowWhen}>{timeText ? `${dateText} · ${timeText}` : dateText}</Text>
-          </View>
         </View>
         {showMineActions && (
           <View style={styles.quickRowActions}>
-            {tickleItDismissed === false && (
-              <>
-                <TouchableOpacity
-                  onPress={openEdit}
-                  hitSlop={BUTTON_HIT_SLOP}
-                  style={styles.tickleItPill}
-                  accessibilityRole="button"
-                  accessibilityLabel="Tickle it"
-                >
-                  <Text style={styles.tickleItLabel}>Tickle it</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={dismissTickleIt}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  style={styles.tickleItDismiss}
-                  accessibilityRole="button"
-                  accessibilityLabel="Dismiss Tickle it for this Quick Tickle"
-                >
-                  <Ionicons name="close" size={14} color={C.subtext} />
-                </TouchableOpacity>
-              </>
-            )}
             {/* Once "Tickle it" has been dismissed, a plain label in
                 its place: text only, not pressable. */}
             {tickleItDismissed === true && (
@@ -852,6 +911,14 @@ const styles = StyleSheet.create({
     paddingVertical: 12, paddingHorizontal: 14, borderRadius: 12,
   },
   menuRowLabel: { fontSize: 15, color: C.text },
+  // Quick Tickle menu heading ("Vibe name · Goal name"): plain text, not
+  // a row; wraps at a large font size.
+  menuHeading: {
+    fontSize: 13, fontWeight: '600', color: C.subtext,
+    paddingTop: 10, paddingBottom: 6, paddingHorizontal: 14,
+  },
+  // Holds the Goal dot in the same 18dp slot as the other rows' icons.
+  menuGoalIcon: { width: 18, height: 18, alignItems: 'center', justifyContent: 'center' },
   menuRowLabelDestructive: { color: C.rust },
   entryText: { fontSize: 15, color: C.text, lineHeight: 20 },
   // Quick Tickle row (one per Quick Tickle, instead of the full card):
@@ -865,8 +932,18 @@ const styles = StyleSheet.create({
     backgroundColor: CARD_FILL, borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth, borderColor: CARD_LINE,
   },
-  quickRowMain: { flexDirection: 'row', alignItems: 'center', gap: 6, flexGrow: 1, flexShrink: 1 },
-  quickVibeDot: { width: 12, height: 12, borderRadius: 6 },
+  // While "Tickle it" shows, the row is two lines; the ⋯ stays level with
+  // the top line instead of centring between them.
+  quickRowCardTop: { alignItems: 'flex-start' },
+  // The QT mark, dot and text, with the pill line under them.
+  quickRowBody: { flexGrow: 1, flexShrink: 1 },
+  quickRowMain: { flexDirection: 'row', alignItems: 'center', gap: QUICK_MAIN_GAP, flexGrow: 1, flexShrink: 1 },
+  // The Goal dot (only when the Quick Tickle has a Goal), in its colour.
+  quickVibeDot: { width: QUICK_GOAL_DOT_SIZE, height: QUICK_GOAL_DOT_SIZE, borderRadius: QUICK_GOAL_DOT_SIZE / 2 },
+  // "Tickle it" and its X, on their own line under the text. The pill's
+  // slop is only above and below; the X's is 10 all round, so a 10dp gap
+  // lets their tap areas meet without overlapping.
+  quickPillRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6 },
   quickRowText: { flexShrink: 1 },
   quickRowWhen: { fontSize: 11, color: C.subtext },
   // marginLeft auto keeps the controls at the right edge, also when they
@@ -879,7 +956,7 @@ const styles = StyleSheet.create({
   // read as a button. It isn't pressable. The "Tickle it" pill is
   // transparent with a 1.5dp INK outline and INK label.
   quickDot: {
-    width: 28, height: 28, borderRadius: 14, backgroundColor: INK,
+    width: QUICK_MARK_SIZE, height: QUICK_MARK_SIZE, borderRadius: QUICK_MARK_SIZE / 2, backgroundColor: INK,
     alignItems: 'center', justifyContent: 'center',
   },
   quickDotLabel: { fontSize: 10, fontWeight: '700', color: C.card },
