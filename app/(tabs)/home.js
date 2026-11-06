@@ -59,7 +59,7 @@ const HOME_CONTENT_MAX_WIDTH = 600;
 const HOME_SIDE_PADDING = 20;
 // Space (dp) between the buttons row (or the tester pill, when it shows)
 // and the front deck card. Nudge here.
-const DECK_GAP = 32;
+const DECK_GAP = 38;
 // Clear space (dp) between the deck's dots and arrows row and the top of
 // the tab bar, at the default text size. The deck's height flexes to
 // keep it (components/HomeDeck.js, DECK_MIN_HEIGHT / DECK_MAX_HEIGHT).
