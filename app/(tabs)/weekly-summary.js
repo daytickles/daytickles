@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { C, accentFor, SAVED_ENTRY_DOT_SIZE, textOn, withAlpha, darken, lighten, NATURE_ORDER, NATURE_LABELS, VIBE_COLORS, vibeIconColor, AWARD_TYPES, AWARD_HAND_ICON, awardLabelFor } from '../../lib/theme';
+import { C, accentFor, SAVED_ENTRY_DOT_SIZE, textOn, withAlpha, darken, lighten, NATURE_ORDER, NATURE_LABELS, VIBE_COLORS, vibeIconColor, AWARD_TYPES, awardLabelFor } from '../../lib/theme';
 import { currentWeekStartDate, currentWeekStartISO, currentWeekDates, localDateString, DEFAULT_WEEK_START_DAY } from '../../lib/week';
 import { initPinBoardDb, getPinnedPhotoCountSince, getPhotoShareCountSince, getPhotosForEntries } from '../../lib/pinBoardDb';
 import { flagEmoji } from '../../lib/country';
@@ -16,6 +16,7 @@ import CornerNav from '../../components/CornerNav';
 import NatureIcon from '../../components/NatureIcon';
 import GoalTargetCircle from '../../components/GoalTargetCircle';
 import AwardBadges from '../../components/AwardBadges';
+import AwardHand from '../../components/AwardHand';
 import { fetchAwardedEntryTypes } from '../../lib/awards';
 import { countDoneSince } from '../../lib/rnrs';
 
@@ -693,7 +694,7 @@ export default function WeeklySummary() {
                       key={n.id}
                       style={[styles.awardCard, { backgroundColor: withAlpha(award.color, 0.14), borderColor: award.color }]}
                     >
-                      <Ionicons name={AWARD_HAND_ICON} size={16} color={award.color} />
+                      <AwardHand size={16} color={award.color} />
                       <Text style={styles.awardText} numberOfLines={2}>
                         {actorName} high-fived you: "{label}"
                         {n.tickle_entries?.text_content ? `\n${n.tickle_entries.text_content}` : ''}
@@ -709,7 +710,7 @@ export default function WeeklySummary() {
                       key={a.id}
                       style={[styles.awardCard, { backgroundColor: withAlpha(award.color, 0.14), borderColor: award.color }]}
                     >
-                      <Ionicons name={AWARD_HAND_ICON} size={16} color={award.color} />
+                      <AwardHand size={16} color={award.color} />
                       <Text style={styles.awardText} numberOfLines={2}>
                         You high-fived: "{label}"
                         {a.tickle_entries?.text_content ? `\n${a.tickle_entries.text_content}` : ''}

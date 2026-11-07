@@ -97,6 +97,7 @@ const SECTIONS = [
       { id: 'social-like', label: 'Like a Tickle' },
       { id: 'social-favourite', label: 'Favourite a Tickle (star)' },
       { id: 'social-high-five', label: 'Give each of the 6 High Five types' },
+      { id: 'highfive-colours', label: 'The six High Five hands show the new colours (red, orange, yellow, green, blue, violet) with a thin darker outline, on Tickle cards, the picker, Notifications and Your Week' },
       { id: 'social-follow', label: 'Follow another user' },
       { id: 'social-view-profile', label: "View someone's profile" },
       { id: 'social-share', label: 'Share a Tickle (share sheet / Polaroid)' },

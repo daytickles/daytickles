@@ -10,10 +10,11 @@
 // virtualised and pull-to-refresh is unchanged.
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { C, AWARD_TYPES, AWARD_HAND_ICON, AWARD_BADGE_COLOR, awardLabelFor, withAlpha } from '../lib/theme';
+import { C, AWARD_TYPES, AWARD_BADGE_COLOR, awardLabelFor, withAlpha } from '../lib/theme';
 import { flagEmoji } from '../lib/country';
 import { taleIconName } from '../lib/tales';
 import { useHomePalette } from '../lib/homePalette';
+import AwardHand from './AwardHand';
 
 // Any type without its own wording (or a row whose wording comes out
 // empty) gets this line, so no row is ever blank.
@@ -75,7 +76,8 @@ export function notificationBody(n) {
 function notificationIcon(n, deck) {
   switch (n.type) {
     case 'award':
-      return { kind: 'ion', name: AWARD_HAND_ICON, color: AWARD_TYPES[n.award_type]?.color || AWARD_BADGE_COLOR };
+      // Drawn with AwardHand (filled hand plus its darker outline).
+      return { kind: 'award', color: AWARD_TYPES[n.award_type]?.color || AWARD_BADGE_COLOR };
     case 'like':
       return { kind: 'ion', name: 'thumbs-up', color: deck.goals };
     case 'favorite':
@@ -189,6 +191,8 @@ export function NotificationSheetRow({ item, onPress }) {
       <View style={[styles.iconCircle, { backgroundColor: withAlpha(icon.color, 0.14) }, !unread && styles.iconRead]}>
         {icon.kind === 'star' ? (
           <Text style={[styles.starGlyph, { color: icon.color }]} maxFontSizeMultiplier={1.2}>★</Text>
+        ) : icon.kind === 'award' ? (
+          <AwardHand size={20} color={icon.color} />
         ) : (
           <Ionicons name={icon.name} size={20} color={icon.color} />
         )}

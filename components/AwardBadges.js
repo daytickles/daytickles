@@ -24,8 +24,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { C, AWARD_TYPES, AWARD_HAND_ICON, awardLabelFor } from '../lib/theme';
+import { C, AWARD_TYPES, awardLabelFor } from '../lib/theme';
+import AwardHand from './AwardHand';
 
 export default function AwardBadges({ types, size = 16, tooltipAlign = 'right', style }) {
   const [openType, setOpenType] = useState(null);
@@ -55,7 +55,7 @@ export default function AwardBadges({ types, size = 16, tooltipAlign = 'right', 
             accessibilityRole="button"
             accessibilityLabel={`High Five: ${awardLabelFor(type)}`}
           >
-            <Ionicons name={AWARD_HAND_ICON} size={size} color={AWARD_TYPES[type]?.color} />
+            <AwardHand size={size} color={AWARD_TYPES[type]?.color} />
           </TouchableOpacity>
           {openType === type && (
             <View
