@@ -13,7 +13,7 @@ import { TILE_SOURCE, TILE_SIZE as WALLPAPER_TILE_SIZE, OPACITY as WALLPAPER_OPA
 // Animated only -- no gesture or animation library.
 //
 // cards: [{ key, title, sub, subA11y, headerAction, headerRight, headerAdd, color, children }]
-//   key          stable id ('remember' | 'goals' | 'rewards' | 'multickles' | 'rnrs')
+//   key          stable id ('remember' | 'goals' | 'rewards' | 'multickles' | 'rnrs' | 'dayDots')
 //   sub          optional sub line under the title
 //   headerAction optional { label, a11yLabel, onPress } -- a small text
 //                button at the right of the title (no card uses it now)
@@ -25,8 +25,12 @@ import { TILE_SOURCE, TILE_SIZE as WALLPAPER_TILE_SIZE, OPACITY as WALLPAPER_OPA
 //                a long title goes to 2 lines instead of moving it (Your
 //                Goals, My Rewards, Nudges & Notes). Front card only.
 //   children     the card's rows (scroll vertically inside the card)
+//   fixedBody    optional true -- children fill the space under the sub
+//                line as they are: no scrolling list, no bottom fade, no
+//                list padding (Day Dots, whose dot -- a big tap target --
+//                mustn't sit in a scroller)
 // The caller only passes the cards that are showing (e.g. no My Rewards
-// while Tokens & Rewards is off), so the deck can hold 1 to 5.
+// while Tokens & Rewards is off), so the deck can hold 1 to 6.
 
 export const DECK_WIDTH = 322;
 // Height at font scale 1.0. It grows with the font scale, up to 1.6x
@@ -53,6 +57,7 @@ export const DECK_COLORS = {
   rewards: '#6B5420',
   multickles: '#425762',
   rnrs: '#5B384E',
+  dayDots: '#46487A',
 };
 export const DECK_TEXT = '#FFF8EC';
 export const DECK_SUBTEXT = '#F1E4D0';
@@ -505,18 +510,22 @@ export default function HomeDeck({ cards, width, dataSettled = true, fitHeight =
             <Text style={styles.sub} accessibilityLabel={front.subA11y || undefined}>{front.sub}</Text>
           )}
           <View style={styles.listWrap}>
-            {/* nestedScrollEnabled: Android otherwise hands this list's
-                vertical drags to Home's page ScrollView. Keyed by card, so
-                each card opens at the top of its list. */}
-            <ScrollView
-              key={front.key}
-              nestedScrollEnabled
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.listContent}
-            >
-              {front.children}
-            </ScrollView>
-            <BottomFade color={front.color} />
+            {front.fixedBody ? front.children : (
+              <>
+                {/* nestedScrollEnabled: Android otherwise hands this list's
+                    vertical drags to Home's page ScrollView. Keyed by card, so
+                    each card opens at the top of its list. */}
+                <ScrollView
+                  key={front.key}
+                  nestedScrollEnabled
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={styles.listContent}
+                >
+                  {front.children}
+                </ScrollView>
+                <BottomFade color={front.color} />
+              </>
+            )}
           </View>
         </Animated.View>
       </View>

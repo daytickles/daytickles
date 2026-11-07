@@ -150,7 +150,8 @@ const SECTIONS = [
     title: 'Day Dots',
     items: [
       { id: 'daydots-answer-today', label: "Answer today's Day Dot" },
-      { id: 'day-dot-change', label: 'Pick a Day Dot at any time of day, then change it later the same day; a skipped day can still be dotted' },
+      { id: 'day-dot-change', label: 'On the Home Dot your Day card, dot your day at any time of day, then change it later the same day; a skipped day can still be dotted' },
+      { id: 'day-dots-card', label: 'Home Dot your Day card: tap the dot to step up a size (after the biggest it goes back to the smallest) and see it change; tap Skip; change it later in the day; the 4 past days show as beads; the card colour changes with each Home colour set; the four sizes fade from the biggest (brightest) to the smallest (dimmest), on the big dot and the trail' },
       { id: 'daydots-calendar-history', label: 'Check Day Dot history on the Calendar' },
     ],
   },

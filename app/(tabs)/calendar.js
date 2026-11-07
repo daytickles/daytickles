@@ -37,8 +37,8 @@ import { makePhotoTicklePublic, makePhotoTicklePrivate, deletePhotoTickleMedia }
 // numbering -- see migration 0019), like Home, Goals and Weekly Summary.
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
-// Same relative progression as DayDotsCard.js's own DOT_SIZES (22/30/38/46
-// there) and weekly-summary.js's own DAY_DOTS_SIZES, scaled for this grid's
+// Same relative progression as the Day Dot sizes (14/18/22/26dp on the
+// old My Day picker) and weekly-summary.js's own DAY_DOTS_SIZES, scaled for this grid's
 // per-day cell -- not meant to be pixel-precise, just enough spread that a
 // small pick reads visibly smaller than a large one at a glance.
 const DAY_DOTS_SIZES = [9, 12, 15, 18];

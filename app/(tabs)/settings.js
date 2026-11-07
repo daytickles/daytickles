@@ -938,7 +938,7 @@ export default function Settings() {
                 style={[styles.paletteRow, selected && { borderColor: accentDark }]}
                 accessibilityRole="radio"
                 accessibilityState={{ selected, disabled: savingHomePalette !== null }}
-                accessibilityLabel={`${palette.name}, five colours${selected ? ', selected' : ''}`}
+                accessibilityLabel={`${palette.name}, six colours${selected ? ', selected' : ''}`}
               >
                 <View style={styles.paletteDots}>
                   {HOME_PALETTE_SLOTS.map((slot) => (

@@ -18,7 +18,7 @@ import { initPinBoardDb, getPhotosForEntries } from '../../lib/pinBoardDb';
 import { fetchTokenBalance, fetchWishlistItems } from '../../lib/tokens';
 import { fetchFollowedTales, fetchMyTales } from '../../lib/tales';
 import { forgetQuickTickle, insertQuickTickle } from '../../lib/quickTickle';
-import { showSaveFailed } from '../../lib/themedAlert';
+import { showAlert, showSaveFailed } from '../../lib/themedAlert';
 import Button from '../../components/Button';
 import NewTickleButton, {
   TICKLE_BUTTON_SURFACE, HOME_BUTTON_GAP, HOME_BUTTON_HIT_SLOP, QUICK_BUTTON_SHAPE, QUICK_DOT_SIZE,
@@ -51,6 +51,8 @@ import { isReviewAvailable, requestReview } from '../../lib/rateUs';
 import { RNR_SLOTS, RNR_SLOT_LABELS } from '../../lib/rnrs';
 import { BUTTON_HEIGHT, BUTTON_HIT_SLOP } from '../../lib/buttonSize';
 import { useRnrDay } from '../../lib/useRnrDay';
+import { fetchRecentDayDots, dayDotPhase, saveDayDot, skipDayDot, DAY_DOTS_TRAIL_DAYS } from '../../lib/dayDots';
+import HomeDayDotsCard, { DayDotsSkipPill, dayDotsSubLine } from '../../components/HomeDayDotsCard';
 
 // Caps Home's content on tablet/wide screens so it doesn't stretch
 // edge-to-edge -- wallpaper (painted by WallpaperBackground, behind
@@ -326,6 +328,22 @@ export default function Home() {
     setRnrsPopupOpen(false);
     if (!leaving) loadRnrToday();
   }
+  // Day Dots card (the deck's last card). { date, phase, dotIndex?, rows }
+  // -- date is the local day it was loaded for (a tap on a Home left open
+  // past midnight re-reads instead of saving, as My Day's picker did);
+  // phase/dotIndex are today's, from lib/dayDots.js dayDotPhase; rows is
+  // the Map of today's and the 4 days before's day_dots rows by LOCAL
+  // date, or null when that read failed (the card then shows today's
+  // dot only, no trail). null until the first read answers.
+  const [dayDots, setDayDots] = useState(null);
+  const [dayDotsLoaded, setDayDotsLoaded] = useState(false);
+  // Day Dots writes go one at a time: busy while one is in flight, and
+  // pending holds the newest dotIndex tapped meanwhile (only the newest is
+  // kept). dayDotConfirmed is today's last state the server confirmed
+  // ({ phase, dotIndex? }, from a read or a successful write) -- what a
+  // failed write puts the card back to.
+  const dayDotWrite = useRef({ busy: false, pending: null });
+  const dayDotConfirmed = useRef(null);
   const [madeMeSmileTotals, setMadeMeSmileTotals] = useState({ week: 0, month: 0, allTime: 0 });
   const [thoughtOfYouTotals, setThoughtOfYouTotals] = useState({ week: 0, month: 0, allTime: 0 });
   const [showGuide, setShowGuide] = useState(false);
@@ -608,6 +626,33 @@ export default function Home() {
     }, [loadCaptionShareTotals])
   );
 
+  // Day Dots: one read of today and the 4 days before (local dates), on
+  // every Home focus, pull-down refresh and the stale-day re-read -- not
+  // after a save, whose optimistic state is already right. A failed read
+  // keeps today as 'open' (as My Day's picker did) and drops the trail.
+  // While a write is in flight or queued, the read only updates the trail
+  // rows, never today's phase, so it can't put back an older size.
+  const loadDayDots = useCallback(async () => {
+    if (!session) return;
+    const today = localDateString(0);
+    const rows = await fetchRecentDayDots(session.user.id);
+    const w = dayDotWrite.current;
+    if (w.busy || w.pending != null) {
+      setDayDots((prev) => (prev && prev.date === today ? { ...prev, rows } : prev));
+    } else {
+      const todayState = dayDotPhase(rows?.get(today));
+      dayDotConfirmed.current = todayState;
+      setDayDots({ date: today, ...todayState, rows });
+    }
+    setDayDotsLoaded(true);
+  }, [session]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadDayDots();
+    }, [loadDayDots])
+  );
+
   // Read-only (see fetchFoundingMemberPaceStatus) so it's fine to run
   // on every Home focus, same as the loaders above -- deliberately
   // separate from advanceFoundingMemberProgress (founding-member.js's
@@ -788,6 +833,7 @@ export default function Home() {
         loadFollowedTales(),
         loadMyTales(),
         loadRnrToday(),
+        loadDayDots(),
         loadPaceReminder(),
         loadOptInReminder(),
       ]);
@@ -1490,14 +1536,129 @@ export default function Home() {
     };
   }
 
+  // Day Dots: today's dot (tap it to step up a size) and the
+  // last 5 days' trail (components/HomeDayDotsCard.js), Skip in the
+  // header. Saving is optimistic, like My Day's picker was: the card
+  // changes at once and isn't re-read after a save. Writes go one at a
+  // time (dayDotWrite); taps meanwhile only keep the newest size, sent
+  // when the write in flight is done. A failed write stops the queue, puts
+  // the card back to the last state the server confirmed and says so,
+  // once. Today is the phone's local date at tap time; if that's no
+  // longer the day the card was loaded for (Home left open past
+  // midnight), the tap only re-reads.
+  function dayDotsIsStale() {
+    if (dayDots && dayDots.date === localDateString(0)) return false;
+    loadDayDots();
+    return true;
+  }
+
+  function dayDotWriteFailed() {
+    const w = dayDotWrite.current;
+    w.busy = false;
+    w.pending = null;
+    const c = dayDotConfirmed.current || { phase: 'open' };
+    setDayDots((prev) => (prev ? { ...prev, phase: c.phase, dotIndex: c.dotIndex } : prev));
+    showAlert("Couldn't save your Day Dot", 'Please try again.');
+  }
+
+  // Writes dotIndex, then whatever newer size was tapped meanwhile, until
+  // none is left. The caller has already set busy.
+  async function drainDayDotWrites(userId, date, firstIndex) {
+    const w = dayDotWrite.current;
+    let next = firstIndex;
+    while (next != null) {
+      const error = await saveDayDot(userId, date, next);
+      if (error) {
+        dayDotWriteFailed();
+        return;
+      }
+      dayDotConfirmed.current = { phase: 'answered', dotIndex: next };
+      const queued = w.pending;
+      w.pending = null;
+      next = queued != null && queued !== next ? queued : null;
+    }
+    w.busy = false;
+  }
+
+  async function handleDayDotSave(dotIndex) {
+    if (!session || dayDotsIsStale()) return;
+    if (dayDots.phase === 'answered' && dayDots.dotIndex === dotIndex) return;
+    setDayDots((prev) => ({ ...prev, phase: 'answered', dotIndex }));
+    const w = dayDotWrite.current;
+    if (w.busy) {
+      w.pending = dotIndex;
+      return;
+    }
+    w.busy = true;
+    await drainDayDotWrites(session.user.id, dayDots.date, dotIndex);
+  }
+
+  // Skip is an insert, so only while today has no row (the pill is
+  // disabled otherwise), and never while a dot write is in flight. A dot
+  // tapped during the skip's own write is queued and sent after it.
+  async function handleDayDotSkip() {
+    if (!session || dayDotsIsStale() || dayDots.phase !== 'open') return;
+    const w = dayDotWrite.current;
+    if (w.busy) return;
+    w.busy = true;
+    setDayDots((prev) => ({ ...prev, phase: 'skipped', dotIndex: undefined }));
+    const userId = session.user.id;
+    const date = dayDots.date;
+    const error = await skipDayDot(userId, date);
+    if (error) {
+      dayDotWriteFailed();
+      return;
+    }
+    dayDotConfirmed.current = { phase: 'skipped' };
+    const queued = w.pending;
+    w.pending = null;
+    if (queued != null) await drainDayDotWrites(userId, date, queued);
+    else w.busy = false;
+  }
+
+  function dayDotsCard() {
+    // Before the first read: the not-dotted look, no trail.
+    const phase = dayDots?.phase || 'open';
+    let trail = null;
+    if (dayDots?.rows) {
+      // Counted back from the day the rows were read for (local dates),
+      // so a Home left open past midnight still lines them up.
+      trail = [];
+      for (let back = DAY_DOTS_TRAIL_DAYS - 1; back >= 0; back--) {
+        const d = parseLocalDateString(dayDots.date);
+        d.setDate(d.getDate() - back);
+        const date = toLocalDateString(d);
+        trail.push({ date, row: dayDots.rows.get(date) });
+      }
+    }
+    return {
+      key: 'dayDots',
+      title: 'Dot your Day',
+      sub: dayDotsSubLine(phase),
+      color: deckColors.dayDots,
+      headerRight: <DayDotsSkipPill phase={phase} onPress={handleDayDotSkip} />,
+      fixedBody: true,
+      children: (
+        <HomeDayDotsCard
+          phase={phase}
+          dotIndex={dayDots?.dotIndex}
+          trail={trail}
+          cardColor={deckColors.dayDots}
+          onSave={handleDayDotSave}
+        />
+      ),
+    };
+  }
+
   // Card order: Remember this?, Your Goals, My Rewards, Blogbits,
-  // Routines and Reminders -- only the ones that are showing.
+  // Routines and Reminders, Day Dots -- only the ones that are showing.
   const deckCards = [
     showRememberCard && rememberCard(),
     showGoalsCard && goalsCard(),
     showRedeemCard && rewardsCard(),
     showFollowedTalesCard && multicklesCard(),
     rnrsCard(),
+    dayDotsCard(),
   ].filter(Boolean);
   // 322dp, or the content width when the screen is narrower (a 360dp
   // phone has 320dp between Home's side paddings).
@@ -1513,10 +1674,11 @@ export default function Home() {
     : (pageHeight || windowHeight) - tabBarHeight - SPARE_ROOM - (innerTop + deckTop);
   // Every card's data is in: entries (loading), Goals, the Reward List
   // while Tokens & Rewards is on, followed Multickles, and today's
-  // Routines and Reminders. A failed fetch never sets its flag (except
-  // rnrLoaded, whose card shows its own error) -- the deck's own 3s wait
-  // covers that.
-  const deckSettled = !loading && goalsLoaded && (!tokensEnabled || rewardsLoaded) && followedTalesLoaded && rnrLoaded;
+  // Routines and Reminders, and the Day Dots read. A failed fetch never
+  // sets its flag (except rnrLoaded, whose card shows its own error, and
+  // dayDotsLoaded, whose card then shows today's dot without the trail)
+  // -- the deck's own 3s wait covers that.
+  const deckSettled = !loading && goalsLoaded && (!tokensEnabled || rewardsLoaded) && followedTalesLoaded && rnrLoaded && dayDotsLoaded;
 
   // label is the short text under each pill; a11yName is what a screen
   // reader says, so the two "Polaroid" pills can still be told apart.

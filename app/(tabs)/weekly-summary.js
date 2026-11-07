@@ -20,8 +20,8 @@ import AwardHand from '../../components/AwardHand';
 import { fetchAwardedEntryTypes } from '../../lib/awards';
 import { countDoneSince } from '../../lib/rnrs';
 
-// Same relative progression as DayDotsCard.js's own DOT_SIZES
-// (22/30/38/46 there), scaled down for this row-of-7's tighter,
+// Same relative progression as the Day Dot sizes (14/18/22/26dp on the
+// old My Day picker), scaled down for this row-of-7's tighter,
 // smaller context -- not meant to be pixel-precise, just enough spread
 // that a small pick reads visibly smaller than a large one at a glance.
 const DAY_DOTS_SIZES = [9, 12, 15, 18];

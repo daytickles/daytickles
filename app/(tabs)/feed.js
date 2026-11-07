@@ -12,7 +12,6 @@ import { shareEntry, useShareStatus, sharePhotoOnlyEntry, SHARE_CAPTIONS } from 
 import { alertCapBlocked, capFor, checkAndConsumeWeeklyCap, rippleFeatureFor } from '../../lib/freemiumCaps';
 import { showAlert, showSaveFailed } from '../../lib/themedAlert';
 import { notifyLikeReceived } from '../../lib/likeNotify';
-import { localDateString } from '../../lib/week';
 import { assignEntryGoal } from '../../lib/goalTagging';
 import GoalTagModal from '../../components/GoalTagModal';
 import { assignEntryTale, fetchFollowedTales, fetchMyTales, fetchTaleBadges } from '../../lib/tales';
@@ -21,7 +20,6 @@ import AwardPickerModal from '../../components/AwardPickerModal';
 import ShareModal from '../../components/ShareModal';
 import PhotoEnlargeModal from '../../components/PhotoEnlargeModal';
 import EntryCard, { CARD_SPACING } from '../../components/EntryCard';
-import DayDotsCard from '../../components/DayDotsCard';
 import CornerNav from '../../components/CornerNav';
 import CountBadge from '../../components/CountBadge';
 import NewTickleButton from '../../components/NewTickleButton';
@@ -188,14 +186,6 @@ export default function Feed() {
   // followed Multickle's Tics surface without also following its author.
   const [taleFilter, setTaleFilter] = useState(null);
   const [followedTales, setFollowedTales] = useState([]);
-  // Day Dots state for today, re-derived on every focus of this screen
-  // (see the effect below) -- null until the first check resolves. No
-  // time window and no timer: the dot can be picked, skipped or changed
-  // at any time of the local day. { date, phase: 'open'|'answered'|
-  // 'skipped', dotIndex? } -- date is the local day the state was loaded
-  // for (a tap on a screen left open past midnight re-reads instead of
-  // saving); dotIndex only set when phase === 'answered'.
-  const [dayDots, setDayDots] = useState(null);
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   // Pull-down refresh spinner, separate from `loading` (see handleRefresh).
@@ -404,98 +394,6 @@ export default function Feed() {
       loadPhotoLinks();
     }, [loadPhotoLinks])
   );
-
-  // Day Dots -- deliberately simple, no timer. Re-checked on every focus
-  // of this screen (tab switch, app resume): read today's row if one
-  // exists, otherwise 'open'. Not gated on profile.daily_reminder or the
-  // time of day -- a permanent block on My Day, open all day.
-  const checkDayDots = useCallback(async () => {
-    if (!session) {
-      setDayDots(null);
-      return;
-    }
-    const today = localDateString(0);
-    const { data } = await supabase
-      .from('day_dots')
-      .select('status, dot_index')
-      .eq('user_id', session.user.id)
-      .eq('prompt_date', today)
-      .maybeSingle();
-
-    if (data) {
-      setDayDots(
-        data.status === 'answered'
-          ? { date: today, phase: 'answered', dotIndex: data.dot_index }
-          : { date: today, phase: 'skipped' }
-      );
-      return;
-    }
-    setDayDots({ date: today, phase: 'open' });
-  }, [session]);
-
-  useFocusEffect(
-    useCallback(() => {
-      checkDayDots();
-    }, [checkDayDots])
-  );
-
-  // Optimistic, like the rest of this screen: a failed save puts the
-  // dots back the way they were and says so, rather than showing a Day
-  // Dot that was never stored. "Today" is the phone's local date at tap
-  // time; if that's no longer the day the dots were loaded for (the
-  // screen stayed open past midnight), the tap only re-reads today.
-  async function handleDayDotsSelect(dotIndex) {
-    const today = localDateString(0);
-    if (!dayDots || dayDots.date !== today) {
-      checkDayDots();
-      return;
-    }
-    if (dayDots.phase === 'answered' && dayDots.dotIndex === dotIndex) return;
-    const previous = dayDots;
-    setDayDots({ date: today, phase: 'answered', dotIndex });
-    // Upsert on the one-row-per-day key, so a change (or a dot after a
-    // skip) updates today's row. Needs day_dots' update policy.
-    const { error } = await supabase
-      .from('day_dots')
-      .upsert(
-        {
-          user_id: session.user.id,
-          prompt_date: today,
-          status: 'answered',
-          dot_index: dotIndex,
-          answered_at: new Date().toISOString(),
-        },
-        { onConflict: 'user_id,prompt_date' }
-      );
-    if (error) {
-      setDayDots(previous);
-      showAlert("Couldn't save your Day Dot", 'Please try again.');
-    }
-  }
-
-  // Skip only shows while today has no row, so this is an insert.
-  async function handleDayDotsSkip() {
-    const today = localDateString(0);
-    if (!dayDots || dayDots.date !== today) {
-      checkDayDots();
-      return;
-    }
-    const previous = dayDots;
-    setDayDots({ date: today, phase: 'skipped' });
-    const { error } = await supabase
-      .from('day_dots')
-      .insert({
-        user_id: session.user.id,
-        prompt_date: today,
-        status: 'skipped',
-        dot_index: null,
-        answered_at: new Date().toISOString(),
-      });
-    if (error) {
-      setDayDots(previous);
-      showAlert("Couldn't save your Day Dot", 'Please try again.');
-    }
-  }
 
   // Same reasoning as loadFollowed/loadLiked above -- only this screen's
   // own handleGiveAward can ever create an award row (awards RLS is
@@ -1357,16 +1255,6 @@ export default function Feed() {
             })}
           </ScrollView>
         </View>
-      )}
-
-      {tab === 'mine' && natureFilter === 'day_journal' && dayDots && (
-        <DayDotsCard
-          accentColor={accentFor(profile?.accent_theme).card}
-          phase={dayDots.phase}
-          selectedDotIndex={dayDots.dotIndex}
-          onSelectDot={handleDayDotsSelect}
-          onSkip={handleDayDotsSkip}
-        />
       )}
 
       {loading && <ActivityIndicator color={C.rust} style={styles.loader} />}
