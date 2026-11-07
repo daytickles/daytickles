@@ -250,7 +250,7 @@ export default function Tales() {
         <Text style={[styles.backLink, (saving || mutating) && styles.linkDisabled]}>‹ Back</Text>
       </TouchableOpacity>
 
-      <Text style={styles.title}>Blogbit Moments</Text>
+      <Text style={styles.title}>Blogbits</Text>
       <Text style={styles.description}>
         A Blogbit is an experience that's bigger than a single Tickle — a string of moments, a weekend
         away, a special occasion, an adventure, or simply a collection of moments that belong together. Give

@@ -861,6 +861,38 @@ export default function Settings() {
         )}
       </View>
 
+      <SettingsSection title="Goals and Rewards" open={!!openSections.goals} onToggle={() => toggleSection('goals')}>
+        <View style={[styles.card, styles.cardInSection]}>
+          <Button title="Manage Goals" onPress={() => router.push('/goals')} variant="secondary" />
+          <View style={styles.buttonSpacer} />
+          <Button title="Manage Blogbits" onPress={() => router.push('/tales')} variant="secondary" />
+        </View>
+        <View style={[styles.card, styles.cardInSection]}>
+          <View style={styles.toggleRow}>
+            <Text style={styles.toggleLabel}>Tokens & Rewards</Text>
+            <Switch
+              value={tokensEnabled}
+              onValueChange={handleToggleTokens}
+              disabled={savingTokensEnabled}
+              trackColor={{ false: C.border, true: accentDark }}
+              thumbColor={C.card}
+            />
+          </View>
+          <Text style={styles.explainerText}>
+            Earn tokens by tagging Tickles to a token-enabled Goal, then spend them on rewards you
+            set up yourself. Off hides this everywhere, regardless of your balance or any Goal's own
+            toggle.
+          </Text>
+          <View style={styles.spacer} />
+          <Button
+            title="Manage Reward List"
+            onPress={() => router.push('/wishlist')}
+            variant="secondary"
+            disabled={!tokensEnabled}
+          />
+        </View>
+      </SettingsSection>
+
       <SettingsSection title="Look and feel" open={!!openSections.look} onToggle={() => toggleSection('look')}>
         <View style={[styles.card, styles.cardInSection]}>
           <Text style={styles.label}>Accent colour</Text>
@@ -1021,38 +1053,6 @@ export default function Settings() {
               </View>
             );
           })}
-        </View>
-      </SettingsSection>
-
-      <SettingsSection title="Goals and Rewards" open={!!openSections.goals} onToggle={() => toggleSection('goals')}>
-        <View style={[styles.card, styles.cardInSection]}>
-          <Button title="Manage Goals" onPress={() => router.push('/goals')} variant="secondary" />
-          <View style={styles.buttonSpacer} />
-          <Button title="Manage Blogbits" onPress={() => router.push('/tales')} variant="secondary" />
-        </View>
-        <View style={[styles.card, styles.cardInSection]}>
-          <View style={styles.toggleRow}>
-            <Text style={styles.toggleLabel}>Tokens & Rewards</Text>
-            <Switch
-              value={tokensEnabled}
-              onValueChange={handleToggleTokens}
-              disabled={savingTokensEnabled}
-              trackColor={{ false: C.border, true: accentDark }}
-              thumbColor={C.card}
-            />
-          </View>
-          <Text style={styles.explainerText}>
-            Earn tokens by tagging Tickles to a token-enabled Goal, then spend them on rewards you
-            set up yourself. Off hides this everywhere, regardless of your balance or any Goal's own
-            toggle.
-          </Text>
-          <View style={styles.spacer} />
-          <Button
-            title="Manage Reward List"
-            onPress={() => router.push('/wishlist')}
-            variant="secondary"
-            disabled={!tokensEnabled}
-          />
         </View>
       </SettingsSection>
 
