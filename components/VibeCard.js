@@ -6,7 +6,7 @@ import NatureIcon from './NatureIcon';
 // Same explainer for every card, tap-triggered -- the three numbers'
 // meaning is positional (left to right), not per-vibe, so one shared
 // string covers all three.
-const TOOLTIP_TEXT = 'This week | this month | all time';
+const TOOLTIP_TEXT = 'Week | Month | All time';
 // The card's shadow (style prop boxShadow), in the card's own colour at
 // VIBE_SHADOW_ALPHA. No elevation, so the two don't double up.
 const VIBE_SHADOW_ALPHA = 0.6;
