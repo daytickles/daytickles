@@ -13,7 +13,6 @@ import { alertCapBlocked, capFor, checkAndConsumeWeeklyCap, rippleFeatureFor } f
 import { showAlert, showSaveFailed } from '../../lib/themedAlert';
 import { notifyLikeReceived } from '../../lib/likeNotify';
 import { localDateString } from '../../lib/week';
-import { EVENING_HOUR, EVENING_MINUTE } from '../../lib/reminders';
 import { assignEntryGoal } from '../../lib/goalTagging';
 import GoalTagModal from '../../components/GoalTagModal';
 import { assignEntryTale, fetchFollowedTales, fetchMyTales, fetchTaleBadges } from '../../lib/tales';
@@ -190,13 +189,12 @@ export default function Feed() {
   const [taleFilter, setTaleFilter] = useState(null);
   const [followedTales, setFollowedTales] = useState([]);
   // Day Dots state for today, re-derived on every focus of this screen
-  // (see the effect below) -- null until the first check resolves.
-  // Deliberately no live timer: a screen sitting continuously open
-  // across the 8pm cutoff just stays on 'before' until the next focus
-  // (tab switch, app resume), which is an accepted simplification, not
-  // a bug -- see project memory on the discarded open/close-timer design
-  // this replaces. { phase: 'before'|'active'|'answered'|'skipped',
-  // dotIndex? } -- dotIndex only set when phase === 'answered'.
+  // (see the effect below) -- null until the first check resolves. No
+  // time window and no timer: the dot can be picked, skipped or changed
+  // at any time of the local day. { date, phase: 'open'|'answered'|
+  // 'skipped', dotIndex? } -- date is the local day the state was loaded
+  // for (a tap on a screen left open past midnight re-reads instead of
+  // saving); dotIndex only set when phase === 'answered'.
   const [dayDots, setDayDots] = useState(null);
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -409,12 +407,8 @@ export default function Feed() {
 
   // Day Dots -- deliberately simple, no timer. Re-checked on every focus
   // of this screen (tab switch, app resume): read today's row if one
-  // exists, otherwise derive 'before'/'active' from a plain local-clock
-  // comparison against EVENING_HOUR/EVENING_MINUTE (shared with the
-  // evening reminder's own schedule, see lib/reminders.js). No longer
-  // gated on profile.daily_reminder -- this is a permanent card on My
-  // Day now, not something that only matters while a notification is
-  // scheduled.
+  // exists, otherwise 'open'. Not gated on profile.daily_reminder or the
+  // time of day -- a permanent block on My Day, open all day.
   const checkDayDots = useCallback(async () => {
     if (!session) {
       setDayDots(null);
@@ -431,17 +425,12 @@ export default function Feed() {
     if (data) {
       setDayDots(
         data.status === 'answered'
-          ? { phase: 'answered', dotIndex: data.dot_index }
-          : { phase: 'skipped' }
+          ? { date: today, phase: 'answered', dotIndex: data.dot_index }
+          : { date: today, phase: 'skipped' }
       );
       return;
     }
-
-    const now = new Date();
-    const isEvening =
-      now.getHours() > EVENING_HOUR ||
-      (now.getHours() === EVENING_HOUR && now.getMinutes() >= EVENING_MINUTE);
-    setDayDots({ phase: isEvening ? 'active' : 'before' });
+    setDayDots({ date: today, phase: 'open' });
   }, [session]);
 
   useFocusEffect(
@@ -451,28 +440,57 @@ export default function Feed() {
   );
 
   // Optimistic, like the rest of this screen: a failed save puts the
-  // card back the way it was and says so, rather than showing a Day Dot
-  // that was never stored.
+  // dots back the way they were and says so, rather than showing a Day
+  // Dot that was never stored. "Today" is the phone's local date at tap
+  // time; if that's no longer the day the dots were loaded for (the
+  // screen stayed open past midnight), the tap only re-reads today.
   async function handleDayDotsSelect(dotIndex) {
     const today = localDateString(0);
+    if (!dayDots || dayDots.date !== today) {
+      checkDayDots();
+      return;
+    }
+    if (dayDots.phase === 'answered' && dayDots.dotIndex === dotIndex) return;
     const previous = dayDots;
-    setDayDots({ phase: 'answered', dotIndex });
+    setDayDots({ date: today, phase: 'answered', dotIndex });
+    // Upsert on the one-row-per-day key, so a change (or a dot after a
+    // skip) updates today's row. Needs day_dots' update policy.
     const { error } = await supabase
       .from('day_dots')
-      .insert({ user_id: session.user.id, prompt_date: today, status: 'answered', dot_index: dotIndex });
+      .upsert(
+        {
+          user_id: session.user.id,
+          prompt_date: today,
+          status: 'answered',
+          dot_index: dotIndex,
+          answered_at: new Date().toISOString(),
+        },
+        { onConflict: 'user_id,prompt_date' }
+      );
     if (error) {
       setDayDots(previous);
       showAlert("Couldn't save your Day Dot", 'Please try again.');
     }
   }
 
+  // Skip only shows while today has no row, so this is an insert.
   async function handleDayDotsSkip() {
     const today = localDateString(0);
+    if (!dayDots || dayDots.date !== today) {
+      checkDayDots();
+      return;
+    }
     const previous = dayDots;
-    setDayDots({ phase: 'skipped' });
+    setDayDots({ date: today, phase: 'skipped' });
     const { error } = await supabase
       .from('day_dots')
-      .insert({ user_id: session.user.id, prompt_date: today, status: 'skipped' });
+      .insert({
+        user_id: session.user.id,
+        prompt_date: today,
+        status: 'skipped',
+        dot_index: null,
+        answered_at: new Date().toISOString(),
+      });
     if (error) {
       setDayDots(previous);
       showAlert("Couldn't save your Day Dot", 'Please try again.');

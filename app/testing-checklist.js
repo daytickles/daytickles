@@ -149,6 +149,7 @@ const SECTIONS = [
     title: 'Day Dots',
     items: [
       { id: 'daydots-answer-today', label: "Answer today's Day Dot" },
+      { id: 'day-dot-change', label: 'Pick a Day Dot at any time of day, then change it later the same day; a skipped day can still be dotted' },
       { id: 'daydots-calendar-history', label: 'Check Day Dot history on the Calendar' },
     ],
   },

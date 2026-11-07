@@ -850,25 +850,9 @@ export default function Calendar() {
                 timeZone: 'UTC',
               })}
             </Text>
-            {/* Day Dots isn't a Tickle (no tickle_entries row), so its
-                result is a single readout line rather than a pill. */}
-            {selectedDayDotsEntry?.status === 'answered' && (
-              <View style={styles.dayDotsDetailRow}>
-                <View
-                  style={[
-                    styles.dayDotsDot,
-                    {
-                      width: DAY_DOTS_SIZES[selectedDayDotsEntry.dotIndex],
-                      height: DAY_DOTS_SIZES[selectedDayDotsEntry.dotIndex],
-                      borderRadius: DAY_DOTS_SIZES[selectedDayDotsEntry.dotIndex] / 2,
-                      backgroundColor: withAlpha(accentCard, 0.35),
-                      borderColor: darken(accentCard, 0.15),
-                    },
-                  ]}
-                />
-                <Text style={styles.dayDotsDetailText}>Dotted your day</Text>
-              </View>
-            )}
+            {/* Day Dots isn't a Tickle (no tickle_entries row). A dotted
+                day shows only its dot on the grid; a skipped day gets
+                this one readout line rather than a pill. */}
             {selectedDayDotsEntry?.status === 'skipped' && (
               <View style={styles.dayDotsDetailRow}>
                 <View style={[styles.dayDotsSkipMark, { backgroundColor: C.subtext }]} />
