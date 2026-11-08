@@ -131,6 +131,10 @@ export default function Calendar() {
   // TickleTales -- same three pieces of state as feed.js's own.
   const [myTales, setMyTales] = useState([]);
   const [taleBadges, setTaleBadges] = useState(new Map());
+  // Bumped after a Blogbit tag or a plain-text Ripple flip has been
+  // saved, so the chips are read again once the server has the change --
+  // the optimistic update alone re-reads them before the write lands.
+  const [taleBadgesNonce, setTaleBadgesNonce] = useState(0);
   const [talePickerEntryId, setTalePickerEntryId] = useState(null);
   const [shareEntryId, setShareEntryId] = useState(null);
   const [favoritedIds, setFavoritedIds] = useState(new Set());
@@ -366,7 +370,7 @@ export default function Calendar() {
     return () => {
       cancelled = true;
     };
-  }, [dayEntries]);
+  }, [dayEntries, taleBadgesNonce]);
 
   function selectDate(dateStr) {
     setSelectedDate(dateStr);
@@ -551,7 +555,9 @@ export default function Calendar() {
     if (error) {
       setDayEntries(previous);
       showSaveFailed();
+      return;
     }
+    setTaleBadgesNonce((n) => n + 1);
   }
 
   async function handleDeleteEntry(entry) {
@@ -596,7 +602,9 @@ export default function Calendar() {
     if (error) {
       console.warn('Multickle tag failed', error);
       showAlert("Couldn't update the Blogbit", 'Please try again.');
+      return;
     }
+    setTaleBadgesNonce((n) => n + 1);
   }
 
   async function handleShare(entry, captionId) {

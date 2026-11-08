@@ -197,6 +197,10 @@ export default function Feed() {
   // every loaded entry that's tagged, from anyone.
   const [myTales, setMyTales] = useState([]);
   const [taleBadges, setTaleBadges] = useState(new Map());
+  // Bumped after a Blogbit tag or a plain-text Ripple flip has been
+  // saved, so the chips are read again once the server has the change --
+  // the optimistic update alone re-reads them before the write lands.
+  const [taleBadgesNonce, setTaleBadgesNonce] = useState(0);
   const [talePickerEntryId, setTalePickerEntryId] = useState(null);
   const [shareEntryId, setShareEntryId] = useState(null);
   const [awardEntryId, setAwardEntryId] = useState(null);
@@ -372,7 +376,7 @@ export default function Feed() {
     return () => {
       cancelled = true;
     };
-  }, [entries]);
+  }, [entries, taleBadgesNonce]);
 
   // Local-only Pin Board links (see lib/pinBoardDb.js) — loaded the same
   // way as followedIds/favoritedIds/likedIds above: independent of tab,
@@ -843,7 +847,9 @@ export default function Feed() {
     if (error) {
       console.warn('Multickle tag failed', error);
       showAlert("Couldn't update the Blogbit", 'Please try again.');
+      return;
     }
+    setTaleBadgesNonce((n) => n + 1);
   }
 
   async function handleShare(entry, captionId) {
@@ -1065,7 +1071,9 @@ export default function Feed() {
     if (error) {
       setEntries(previous);
       showSaveFailed();
+      return;
     }
+    setTaleBadgesNonce((n) => n + 1);
   }
 
   function renderEntry({ item }) {
