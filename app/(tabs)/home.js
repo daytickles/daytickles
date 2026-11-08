@@ -1633,7 +1633,7 @@ export default function Home() {
     }
     return {
       key: 'dayDots',
-      title: 'Dot your Day',
+      title: 'How bright is your day?',
       sub: dayDotsSubLine(phase),
       color: deckColors.dayDots,
       headerRight: <DayDotsSkipPill phase={phase} onPress={handleDayDotSkip} />,

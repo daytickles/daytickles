@@ -97,8 +97,8 @@ function useReduceMotion() {
 
 // The card's sub line, by today's phase.
 export function dayDotsSubLine(phase) {
-  if (phase === 'skipped') return 'Skipped today. Tap to set size.';
-  return 'Tap to set size';
+  if (phase === 'skipped') return 'Skipped today. Tap the dot to set it.';
+  return 'Tap the dot: bigger is brighter';
 }
 
 // The header's Skip pill. Filled while today is skipped. Skip is an
@@ -164,7 +164,7 @@ export default function HomeDayDotsCard({ phase, dotIndex, trail, cardColor, onS
   }
 
   const stateWords = phase === 'answered' ? sizeWords(dotIndex) : phase === 'skipped' ? 'Skipped' : 'Not dotted yet';
-  const heroLabel = `Today's dot. ${stateWords}. Tap to step up the size.`;
+  const heroLabel = `Today's dot. ${stateWords}. Bigger is brighter. Tap to step up the size.`;
 
   const sizeStyle = { width: size, height: size, borderRadius: Animated.divide(size, 2) };
   let ringStyle;
