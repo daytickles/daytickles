@@ -117,7 +117,7 @@ const SECTIONS = [
       { id: 'calendar-large-font', label: 'Calendar: check the pills and grid at the largest font size' },
       { id: 'browse-weekly-summary', label: 'Open Your Week' },
       { id: 'deck-plus-buttons', label: 'On Home, the Your Goals, My Rewards, Blogbits and Nudges & Notes cards (those switched on) each have a + that opens the matching screen; Remember this? has none.' },
-      { id: 'deck-swipe-back', label: 'Home deck: swipe left and the next card comes forward; swipe right and the card you just swiped away slides back in from the left, on top (same as the Previous arrow)' },
+      { id: 'deck-swipe-back', label: 'Home deck: swipe the front card off to the left, and to the right: either way the next card comes forward. Then swipe the opposite way straight after: the card you just sent away slides back in on top, from the side it left by. The arrows and dots still go either way' },
     ],
   },
   {
