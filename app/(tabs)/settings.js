@@ -33,6 +33,25 @@ import { hasPinSet, clearPin } from '../../lib/pinLock';
 import { deleteAccount } from '../../lib/deleteAccount';
 import { BUTTON_HEIGHT, BUTTON_HIT_SLOP, BUTTON_RADIUS } from '../../lib/buttonSize';
 import { HOME_PALETTES, HOME_PALETTE_SLOTS, homePaletteFor } from '../../lib/homePalette';
+import { homeCardsFor, homeCardsValue } from '../../lib/homeCards';
+
+// The Home cards card's rows, in the deck's order (lib/homeCards.js
+// keys). offNote is the small line under a row while it's off, for the
+// two cards that are the only way into their feature.
+const HOME_CARD_ROWS = [
+  { key: 'remember', name: 'Remember this?', description: 'An older Tickle, resurfaced' },
+  {
+    key: 'goals', name: 'Your Goals', description: 'Tickles tagged to each Goal',
+    offNote: "Off: Goal summaries can't be opened until you turn this back on.",
+  },
+  { key: 'rewards', name: 'My Rewards', description: 'What your tokens can redeem' },
+  { key: 'multickles', name: 'Blogbits', description: 'The ones still going' },
+  { key: 'rnrs', name: 'Nudges & Notes', description: "Today's reminders" },
+  {
+    key: 'dayDots', name: 'How bright is your day?', description: 'Day Dots',
+    offNote: "Off: you can't dot your day until you turn this back on.",
+  },
+];
 
 // The Delete Account text link (about 26dp tall): 7 above (it sits 14dp
 // under Sign Out, whose own slop is 7) and 11 below makes it 44dp to tap.
@@ -122,6 +141,8 @@ export default function Settings() {
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [savingTheme, setSavingTheme] = useState(null);
   const [savingHomePalette, setSavingHomePalette] = useState(null);
+  // The Home cards key being saved, or null.
+  const [savingHomeCard, setSavingHomeCard] = useState(null);
   // Which Settings sections are open: all start closed. Kept while the
   // app is open, not saved.
   const [openSections, setOpenSections] = useState({});
@@ -350,6 +371,28 @@ export default function Settings() {
 
     const { error } = await supabase.from('profiles').update({ home_palette: paletteId }).eq('id', profile.id);
     setSavingHomePalette(null);
+
+    if (error) {
+      setProfile(previous);
+      showSaveFailed();
+    } else {
+      refreshProfile();
+    }
+  }
+
+  // Home cards: same press / save / revert as handlePickHomePalette. Saves
+  // the whole on-list (lib/homeCards.js), so a null home_cards becomes
+  // the explicit list on the first change.
+  async function handleToggleHomeCard(key, on) {
+    if (!profile || homeCardsFor(profile)[key] === on) return;
+    const previous = profile;
+    const value = homeCardsValue({ ...homeCardsFor(profile), [key]: on });
+
+    setProfile({ ...profile, home_cards: value });
+    setSavingHomeCard(key);
+
+    const { error } = await supabase.from('profiles').update({ home_cards: value }).eq('id', profile.id);
+    setSavingHomeCard(null);
 
     if (error) {
       setProfile(previous);
@@ -952,6 +995,35 @@ export default function Settings() {
           })}
         </View>
         <View style={[styles.card, styles.cardInSection]}>
+          <Text style={styles.label}>Home cards</Text>
+          <Text style={styles.explainerText}>
+            Choose which cards show on Home. A hidden card only disappears from Home. The feature
+            and everything in it stays.
+          </Text>
+          {HOME_CARD_ROWS.map((row) => {
+            const on = homeCardsFor(profile)[row.key];
+            return (
+              <View key={row.key} style={styles.homeCardRow}>
+                <View style={styles.toggleRow}>
+                  <View style={styles.homeCardText}>
+                    <Text style={styles.homeCardName}>{row.name}</Text>
+                    <Text style={styles.explainerText}>{row.description}</Text>
+                  </View>
+                  <Switch
+                    value={on}
+                    onValueChange={(value) => handleToggleHomeCard(row.key, value)}
+                    disabled={savingHomeCard !== null}
+                    trackColor={{ false: C.border, true: accentDark }}
+                    thumbColor={C.card}
+                    accessibilityLabel={`${row.name} card on Home: ${row.description}`}
+                  />
+                </View>
+                {!on && row.offNote && <Text style={styles.homeCardOffNote}>{row.offNote}</Text>}
+              </View>
+            );
+          })}
+        </View>
+        <View style={[styles.card, styles.cardInSection]}>
           <Text style={styles.label}>Country</Text>
           <TouchableOpacity
             style={styles.countryRow}
@@ -1341,6 +1413,12 @@ const styles = StyleSheet.create({
   paletteDots: { flexDirection: 'row', gap: 4 },
   paletteDot: { width: 16, height: 16, borderRadius: 8 },
   paletteName: { flex: 1, fontSize: 15, color: C.text },
+  // Home cards: one row per deck card (name, one-line description, its
+  // Switch), at least 44dp tall; the off note sits under its row.
+  homeCardRow: { marginTop: 12 },
+  homeCardText: { flex: 1, minHeight: 44, justifyContent: 'center', marginRight: 12 },
+  homeCardName: { fontSize: 15, color: C.text },
+  homeCardOffNote: { fontSize: 12, color: C.text, lineHeight: 16, marginTop: 4 },
   // Narrower gap than swatchRow -- 7 day options vs 5 accent colors
   // need to fit the same content width.
   weekDayRow: { flexDirection: 'row', gap: 8 },

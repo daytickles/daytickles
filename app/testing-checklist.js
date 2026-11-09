@@ -108,7 +108,7 @@ const SECTIONS = [
     items: [
       { id: 'browse-stash-tabs', label: "Switch between Stash tabs (Mine, Fav's, Following, Rippled)" },
       { id: 'calendar-open-from-icon', label: 'Open the Calendar from the calendar icon at the top of Home (also on Tickle Stash and Tickle Pics; not shown on the Calendar itself)' },
-      { id: 'calendar-no-token-circle', label: 'The token circle is gone from the top bar; your balance still shows next to My Rewards on Home' },
+      { id: 'calendar-no-token-circle', label: 'The token circle is gone from the top bar; your balance still shows next to My Rewards on Home (with the My Rewards card on)' },
       { id: 'browse-calendar-past-day', label: 'Browse the Calendar and tap into a past day' },
       { id: 'calendar-day-marks', label: 'Calendar: check a month with Day Dots answered, skipped and missing (open circle on days with Tickles only)' },
       { id: 'calendar-pills-open-close', label: 'Calendar: tap a day, open and close the Tickles and Goals pills' },
@@ -116,7 +116,8 @@ const SECTIONS = [
       { id: 'calendar-delete-updates', label: 'Calendar: delete a Tickle or change its Goal from the day list, and check the pill counts update' },
       { id: 'calendar-large-font', label: 'Calendar: check the pills and grid at the largest font size' },
       { id: 'browse-weekly-summary', label: 'Open Your Week' },
-      { id: 'deck-plus-buttons', label: 'On Home, the Your Goals, My Rewards, Blogbits and Nudges & Notes cards each have a + that opens the matching screen; Remember this? has none.' },
+      { id: 'deck-plus-buttons', label: 'On Home, the Your Goals, My Rewards, Blogbits and Nudges & Notes cards (those switched on) each have a + that opens the matching screen; Remember this? has none.' },
+      { id: 'deck-swipe-back', label: 'Home deck: swipe left and the next card comes forward; swipe right and the card you just swiped away slides back in from the left, on top (same as the Previous arrow)' },
     ],
   },
   {
@@ -181,6 +182,10 @@ const SECTIONS = [
     title: 'Settings & account',
     items: [
       { id: 'settings-accent-colour', label: 'Change accent colour' },
+      { id: 'settings-home-cards-off', label: 'Settings, Look and feel, Home cards: switch a card off and back on; it leaves Home and comes back, and its feature still works from its own screen' },
+      { id: 'settings-home-cards-front', label: 'With a card in front on Home, switch it off in Settings and go back to Home: the deck shows the card next to it, not always the first one' },
+      { id: 'settings-home-cards-all-off', label: 'Switch every Home card off: Home shows "No cards on Home" with an Open Settings button that opens Settings' },
+      { id: 'settings-home-cards-notes', label: 'Switch Your Goals off, then How bright is your day? off: each shows its own Off line under it, and it goes when switched back on' },
       { id: 'settings-sign-out-in', label: 'Sign out and sign back in' },
       { id: 'settings-awareness-cue', label: 'Receive and tap an Awareness Cue reminder' },
     ],

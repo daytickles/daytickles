@@ -40,6 +40,7 @@ import HomeDeck, {
   DECK_WIDTH, DECK_TEXT, DECK_SUBTEXT, deckRowStyles, HEADER_ADD_SIZE, HEADER_ADD_ICON_SIZE, HEADER_ADD_HIT_SLOP,
 } from '../../components/HomeDeck';
 import { useHomePalette } from '../../lib/homePalette';
+import { homeCardsFor } from '../../lib/homeCards';
 import {
   requestReminderPermission,
   scheduleDailyReminder,
@@ -259,6 +260,13 @@ export default function Home() {
   // The chosen Home colour set (lib/homePalette.js): deck card colours,
   // their row fills (worked out once per set) and the Vibe card colours.
   const { deck: deckColors, vibe: vibeColors, rowFill } = useHomePalette();
+  // Which deck cards are switched on (Settings, Home cards;
+  // lib/homeCards.js). A hidden card's own data isn't loaded, and the
+  // deck doesn't wait for it.
+  const {
+    remember: rememberOn, goals: goalsOn, rewards: rewardsOn,
+    multickles: multicklesOn, rnrs: rnrsOn, dayDots: dayDotsOn,
+  } = homeCardsFor(profile);
   const tabBarHeight = useBottomTabBarHeight();
   const insets = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
@@ -307,7 +315,7 @@ export default function Home() {
   // or 'error'.
   const [myTales, setMyTales] = useState([]);
   const [myTalesState, setMyTalesState] = useState('loading');
-  // Today's Routines and Reminders, for the deck's last card. Read only:
+  // Today's Routines and Reminders, for the deck's Nudges & Notes card. Read only:
   // the shared hook's load (the same one the pop-up and full page use),
   // none of its write functions. enabled=false, so it only loads when
   // loadRnrToday asks (Home focus, pull-down refresh). rnrLoaded: that
@@ -316,9 +324,10 @@ export default function Home() {
   const [rnrLoaded, setRnrLoaded] = useState(false);
   const reloadRnrDay = rnrDay.reload;
   const loadRnrToday = useCallback(async () => {
+    if (!rnrsOn) return;
     await reloadRnrDay();
     setRnrLoaded(true);
-  }, [reloadRnrDay]);
+  }, [reloadRnrDay, rnrsOn]);
   // Today's pop-up (components/RnrsPopup.js), opened from the card's tile
   // rows. A Modal doesn't change Home's focus, so closing it reloads the
   // card here -- unless it closed to go to the full page, where coming
@@ -328,7 +337,7 @@ export default function Home() {
     setRnrsPopupOpen(false);
     if (!leaving) loadRnrToday();
   }
-  // Day Dots card (the deck's last card). { date, phase, dotIndex?, rows }
+  // Day Dots card (the deck's How bright is your day? card). { date, phase, dotIndex?, rows }
   // -- date is the local day it was loaded for (a tap on a Home left open
   // past midnight re-reads instead of saving, as My Day's picker did);
   // phase/dotIndex are today's, from lib/dayDots.js dayDotPhase; rows is
@@ -547,7 +556,7 @@ export default function Home() {
   }, [session]);
 
   const loadGoals = useCallback(async () => {
-    if (!session) return;
+    if (!session || !goalsOn) return;
     const { data, error } = await supabase
       .from('goals')
       .select('*')
@@ -557,7 +566,7 @@ export default function Home() {
       setGoals(data || []);
       setGoalsLoaded(true);
     }
-  }, [session]);
+  }, [session, goalsOn]);
 
   // Week/month/all-time totals for Home's two caption-split stat pills --
   // polaroid_share_events (migration 0064), the real per-caption log of
@@ -633,7 +642,7 @@ export default function Home() {
   // While a write is in flight or queued, the read only updates the trail
   // rows, never today's phase, so it can't put back an older size.
   const loadDayDots = useCallback(async () => {
-    if (!session) return;
+    if (!session || !dayDotsOn) return;
     const today = localDateString(0);
     const rows = await fetchRecentDayDots(session.user.id);
     const w = dayDotWrite.current;
@@ -645,7 +654,7 @@ export default function Home() {
       setDayDots({ date: today, ...todayState, rows });
     }
     setDayDotsLoaded(true);
-  }, [session]);
+  }, [session, dayDotsOn]);
 
   useFocusEffect(
     useCallback(() => {
@@ -710,6 +719,7 @@ export default function Home() {
   // lag right after the Settings switch flips.
   const tokensEnabled = profile?.tokens_enabled !== false;
   const loadRewards = useCallback(async () => {
+    if (!rewardsOn) return;
     if (!session || !tokensEnabled) {
       setTokenBalance(0);
       setRewardItems([]);
@@ -726,7 +736,7 @@ export default function Home() {
       setRewardItems([]);
       setRewardsLoaded(false);
     }
-  }, [session, tokensEnabled]);
+  }, [session, tokensEnabled, rewardsOn]);
 
   useFocusEffect(
     useCallback(() => {
@@ -749,6 +759,7 @@ export default function Home() {
   // marks the notifications read when the Multickle is opened, never
   // Home. Best-effort -- any failure just clears the state and hides it.
   const loadFollowedTales = useCallback(async () => {
+    if (!multicklesOn) return;
     if (!session) {
       setFollowedTales([]);
       setFollowedTalesLoaded(false);
@@ -790,7 +801,7 @@ export default function Home() {
       setFollowedTales([]);
       setFollowedTalesLoaded(false);
     }
-  }, [session]);
+  }, [session, multicklesOn]);
 
   useFocusEffect(
     useCallback(() => {
@@ -801,14 +812,14 @@ export default function Home() {
   // Read only, the same read as Manage Multickles (app/tales.js): every
   // own Multickle, Ongoing first then Completed, newest first.
   const loadMyTales = useCallback(async () => {
-    if (!session) return;
+    if (!session || !multicklesOn) return;
     try {
       setMyTales(await fetchMyTales(session.user.id, { throwOnError: true }));
       setMyTalesState('loaded');
     } catch {
       setMyTalesState('error');
     }
-  }, [session]);
+  }, [session, multicklesOn]);
 
   useFocusEffect(
     useCallback(() => {
@@ -1651,15 +1662,19 @@ export default function Home() {
   }
 
   // Card order: Remember this?, Your Goals, My Rewards, Blogbits,
-  // Routines and Reminders, Day Dots -- only the ones that are showing.
+  // Nudges & Notes, Day Dots -- only the ones switched on in Settings
+  // (Home cards) that are showing: 0 to 6 cards.
   const deckCards = [
-    showRememberCard && rememberCard(),
-    showGoalsCard && goalsCard(),
-    showRedeemCard && rewardsCard(),
-    showFollowedTalesCard && multicklesCard(),
-    rnrsCard(),
-    dayDotsCard(),
+    rememberOn && showRememberCard && rememberCard(),
+    goalsOn && showGoalsCard && goalsCard(),
+    rewardsOn && showRedeemCard && rewardsCard(),
+    multicklesOn && showFollowedTalesCard && multicklesCard(),
+    rnrsOn && rnrsCard(),
+    dayDotsOn && dayDotsCard(),
   ].filter(Boolean);
+  // Every card switched off in Settings: a short line pointing there
+  // instead of the deck (only once the entries load is done).
+  const allCardsOff = !rememberOn && !goalsOn && !rewardsOn && !multicklesOn && !rnrsOn && !dayDotsOn;
   // 322dp, or the content width when the screen is narrower (a 360dp
   // phone has 320dp between Home's side paddings).
   const deckWidth = Math.min(DECK_WIDTH, windowWidth - 2 * HOME_SIDE_PADDING, HOME_CONTENT_MAX_WIDTH);
@@ -1678,7 +1693,13 @@ export default function Home() {
   // sets its flag (except rnrLoaded, whose card shows its own error, and
   // dayDotsLoaded, whose card then shows today's dot without the trail)
   // -- the deck's own 3s wait covers that.
-  const deckSettled = !loading && goalsLoaded && (!tokensEnabled || rewardsLoaded) && followedTalesLoaded && rnrLoaded && dayDotsLoaded;
+  // A card switched off in Settings isn't waited for.
+  const deckSettled = !loading
+    && (!goalsOn || goalsLoaded)
+    && (!rewardsOn || !tokensEnabled || rewardsLoaded)
+    && (!multicklesOn || followedTalesLoaded)
+    && (!rnrsOn || rnrLoaded)
+    && (!dayDotsOn || dayDotsLoaded);
 
   // label is the short text under each pill; a11yName is what a screen
   // reader says, so the two "Polaroid" pills can still be told apart.
@@ -1915,6 +1936,13 @@ export default function Home() {
           </View>
         )}
 
+        {!loading && allCardsOff && (
+          <View style={styles.cardsOff}>
+            <Text style={styles.cardsOffText}>No cards on Home. Turn some on in Settings, Home cards.</Text>
+            <Button title="Open Settings" onPress={() => router.navigate('/settings')} variant="secondary" />
+          </View>
+        )}
+
         {!loading && entries.length > 0 && !profile?.quick_start_dismissed && (
           <QuickStartCard onDismiss={handleDismissQuickStart} />
         )}
@@ -2055,6 +2083,9 @@ const styles = StyleSheet.create({
 
   // DECK_GAP below the buttons (or the tester pill, when it shows).
   bottomCards: { marginTop: DECK_GAP },
+  // In the deck's place when every card is switched off.
+  cardsOff: { marginTop: DECK_GAP, alignItems: 'center', gap: 12 },
+  cardsOffText: { color: C.subtext, textAlign: 'center' },
 
   // Multickles card's Follow / Mine chips. Selected: solid cream with the
   // card's own colour as text; not selected: the rows' cream outline.

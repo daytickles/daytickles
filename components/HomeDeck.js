@@ -7,9 +7,11 @@ import { BUTTON_HEIGHT, BUTTON_HIT_SLOP, BUTTON_RADIUS } from '../lib/buttonSize
 import { TILE_SOURCE, TILE_SIZE as WALLPAPER_TILE_SIZE, OPACITY as WALLPAPER_OPACITY } from './TiledWallpaper';
 
 // Home's flip-card deck (Task 3 H5): one card in front, the others fanned
-// behind it. It replaces the four stacked bottom sections. A sideways
-// swipe either way brings the next card (the nearest one behind) forward;
-// the arrows and dots go to the previous, next or any card. Plain RN
+// behind it. It replaces the four stacked bottom sections. A pile: a
+// swipe to either side sends the front card away and brings the next
+// card (the nearest one behind, already peeking out) forward; the
+// opposite swipe straight after brings that card back on top. The arrows
+// and dots go either way: to the previous, next or any card. Plain RN
 // Animated only -- no gesture or animation library.
 //
 // cards: [{ key, title, sub, subA11y, headerAction, headerRight, headerAdd, color, children }]
@@ -29,8 +31,10 @@ import { TILE_SOURCE, TILE_SIZE as WALLPAPER_TILE_SIZE, OPACITY as WALLPAPER_OPA
 //                line as they are: no scrolling list, no bottom fade, no
 //                list padding (Day Dots, whose dot -- a big tap target --
 //                mustn't sit in a scroller)
-// The caller only passes the cards that are showing (e.g. no My Rewards
-// while Tokens & Rewards is off), so the deck can hold 1 to 6.
+// The caller only passes the cards that are showing (switched on in
+// Settings' Home cards, and e.g. no My Rewards while Tokens & Rewards is
+// off), so the deck can hold 1 to 6; with none, the caller doesn't mount
+// it.
 
 export const DECK_WIDTH = 322;
 // Height at font scale 1.0. It grows with the font scale, up to 1.6x
@@ -153,7 +157,9 @@ function backCardInsets(width, height) {
 const FLIP_HALF_MS = 140;
 // The card the deck was left on (its key), per phone -- same naming as
 // lib/quickTickle.js's 'daytickles-quick-tickle-dismissed'. Best-effort:
-// any read error, or a saved card that isn't showing, opens card 1.
+// any read error, or a saved card that isn't showing, opens card 1. A
+// front card that drops out while the deck is open (switched off in
+// Settings) moves the deck to the nearest card still showing, saved.
 const DECK_CARD_KEY = 'daytickles-home-deck-card';
 // Sideways swipe (Task 3 H7): the deck only claims a drag once it has
 // moved this far sideways AND at least twice as far sideways as up or
@@ -162,8 +168,13 @@ const DECK_CARD_KEY = 'daytickles-home-deck-card';
 // up to SWIPE_TILT_DEG. Released past SWIPE_FRACTION of the card's width,
 // or flicked faster than SWIPE_VELOCITY, it carries on off the deck
 // (SWIPE_OUT_MS, to SWIPE_OUT_EXTRA dp past its own width) and only then
-// does the next card -- the nearest one behind -- come forward, whichever
-// way it was swiped; anything less springs back.
+// does the next card -- the nearest one behind -- come forward; anything
+// less springs back. Both sides work the same way, mirrored. The opposite
+// swipe straight after brings the card just swiped away (lastAway, now
+// the previous card) back: the front card stays still and that card
+// slides in on top from the side it left by, its leading edge on the
+// finger (just off the deck at the start, in place one card-width later),
+// untilting as it comes; anything less sends it back off that side.
 const SWIPE_CLAIM_DX = 12;
 const SWIPE_FRACTION = 0.25;
 const SWIPE_VELOCITY = 0.35;
@@ -229,6 +240,16 @@ function BottomFade({ color }) {
   );
 }
 
+// A swipe that didn't go far enough, or a cancelled touch: everything back
+// to rest (an incoming card back off its side), then the drag's helper
+// card unmounted -- unless a new drag took over first (the spring then
+// doesn't finish).
+function springBack(L) {
+  Animated.spring(L.dragX, { toValue: 0, useNativeDriver: true, bounciness: 4 }).start(({ finished }) => {
+    if (finished && L.modeRef.current) L.endMode();
+  });
+}
+
 // dataSettled: the caller's "every card's data is in" flag. The deck
 // stays a blank space of its own size until that and the saved-card read
 // are both done (or DECK_WAIT_MS has passed), then opens once on the
@@ -288,10 +309,36 @@ export default function HomeDeck({ cards, width, dataSettled = true, fitHeight =
     AsyncStorage.setItem(DECK_CARD_KEY, key).catch(() => {});
   }
 
+  // The card keys as last drawn, so a front card that drops out can be
+  // replaced by its nearest neighbour in that order (the one after it
+  // first, then the one before, and so on), not by card 1.
+  const lastKeys = useRef([]);
   const count = cards.length;
   const foundIndex = cards.findIndex((c) => c.key === activeKey);
-  const index = foundIndex >= 0 ? foundIndex : 0;
+  let index = foundIndex >= 0 ? foundIndex : 0;
+  if (foundIndex < 0 && activeKey) {
+    const old = lastKeys.current;
+    const pos = old.indexOf(activeKey);
+    for (let d = 1; pos >= 0 && d < old.length; d++) {
+      const nearest = [old[pos + d], old[pos - d]]
+        .map((k) => cards.findIndex((c) => c.key === k))
+        .find((i) => i >= 0);
+      if (nearest !== undefined) {
+        index = nearest;
+        break;
+      }
+    }
+  }
   const front = cards[index];
+  const cardKeys = cards.map((c) => c.key).join(',');
+  useEffect(() => {
+    lastKeys.current = cardKeys ? cardKeys.split(',') : [];
+  }, [cardKeys]);
+  // The front card dropped out: hold (and save) the one now shown.
+  const frontKey = front?.key;
+  useEffect(() => {
+    if (shown && frontKey && activeKey && frontKey !== activeKey) choose(frontKey);
+  }, [shown, frontKey, activeKey]);
 
   function announce(nextIndex) {
     AccessibilityInfo.announceForAccessibility(`Card ${nextIndex + 1} of ${count}: ${cards[nextIndex].title}`);
@@ -339,43 +386,88 @@ export default function HomeDeck({ cards, width, dataSettled = true, fitHeight =
     return goTo((index - 1 + count) % count, -1);
   }
 
-  // A released swipe. towards (-1 = left, 1 = right) is only the way the
-  // front card slides off; either way the NEXT card comes forward -- the
-  // nearest card behind (depth 1 in the fan), the one already peeking out.
-  // The card slides the rest of the way off the deck first; only when
-  // it's gone does the order change. Reduced motion: no slide, the card
-  // just changes to that same next card. Returns false when ignored (one
-  // card, or a flip or swipe already running). The arrows and dots still
-  // go back and forth (goNext, goPrev, goTo).
-  function swipeAway(towards) {
+  // A bring-back's incoming card (see the swipe notes above), mounted only
+  // while that drag is under way -- never at rest:
+  //   null      no incoming card: a swipe away to either side (the fan's
+  //             next card is already underneath) or no drag
+  //   'inLeft'  bringing back the card a left swipe sent away: the
+  //             previous card on top, in from the left (a right drag)
+  //   'inRight' bringing back the card a right swipe sent away: the
+  //             previous card on top, in from the right (a left drag)
+  // The front card follows the finger only in null. modeRef is the same
+  // value for the responder.
+  const [mode, setMode] = useState(null);
+  const modeRef = useRef(null);
+  function endMode() {
+    modeRef.current = null;
+    setMode(null);
+  }
+
+  // The card most recently swiped away, { key, dir: the side it left by },
+  // or null. Swiped either way it's then the previous card, and it only
+  // counts while it still is, so the arrows, dots and cards coming and
+  // going end it by themselves. Set when a swipe away lands, cleared
+  // after a bring-back.
+  const lastAway = useRef(null);
+  const prevIndex = (index - 1 + count) % count;
+  const nextIndex = (index + 1) % count;
+  const away = lastAway.current;
+  const awayValid = count > 1 && !!away && cards[prevIndex]?.key === away.key;
+  const awayLeftValid = awayValid && away.dir === 'left';
+  const awayRightValid = awayValid && away.dir === 'right';
+
+  // A released swipe: dragX runs on to toValue, and only then, all in one
+  // render, the target card is in front at a fresh centred offset, the
+  // helper card is gone and afterLanding updates lastAway. Reduced motion:
+  // no slide, the card just changes, lastAway untouched. Returns false
+  // when ignored (one card, or a flip or swipe already running).
+  function land(targetIndex, toValue, afterLanding) {
     if (count < 2 || flipping.current) return false;
-    const nextIndex = (index + 1) % count;
-    const nextKey = cards[nextIndex].key;
+    const targetKey = cards[targetIndex].key;
     if (reduceMotion) {
-      choose(nextKey);
-      announce(nextIndex);
+      choose(targetKey);
+      announce(targetIndex);
       return true;
     }
     flipping.current = true;
-    Animated.timing(dragX, {
-      toValue: towards * (width + SWIPE_OUT_EXTRA),
-      duration: SWIPE_OUT_MS,
-      useNativeDriver: true,
-    }).start(() => {
-      // Both in one render: the new front card, at a fresh centred offset.
+    Animated.timing(dragX, { toValue, duration: SWIPE_OUT_MS, useNativeDriver: true }).start(() => {
       setDragX(new Animated.Value(0));
-      choose(nextKey);
+      choose(targetKey);
+      afterLanding();
+      endMode();
       flipping.current = false;
     });
-    announce(nextIndex);
+    announce(targetIndex);
     return true;
+  }
+
+  // Swipe away to either side (towards: -1 = left, 1 = right): the front
+  // card slides off that side and the NEXT card -- the nearest card
+  // behind, already peeking out -- comes forward.
+  function swipeAway(towards) {
+    const oldKey = front?.key;
+    return land(nextIndex, towards * (width + SWIPE_OUT_EXTRA), () => {
+      lastAway.current = { key: oldKey, dir: towards < 0 ? 'left' : 'right' };
+    });
+  }
+
+  // Bring back the card just swiped away (the previous card), in from the
+  // side it left by: in place at dragX = width from the left, -width from
+  // the right. The old front card is then one step behind in the fan.
+  function bringBack(from) {
+    return land(prevIndex, from === 'left' ? width : -width, () => {
+      lastAway.current = null;
+    });
   }
 
   // The front card follows the finger sideways (not with reduced motion,
   // where it just changes on release). The responder is made once, so it
   // reads the latest render's values through this ref.
   const latest = useRef(null);
-  latest.current = { swipeAway, count, reduceMotion, dragX, width };
+  latest.current = {
+    swipeAway, bringBack, endMode, modeRef, setMode,
+    awayLeftValid, awayRightValid, count, reduceMotion, dragX, width,
+  };
   const swipe = useRef(
     PanResponder.create({
       // Capture: decided before the rows and the list see the move, but
@@ -391,26 +483,36 @@ export default function HomeDeck({ cards, width, dataSettled = true, fitHeight =
       onPanResponderTerminationRequest: () => false,
       onShouldBlockNativeResponder: () => true,
       onPanResponderMove: (_, g) => {
-        if (!latest.current.reduceMotion) latest.current.dragX.setValue(g.dx);
+        const L = latest.current;
+        if (L.reduceMotion) return;
+        // A bring-back on this side of the start, or none (worked out
+        // again whenever the drag crosses it).
+        const next = g.dx > 0 && L.awayLeftValid ? 'inLeft'
+          : g.dx < 0 && L.awayRightValid ? 'inRight' : null;
+        if (next !== L.modeRef.current) {
+          L.modeRef.current = next;
+          L.setMode(next);
+        }
+        L.dragX.setValue(g.dx);
       },
       onPanResponderRelease: (_, g) => {
         const L = latest.current;
         const far = Math.abs(g.dx) > L.width * SWIPE_FRACTION || Math.abs(g.vx) > SWIPE_VELOCITY;
-        // The card slides off the way it was dragged (a flick with almost
-        // no distance goes by its speed's direction); either way the next
-        // card, the one behind it, comes forward (see swipeAway).
+        // Its direction (a flick with almost no distance goes by its
+        // speed's direction): the front card goes off that side and the
+        // next card comes forward -- or, if the drag was bringing the last
+        // card back, that card lands.
         const towards = Math.sign(g.dx) || Math.sign(g.vx);
-        const started = far && towards !== 0 && L.swipeAway(towards);
+        const m = L.modeRef.current;
+        let started = false;
+        if (far && towards > 0) started = m === 'inLeft' ? L.bringBack('left') : L.swipeAway(1);
+        else if (far && towards < 0) started = m === 'inRight' ? L.bringBack('right') : L.swipeAway(-1);
         // Not far enough, or ignored (e.g. a flip already running): back
-        // to centre. With reduced motion the card never followed the
-        // finger, so this is a no-op there.
-        if (!started) {
-          Animated.spring(L.dragX, { toValue: 0, useNativeDriver: true, bounciness: 4 }).start();
-        }
+        // to centre. With reduced motion nothing followed the finger, so
+        // this is a no-op there.
+        if (!started) springBack(L);
       },
-      onPanResponderTerminate: () => {
-        Animated.spring(latest.current.dragX, { toValue: 0, useNativeDriver: true, bounciness: 4 }).start();
-      },
+      onPanResponderTerminate: () => springBack(latest.current),
     })
   ).current;
 
@@ -434,11 +536,92 @@ export default function HomeDeck({ cards, width, dataSettled = true, fitHeight =
     outputRange: [`-${SWIPE_TILT_DEG}deg`, '0deg', `${SWIPE_TILT_DEG}deg`],
     extrapolate: 'clamp',
   });
+  // Bringing a card back, the front card stays still.
+  const frontStill = mode === 'inLeft' || mode === 'inRight';
+  // The card a bring-back brings (the one the Previous arrow brings).
+  const prevCard = cards[prevIndex];
+  // In from the left: right edge on the finger (-width at the start, 0 one
+  // card-width later), tilted -SWIPE_TILT_DEG at the start, level in place.
+  const inLeftX = dragX.interpolate({ inputRange: [0, width], outputRange: [-width, 0], extrapolate: 'clamp' });
+  const inLeftTilt = dragX.interpolate({
+    inputRange: [0, width],
+    outputRange: [`-${SWIPE_TILT_DEG}deg`, '0deg'],
+    extrapolate: 'clamp',
+  });
+  // In from the right: left edge on the finger (width + dx, clamped to
+  // 0..width), tilted +SWIPE_TILT_DEG at the start, level in place.
+  const inRightX = dragX.interpolate({ inputRange: [-width, 0], outputRange: [0, width], extrapolate: 'clamp' });
+  const inRightTilt = dragX.interpolate({
+    inputRange: [-width, 0],
+    outputRange: ['0deg', `${SWIPE_TILT_DEG}deg`],
+    extrapolate: 'clamp',
+  });
   // The cards behind, in the order they'd come next, nearest last so it
   // draws on top of the farther ones.
   const behind = [];
   for (let d = 1; d < Math.min(count, FAN.length + 1); d++) behind.push({ card: cards[(index + d) % count], depth: d });
   const insets = backCardInsets(width, deckHeight);
+
+  // A card's face: corner circle, header, sub line and rows. Drawn for the
+  // front card and for a bring-back's incoming card (keyPrefix keeps
+  // their lists apart), so the incoming one looks the same as when it
+  // lands.
+  function renderFace(card, keyPrefix) {
+    return (
+      <>
+        <CornerCircle />
+        <View style={styles.header}>
+          <View style={styles.headerRow}>
+            <Text style={styles.title} numberOfLines={2} accessibilityRole="header">{card.title}</Text>
+            {!!card.headerAction && (
+              <TouchableOpacity
+                onPress={card.headerAction.onPress}
+                style={styles.headerAction}
+                hitSlop={BUTTON_HIT_SLOP}
+                accessibilityRole="button"
+                accessibilityLabel={card.headerAction.a11yLabel || card.headerAction.label}
+              >
+                <Text style={styles.headerActionText} numberOfLines={1}>{card.headerAction.label}</Text>
+              </TouchableOpacity>
+            )}
+            {card.headerRight || null}
+          </View>
+          {!!card.headerAdd && (
+            <TouchableOpacity
+              onPress={card.headerAdd.onPress}
+              style={styles.headerAdd}
+              hitSlop={HEADER_ADD_HIT_SLOP}
+              accessibilityRole="button"
+              accessibilityLabel={card.headerAdd.a11yLabel}
+            >
+              <Ionicons name="add" size={HEADER_ADD_ICON_SIZE} color={DECK_TEXT} />
+            </TouchableOpacity>
+          )}
+        </View>
+        {!!card.sub && (
+          <Text style={styles.sub} accessibilityLabel={card.subA11y || undefined}>{card.sub}</Text>
+        )}
+        <View style={styles.listWrap}>
+          {card.fixedBody ? card.children : (
+            <>
+              {/* nestedScrollEnabled: Android otherwise hands this list's
+                  vertical drags to Home's page ScrollView. Keyed by card, so
+                  each card opens at the top of its list. */}
+              <ScrollView
+                key={keyPrefix + card.key}
+                nestedScrollEnabled
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.listContent}
+              >
+                {card.children}
+              </ScrollView>
+              <BottomFade color={card.color} />
+            </>
+          )}
+        </View>
+      </>
+    );
+  }
 
   return (
     <View style={styles.wrap}>
@@ -474,60 +657,42 @@ export default function HomeDeck({ cards, width, dataSettled = true, fitHeight =
         <Animated.View
           style={[
             styles.card,
-            { backgroundColor: front.color, transform: [{ perspective: 1000 }, { translateX: dragX }, { rotateY }, { rotate: tilt }] },
+            {
+              backgroundColor: front.color,
+              transform: [
+                { perspective: 1000 },
+                { translateX: frontStill ? 0 : dragX },
+                { rotateY },
+                { rotate: frontStill ? '0deg' : tilt },
+              ],
+            },
           ]}
         >
-          <CornerCircle />
-          <View style={styles.header}>
-            <View style={styles.headerRow}>
-              <Text style={styles.title} numberOfLines={2} accessibilityRole="header">{front.title}</Text>
-              {!!front.headerAction && (
-                <TouchableOpacity
-                  onPress={front.headerAction.onPress}
-                  style={styles.headerAction}
-                  hitSlop={BUTTON_HIT_SLOP}
-                  accessibilityRole="button"
-                  accessibilityLabel={front.headerAction.a11yLabel || front.headerAction.label}
-                >
-                  <Text style={styles.headerActionText} numberOfLines={1}>{front.headerAction.label}</Text>
-                </TouchableOpacity>
-              )}
-              {front.headerRight || null}
-            </View>
-            {!!front.headerAdd && (
-              <TouchableOpacity
-                onPress={front.headerAdd.onPress}
-                style={styles.headerAdd}
-                hitSlop={HEADER_ADD_HIT_SLOP}
-                accessibilityRole="button"
-                accessibilityLabel={front.headerAdd.a11yLabel}
-              >
-                <Ionicons name="add" size={HEADER_ADD_ICON_SIZE} color={DECK_TEXT} />
-              </TouchableOpacity>
-            )}
-          </View>
-          {!!front.sub && (
-            <Text style={styles.sub} accessibilityLabel={front.subA11y || undefined}>{front.sub}</Text>
-          )}
-          <View style={styles.listWrap}>
-            {front.fixedBody ? front.children : (
-              <>
-                {/* nestedScrollEnabled: Android otherwise hands this list's
-                    vertical drags to Home's page ScrollView. Keyed by card, so
-                    each card opens at the top of its list. */}
-                <ScrollView
-                  key={front.key}
-                  nestedScrollEnabled
-                  showsVerticalScrollIndicator={false}
-                  contentContainerStyle={styles.listContent}
-                >
-                  {front.children}
-                </ScrollView>
-                <BottomFade color={front.color} />
-              </>
-            )}
-          </View>
+          {renderFace(front, '')}
         </Animated.View>
+
+        {/* A bring-back's incoming card, on top: a look-alike only (not
+            touchable, hidden from TalkBack) until it lands and becomes the
+            front card. */}
+        {(mode === 'inLeft' || mode === 'inRight') && count > 1 && (
+          <Animated.View
+            pointerEvents="none"
+            accessible={false}
+            importantForAccessibility="no-hide-descendants"
+            accessibilityElementsHidden
+            style={[
+              styles.card,
+              {
+                backgroundColor: prevCard.color,
+                transform: mode === 'inLeft'
+                  ? [{ translateX: inLeftX }, { rotate: inLeftTilt }]
+                  : [{ translateX: inRightX }, { rotate: inRightTilt }],
+              },
+            ]}
+          >
+            {renderFace(prevCard, 'incoming-')}
+          </Animated.View>
+        )}
       </View>
 
       {count > 1 && (

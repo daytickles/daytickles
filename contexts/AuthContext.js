@@ -14,6 +14,7 @@ const AuthContext = createContext(null);
 const RENDER_RELEVANT_FIELDS = [
   'accent_theme',
   'home_palette',
+  'home_cards',
   'home_guide_seen',
   'username',
   'onboarded',
