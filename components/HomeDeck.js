@@ -15,7 +15,7 @@ import { TILE_SOURCE, TILE_SIZE as WALLPAPER_TILE_SIZE, OPACITY as WALLPAPER_OPA
 // Animated only -- no gesture or animation library.
 //
 // cards: [{ key, title, sub, subA11y, headerAction, headerRight, headerAdd, color, children }]
-//   key          stable id ('remember' | 'goals' | 'rewards' | 'multickles' | 'rnrs' | 'dayDots')
+//   key          stable id ('remember' | 'goals' | 'rewards' | 'multickles' | 'rnrs' | 'dayDots' | 'polaroids')
 //   sub          optional sub line under the title
 //   headerAction optional { label, a11yLabel, onPress } -- a small text
 //                button at the right of the title (no card uses it now)
@@ -33,7 +33,7 @@ import { TILE_SOURCE, TILE_SIZE as WALLPAPER_TILE_SIZE, OPACITY as WALLPAPER_OPA
 //                mustn't sit in a scroller)
 // The caller only passes the cards that are showing (switched on in
 // Settings' Home cards, and e.g. no My Rewards while Tokens & Rewards is
-// off), so the deck can hold 1 to 6; with none, the caller doesn't mount
+// off), so the deck can hold 1 to 7; with none, the caller doesn't mount
 // it.
 
 export const DECK_WIDTH = 322;
@@ -187,6 +187,14 @@ const DECK_WAIT_MS = 3000;
 // The controls row under the cards: its 18dp top margin + 44dp targets.
 // Reserved along with the cards while the deck waits.
 const CONTROLS_SPACE = 18 + 44;
+// The arrows keep 44dp targets; each dot's target is 44dp tall and as
+// wide as fits beside them in the deck's width (44dp at most), so 8 dots
+// and 2 arrows fit a 320dp deck on a 360dp phone. The visible dots don't
+// change.
+const CONTROL_SIZE = 44;
+function dotTargetWidth(deckWidth, count) {
+  return Math.max(1, Math.min(CONTROL_SIZE, Math.floor((deckWidth - 2 * CONTROL_SIZE) / Math.max(count, 1))));
+}
 
 function useReduceMotion() {
   const [reduceMotion, setReduceMotion] = useState(false);
@@ -709,7 +717,7 @@ export default function HomeDeck({ cards, width, dataSettled = true, fitHeight =
             <TouchableOpacity
               key={card.key}
               onPress={() => goTo(i, i > index ? 1 : -1)}
-              style={styles.control}
+              style={[styles.control, { width: dotTargetWidth(width, count) }]}
               accessibilityRole="button"
               accessibilityLabel={`Card ${i + 1} of ${count}: ${card.title}`}
               accessibilityState={{ selected: i === index }}

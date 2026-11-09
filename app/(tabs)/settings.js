@@ -51,6 +51,7 @@ const HOME_CARD_ROWS = [
     key: 'dayDots', name: 'How bright is your day?', description: 'Day Dots',
     offNote: "Off: you can't dot your day until you turn this back on.",
   },
+  { key: 'polaroids', name: 'Polaroids sent', description: 'Polaroids you sent from Tickle Pics' },
 ];
 
 // The Delete Account text link (about 26dp tall): 7 above (it sits 14dp
@@ -981,7 +982,7 @@ export default function Settings() {
                 style={[styles.paletteRow, selected && { borderColor: accentDark }]}
                 accessibilityRole="radio"
                 accessibilityState={{ selected, disabled: savingHomePalette !== null }}
-                accessibilityLabel={`${palette.name}, six colours${selected ? ', selected' : ''}`}
+                accessibilityLabel={`${palette.name}, ${HOME_PALETTE_SLOTS.length} colours${selected ? ', selected' : ''}`}
               >
                 <View style={styles.paletteDots}>
                   {HOME_PALETTE_SLOTS.map((slot) => (
@@ -1401,8 +1402,8 @@ const styles = StyleSheet.create({
     borderWidth: 2, borderColor: 'transparent',
   },
   swatchLocked: { opacity: 0.35 },
-  // Home colours: one row per set (at least 44dp tall), the set's five deck
-  // colours as 16dp dots, its name, and a tick plus an accent ring on the
+  // Home colours: one row per set (at least 44dp tall), the set's six deck
+  // colours (HOME_PALETTE_SLOTS) as 16dp dots, its name, and a tick plus an accent ring on the
   // chosen one. The ring is always 2dp (transparent when not chosen), so
   // nothing shifts when the choice changes.
   paletteRow: {

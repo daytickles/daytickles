@@ -41,6 +41,9 @@ import HomeDeck, {
 } from '../../components/HomeDeck';
 import { useHomePalette } from '../../lib/homePalette';
 import { homeCardsFor } from '../../lib/homeCards';
+import { loadSentPolaroids } from '../../lib/polaroidsSent';
+import HomePolaroidsGrid from '../../components/HomePolaroidsGrid';
+import PolaroidViewModal from '../../components/PolaroidViewModal';
 import {
   requestReminderPermission,
   scheduleDailyReminder,
@@ -266,6 +269,7 @@ export default function Home() {
   const {
     remember: rememberOn, goals: goalsOn, rewards: rewardsOn,
     multickles: multicklesOn, rnrs: rnrsOn, dayDots: dayDotsOn,
+    polaroids: polaroidsOn,
   } = homeCardsFor(profile);
   const tabBarHeight = useBottomTabBarHeight();
   const insets = useSafeAreaInsets();
@@ -662,6 +666,30 @@ export default function Home() {
     }, [loadDayDots])
   );
 
+  // Polaroids sent card: the newest Polaroids sent from Tickle Pics on
+  // this phone, with small cached thumbnails (lib/polaroidsSent.js).
+  // Only loaded while the card is switched on, on every Home focus and
+  // pull-down refresh. A failed read shows the empty state.
+  // viewPolaroid: the one open larger (PolaroidViewModal), or null.
+  const [sentPolaroids, setSentPolaroids] = useState([]);
+  const [sentPolaroidsLoaded, setSentPolaroidsLoaded] = useState(false);
+  const [viewPolaroid, setViewPolaroid] = useState(null);
+  const loadPolaroids = useCallback(async () => {
+    if (!session || !polaroidsOn) return;
+    try {
+      setSentPolaroids(await loadSentPolaroids(session.user.id));
+    } catch {
+      setSentPolaroids([]);
+    }
+    setSentPolaroidsLoaded(true);
+  }, [session, polaroidsOn]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadPolaroids();
+    }, [loadPolaroids])
+  );
+
   // Read-only (see fetchFoundingMemberPaceStatus) so it's fine to run
   // on every Home focus, same as the loaders above -- deliberately
   // separate from advanceFoundingMemberProgress (founding-member.js's
@@ -845,6 +873,7 @@ export default function Home() {
         loadMyTales(),
         loadRnrToday(),
         loadDayDots(),
+        loadPolaroids(),
         loadPaceReminder(),
         loadOptInReminder(),
       ]);
@@ -1661,9 +1690,50 @@ export default function Home() {
     };
   }
 
+  // Polaroids sent: an ordinary scrolling card (like Your Goals) with no
+  // sub line, a + that opens Tickle Pics (where a Polaroid is sent from),
+  // and the Polaroids two across -- or, with none on this phone, a line
+  // and a Send a Polaroid row (also Tickle Pics). Empty until its first
+  // read answers (the deck waits for it).
+  // It wears the Blogbits colour (and row fill) in every colour set.
+  function polaroidsCard() {
+    const openTicklePics = () => router.navigate('/pinboard');
+    let children;
+    if (!sentPolaroidsLoaded) {
+      children = <View />;
+    } else if (sentPolaroids.length === 0) {
+      children = (
+        <View style={styles.polaroidsEmpty}>
+          <Text style={deckRowStyles.body}>Polaroids you send from Tickle Pics show up here.</Text>
+          <TouchableOpacity
+            style={[deckRowStyles.row, rowFill.multickles, styles.polaroidsEmptyRow]}
+            activeOpacity={0.7}
+            onPress={openTicklePics}
+            accessibilityRole="button"
+            accessibilityLabel="Send a Polaroid. Opens Tickle Pics."
+          >
+            <Text style={deckRowStyles.label} numberOfLines={1}>Send a Polaroid</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    } else {
+      children = (
+        <HomePolaroidsGrid items={sentPolaroids} accentColor={accent.card} onOpen={setViewPolaroid} />
+      );
+    }
+    return {
+      key: 'polaroids',
+      title: 'Polaroids sent',
+      // No colour slot of its own: the Blogbits colour in every set.
+      color: deckColors.multickles,
+      headerAdd: { a11yLabel: 'Send a Polaroid, opens Tickle Pics', onPress: openTicklePics },
+      children,
+    };
+  }
+
   // Card order: Remember this?, Your Goals, My Rewards, Blogbits,
-  // Nudges & Notes, Day Dots -- only the ones switched on in Settings
-  // (Home cards) that are showing: 0 to 6 cards.
+  // Nudges & Notes, Day Dots, Polaroids sent -- only the ones switched on
+  // in Settings (Home cards) that are showing: 0 to 7 cards.
   const deckCards = [
     rememberOn && showRememberCard && rememberCard(),
     goalsOn && showGoalsCard && goalsCard(),
@@ -1671,10 +1741,11 @@ export default function Home() {
     multicklesOn && showFollowedTalesCard && multicklesCard(),
     rnrsOn && rnrsCard(),
     dayDotsOn && dayDotsCard(),
+    polaroidsOn && polaroidsCard(),
   ].filter(Boolean);
   // Every card switched off in Settings: a short line pointing there
   // instead of the deck (only once the entries load is done).
-  const allCardsOff = !rememberOn && !goalsOn && !rewardsOn && !multicklesOn && !rnrsOn && !dayDotsOn;
+  const allCardsOff = !rememberOn && !goalsOn && !rewardsOn && !multicklesOn && !rnrsOn && !dayDotsOn && !polaroidsOn;
   // 322dp, or the content width when the screen is narrower (a 360dp
   // phone has 320dp between Home's side paddings).
   const deckWidth = Math.min(DECK_WIDTH, windowWidth - 2 * HOME_SIDE_PADDING, HOME_CONTENT_MAX_WIDTH);
@@ -1699,7 +1770,8 @@ export default function Home() {
     && (!rewardsOn || !tokensEnabled || rewardsLoaded)
     && (!multicklesOn || followedTalesLoaded)
     && (!rnrsOn || rnrLoaded)
-    && (!dayDotsOn || dayDotsLoaded);
+    && (!dayDotsOn || dayDotsLoaded)
+    && (!polaroidsOn || sentPolaroidsLoaded);
 
   // label is the short text under each pill; a11yName is what a screen
   // reader says, so the two "Polaroid" pills can still be told apart.
@@ -1956,6 +2028,7 @@ export default function Home() {
       style={[styles.quickToast, { bottom: tabBarHeight + 12 }]}
     />
     <RnrsPopup visible={rnrsPopupOpen} onClose={closeRnrsPopup} />
+    <PolaroidViewModal item={viewPolaroid} accentColor={accent.card} onClose={() => setViewPolaroid(null)} />
     </WallpaperBackground>
 
     {/* Quick Tickle's Vibe popover, anchored to the dot. */}
@@ -2086,6 +2159,9 @@ const styles = StyleSheet.create({
   // In the deck's place when every card is switched off.
   cardsOff: { marginTop: DECK_GAP, alignItems: 'center', gap: 12 },
   cardsOffText: { color: C.subtext, textAlign: 'center' },
+  // Polaroids sent card's empty state: the line, then its one row.
+  polaroidsEmpty: { gap: 12 },
+  polaroidsEmptyRow: { alignSelf: 'flex-start' },
 
   // Multickles card's Follow / Mine chips. Selected: solid cream with the
   // card's own colour as text; not selected: the rows' cream outline.

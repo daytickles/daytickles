@@ -145,6 +145,12 @@ const SECTIONS = [
     title: 'Tickle Pics',
     items: [
       { id: 'pics-view-board', label: 'View the Pin Board' },
+      { id: 'polaroids-card-default-off', label: 'Home: the Polaroids sent card is not in the deck at first; switch it on in Settings, Look and feel, Home cards (Polaroids sent) and it appears as the last card' },
+      { id: 'polaroids-card-grid', label: 'Polaroids sent card, with 3 or more Polaroids sent from Tickle Pics on this phone: the latest (newest first, up to 10) show two across, left to right then down; an odd last one sits on the left' },
+      { id: 'polaroids-card-scroll', label: 'Polaroids sent card: drag up and down on it and the Polaroids scroll; swipe sideways on it and the deck still changes card' },
+      { id: 'polaroids-card-enlarge', label: 'Polaroids sent card: tap a Polaroid and it opens larger with its caption and the DayTickles App footer, view only; tap outside, Close or Back closes it' },
+      { id: 'polaroids-card-plus', label: 'Polaroids sent card: the + opens Tickle Pics; send a Polaroid there and it shows first on the card when you come back to Home' },
+      { id: 'polaroids-card-empty', label: 'Polaroids sent card with nothing sent from Tickle Pics on this phone: it says "Polaroids you send from Tickle Pics show up here." and Send a Polaroid opens Tickle Pics' },
     ],
   },
   {
