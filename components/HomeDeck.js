@@ -55,6 +55,16 @@ export function deckHeightFor(fontScale) {
 const DECK_MIN_HEIGHT = 200;
 const DECK_MAX_HEIGHT = 256;
 const DECK_FIT_MAX_FONT_SCALE = 1.15;
+// The cards' height for this room and font scale (see the notes above).
+// Also used by Home's Pick your cards card (components/HomeCardsGhost.js),
+// so it is exactly the deck's size.
+export function deckCardHeight(fitHeight, fontScale) {
+  return fitHeight != null && fontScale <= DECK_FIT_MAX_FONT_SCALE
+    ? Math.round(Math.min(DECK_MAX_HEIGHT, Math.max(DECK_MIN_HEIGHT, fitHeight - CONTROLS_SPACE)))
+    : deckHeightFor(fontScale);
+}
+// The cards' corner radius.
+export const DECK_CARD_RADIUS = 24;
 export const DECK_COLORS = {
   remember: '#7A3B2A',
   goals: '#4B5A40',
@@ -269,10 +279,7 @@ export default function HomeDeck({ cards, width, dataSettled = true, fitHeight =
   // useWindowDimensions' fontScale (same value as PixelRatio.getFontScale)
   // re-renders the deck if the font size changes while the app is open.
   const fontScale = useWindowDimensions().fontScale || 1;
-  const fullHeight = deckHeightFor(fontScale);
-  const deckHeight = fitHeight != null && fontScale <= DECK_FIT_MAX_FONT_SCALE
-    ? Math.round(Math.min(DECK_MAX_HEIGHT, Math.max(DECK_MIN_HEIGHT, fitHeight - CONTROLS_SPACE)))
-    : fullHeight;
+  const deckHeight = deckCardHeight(fitHeight, fontScale);
   // Which card is in front, by key, so a card that comes and goes (Your
   // Rewards with Tokens off) doesn't shift it onto the wrong card.
   const [activeKey, setActiveKey] = useState(null);
@@ -765,7 +772,7 @@ const styles = StyleSheet.create({
   stack: { position: 'relative' },
   card: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: 24, overflow: 'hidden',
+    borderRadius: DECK_CARD_RADIUS, overflow: 'hidden',
     borderWidth: CARD_BORDER_WIDTH, borderColor: CARD_BORDER_COLOR,
     paddingTop: CARD_PADDING_TOP - CARD_BORDER_WIDTH,
     paddingHorizontal: CARD_PADDING_SIDE - CARD_BORDER_WIDTH,

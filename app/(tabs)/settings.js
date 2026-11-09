@@ -33,32 +33,7 @@ import { hasPinSet, clearPin } from '../../lib/pinLock';
 import { deleteAccount } from '../../lib/deleteAccount';
 import { BUTTON_HEIGHT, BUTTON_HIT_SLOP, BUTTON_RADIUS } from '../../lib/buttonSize';
 import { HOME_PALETTES, HOME_PALETTE_SLOTS, homePaletteFor } from '../../lib/homePalette';
-import { homeCardsFor, homeCardsValue } from '../../lib/homeCards';
-
-// The Home cards card's rows, in the deck's order (lib/homeCards.js
-// keys). offNote is the small line under a row while it's off, for the
-// cards that are the only way into their feature; onNote is the line
-// under it while it's on.
-const HOME_CARD_ROWS = [
-  { key: 'remember', name: 'Remember this?', description: 'An older Tickle, resurfaced' },
-  {
-    key: 'goals', name: 'Your Goals', description: 'Tickles tagged to each Goal',
-    offNote: "Off: Goal summaries can't be opened until you turn this back on.",
-  },
-  { key: 'rewards', name: 'My Rewards', description: 'What your tokens can redeem' },
-  { key: 'multickles', name: 'Blogbits', description: 'The ones still going' },
-  { key: 'rnrs', name: 'Nudges & Notes', description: "Today's reminders" },
-  {
-    key: 'dayDots', name: 'How bright is your day?', description: 'Day Dots',
-    offNote: "Off: you can't dot your day until you turn this back on.",
-  },
-  { key: 'polaroids', name: 'Polaroids sent', description: 'Polaroids you sent from Tickle Pics' },
-  {
-    key: 'trackers', name: 'Your trackers', description: 'Track anything you choose. Starts empty.',
-    onNote: 'Your trackers card starts empty. Add a name and rate it each day. Only you can see your trackers. They are not shared and not shown in Your Week.',
-    offNote: "Off: you can't rate or see your trackers until you turn this back on. Nothing is deleted.",
-  },
-];
+import { homeCardsFor, homeCardsValue, HOME_CARD_ROWS } from '../../lib/homeCards';
 
 // The Delete Account text link (about 26dp tall): 7 above (it sits 14dp
 // under Sign Out, whose own slop is 7) and 11 below makes it 44dp to tap.
@@ -1007,6 +982,8 @@ export default function Settings() {
             Choose which cards show on Home. A hidden card only disappears from Home. The feature
             and everything in it stays.
           </Text>
+          {/* While no cards have been picked yet (home_cards null),
+              every switch shows off; a flip saves an explicit list. */}
           {HOME_CARD_ROWS.map((row) => {
             const on = homeCardsFor(profile)[row.key];
             return (

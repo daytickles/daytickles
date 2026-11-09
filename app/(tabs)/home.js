@@ -40,7 +40,9 @@ import HomeDeck, {
   DECK_WIDTH, DECK_TEXT, DECK_SUBTEXT, deckRowStyles, HEADER_ADD_SIZE, HEADER_ADD_ICON_SIZE, HEADER_ADD_HIT_SLOP,
 } from '../../components/HomeDeck';
 import { useHomePalette } from '../../lib/homePalette';
-import { homeCardsFor } from '../../lib/homeCards';
+import { homeCardsFor, homeCardsChosen } from '../../lib/homeCards';
+import { PickCardsGhost, NoCardsBox } from '../../components/HomeCardsGhost';
+import PickCardsSheet from '../../components/PickCardsSheet';
 import { loadSentPolaroids } from '../../lib/polaroidsSent';
 import { listTrackers, listRatings, ratingLabel } from '../../lib/trackers';
 import HomePolaroidsGrid from '../../components/HomePolaroidsGrid';
@@ -272,6 +274,12 @@ export default function Home() {
     multickles: multicklesOn, rnrs: rnrsOn, dayDots: dayDotsOn,
     polaroids: polaroidsOn, trackers: trackersOn,
   } = homeCardsFor(profile);
+  // A new account that hasn't picked its cards yet (home_cards null, once
+  // the profile has loaded): Home shows the Pick your cards card in the
+  // deck's place, and every card above is off, so no card data loads.
+  const cardsChosen = homeCardsChosen(profile);
+  // The Pick your cards sheet (components/PickCardsSheet.js).
+  const [pickSheetOpen, setPickSheetOpen] = useState(false);
   const tabBarHeight = useBottomTabBarHeight();
   const insets = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
@@ -1832,9 +1840,10 @@ export default function Home() {
     polaroidsOn && polaroidsCard(),
     trackersOn && trackersCard(),
   ].filter(Boolean);
-  // Every card switched off in Settings: a short line pointing there
-  // instead of the deck (only once the entries load is done).
-  const allCardsOff = !rememberOn && !goalsOn && !rewardsOn && !multicklesOn && !rnrsOn && !dayDotsOn && !polaroidsOn && !trackersOn;
+  // Every card switched off (a saved choice, not "not chosen yet"): the
+  // No cards on Home box instead of the deck (only once the entries load
+  // is done).
+  const allCardsOff = cardsChosen && !rememberOn && !goalsOn && !rewardsOn && !multicklesOn && !rnrsOn && !dayDotsOn && !polaroidsOn && !trackersOn;
   // 322dp, or the content width when the screen is narrower (a 360dp
   // phone has 320dp between Home's side paddings).
   const deckWidth = Math.min(DECK_WIDTH, windowWidth - 2 * HOME_SIDE_PADDING, HOME_CONTENT_MAX_WIDTH);
@@ -2090,18 +2099,25 @@ export default function Home() {
           <Text style={styles.emptyText}>Couldn't load your Tickles — please try again later.</Text>
         )}
 
+        {/* Not chosen yet: the Pick your cards card, the deck's size, in
+            its place (measured the same way, for the same height). */}
+        {!cardsChosen && (
+          <View style={styles.bottomCards} onLayout={(e) => setDeckTop(e.nativeEvent.layout.y)}>
+            <PickCardsGhost width={deckWidth} fitHeight={deckFitHeight} onPick={() => setPickSheetOpen(true)} />
+          </View>
+        )}
+
         {/* Mounted from the start (not after loading), so the deck holds
             its space while it waits for deckSettled. */}
-        {deckCards.length > 0 && (
+        {cardsChosen && deckCards.length > 0 && (
           <View style={styles.bottomCards} onLayout={(e) => setDeckTop(e.nativeEvent.layout.y)}>
             <HomeDeck cards={deckCards} width={deckWidth} dataSettled={deckSettled} fitHeight={deckFitHeight} />
           </View>
         )}
 
         {!loading && allCardsOff && (
-          <View style={styles.cardsOff}>
-            <Text style={styles.cardsOffText}>No cards on Home. Turn some on in Settings, Home cards.</Text>
-            <Button title="Open Settings" onPress={() => router.navigate('/settings')} variant="secondary" />
+          <View style={styles.bottomCards}>
+            <NoCardsBox width={deckWidth} onPick={() => setPickSheetOpen(true)} />
           </View>
         )}
 
@@ -2118,6 +2134,7 @@ export default function Home() {
       style={[styles.quickToast, { bottom: tabBarHeight + 12 }]}
     />
     <RnrsPopup visible={rnrsPopupOpen} onClose={closeRnrsPopup} />
+    <PickCardsSheet visible={pickSheetOpen} onClose={() => setPickSheetOpen(false)} />
     <PolaroidViewModal item={viewPolaroid} accentColor={accent.card} onClose={() => setViewPolaroid(null)} />
     </WallpaperBackground>
 
@@ -2246,9 +2263,6 @@ const styles = StyleSheet.create({
 
   // DECK_GAP below the buttons (or the tester pill, when it shows).
   bottomCards: { marginTop: DECK_GAP },
-  // In the deck's place when every card is switched off.
-  cardsOff: { marginTop: DECK_GAP, alignItems: 'center', gap: 12 },
-  cardsOffText: { color: C.subtext, textAlign: 'center' },
   // Polaroids sent card's empty state: the line, then its one row.
   polaroidsEmpty: { gap: 12 },
   polaroidsEmptyRow: { alignSelf: 'flex-start' },

@@ -154,6 +154,19 @@ const SECTIONS = [
     ],
   },
   {
+    title: 'Pick your cards',
+    items: [
+      { id: 'pick-cards-ghost', label: 'New account (after the username): Home shows the dashed Pick your cards card in the deck\'s place, with two dashed cards behind it; no dots, no swipe, no +; the guide and quick-start card show as before' },
+      { id: 'pick-cards-sheet', label: 'Tap Pick your cards: the sheet slides up with all 8 cards, every switch off, each with a coloured stripe that is faint when off; tapping the dimmed area or Back closes it without saving' },
+      { id: 'pick-cards-button', label: 'In the sheet, the button says "Done, no cards", then "Done, show 1 card", then "Done, show 2 cards" and so on as you switch cards on; on a small phone the list scrolls and the button stays in view' },
+      { id: 'pick-cards-some', label: 'Done with some on: the sheet closes and Home shows exactly those cards, in the usual deck order; Settings, Home cards matches' },
+      { id: 'pick-cards-none', label: 'Done with none on: Home shows the dashed "No cards on Home" box; its Pick your cards button opens the same sheet' },
+      { id: 'pick-cards-close', label: 'New account: close the app before picking and reopen it: the Pick your cards card is still there; Settings, Home cards shows every switch off' },
+      { id: 'pick-cards-offline', label: 'Sheet with airplane mode on: Done shows "Couldn\'t save that. Please try again." above the button and the sheet stays open' },
+      { id: 'pick-cards-existing', label: 'Existing account: Home looks exactly as before, never shows the Pick your cards card, and doesn\'t flash it while loading' },
+    ],
+  },
+  {
     title: 'Your trackers',
     items: [
       { id: 'trackers-default-off', label: 'Home: the Your trackers card is not in the deck at first; switch it on in Settings, Look and feel, Home cards and it appears as the last card. While it is on, the line under the switch explains it starts empty and only you can see it' },
@@ -208,7 +221,7 @@ const SECTIONS = [
       { id: 'settings-accent-colour', label: 'Change accent colour' },
       { id: 'settings-home-cards-off', label: 'Settings, Look and feel, Home cards: switch a card off and back on; it leaves Home and comes back, and its feature still works from its own screen' },
       { id: 'settings-home-cards-front', label: 'With a card in front on Home, switch it off in Settings and go back to Home: the deck shows the card next to it, not always the first one' },
-      { id: 'settings-home-cards-all-off', label: 'Switch every Home card off: Home shows "No cards on Home" with an Open Settings button that opens Settings' },
+      { id: 'settings-home-cards-all-off', label: 'Switch every Home card off: Home shows the dashed "No cards on Home" box, and its Pick your cards button opens the sheet' },
       { id: 'settings-home-cards-notes', label: 'Switch Your Goals off, then How bright is your day? off: each shows its own Off line under it, and it goes when switched back on' },
       { id: 'settings-sign-out-in', label: 'Sign out and sign back in' },
       { id: 'settings-awareness-cue', label: 'Receive and tap an Awareness Cue reminder' },
