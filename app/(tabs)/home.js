@@ -42,6 +42,7 @@ import HomeDeck, {
 import { useHomePalette } from '../../lib/homePalette';
 import { homeCardsFor } from '../../lib/homeCards';
 import { loadSentPolaroids } from '../../lib/polaroidsSent';
+import { listTrackers, listRatings, ratingLabel } from '../../lib/trackers';
 import HomePolaroidsGrid from '../../components/HomePolaroidsGrid';
 import PolaroidViewModal from '../../components/PolaroidViewModal';
 import {
@@ -269,7 +270,7 @@ export default function Home() {
   const {
     remember: rememberOn, goals: goalsOn, rewards: rewardsOn,
     multickles: multicklesOn, rnrs: rnrsOn, dayDots: dayDotsOn,
-    polaroids: polaroidsOn,
+    polaroids: polaroidsOn, trackers: trackersOn,
   } = homeCardsFor(profile);
   const tabBarHeight = useBottomTabBarHeight();
   const insets = useSafeAreaInsets();
@@ -690,6 +691,37 @@ export default function Home() {
     }, [loadPolaroids])
   );
 
+  // Your trackers card: the user's private trackers (lib/trackers.js) with
+  // today's rating each. Only read while the card is switched on, on every
+  // Home focus and pull-down refresh. trackersState: 'loading', 'loaded'
+  // or 'error' (the card then says so). Never logged.
+  const [trackers, setTrackers] = useState([]);
+  const [trackersToday, setTrackersToday] = useState(new Map());
+  const [trackersState, setTrackersState] = useState('loading');
+  const loadTrackers = useCallback(async () => {
+    if (!session || !trackersOn) return;
+    const today = localDateString(0);
+    const { trackers: list, error } = await listTrackers(session.user.id);
+    if (error) {
+      setTrackersState('error');
+      return;
+    }
+    const { ratings, error: ratingsError } = await listRatings(session.user.id, list.map((t) => t.id), today);
+    if (ratingsError) {
+      setTrackersState('error');
+      return;
+    }
+    setTrackers(list);
+    setTrackersToday(new Map(list.map((t) => [t.id, ratings.get(t.id)?.get(today) ?? null])));
+    setTrackersState('loaded');
+  }, [session, trackersOn]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadTrackers();
+    }, [loadTrackers])
+  );
+
   // Read-only (see fetchFoundingMemberPaceStatus) so it's fine to run
   // on every Home focus, same as the loaders above -- deliberately
   // separate from advanceFoundingMemberProgress (founding-member.js's
@@ -874,6 +906,7 @@ export default function Home() {
         loadRnrToday(),
         loadDayDots(),
         loadPolaroids(),
+        loadTrackers(),
         loadPaceReminder(),
         loadOptInReminder(),
       ]);
@@ -1731,9 +1764,64 @@ export default function Home() {
     };
   }
 
+  // Your trackers: an ordinary scrolling card in the My Rewards colour (no
+  // slot of its own), a + that opens New tracker, and one row per tracker
+  // with today's rating ("Not rated" until rated); a row opens the Your
+  // trackers page. Empty: a line and an Add a tracker row.
+  function trackersCard() {
+    const openNew = () => router.push('/tracker-new');
+    let children;
+    if (trackersState === 'loading') {
+      children = <View />;
+    } else if (trackersState === 'error') {
+      children = <Text style={deckRowStyles.body}>Couldn't load your trackers right now.</Text>;
+    } else if (trackers.length === 0) {
+      children = (
+        <View style={styles.polaroidsEmpty}>
+          <Text style={deckRowStyles.body}>Track anything you choose.</Text>
+          <TouchableOpacity
+            style={[deckRowStyles.row, rowFill.rewards, styles.polaroidsEmptyRow]}
+            activeOpacity={0.7}
+            onPress={openNew}
+            accessibilityRole="button"
+            accessibilityLabel="Add a tracker"
+          >
+            <Text style={deckRowStyles.label} numberOfLines={1}>Add a tracker</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    } else {
+      children = trackers.map((t) => {
+        const state = ratingLabel(t, trackersToday.get(t.id) ?? null);
+        return (
+          <TouchableOpacity
+            key={t.id}
+            style={[deckRowStyles.row, rowFill.rewards]}
+            activeOpacity={0.7}
+            onPress={() => router.push('/trackers')}
+            accessibilityRole="button"
+            accessibilityLabel={`${t.name}, today ${state}. Opens Your trackers.`}
+          >
+            <Text style={deckRowStyles.label} numberOfLines={1}>{t.name}</Text>
+            <Text style={styles.trackerState} numberOfLines={1}>{state}</Text>
+          </TouchableOpacity>
+        );
+      });
+    }
+    return {
+      key: 'trackers',
+      title: 'Your trackers',
+      // No colour slot of its own: the My Rewards colour in every set.
+      color: deckColors.rewards,
+      headerAdd: { a11yLabel: 'Add a tracker', onPress: openNew },
+      children,
+    };
+  }
+
   // Card order: Remember this?, Your Goals, My Rewards, Blogbits,
-  // Nudges & Notes, Day Dots, Polaroids sent -- only the ones switched on
-  // in Settings (Home cards) that are showing: 0 to 7 cards.
+  // Nudges & Notes, Day Dots, Polaroids sent, Your trackers -- only the
+  // ones switched on in Settings (Home cards) that are showing: 0 to 8
+  // cards.
   const deckCards = [
     rememberOn && showRememberCard && rememberCard(),
     goalsOn && showGoalsCard && goalsCard(),
@@ -1742,10 +1830,11 @@ export default function Home() {
     rnrsOn && rnrsCard(),
     dayDotsOn && dayDotsCard(),
     polaroidsOn && polaroidsCard(),
+    trackersOn && trackersCard(),
   ].filter(Boolean);
   // Every card switched off in Settings: a short line pointing there
   // instead of the deck (only once the entries load is done).
-  const allCardsOff = !rememberOn && !goalsOn && !rewardsOn && !multicklesOn && !rnrsOn && !dayDotsOn && !polaroidsOn;
+  const allCardsOff = !rememberOn && !goalsOn && !rewardsOn && !multicklesOn && !rnrsOn && !dayDotsOn && !polaroidsOn && !trackersOn;
   // 322dp, or the content width when the screen is narrower (a 360dp
   // phone has 320dp between Home's side paddings).
   const deckWidth = Math.min(DECK_WIDTH, windowWidth - 2 * HOME_SIDE_PADDING, HOME_CONTENT_MAX_WIDTH);
@@ -1771,7 +1860,8 @@ export default function Home() {
     && (!multicklesOn || followedTalesLoaded)
     && (!rnrsOn || rnrLoaded)
     && (!dayDotsOn || dayDotsLoaded)
-    && (!polaroidsOn || sentPolaroidsLoaded);
+    && (!polaroidsOn || sentPolaroidsLoaded)
+    && (!trackersOn || trackersState !== 'loading');
 
   // label is the short text under each pill; a11yName is what a screen
   // reader says, so the two "Polaroid" pills can still be told apart.
@@ -2162,6 +2252,8 @@ const styles = StyleSheet.create({
   // Polaroids sent card's empty state: the line, then its one row.
   polaroidsEmpty: { gap: 12 },
   polaroidsEmptyRow: { alignSelf: 'flex-start' },
+  // Your trackers card: today's rating at the right of a row.
+  trackerState: { marginLeft: 'auto', flexShrink: 0, maxWidth: '45%', fontSize: 13, color: DECK_SUBTEXT },
 
   // Multickles card's Follow / Mine chips. Selected: solid cream with the
   // card's own colour as text; not selected: the rows' cream outline.

@@ -37,7 +37,8 @@ import { homeCardsFor, homeCardsValue } from '../../lib/homeCards';
 
 // The Home cards card's rows, in the deck's order (lib/homeCards.js
 // keys). offNote is the small line under a row while it's off, for the
-// two cards that are the only way into their feature.
+// cards that are the only way into their feature; onNote is the line
+// under it while it's on.
 const HOME_CARD_ROWS = [
   { key: 'remember', name: 'Remember this?', description: 'An older Tickle, resurfaced' },
   {
@@ -52,6 +53,11 @@ const HOME_CARD_ROWS = [
     offNote: "Off: you can't dot your day until you turn this back on.",
   },
   { key: 'polaroids', name: 'Polaroids sent', description: 'Polaroids you sent from Tickle Pics' },
+  {
+    key: 'trackers', name: 'Your trackers', description: 'Track anything you choose. Starts empty.',
+    onNote: 'Your trackers card starts empty. Add a name and rate it each day. Only you can see your trackers. They are not shared and not shown in Your Week.',
+    offNote: "Off: you can't rate or see your trackers until you turn this back on. Nothing is deleted.",
+  },
 ];
 
 // The Delete Account text link (about 26dp tall): 7 above (it sits 14dp
@@ -1019,6 +1025,7 @@ export default function Settings() {
                     accessibilityLabel={`${row.name} card on Home: ${row.description}`}
                   />
                 </View>
+                {on && row.onNote && <Text style={styles.homeCardOffNote}>{row.onNote}</Text>}
                 {!on && row.offNote && <Text style={styles.homeCardOffNote}>{row.offNote}</Text>}
               </View>
             );

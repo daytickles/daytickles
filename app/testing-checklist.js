@@ -154,6 +154,24 @@ const SECTIONS = [
     ],
   },
   {
+    title: 'Your trackers',
+    items: [
+      { id: 'trackers-default-off', label: 'Home: the Your trackers card is not in the deck at first; switch it on in Settings, Look and feel, Home cards and it appears as the last card. While it is on, the line under the switch explains it starts empty and only you can see it' },
+      { id: 'trackers-off-note', label: 'Switch Your trackers off: the Off line under it says nothing is deleted; switch it back on and your trackers and ratings are still there' },
+      { id: 'trackers-add-each-method', label: 'Add a tracker with Words, one with A number from 0 to 10, and one with An amount (with and without a unit); the name field shows no examples, the preview matches the choice, and after saving the Your trackers page opens' },
+      { id: 'trackers-rate-clear', label: 'Your trackers page: rate each one and clear it again (tap the chosen word or number again; Clear for an amount; type an amount by tapping the number); the 7-day trail and the Home card row show the change' },
+      { id: 'trackers-limit', label: 'Add a 6th tracker: it says "You can keep up to 5 trackers." and nothing is added' },
+      { id: 'trackers-home-card', label: 'Home Your trackers card: one row per tracker with today\'s rating (or Not rated); a row opens Your trackers; the + opens New tracker; with none it says "Track anything you choose." with an Add a tracker row' },
+      { id: 'trackers-private', label: 'Sign in with a second account: it sees none of the first account\'s trackers' },
+      { id: 'trackers-detail-open', label: 'Your trackers page: tap a tracker\'s name (with the small arrow): its own screen opens with the name, how it is rated, and the line saying that can\'t be changed' },
+      { id: 'trackers-detail-rename', label: 'Tracker screen: rename it (Save is greyed out until the name changes); go back and the new name shows on Your trackers and on the Home card' },
+      { id: 'trackers-detail-range', label: 'Tracker screen: switch between 7 days and 30 days; the bars fit, and Days rated, Highest and Average (Most often for Words) match your ratings; with nothing rated it says "Nothing rated in this time yet."' },
+      { id: 'trackers-detail-delete', label: 'Tracker screen: Delete tracker and its ratings asks first (Cancel keeps it); Delete returns to Your trackers without it, one Back from there leaves Your trackers, and the Home card no longer shows it' },
+      { id: 'trackers-detail-offline', label: 'Tracker screen with airplane mode on: rename and delete each say they couldn\'t do it, and nothing changes' },
+      { id: 'trackers-offline', label: 'Turn on airplane mode: the Your trackers page and card say they could not load; a rating tap goes back and shows "Couldn\'t save that"' },
+    ],
+  },
+  {
     title: 'Day Dots',
     items: [
       { id: 'daydots-answer-today', label: "Answer today's Day Dot" },
