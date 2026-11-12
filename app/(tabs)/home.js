@@ -1986,9 +1986,14 @@ export default function Home() {
   return (
     <>
     <WallpaperBackground>
+    {/* nestedScrollEnabled -- Android: without this, the outer page
+        scroller does not pass the card list's nested scroll up to the
+        RefreshControl, so a downward drag on a card list that has been
+        scrolled is taken as pull-to-refresh. */}
     <ScrollView
       style={styles.container}
       ref={scrollRef}
+      nestedScrollEnabled
       keyboardShouldPersistTaps="handled"
       onLayout={(e) => setPageHeight(e.nativeEvent.layout.height)}
       refreshControl={

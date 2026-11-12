@@ -216,10 +216,10 @@ const SECTIONS = [
       { id: 'tokens-untag-retag', label: "Remove the tag, then re-tag → confirm no extra token, and confirm removing the tag doesn't take the token away" },
       { id: 'tokens-non-earning-goal', label: 'Tag an entry to a Goal with "Earn tokens" off → confirm no token' },
       { id: 'tokens-add-reward', label: 'Add a reward (name, cost, optional icon) on the Reward List' },
-      { id: 'tokens-header-circle', label: "Check the header circle: outlined when you can't afford your cheapest reward, filled once you can; tap it to confirm it opens the Reward List" },
+      { id: 'tokens-header-circle', label: "Check the balance on the My Rewards card on Home: each reward's circle is hollow when you can't afford it, filled with a tick once you can; tap a reward to confirm it opens the Reward List" },
       { id: 'tokens-redeem', label: "Redeem a reward you can afford → balance drops, reward stays on the list; confirm Redeem is disabled when you can't afford it" },
       { id: 'tokens-delete-reward', label: 'Delete a reward' },
-      { id: 'tokens-master-toggle', label: 'Turn Tokens & Rewards off in Settings → circle disappears on all tabs and Manage Reward List is disabled; turn it back on → circle returns with the same balance' },
+      { id: 'tokens-master-toggle', label: 'Turn Tokens & Rewards off in Settings → the My Rewards card, the coin on Goal rows and the QG button on Your Goals disappear, and Manage Reward List is disabled; turn it back on → they return, with the same balance on the My Rewards card' },
     ],
   },
   {
