@@ -18,7 +18,7 @@ const STEPS = [
   },
   {
     title: 'New Tickle',
-    body: "Tap New Tickle to capture something from your day. Write what's on your mind, then pick a Vibe — Made me smile, Paying forward, or For me — or choose My Day, its sun icon, for anything else from your day. Its icon becomes that entry's identifier everywhere it shows up: Tickle Stash, Calendar, and Home.\n\nYou decide whether your Tickle stays private or is Rippled for others to see.\n\nMy Day entries live under 'Mine' on the Tickle Stash — in All with everything else, or on their own under My Day.",
+    body: "Tap New Tickle to capture something from your day. Write what's on your mind, then pick a Vibe — Made me smile, Paying forward, or For me — or choose My Day, its sun icon, for anything else from your day. Its icon becomes that entry's identifier everywhere it shows up: Tickle Stash, Calendar, and Home.\n\nYou decide whether your Tickle stays private or is Rippled for others to see.\n\nMy Day entries live under 'Mine' on the Tickle Stash — in All with everything else, or on their own under My Day.\n\nThe dice button next to New Tickle gives you a Quick Quest, a small thing to try. Save it for a token, or keep it as a Tickle.",
   },
   {
     title: 'Tickle Stash',

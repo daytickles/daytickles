@@ -21,7 +21,7 @@ import { forgetQuickTickle, insertQuickTickle } from '../../lib/quickTickle';
 import { showAlert, showSaveFailed } from '../../lib/themedAlert';
 import Button from '../../components/Button';
 import NewTickleButton, {
-  TICKLE_BUTTON_SURFACE, HOME_BUTTON_GAP, HOME_BUTTON_HIT_SLOP, QUICK_BUTTON_SHAPE, QUICK_DOT_SIZE,
+  TICKLE_BUTTON_SURFACE, TICKLE_BUTTON_INK, HOME_BUTTON_GAP, HOME_BUTTON_HIT_SLOP, QUICK_BUTTON_SHAPE, QUICK_DOT_SIZE,
 } from '../../components/NewTickleButton';
 import VibeCard from '../../components/VibeCard';
 import NatureIcon from '../../components/NatureIcon';
@@ -1913,6 +1913,18 @@ export default function Home() {
             ))}
           </View>
         </TouchableOpacity>
+        {/* Quick Quest (app/quick-quest.js): a round 30dp button in the
+            Quick Tickle pill's look, 8dp after it (the row's gap less 2). */}
+        <TouchableOpacity
+          onPress={() => router.push('/quick-quest')}
+          activeOpacity={0.8}
+          hitSlop={{ ...HOME_BUTTON_HIT_SLOP, left: 7, right: 7 }}
+          style={[TICKLE_BUTTON_SURFACE, styles.questDice]}
+          accessibilityRole="button"
+          accessibilityLabel="Quick Quest: a small thing to try"
+        >
+          <Ionicons name="dice-outline" size={16} color={TICKLE_BUTTON_INK} />
+        </TouchableOpacity>
       </>
     );
     if (!test) {
@@ -2253,6 +2265,10 @@ const styles = StyleSheet.create({
   // QUICK_BUTTON_SHAPE.
   quickDot: { alignItems: 'center', justifyContent: 'center' },
   quickDotDots: { flexDirection: 'row', gap: 4 },
+  questDice: {
+    width: 30, height: 30, borderRadius: 15, marginLeft: 8 - HOME_BUTTON_GAP,
+    alignItems: 'center', justifyContent: 'center',
+  },
   // Floats above the tab bar (bottom set inline), within Home's side
   // padding.
   quickToast: { position: 'absolute', left: HOME_SIDE_PADDING, right: HOME_SIDE_PADDING },

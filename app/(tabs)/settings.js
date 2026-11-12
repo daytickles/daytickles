@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, Switch, StyleSheet, ScrollView, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { supabase } from '../../lib/supabase';
@@ -34,6 +34,9 @@ import { deleteAccount } from '../../lib/deleteAccount';
 import { BUTTON_HEIGHT, BUTTON_HIT_SLOP, BUTTON_RADIUS } from '../../lib/buttonSize';
 import { HOME_PALETTES, HOME_PALETTE_SLOTS, homePaletteFor } from '../../lib/homePalette';
 import { homeCardsFor, homeCardsValue, HOME_CARD_ROWS } from '../../lib/homeCards';
+import {
+  QUEST_KINDS, QUEST_TIME_ANY, minutesLabel, loadEveryTime, clearQuickQuestLocal,
+} from '../../lib/quickQuests';
 
 // The Delete Account text link (about 26dp tall): 7 above (it sits 14dp
 // under Sign Out, whose own slop is 7) and 11 below makes it 44dp to tap.
@@ -111,6 +114,17 @@ function buildGoalValues(profile) {
   );
 }
 
+// The Quick Quest dice row's second line, from the saved "Use this every
+// time" choice (lib/quickQuests.js loadEveryTime), or "Asks each time".
+function questDiceLine(choice) {
+  if (!choice) return 'Asks each time';
+  const kind = choice.kind === 'any'
+    ? 'any kind'
+    : (QUEST_KINDS.find((k) => k.key === choice.kind)?.label || '').toLowerCase();
+  const length = choice.maxMinutes === QUEST_TIME_ANY ? 'any length' : `up to ${minutesLabel(choice.maxMinutes)}`;
+  return `Straight to a quest: ${kind}, ${length}`;
+}
+
 export default function Settings() {
   const { profile, setProfile, refreshProfile } = useAuth();
   const insets = useSafeAreaInsets();
@@ -177,6 +191,27 @@ export default function Settings() {
   const [previewerInterest, setPreviewerInterest] = useState(null);
   const [changingPreviewerAnswer, setChangingPreviewerAnswer] = useState(false);
   const [savingPreviewerInterest, setSavingPreviewerInterest] = useState(false);
+  // Quick Quest dice: the saved "Use this every time" choice
+  // ({ kind, maxMinutes }) or null. On this phone only (AsyncStorage,
+  // lib/quickQuests.js), so it's re-read each time Settings gains focus --
+  // right after coming back from the Quick Quest pick screen.
+  const [questChoice, setQuestChoice] = useState(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!profile?.id) {
+        setQuestChoice(null);
+        return undefined;
+      }
+      let cancelled = false;
+      loadEveryTime(profile.id).then((choice) => {
+        if (!cancelled) setQuestChoice(choice);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, [profile?.id])
+  );
 
   // PIN lock is local-only (SecureStore, see lib/pinLock.js) — not part
   // of profile, so its current state has to be read on mount rather than
@@ -247,10 +282,13 @@ export default function Settings() {
   ]);
 
   // Clears what this device keeps for the signed-in person -- the daily
-  // reminder, the Awareness Cue schedule and the PIN -- so the next
-  // person to sign in (or a deleted account) doesn't inherit them. Each
-  // step is best-effort: a failure is logged and never blocks leaving.
+  // reminder, the Awareness Cue schedule, the PIN and the Quick Quest
+  // seen list and dice choice -- so the next person to sign in (or a
+  // deleted account) doesn't inherit them. Each step is best-effort: a
+  // failure is logged and never blocks leaving.
   async function clearLocalDeviceState() {
+    // clearQuickQuestLocal never throws (lib/quickQuests.js).
+    if (profile?.id) await clearQuickQuestLocal(profile.id);
     try {
       await cancelDailyReminder();
     } catch (err) {
@@ -286,7 +324,7 @@ export default function Settings() {
   function confirmDeleteAccount() {
     showAlert(
       'Delete your account?',
-      "This permanently deletes your account and everything in it — your Tickles, likes, follows, Goals, Blogbits, rewards and tokens, High Fives, shared photos and Day Dots. There's no way to undo this.",
+      "This permanently deletes your account and everything in it — your Tickles, likes, follows, Goals, Blogbits, rewards and tokens, Quick Quest records, High Fives, shared photos and Day Dots. There's no way to undo this.",
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Continue', style: 'destructive', onPress: () => setShowDeleteConfirm(true) },
@@ -904,7 +942,7 @@ export default function Settings() {
             />
           </View>
           <Text style={styles.explainerText}>
-            Earn tokens by tagging Tickles to a token-enabled Goal, then spend them on rewards you
+            Earn tokens by tagging Tickles to a token-enabled Goal, or by saving a Quick Quest, then spend them on rewards you
             set up yourself. Off hides this everywhere, regardless of your balance or any Goal's own
             toggle.
           </Text>
@@ -1007,6 +1045,22 @@ export default function Settings() {
               </View>
             );
           })}
+          {/* Quick Quest dice: opens the pick screen (change=1, so a saved
+              choice doesn't skip straight past it). */}
+          <TouchableOpacity
+            style={[styles.homeCardRow, styles.toggleRow]}
+            onPress={() => router.push('/quick-quest?change=1')}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={`Quick Quest dice, ${questDiceLine(questChoice)}`}
+            accessibilityHint="Opens the screen where you choose a time and a kind."
+          >
+            <View style={styles.homeCardText}>
+              <Text style={styles.homeCardName}>Quick Quest dice</Text>
+              <Text style={styles.explainerText}>{questDiceLine(questChoice)}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={C.subtext} />
+          </TouchableOpacity>
         </View>
         <View style={[styles.card, styles.cardInSection]}>
           <Text style={styles.label}>Country</Text>
