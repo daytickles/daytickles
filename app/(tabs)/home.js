@@ -36,6 +36,7 @@ import GoalTargetCircle from '../../components/GoalTargetCircle';
 import QuickTickleToast from '../../components/QuickTickleToast';
 import QuickTicklePopover from '../../components/QuickTicklePopover';
 import NailedItPopup from '../../components/NailedItPopup';
+import FindBlogbitsPopup from '../../components/FindBlogbitsPopup';
 import { listRecentGoalLogs } from '../../lib/goalLogs';
 import RnrsPopup from '../../components/RnrsPopup';
 import HomeDeck, {
@@ -328,6 +329,9 @@ export default function Home() {
   // Multickles card: which list shows ('follow' or 'mine'). Kept in
   // memory only (resets when Home is rebuilt), never stored on disk.
   const [multicklesView, setMulticklesView] = useState('follow');
+  // "Find a Blogbit" pop-up (components/FindBlogbitsPopup.js), opened by
+  // the Blogbits card's + while Follow is selected.
+  const [findBlogbitsOpen, setFindBlogbitsOpen] = useState(false);
   // The user's own Multickles (fetchMyTales), for the card's Mine list.
   // myTalesState: 'loading' until the first read answers, then 'loaded'
   // or 'error'.
@@ -1387,10 +1391,12 @@ export default function Home() {
 
   // Follow / Mine switch at the right of the Blogbits card's title, in
   // the card's wrapping header row (it wraps under the title at large
-  // font scales), then a round + that opens Manage Blogbits to start
-  // one. Only Follow or Mine is selected; Follow when Home opens. The +
-  // stays in this group, so it wraps with them.
+  // font scales), then a round +. On Mine the + opens Manage Blogbits to
+  // start one; on Follow it opens "Find a Blogbit", a list of Blogbits
+  // the user could follow. Only Follow or Mine is selected; Follow when
+  // Home opens. The + stays in this group, so it wraps with them.
   function renderMulticklesSwitch() {
+    const onFollow = multicklesView === 'follow';
     return (
       <View style={styles.multicklesSwitch}>
         {MULTICKLES_VIEWS.map(({ key, label }) => {
@@ -1411,12 +1417,13 @@ export default function Home() {
           );
         })}
         <TouchableOpacity
-          onPress={() => router.push('/tales')}
+          onPress={onFollow ? () => setFindBlogbitsOpen(true) : () => router.push('/tales')}
           hitSlop={HEADER_ADD_HIT_SLOP}
           activeOpacity={0.7}
           style={[styles.multicklesChip, styles.multicklesChipIdle, styles.multicklesAdd]}
           accessibilityRole="button"
-          accessibilityLabel="Create a Blogbit"
+          accessibilityLabel={onFollow ? 'Find a Blogbit' : 'Create a Blogbit'}
+          accessibilityHint={onFollow ? 'Opens a list of Blogbits you can follow' : undefined}
         >
           <Ionicons name="add" size={HEADER_ADD_ICON_SIZE} color={MULTICKLES_CHIP_TEXT} />
         </TouchableOpacity>
@@ -2213,6 +2220,19 @@ export default function Home() {
       onTokenAwarded={() => {
         loadRewards();
         loadGoalWeekLogs();
+      }}
+    />
+
+    {/* Find a Blogbit: Blogbits the user could follow; a pick opens that
+        Blogbit's page, where it can be followed. */}
+    <FindBlogbitsPopup
+      visible={findBlogbitsOpen}
+      userId={session?.user?.id}
+      bottomOffset={tabBarHeight}
+      onClose={() => setFindBlogbitsOpen(false)}
+      onPick={(taleId) => {
+        setFindBlogbitsOpen(false);
+        router.push({ pathname: '/tale', params: { id: taleId } });
       }}
     />
 

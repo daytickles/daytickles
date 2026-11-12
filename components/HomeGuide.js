@@ -26,7 +26,7 @@ const STEPS = [
   },
   {
     title: 'Blogbits',
-    body: "Turn a string of Rippled Tickles into a Blogbit — a named, ongoing story other users can recognise and follow as it unfolds. Start one from Manage Blogbits in Settings, then add Tics by tagging any Rippled Tickle to it from its three-dot menu.\n\nEach Tic carries a small Blogbit chip, on Tickle Stash and Calendar, showing its place in the story. Tap it to open the Blogbit and see every Tic in order, plus a Follow button of its own — separate from following the author.\n\nMark a Blogbit as complete once its story is finished. No new Tics can be added after that, but everything already there stays exactly as it is.",
+    body: "Turn a string of Rippled Tickles into a Blogbit — a named, ongoing story other users can recognise and follow as it unfolds. Start one from Manage Blogbits in Settings, then add Tics by tagging any Rippled Tickle to it from its three-dot menu.\n\nEach Tic carries a small Blogbit chip, on Tickle Stash and Calendar, showing its place in the story. Tap it to open the Blogbit and see every Tic in order, plus a Follow button of its own — separate from following the author.\n\nMark a Blogbit as complete once its story is finished. No new Tics can be added after that, but everything already there stays exactly as it is. On Home's Blogbits card, the + on Follow shows Blogbits you can follow; tap one to see it and follow it from its page.",
   },
   {
     title: 'Nudges & Notes',

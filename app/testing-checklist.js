@@ -55,6 +55,8 @@ const SECTIONS = [
       { id: 'multickle-tag-rippled', label: 'Tag a Rippled Tickle to it' },
       { id: 'multickle-follow-other', label: "Follow someone else's Blogbit" },
       { id: 'multickle-following-pills', label: "Check the Following tab pills (filter works, shows other authors' Tics)" },
+      { id: 'multickle-home-plus-mine', label: 'On Home, Blogbits card, Mine: the + still opens Manage Blogbits' },
+      { id: 'multickle-home-plus-find', label: 'On Follow, the + opens "Find a Blogbit": only ongoing Blogbits by other people that you do not follow and that have a public Tic; tap one to open its page and follow it from there' },
       { id: 'multickle-complete', label: 'Mark one Complete' },
       { id: 'multickle-ongoing-cap', label: 'Confirm the ongoing cap blocks correctly once at the limit' },
     ],
