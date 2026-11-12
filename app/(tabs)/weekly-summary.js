@@ -8,7 +8,8 @@ import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { C, accentFor, SAVED_ENTRY_DOT_SIZE, textOn, withAlpha, darken, lighten, NATURE_ORDER, NATURE_LABELS, VIBE_COLORS, vibeIconColor, AWARD_TYPES, awardLabelFor } from '../../lib/theme';
-import { currentWeekStartDate, currentWeekStartISO, currentWeekDates, localDateString, DEFAULT_WEEK_START_DAY } from '../../lib/week';
+import { currentWeekStartDate, currentWeekStartISO, currentWeekDates, localDateString, toLocalDateString, DEFAULT_WEEK_START_DAY } from '../../lib/week';
+import { listGoalLogsBetween } from '../../lib/goalLogs';
 import { initPinBoardDb, getPinnedPhotoCountSince, getPhotoShareCountSince, getPhotosForEntries } from '../../lib/pinBoardDb';
 import { flagEmoji } from '../../lib/country';
 import WallpaperBackground from '../../components/WallpaperBackground';
@@ -32,6 +33,8 @@ const DAY_DOTS_SIZES = [9, 12, 15, 18];
 // just scoped to 7 instead. Its heading says "last 7 days", not "this
 // week", for that reason.
 const TRAILING_WINDOW_DAYS = 7;
+// The margin either side of the week for the Nailed it! taps query.
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 // Bubble grid sizing -- a filled bubble's diameter scales between these
 // two values based on that cell's count relative to the grid's single
@@ -86,6 +89,9 @@ export default function WeeklySummary() {
   // Distinct High Five types the winner has received (awarded_entries).
   const [mostLikedAwardTypes, setMostLikedAwardTypes] = useState([]);
   const [goals, setGoals] = useState([]);
+  // This week's Nailed it! taps ({ goal_id, created_at }) for the Goals
+  // section; [] when there are none or the query failed (quietly).
+  const [weekGoalLogs, setWeekGoalLogs] = useState([]);
   // "Given" reads straight from awards (RLS already lets the giver read
   // their own rows). "Received" can't -- awards RLS is private to the
   // giver, so there's no policy letting a recipient query it directly --
@@ -138,6 +144,7 @@ export default function WeeklySummary() {
       weeklyPhotoShareEventsResult,
       dayDotsResult,
       rnrsDoneResult,
+      goalLogsResult,
     ] = await Promise.all([
       supabase
         .from('tickle_entries')
@@ -215,6 +222,12 @@ export default function WeeklySummary() {
         .eq('status', 'answered')
         .gte('prompt_date', weekStartDate),
       countDoneSince(session.user.id, weekStartDate),
+      // Nailed it! taps: 24 hours either side of [week start, now]; each
+      // tap's local date is filtered below, like entry_date.
+      listGoalLogsBetween(
+        new Date(Date.parse(weekStartISO) - DAY_MS).toISOString(),
+        new Date(Date.now() + DAY_MS).toISOString(),
+      ),
     ]);
 
     const failed = [
@@ -236,6 +249,15 @@ export default function WeeklySummary() {
     setLoadError(failed.length > 0);
 
     if (!weekEntriesResult.error) setWeekEntries(weekEntriesResult.data || []);
+
+    // Not in `failed` above: a failed tap load just shows no taps, without
+    // the "may be incomplete" line. The same comparison as the week's
+    // entries (entry_date >= weekStartDate), on each tap's local date.
+    setWeekGoalLogs(
+      goalLogsResult?.error
+        ? []
+        : (goalLogsResult?.data || []).filter((l) => toLocalDateString(new Date(l.created_at)) >= weekStartDate)
+    );
 
     if (!trailingEntriesResult.error) {
       // Same rule as Home's own pinned/spotlightEntries logic
@@ -357,15 +379,20 @@ export default function WeeklySummary() {
 
   const activeGoals = goals.filter((g) => !g.achieved_at);
   const achievedThisWeek = goals.filter((g) => g.achieved_at && g.achieved_at >= currentWeekStartISO(weekStartDay));
-  // Only Goals with at least one Tickle this week -- a 0 is never listed.
-  // A Goal with a weekly target (goals.weekly_target, migration 0072)
-  // gets the same GoalTargetCircle as Home/goal.js, same week boundary;
-  // target-reached Goals sort first (stable, so the rest keep their order).
+  // Only Goals with at least one Tickle or Nailed it! tap this week -- a 0
+  // is never listed. A Goal with a weekly target (goals.weekly_target,
+  // migration 0072) gets the same GoalTargetCircle as Home/goal.js, same
+  // week boundary; the circle and "reached" count Tickles + taps, as on
+  // Home and the Goal screen. tickles and taps are kept apart for the
+  // sentence, so taps are never called Tickles. Target-reached Goals sort
+  // first (stable, so the rest keep their order).
   const goalProgress = activeGoals
     .map((goal) => {
-      const count = weekEntries.filter((e) => e.goal_id === goal.id).length;
+      const tickles = weekEntries.filter((e) => e.goal_id === goal.id).length;
+      const taps = weekGoalLogs.filter((l) => l.goal_id === goal.id).length;
+      const count = tickles + taps;
       const target = goal.weekly_target;
-      return { goal, count, target, reached: !!target && count >= target };
+      return { goal, count, tickles, taps, target, reached: !!target && count >= target };
     })
     .filter(({ count }) => count > 0)
     .sort((a, b) => Number(b.reached) - Number(a.reached));
@@ -650,15 +677,31 @@ export default function WeeklySummary() {
                     <Text style={styles.goalText}>🎉 Achieved "{g.label}" this week</Text>
                   </View>
                 ))}
-                {goalProgress.map(({ goal, count, target, reached }) => {
-                  const tickles = count === 1 ? 'tickle' : 'tickles';
-                  // count < target only when target >= 2, so "tickles" is
-                  // always right in the "N of T" form.
-                  const sentence = !target
-                    ? `${count} ${tickles} toward "${goal.label}"`
-                    : reached
-                      ? `Weekly target reached for "${goal.label}" (${count} ${tickles})`
-                      : `${count} of ${target} tickles toward "${goal.label}"`;
+                {goalProgress.map(({ goal, count, tickles: tickleCount, taps, target, reached }) => {
+                  const tickles = tickleCount === 1 ? 'tickle' : 'tickles';
+                  // With no taps, the same sentences as before. count <
+                  // target only when target >= 2, so "tickles" is always
+                  // right in the "N of T" form.
+                  let sentence;
+                  if (taps === 0) {
+                    sentence = !target
+                      ? `${count} ${tickles} toward "${goal.label}"`
+                      : reached
+                        ? `Weekly target reached for "${goal.label}" (${count} ${tickles})`
+                        : `${count} of ${target} tickles toward "${goal.label}"`;
+                  } else {
+                    // With taps, Tickles and taps are named separately; the
+                    // "N of T" total has no noun, since it mixes both.
+                    const tapText = `${taps} Nailed it! ${taps === 1 ? 'tap' : 'taps'}`;
+                    const breakdown = tickleCount > 0 ? `${tickleCount} ${tickles}, ${tapText}` : tapText;
+                    sentence = !target
+                      ? (tickleCount > 0
+                        ? `${tickleCount} ${tickles} and ${tapText} toward "${goal.label}"`
+                        : `${tapText} toward "${goal.label}"`)
+                      : reached
+                        ? `Weekly target reached for "${goal.label}" (${breakdown})`
+                        : `${count} of ${target} toward "${goal.label}" (${breakdown})`;
+                  }
                   return (
                     // With a target, the circle is accessible={false} and
                     // the card speaks the whole sentence -- same pattern as

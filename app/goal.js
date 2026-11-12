@@ -9,10 +9,11 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { C, NATURE_LABELS, withAlpha } from '../lib/theme';
 import { initPinBoardDb, getPhotosForEntries } from '../lib/pinBoardDb';
-import { countGoalLogs } from '../lib/goalLogs';
-import { isThisWeek, DEFAULT_WEEK_START_DAY } from '../lib/week';
+import { listGoalLogs } from '../lib/goalLogs';
+import { isThisWeek, toLocalDateString, DEFAULT_WEEK_START_DAY } from '../lib/week';
 import PhotoEnlargeModal from '../components/PhotoEnlargeModal';
 import GoalTargetCircle from '../components/GoalTargetCircle';
+import NailedItRow from '../components/NailedItRow';
 import WallpaperBackground from '../components/WallpaperBackground';
 
 function formatEntryDate(entryDate) {
@@ -24,10 +25,13 @@ function formatEntryDate(entryDate) {
   });
 }
 
+// Gap below each post in the list: Tickle cards and Nailed it! posts.
+const ENTRY_SPACING = 12;
+
 // The Goal summary -- reached from a row in Home's "Your Goals" card.
 // Same shape as the Multickle view (app/tale.js): header, status pill,
 // count line, and a simple read-only list of the Tickles tagged to this
-// Goal, newest first. Read-only for the same reason tale.js gives:
+// Goal and its Nailed it! taps (components/NailedItRow.js), newest first. Read-only for the same reason tale.js gives:
 // tagging/Ripple/Share/Delete all live on the Tickle Stash's EntryCards,
 // and duplicating them here wasn't worth it. Goals are private (RLS on
 // goals and on the user's own private entries), so unlike tale.js
@@ -43,9 +47,9 @@ export default function Goal() {
   // A failed load reads differently from a Goal that's really gone.
   const [loadError, setLoadError] = useState(false);
   const [enlargeUri, setEnlargeUri] = useState(null);
-  // How many "Nailed it!" taps this Goal has (lib/goalLogs.js); null when
-  // not loaded or the count failed, so nothing shows.
-  const [nailedCount, setNailedCount] = useState(null);
+  // This Goal's "Nailed it!" taps (goal_logs rows, lib/goalLogs.js), newest
+  // first; [] when there are none or the list failed to load.
+  const [nailedLogs, setNailedLogs] = useState([]);
 
   const loadGoal = useCallback(async () => {
     // Nothing to load -- drop straight to the "isn't available" message
@@ -70,9 +74,9 @@ export default function Goal() {
         .eq('goal_id', goalId)
         .order('entry_date', { ascending: false })
         .order('created_at', { ascending: false }),
-      countGoalLogs(goalId),
+      listGoalLogs(goalId),
     ]);
-    setNailedCount(nailedRes.error ? null : nailedRes.count);
+    setNailedLogs(nailedRes.error ? [] : nailedRes.data || []);
 
     const rows = entriesRes.error ? [] : entriesRes.data || [];
     if (goalRes.error) console.warn('Goal load failed', goalRes.error);
@@ -126,12 +130,28 @@ export default function Goal() {
     );
   }
 
+  // "N Tickles" stays Tickles only; Nailed it! taps aren't Tickles.
   const count = entries.length;
-  // This week's share of the already-loaded entries -- same entry_date +
-  // week_start_day boundary as Home's Goal pill and Weekly Summary.
-  const weekCount = entries.filter((e) =>
-    isThisWeek(e.entry_date, profile?.week_start_day ?? DEFAULT_WEEK_START_DAY)
-  ).length;
+  const weekStartDay = profile?.week_start_day ?? DEFAULT_WEEK_START_DAY;
+  // A tap's local calendar day ('YYYY-MM-DD'), the same kind of value as
+  // a Tickle's entry_date, so both use the same week boundary.
+  const logDate = (l) => toLocalDateString(new Date(l.created_at));
+  // This week's share of the already-loaded entries and taps -- same
+  // entry_date + week_start_day boundary as Home's Goal rows and Weekly
+  // Summary. Taps count toward the weekly target too.
+  const weekCount =
+    entries.filter((e) => isThisWeek(e.entry_date, weekStartDay)).length +
+    nailedLogs.filter((l) => isThisWeek(logDate(l), weekStartDay)).length;
+  // Tickles and taps in one list, newest first: by date (a Tickle's
+  // entry_date, a tap's local date), then by created_at, later first.
+  const timeOf = (iso) => {
+    const t = Date.parse(iso);
+    return Number.isNaN(t) ? 0 : t;
+  };
+  const items = [
+    ...entries.map((e) => ({ kind: 'entry', key: `e-${e.id}`, date: e.entry_date, at: timeOf(e.created_at), entry: e })),
+    ...nailedLogs.map((l) => ({ kind: 'log', key: `n-${l.id}`, date: logDate(l), at: timeOf(l.created_at), log: l })),
+  ].sort((a, b) => (a.date === b.date ? b.at - a.at : a.date < b.date ? 1 : -1));
   // No circle for an achieved Goal -- it's finished, and a hollow circle
   // there would read as something left undone.
   const showTarget = !!goal?.weekly_target && !goal?.achieved_at;
@@ -183,17 +203,12 @@ export default function Goal() {
               )}
             </View>
 
-            {/* Under the status row, not in it: that row doesn't wrap. */}
-            {nailedCount > 0 && (
-              <Text style={[styles.statusMeta, styles.nailedLine]}>
-                {`Nailed it! ${nailedCount} ${nailedCount === 1 ? 'time' : 'times'}`}
-              </Text>
-            )}
-
             <View style={styles.listTopGap} />
-            {entries.map(renderEntry)}
+            {items.map((item) => (item.kind === 'log'
+              ? <NailedItRow key={item.key} log={item.log} spacing={ENTRY_SPACING} />
+              : renderEntry(item.entry)))}
 
-            {!loading && count === 0 && (
+            {!loading && items.length === 0 && (
               <Text style={styles.emptyText}>
                 No Tickles tagged yet — tap the empty circle on any Tickle in your Tickle Stash to tag it here.
               </Text>
@@ -224,12 +239,11 @@ const styles = StyleSheet.create({
   statusPillText: { fontSize: 11, fontWeight: '700', color: C.sparkleText },
   statusPillTextAchieved: { color: C.tealText },
   statusMeta: { fontSize: 12, color: C.subtext },
-  nailedLine: { marginTop: 8 },
   targetGroup: { flexDirection: 'row', alignItems: 'center', gap: 6 },
 
   listTopGap: { height: 18 },
 
-  entryCard: { backgroundColor: C.card, borderRadius: 16, padding: 14, marginBottom: 12 },
+  entryCard: { backgroundColor: C.card, borderRadius: 16, padding: 14, marginBottom: ENTRY_SPACING },
   entryHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8,
   },

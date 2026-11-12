@@ -36,6 +36,7 @@ import GoalTargetCircle from '../../components/GoalTargetCircle';
 import QuickTickleToast from '../../components/QuickTickleToast';
 import QuickTicklePopover from '../../components/QuickTicklePopover';
 import NailedItPopup from '../../components/NailedItPopup';
+import { listRecentGoalLogs } from '../../lib/goalLogs';
 import RnrsPopup from '../../components/RnrsPopup';
 import HomeDeck, {
   DECK_WIDTH, DECK_TEXT, DECK_SUBTEXT, deckRowStyles, HEADER_ADD_SIZE, HEADER_ADD_ICON_SIZE, HEADER_ADD_HIT_SLOP,
@@ -308,6 +309,9 @@ export default function Home() {
   // account whose Tickles just didn't load isn't treated as having none.
   const [loadError, setLoadError] = useState(false);
   const [goals, setGoals] = useState([]);
+  // This week's Nailed it! taps ({ goal_id, created_at }), for the Your
+  // Goals rows' weekly target circles. [] until loaded or on a failure.
+  const [goalWeekLogs, setGoalWeekLogs] = useState([]);
   // Map<entryId, uri> -- resolved display image for every currently-
   // loaded entry that has one (photo_only, or a text entry with a
   // Tickle-a-Photo link), see resolveLinkedPhotoUris above.
@@ -389,7 +393,7 @@ export default function Home() {
   // dot button are disabled meanwhile), and the toast for the row just
   // logged ({ id, label } or null).
   const [quickPopoverOpen, setQuickPopoverOpen] = useState(false);
-  // "Nailed it!" popup (components/NailedItPopup.js), opened from the coin
+  // "Nailed it!" popup (components/NailedItPopup.js), opened from the QG
   // button on Your Goals.
   const [nailedOpen, setNailedOpen] = useState(false);
   const [quickSaving, setQuickSaving] = useState(false);
@@ -585,6 +589,18 @@ export default function Home() {
     }
   }, [session, goalsOn]);
 
+  // This week's Nailed it! taps, for the weekly target circles. Fetched
+  // from a day before the week starts (isThisWeek on each tap's local
+  // date decides what counts), goal_id and created_at only. Same triggers
+  // as loadGoals, plus after each Nailed it! tap.
+  const loadGoalWeekLogs = useCallback(async () => {
+    if (!session || !goalsOn) return;
+    const weekStart = Date.parse(currentWeekStartISO(profile?.week_start_day ?? DEFAULT_WEEK_START_DAY));
+    const since = new Date(weekStart - 24 * 60 * 60 * 1000).toISOString();
+    const { data, error } = await listRecentGoalLogs(since);
+    if (!error) setGoalWeekLogs(data || []);
+  }, [session, goalsOn, profile?.week_start_day]);
+
   // Week/month/all-time totals for Home's two caption-split stat pills --
   // polaroid_share_events (migration 0064), the real per-caption log of
   // Tickle Pics' captioned polaroid shares. Replaces the earlier
@@ -637,7 +653,8 @@ export default function Home() {
   useFocusEffect(
     useCallback(() => {
       loadGoals();
-    }, [loadGoals])
+      loadGoalWeekLogs();
+    }, [loadGoals, loadGoalWeekLogs])
   );
 
   useFocusEffect(
@@ -811,7 +828,7 @@ export default function Home() {
   }, [session, tokensEnabled, rewardsOn]);
 
   // Nailed it! is a tokens feature: if Tokens & Rewards goes off while
-  // its popup is open, close it (the coin button is gone too).
+  // its popup is open, close it (the QG button is gone too).
   useEffect(() => {
     if (!tokensEnabled) setNailedOpen(false);
   }, [tokensEnabled]);
@@ -917,6 +934,7 @@ export default function Home() {
         refreshProfile(),
         loadEntries(),
         loadGoals(),
+        loadGoalWeekLogs(),
         loadCaptionShareTotals(),
         loadRewards(),
         loadFollowedTales(),
@@ -1197,10 +1215,11 @@ export default function Home() {
     refreshProfile();
   }
 
-  // Both bottom cards below are pure derivations of the already-loaded
-  // entries/goals -- no query of their own (see
-  // home_bottom_redesign_audit.md). Goal counts are disjoint: goal_id is
-  // a single column, so an entry counts toward at most one Goal.
+  // Both bottom cards below are derivations of the already-loaded
+  // entries/goals (see home_bottom_redesign_audit.md); Your Goals' weekly
+  // target circles also use the goal_logs query (goalWeekLogs, this
+  // week's Nailed it! taps). Goal counts are disjoint: goal_id is a single
+  // column, so an entry counts toward at most one Goal.
   const remember = session ? pickRememberEntries(entries, session.user.id) : null;
   // goalWeekCounts feeds the weekly-target circle (goals.weekly_target):
   // same entry_date + week_start_day boundary as Weekly Summary's
@@ -1213,6 +1232,14 @@ export default function Home() {
     goalCounts.set(e.goal_id, (goalCounts.get(e.goal_id) || 0) + 1);
     if (isThisWeek(e.entry_date, rippleWeekStartDay)) {
       goalWeekCounts.set(e.goal_id, (goalWeekCounts.get(e.goal_id) || 0) + 1);
+    }
+  }
+  // Nailed it! taps count toward the weekly target too (not toward
+  // goalCounts, the "N Tickles" number): each tap's local date, same
+  // isThisWeek boundary as the entries above.
+  for (const l of goalWeekLogs) {
+    if (isThisWeek(toLocalDateString(new Date(l.created_at)), rippleWeekStartDay)) {
+      goalWeekCounts.set(l.goal_id, (goalWeekCounts.get(l.goal_id) || 0) + 1);
     }
   }
 
@@ -1502,8 +1529,9 @@ export default function Home() {
         const countLabel = !target
           ? `${count} Tickle${count === 1 ? '' : 's'}`
           : weekCount >= target
-            ? `${weekCount} Tickle${weekCount === 1 ? '' : 's'} this week, target reached`
-            : `${weekCount} of ${target} Tickle${target === 1 ? '' : 's'} this week`;
+            // Not "Tickles": the week count includes Nailed it! taps.
+            ? `${weekCount} this week, target reached`
+            : `${weekCount} of ${target} this week`;
         // Hidden when the Tokens master switch is off, same "!== false"
         // idiom as CornerNav's showTokens.
         const showCoin = g.earns_tokens && profile?.tokens_enabled !== false;
@@ -1548,7 +1576,7 @@ export default function Home() {
       title: 'Your Goals',
       color: deckColors.goals,
       headerAdd: { a11yLabel: 'Add a Goal', onPress: () => router.push('/goals') },
-      // Nailed it! coin, only while Tokens & Rewards is on (same
+      // Nailed it! QG button, only while Tokens & Rewards is on (same
       // "!== false" idiom as the rows' coin).
       headerCoin: profile?.tokens_enabled !== false
         ? { a11yLabel: 'Nailed it! Log a Goal for a token', onPress: () => setNailedOpen(true) }
@@ -2177,7 +2205,10 @@ export default function Home() {
         setNailedOpen(false);
         router.push('/goals');
       }}
-      onTokenAwarded={loadRewards}
+      onTokenAwarded={() => {
+        loadRewards();
+        loadGoalWeekLogs();
+      }}
     />
 
     {/* Quick Tickle's Vibe popover, anchored to the dot. */}

@@ -1,6 +1,6 @@
 // components/NailedItPopup.js
 //
-// "Nailed it!": opened from the coin button on Home's Your Goals card.
+// "Nailed it!": opened from the QG button on Home's Your Goals card.
 // Lists the user's active Goals that earn tokens; tapping one saves a
 // goal_logs row (lib/goalLogs.js), and the database trigger adds +1
 // token. No Tickle is written, there is no limit and no Undo. The popup

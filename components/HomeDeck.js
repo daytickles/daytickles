@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, AccessibilityInfo, useWindowDimensions, PanResponder, Image } from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BUTTON_HEIGHT, BUTTON_HIT_SLOP, BUTTON_RADIUS } from '../lib/buttonSize';
@@ -26,7 +26,8 @@ import { TILE_SOURCE, TILE_SIZE as WALLPAPER_TILE_SIZE, OPACITY as WALLPAPER_OPA
 //                the header's right corner, outside the wrapping row, so
 //                a long title goes to 2 lines instead of moving it (Your
 //                Goals, My Rewards, Nudges & Notes). Front card only.
-//   headerCoin   optional { a11yLabel, onPress } -- a round coin button
+//   headerCoin   optional { a11yLabel, onPress } -- the round Nailed it!
+//                "QG" button (the text QG in the ring, not an icon),
 //                just left of headerAdd, the same size and ring, 14dp
 //                from it so their 44dp tap areas meet without overlapping
 //                (Your Goals' Nailed it!, only while Tokens & Rewards is
@@ -614,7 +615,8 @@ export default function HomeDeck({ cards, width, dataSettled = true, fitHeight =
               accessibilityRole="button"
               accessibilityLabel={card.headerCoin.a11yLabel}
             >
-              <MaterialCommunityIcons name="circle-multiple-outline" size={HEADER_ADD_ICON_SIZE} color={DECK_TEXT} />
+              {/* Capped so "QG" stays inside the 30dp ring at large font sizes. */}
+              <Text style={styles.headerQgText} maxFontSizeMultiplier={1.2}>QG</Text>
             </TouchableOpacity>
           )}
           {!!card.headerAdd && (
@@ -830,10 +832,11 @@ const styles = StyleSheet.create({
     marginVertical: -3, alignItems: 'center', justifyContent: 'center',
     borderWidth: 1, borderColor: 'rgba(255,248,236,0.6)',
   },
-  // The coin (headerCoin) uses headerAdd's look; with a + after it, 4dp
-  // more than the header's 10dp gap, so 14dp between them and their 7dp
-  // tap-area slops meet without overlapping.
+  // The Nailed it! "QG" button (headerCoin) uses headerAdd's look; with a
+  // + after it, 4dp more than the header's 10dp gap, so 14dp between them
+  // and their 7dp tap-area slops meet without overlapping.
   headerCoinBeforeAdd: { marginRight: 4 },
+  headerQgText: { fontSize: 13, fontWeight: '700', color: DECK_TEXT, textAlign: 'center' },
   // Sized to its text (flexBasis auto) so the row can tell when to wrap;
   // still takes the spare width, and shrinks only when alone on a line.
   title: { flexGrow: 1, flexShrink: 1, flexBasis: 'auto', fontSize: 18, fontWeight: '700', color: DECK_TEXT },
