@@ -152,7 +152,7 @@ export default function Tales() {
   function confirmComplete(tale) {
     showAlert(
       'Mark as complete?',
-      `"${tale.title}" will show as Complete to everyone following it. Its Tics stay exactly as they are, but no new Tics can be added.`,
+      `"${tale.title}" will show as Complete to everyone following it. Its Bits stay exactly as they are, but no new Bits can be added.`,
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Complete', onPress: () => handleComplete(tale.id) },
@@ -180,7 +180,7 @@ export default function Tales() {
   function confirmDelete(tale) {
     showAlert(
       'Delete Blogbit?',
-      `"${tale.title}" will be removed, along with its followers. Its Tics aren't deleted — they stay as regular Ripples, just no longer part of a Blogbit.`,
+      `"${tale.title}" will be removed, along with its followers. Its Bits aren't deleted — they stay as regular Ripples, just no longer part of a Blogbit.`,
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Delete', style: 'destructive', onPress: () => handleDelete(tale.id) },

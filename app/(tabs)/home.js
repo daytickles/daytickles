@@ -1476,12 +1476,12 @@ export default function Home() {
           accessibilityRole="button"
           accessibilityLabel={
             t.newAt
-              ? `${t.title}, new Tic added ${relativeTimeLabel(t.newAt)}. Opens Blogbit.`
+              ? `${t.title}, new Bit added ${relativeTimeLabel(t.newAt)}. Opens Blogbit.`
               : `${t.title}. Opens Blogbit.`
           }
         >
           {/* Unread indicator. Hidden from screen readers -- the row's
-              label already says "new Tic added ...". */}
+              label already says "new Bit added ...". */}
           {!!t.newAt && (
             <Ionicons
               name="sparkles"

@@ -54,8 +54,8 @@ export function notificationTitle(n) {
     // handle_tale_chapter_visible trigger when a chapter goes live.
     case 'tale_chapter':
       text = n.tales?.title
-        ? `${actorName} added a new Tic to "${n.tales.title}"`
-        : `${actorName} added a new Tic to a Blogbit you follow`;
+        ? `${actorName} added a new Bit to "${n.tales.title}"`
+        : `${actorName} added a new Bit to a Blogbit you follow`;
       break;
     default:
       text = FALLBACK_NOTIFICATION_TEXT;

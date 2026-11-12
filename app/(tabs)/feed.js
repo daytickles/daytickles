@@ -86,7 +86,7 @@ const MINE_EMPTY_LINE = 'Write about what made you smile today.';
 // than the generic `mine` one above, so it can invite a first Jot.
 function getEmptyText(tab, natureFilter, taleFilter) {
   if (tab === 'following' && taleFilter) {
-    return 'No Tics in this Blogbit yet.';
+    return 'No Bits in this Blogbit yet.';
   }
   if (tab === 'mine' && natureFilter === 'day_journal') {
     return 'Write your first Jot to see it here.';

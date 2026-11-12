@@ -54,9 +54,9 @@ const SECTIONS = [
       { id: 'multickle-start-icon', label: 'Start one with an icon' },
       { id: 'multickle-tag-rippled', label: 'Tag a Rippled Tickle to it' },
       { id: 'multickle-follow-other', label: "Follow someone else's Blogbit" },
-      { id: 'multickle-following-pills', label: "Check the Following tab pills (filter works, shows other authors' Tics)" },
+      { id: 'multickle-following-pills', label: "Check the Following tab pills (filter works, shows other authors' Bits)" },
       { id: 'multickle-home-plus-mine', label: 'On Home, Blogbits card, Mine: the + still opens Manage Blogbits' },
-      { id: 'multickle-home-plus-find', label: 'On Follow, the + opens "Find a Blogbit": only ongoing Blogbits by other people that you do not follow and that have a public Tic; tap one to open its page and follow it from there' },
+      { id: 'multickle-home-plus-find', label: 'On Follow, the + opens "Find a Blogbit": only ongoing Blogbits by other people that you do not follow and that have a public Bit; tap one to open its page and follow it from there' },
       { id: 'multickle-complete', label: 'Mark one Complete' },
       { id: 'multickle-ongoing-cap', label: 'Confirm the ongoing cap blocks correctly once at the limit' },
     ],
@@ -73,7 +73,7 @@ const SECTIONS = [
   {
     title: 'Notifications',
     items: [
-      { id: 'notif-trigger', label: 'Trigger one (e.g. have someone Ripple a Tic on a Blogbit you follow)' },
+      { id: 'notif-trigger', label: 'Trigger one (e.g. have someone add a Bit to a Blogbit you follow)' },
       { id: 'notif-tap', label: 'Tap it' },
     ],
   },

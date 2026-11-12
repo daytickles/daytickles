@@ -69,7 +69,7 @@ export default function TaleTagModal({ entry, tales, onAssign, onDismiss }) {
             </>
           ) : (
             <Text style={styles.pickerEmpty}>
-              Only Rippled Tickles can be Tics. Ripple this one to add it to a Blogbit.
+              Only Rippled Tickles can be Bits. Ripple this one to add it to a Blogbit.
             </Text>
           )}
 
