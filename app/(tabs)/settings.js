@@ -942,7 +942,7 @@ export default function Settings() {
             />
           </View>
           <Text style={styles.explainerText}>
-            Earn tokens by tagging Tickles to a token-enabled Goal, or by saving a Quick Quest, then spend them on rewards you
+            Earn tokens by tagging Tickles to a token-enabled Goal, by tapping Nailed it! on one, or by saving a Quick Quest, then spend them on rewards you
             set up yourself. Off hides this everywhere, regardless of your balance or any Goal's own
             toggle.
           </Text>

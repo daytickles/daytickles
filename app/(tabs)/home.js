@@ -35,6 +35,7 @@ import TesterFeedbackPill from '../../components/TesterFeedbackPill';
 import GoalTargetCircle from '../../components/GoalTargetCircle';
 import QuickTickleToast from '../../components/QuickTickleToast';
 import QuickTicklePopover from '../../components/QuickTicklePopover';
+import NailedItPopup from '../../components/NailedItPopup';
 import RnrsPopup from '../../components/RnrsPopup';
 import HomeDeck, {
   DECK_WIDTH, DECK_TEXT, DECK_SUBTEXT, deckRowStyles, HEADER_ADD_SIZE, HEADER_ADD_ICON_SIZE, HEADER_ADD_HIT_SLOP,
@@ -388,6 +389,9 @@ export default function Home() {
   // dot button are disabled meanwhile), and the toast for the row just
   // logged ({ id, label } or null).
   const [quickPopoverOpen, setQuickPopoverOpen] = useState(false);
+  // "Nailed it!" popup (components/NailedItPopup.js), opened from the coin
+  // button on Your Goals.
+  const [nailedOpen, setNailedOpen] = useState(false);
   const [quickSaving, setQuickSaving] = useState(false);
   const [quickToast, setQuickToast] = useState(null);
   const quickDotRef = useRef(null);
@@ -805,6 +809,12 @@ export default function Home() {
       setRewardsLoaded(false);
     }
   }, [session, tokensEnabled, rewardsOn]);
+
+  // Nailed it! is a tokens feature: if Tokens & Rewards goes off while
+  // its popup is open, close it (the coin button is gone too).
+  useEffect(() => {
+    if (!tokensEnabled) setNailedOpen(false);
+  }, [tokensEnabled]);
 
   useFocusEffect(
     useCallback(() => {
@@ -1538,6 +1548,11 @@ export default function Home() {
       title: 'Your Goals',
       color: deckColors.goals,
       headerAdd: { a11yLabel: 'Add a Goal', onPress: () => router.push('/goals') },
+      // Nailed it! coin, only while Tokens & Rewards is on (same
+      // "!== false" idiom as the rows' coin).
+      headerCoin: profile?.tokens_enabled !== false
+        ? { a11yLabel: 'Nailed it! Log a Goal for a token', onPress: () => setNailedOpen(true) }
+        : undefined,
       children,
     };
   }
@@ -2149,6 +2164,21 @@ export default function Home() {
     <PickCardsSheet visible={pickSheetOpen} onClose={() => setPickSheetOpen(false)} />
     <PolaroidViewModal item={viewPolaroid} accentColor={accent.card} onClose={() => setViewPolaroid(null)} />
     </WallpaperBackground>
+
+    {/* Nailed it!: active Goals that earn tokens; a tap gives +1 token
+        (no Tickle). My Rewards re-reads its balance after each one. */}
+    <NailedItPopup
+      visible={nailedOpen}
+      goals={activeGoals.filter((g) => g.earns_tokens)}
+      userId={session?.user?.id}
+      bottomOffset={tabBarHeight}
+      onClose={() => setNailedOpen(false)}
+      onOpenGoals={() => {
+        setNailedOpen(false);
+        router.push('/goals');
+      }}
+      onTokenAwarded={loadRewards}
+    />
 
     {/* Quick Tickle's Vibe popover, anchored to the dot. */}
     <QuickTicklePopover

@@ -117,6 +117,12 @@ const SECTIONS = [
       { id: 'calendar-large-font', label: 'Calendar: check the pills and grid at the largest font size' },
       { id: 'browse-weekly-summary', label: 'Open Your Week' },
       { id: 'deck-plus-buttons', label: 'On Home, the Your Goals, My Rewards, Blogbits and Nudges & Notes cards (those switched on) each have a + that opens the matching screen; Remember this? has none.' },
+      { id: 'deck-nailed-coin', label: 'Your Goals has a coin button just left of its +, only while Tokens & Rewards is on; turn Tokens & Rewards off in Settings and the coin goes (the + stays)' },
+      { id: 'deck-nailed-list', label: 'Tap the coin: the Nailed it! pop-up lists only your active Goals that earn tokens (not Achieved ones, not ones with Earn tokens off)' },
+      { id: 'deck-nailed-tap', label: 'Tap a Goal in Nailed it!: its row turns green with "+1 added", the "You have N tokens" line and the My Rewards balance go up by 1, and no new Tickle appears in Tickle Stash; tap it again for another token' },
+      { id: 'deck-nailed-empty', label: 'With no Goal earning tokens, Nailed it! says so and "Open Your Goals" closes it and opens Your Goals' },
+      { id: 'goal-nailed-count', label: 'A Goal\'s own screen shows "Nailed it! N times" ("1 time" for one) under its status line, only once it has been tapped at least once' },
+      { id: 'goal-delete-keeps-tokens', label: 'Delete a Goal you have tapped in Nailed it!: the confirm mentions its Nailed it! count, and your token balance stays the same afterwards' },
       { id: 'deck-swipe-back', label: 'Home deck: swipe the front card off to the left, and to the right: either way the next card comes forward. Then swipe the opposite way straight after: the card you just sent away slides back in on top, from the side it left by. The arrows and dots still go either way' },
     ],
   },
@@ -204,7 +210,7 @@ const SECTIONS = [
   {
     title: 'Tokens & Rewards',
     items: [
-      { id: 'tokens-earn-on-tag', label: 'Turn "Earn tokens" on for a Goal (Manage Goals). Tag an entry to it → header circle goes +1 (switch tabs if it hasn\'t updated)' },
+      { id: 'tokens-earn-on-tag', label: 'Turn "Earn tokens" on for a Goal (Manage Goals). Tag an entry to it → the balance on the My Rewards card goes up by 1 (switch tabs if it hasn\'t updated)' },
       { id: 'tokens-retag-same-goal', label: 'Re-tag the same entry to the same Goal → confirm no extra token' },
       { id: 'tokens-untag-retag', label: "Remove the tag, then re-tag → confirm no extra token, and confirm removing the tag doesn't take the token away" },
       { id: 'tokens-non-earning-goal', label: 'Tag an entry to a Goal with "Earn tokens" off → confirm no token' },

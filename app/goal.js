@@ -9,6 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { C, NATURE_LABELS, withAlpha } from '../lib/theme';
 import { initPinBoardDb, getPhotosForEntries } from '../lib/pinBoardDb';
+import { countGoalLogs } from '../lib/goalLogs';
 import { isThisWeek, DEFAULT_WEEK_START_DAY } from '../lib/week';
 import PhotoEnlargeModal from '../components/PhotoEnlargeModal';
 import GoalTargetCircle from '../components/GoalTargetCircle';
@@ -42,6 +43,9 @@ export default function Goal() {
   // A failed load reads differently from a Goal that's really gone.
   const [loadError, setLoadError] = useState(false);
   const [enlargeUri, setEnlargeUri] = useState(null);
+  // How many "Nailed it!" taps this Goal has (lib/goalLogs.js); null when
+  // not loaded or the count failed, so nothing shows.
+  const [nailedCount, setNailedCount] = useState(null);
 
   const loadGoal = useCallback(async () => {
     // Nothing to load -- drop straight to the "isn't available" message
@@ -53,7 +57,7 @@ export default function Goal() {
     }
     setLoading(true);
 
-    const [goalRes, entriesRes] = await Promise.all([
+    const [goalRes, entriesRes, nailedRes] = await Promise.all([
       supabase
         .from('goals')
         .select('id, label, color, earns_tokens, achieved_at, weekly_target')
@@ -66,7 +70,9 @@ export default function Goal() {
         .eq('goal_id', goalId)
         .order('entry_date', { ascending: false })
         .order('created_at', { ascending: false }),
+      countGoalLogs(goalId),
     ]);
+    setNailedCount(nailedRes.error ? null : nailedRes.count);
 
     const rows = entriesRes.error ? [] : entriesRes.data || [];
     if (goalRes.error) console.warn('Goal load failed', goalRes.error);
@@ -177,6 +183,13 @@ export default function Goal() {
               )}
             </View>
 
+            {/* Under the status row, not in it: that row doesn't wrap. */}
+            {nailedCount > 0 && (
+              <Text style={[styles.statusMeta, styles.nailedLine]}>
+                {`Nailed it! ${nailedCount} ${nailedCount === 1 ? 'time' : 'times'}`}
+              </Text>
+            )}
+
             <View style={styles.listTopGap} />
             {entries.map(renderEntry)}
 
@@ -211,6 +224,7 @@ const styles = StyleSheet.create({
   statusPillText: { fontSize: 11, fontWeight: '700', color: C.sparkleText },
   statusPillTextAchieved: { color: C.tealText },
   statusMeta: { fontSize: 12, color: C.subtext },
+  nailedLine: { marginTop: 8 },
   targetGroup: { flexDirection: 'row', alignItems: 'center', gap: 6 },
 
   listTopGap: { height: 18 },

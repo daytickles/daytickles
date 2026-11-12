@@ -240,7 +240,7 @@ export default function Goals() {
   function confirmDelete(goal) {
     showAlert(
       'Delete Goal?',
-      `"${goal.label}" will be removed. Entries tagged with it will just lose the tag.`,
+      `"${goal.label}" will be removed. Entries tagged with it will just lose the tag. Its Nailed it! count is removed too; tokens you earned stay.`,
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Delete', style: 'destructive', onPress: () => handleDelete(goal.id) },

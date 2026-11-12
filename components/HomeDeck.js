@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, AccessibilityInfo, useWindowDimensions, PanResponder, Image } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BUTTON_HEIGHT, BUTTON_HIT_SLOP, BUTTON_RADIUS } from '../lib/buttonSize';
@@ -14,7 +14,7 @@ import { TILE_SOURCE, TILE_SIZE as WALLPAPER_TILE_SIZE, OPACITY as WALLPAPER_OPA
 // and dots go either way: to the previous, next or any card. Plain RN
 // Animated only -- no gesture or animation library.
 //
-// cards: [{ key, title, sub, subA11y, headerAction, headerRight, headerAdd, color, children }]
+// cards: [{ key, title, sub, subA11y, headerAction, headerRight, headerAdd, headerCoin, color, children }]
 //   key          stable id ('remember' | 'goals' | 'rewards' | 'multickles' | 'rnrs' | 'dayDots' | 'polaroids')
 //   sub          optional sub line under the title
 //   headerAction optional { label, a11yLabel, onPress } -- a small text
@@ -26,6 +26,11 @@ import { TILE_SOURCE, TILE_SIZE as WALLPAPER_TILE_SIZE, OPACITY as WALLPAPER_OPA
 //                the header's right corner, outside the wrapping row, so
 //                a long title goes to 2 lines instead of moving it (Your
 //                Goals, My Rewards, Nudges & Notes). Front card only.
+//   headerCoin   optional { a11yLabel, onPress } -- a round coin button
+//                just left of headerAdd, the same size and ring, 14dp
+//                from it so their 44dp tap areas meet without overlapping
+//                (Your Goals' Nailed it!, only while Tokens & Rewards is
+//                on). Front card only.
 //   children     the card's rows (scroll vertically inside the card)
 //   fixedBody    optional true -- children fill the space under the sub
 //                line as they are: no scrolling list, no bottom fade, no
@@ -601,6 +606,17 @@ export default function HomeDeck({ cards, width, dataSettled = true, fitHeight =
             )}
             {card.headerRight || null}
           </View>
+          {!!card.headerCoin && (
+            <TouchableOpacity
+              onPress={card.headerCoin.onPress}
+              style={[styles.headerAdd, !!card.headerAdd && styles.headerCoinBeforeAdd]}
+              hitSlop={HEADER_ADD_HIT_SLOP}
+              accessibilityRole="button"
+              accessibilityLabel={card.headerCoin.a11yLabel}
+            >
+              <MaterialCommunityIcons name="circle-multiple-outline" size={HEADER_ADD_ICON_SIZE} color={DECK_TEXT} />
+            </TouchableOpacity>
+          )}
           {!!card.headerAdd && (
             <TouchableOpacity
               onPress={card.headerAdd.onPress}
@@ -814,6 +830,10 @@ const styles = StyleSheet.create({
     marginVertical: -3, alignItems: 'center', justifyContent: 'center',
     borderWidth: 1, borderColor: 'rgba(255,248,236,0.6)',
   },
+  // The coin (headerCoin) uses headerAdd's look; with a + after it, 4dp
+  // more than the header's 10dp gap, so 14dp between them and their 7dp
+  // tap-area slops meet without overlapping.
+  headerCoinBeforeAdd: { marginRight: 4 },
   // Sized to its text (flexBasis auto) so the row can tell when to wrap;
   // still takes the spare width, and shrinks only when alone on a line.
   title: { flexGrow: 1, flexShrink: 1, flexBasis: 'auto', fontSize: 18, fontWeight: '700', color: DECK_TEXT },
