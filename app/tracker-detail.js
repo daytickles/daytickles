@@ -9,6 +9,8 @@
 // and the screen stays as it was. After a delete, the Your trackers page
 // is back in front (the detail screen goes, it isn't stacked); that page
 // and Home's card read again when they come back into focus.
+// An amount tracker also has a Unit section: its unit and "More than one"
+// form (migration 0085), saved together with updateTrackerUnit.
 import { useCallback, useRef, useState } from 'react';
 import {
   View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator,
@@ -20,8 +22,8 @@ import { C, accentFor, darken, textOn } from '../lib/theme';
 import { showAlert } from '../lib/themedAlert';
 import { localDateString } from '../lib/week';
 import {
-  listTrackers, listRatings, renameTracker, deleteTracker, formatAmount,
-  TRACKER_HISTORY_DAYS, TRACKER_NAME_MAX, TRACKER_WORDS,
+  listTrackers, listRatings, renameTracker, deleteTracker, updateTrackerUnit, formatAmount,
+  suggestPlural, unitFor, TRACKER_HISTORY_DAYS, TRACKER_NAME_MAX, TRACKER_UNIT_MAX, TRACKER_WORDS,
 } from '../lib/trackers';
 import Button from '../components/Button';
 import WallpaperBackground from '../components/WallpaperBackground';
@@ -71,13 +73,26 @@ function rangeStats(tracker, ratings, days) {
     };
   }
   const average = values.reduce((a, b) => a + b, 0) / values.length;
-  const unit = tracker.method === 'amount' && tracker.unit ? ` ${tracker.unit}` : '';
+  // The unit follows the number as shown: singular only for exactly "1"
+  // (lib/trackers.js unitFor). Scale has no unit.
+  const withUnit = (shown) => {
+    const unit = tracker.method === 'amount' ? unitFor(tracker, shown) : '';
+    return unit ? `${shown} ${unit}` : shown;
+  };
   return {
     rated: values.length,
-    highest: tracker.method === 'scale' ? String(highest) : `${formatAmount(highest)}${unit}`,
+    highest: tracker.method === 'scale' ? String(highest) : withUnit(formatAmount(highest)),
     thirdLabel: 'Average',
-    third: `${oneDecimal(average)}${unit}`,
+    third: withUnit(oneDecimal(average)),
   };
+}
+
+// The unit pair as it would be saved (same rule as lib/trackers.js
+// cleanUnits), for "has anything changed?".
+function savedUnits(unit, plural) {
+  const u = (unit || '').trim();
+  const p = (plural || '').trim();
+  return { unit: u || null, unit_plural: u && p && p !== u ? p : null };
 }
 
 export default function TrackerDetail() {
@@ -98,6 +113,16 @@ export default function TrackerDetail() {
   // The name as last read, so a reload only replaces the rename field
   // when it hasn't been edited.
   const loadedName = useRef('');
+  // Unit section (amount trackers): the two boxes, whether the plural is
+  // the user's own (then a Unit change never overwrites it), saving state
+  // and its message. unitsTouched: edited since the last load or save, so
+  // a reload doesn't replace what is being typed.
+  const [draftUnit, setDraftUnit] = useState('');
+  const [draftPlural, setDraftPlural] = useState('');
+  const [pluralEdited, setPluralEdited] = useState(false);
+  const [savingUnit, setSavingUnit] = useState(false);
+  const [unitMessage, setUnitMessage] = useState('');
+  const unitsTouched = useRef(false);
 
   const load = useCallback(async () => {
     if (!userId || !id) return;
@@ -119,6 +144,7 @@ export default function TrackerDetail() {
       setRatings(read.get(found.id) || new Map());
       setDraftName((prev) => (prev === '' || prev === loadedName.current ? found.name : prev));
       loadedName.current = found.name;
+      if (!unitsTouched.current) resetUnitDrafts(found);
     }
     setTracker(found);
     setLoading(false);
@@ -144,6 +170,44 @@ export default function TrackerDetail() {
     loadedName.current = name;
     setTracker({ ...tracker, name });
     setDraftName(name);
+  }
+
+  // The Unit boxes from the saved tracker. A saved plural counts as the
+  // user's own; with none, typing a unit suggests one.
+  function resetUnitDrafts(t) {
+    setDraftUnit(t.unit || '');
+    setDraftPlural(t.unit_plural || '');
+    setPluralEdited(!!t.unit_plural);
+    unitsTouched.current = false;
+  }
+
+  function changeUnit(text) {
+    unitsTouched.current = true;
+    setDraftUnit(text);
+    if (!pluralEdited) setDraftPlural(suggestPlural(text));
+  }
+
+  function changePlural(text) {
+    unitsTouched.current = true;
+    setPluralEdited(true);
+    setDraftPlural(text);
+  }
+
+  // Only the unit columns change; the ratings stay as they are. The screen
+  // (header, stats) uses the new unit as soon as the server accepts it.
+  async function handleSaveUnit() {
+    if (!tracker || savingUnit) return;
+    setUnitMessage('');
+    setSavingUnit(true);
+    const result = await updateTrackerUnit(tracker.id, draftUnit, draftPlural);
+    setSavingUnit(false);
+    if (result.error) {
+      setUnitMessage(result.message);
+      return;
+    }
+    const next = { ...tracker, unit: result.unit, unit_plural: result.unit_plural };
+    setTracker(next);
+    resetUnitDrafts(next);
   }
 
   function confirmDelete() {
@@ -177,6 +241,10 @@ export default function TrackerDetail() {
   const trimmedDraft = draftName.trim();
   const canSave = !!tracker && trimmedDraft.length > 0 && trimmedDraft !== tracker.name && !renaming;
   const stats = tracker ? rangeStats(tracker, ratings, range) : null;
+  const isAmount = tracker?.method === 'amount';
+  const nextUnits = savedUnits(draftUnit, draftPlural);
+  const canSaveUnit = isAmount && !savingUnit
+    && (nextUnits.unit !== (tracker.unit || null) || nextUnits.unit_plural !== (tracker.unit_plural || null));
 
   return (
     <WallpaperBackground>
@@ -221,6 +289,40 @@ export default function TrackerDetail() {
                 <Button title={renaming ? 'Saving...' : 'Save'} onPress={handleRename} disabled={!canSave} />
               </View>
               {!!renameMessage && <Text style={styles.message} accessibilityLiveRegion="polite">{renameMessage}</Text>}
+
+              {isAmount && (
+                <>
+                  <Text style={[styles.label, styles.sectionGap]} nativeID="trackerUnitLabel">Unit</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={draftUnit}
+                    onChangeText={changeUnit}
+                    maxLength={TRACKER_UNIT_MAX}
+                    autoCapitalize="none"
+                    accessibilityLabel="Unit, optional"
+                    accessibilityLabelledBy="trackerUnitLabel"
+                    returnKeyType="done"
+                  />
+                  <Text style={styles.helper}>Optional.</Text>
+
+                  <Text style={[styles.label, styles.sectionGap]} nativeID="trackerPluralLabel">More than one</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={draftPlural}
+                    onChangeText={changePlural}
+                    maxLength={TRACKER_UNIT_MAX}
+                    autoCapitalize="none"
+                    accessibilityLabel="More than one, optional"
+                    accessibilityLabelledBy="trackerPluralLabel"
+                    returnKeyType="done"
+                  />
+                  <Text style={styles.helper}>Optional. Used for any amount except 1.</Text>
+                  <View style={styles.saveRow}>
+                    <Button title={savingUnit ? 'Saving...' : 'Save'} onPress={handleSaveUnit} disabled={!canSaveUnit} />
+                  </View>
+                  {!!unitMessage && <Text style={styles.message} accessibilityLiveRegion="polite">{unitMessage}</Text>}
+                </>
+              )}
 
               <View style={[styles.rangeSwitch, styles.sectionGap]}>
                 {RANGES.map((r) => {

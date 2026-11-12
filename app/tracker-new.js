@@ -8,6 +8,8 @@
 // the Your trackers page: back to it when it opened this screen (param
 // from=trackers, so there's never a second copy of it), otherwise it
 // replaces this screen (opened from Home), so Back goes to Home.
+// An amount takes a Unit and, optionally, its "More than one" form
+// (migration 0085), suggested from the unit until the user edits it.
 import { useCallback, useState } from 'react';
 import {
   View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet,
@@ -18,7 +20,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { C, accentFor, darken, withAlpha } from '../lib/theme';
 import {
-  listTrackers, createTracker, TRACKER_LIMIT, TRACKER_LIMIT_MESSAGE,
+  listTrackers, createTracker, suggestPlural, TRACKER_LIMIT, TRACKER_LIMIT_MESSAGE,
   TRACKER_NAME_MAX, TRACKER_UNIT_MAX, TRACKER_WORDS,
 } from '../lib/trackers';
 import Button from '../components/Button';
@@ -39,6 +41,11 @@ export default function NewTracker() {
   const [name, setName] = useState('');
   const [method, setMethod] = useState('words');
   const [unit, setUnit] = useState('');
+  // "More than one" (the unit for any amount except 1). Suggested from
+  // the unit while pluralEdited is false; the first edit or clear by hand
+  // makes it the user's own, and a later Unit change never overwrites it.
+  const [unitPlural, setUnitPlural] = useState('');
+  const [pluralEdited, setPluralEdited] = useState(false);
   // The preview's own rating, never saved.
   const [previewValue, setPreviewValue] = useState(null);
   // How many trackers the user already has (null until read), for the
@@ -64,6 +71,16 @@ export default function NewTracker() {
     setPreviewValue(null);
   }
 
+  function changeUnit(text) {
+    setUnit(text);
+    if (!pluralEdited) setUnitPlural(suggestPlural(text));
+  }
+
+  function changePlural(text) {
+    setPluralEdited(true);
+    setUnitPlural(text);
+  }
+
   async function handleSave() {
     if (!userId || !name.trim() || saving) return;
     if (existing != null && existing >= TRACKER_LIMIT) {
@@ -72,7 +89,7 @@ export default function NewTracker() {
     }
     setStatus('');
     setSaving(true);
-    const { error, message } = await createTracker(userId, { name, method, unit, sortOrder: nextSort });
+    const { error, message } = await createTracker(userId, { name, method, unit, unitPlural, sortOrder: nextSort });
     setSaving(false);
     if (error) {
       setStatus(message);
@@ -84,7 +101,10 @@ export default function NewTracker() {
 
   const trimmed = name.trim();
   // The preview's name only feeds its TalkBack labels ("Preview: Some").
-  const preview = { name: trimmed || 'Preview', method, unit: method === 'amount' && unit.trim() ? unit.trim() : null };
+  // unit_plural as it would be saved (empty or the same as the unit: none).
+  const previewUnit = method === 'amount' && unit.trim() ? unit.trim() : null;
+  const previewPlural = previewUnit && unitPlural.trim() && unitPlural.trim() !== previewUnit ? unitPlural.trim() : null;
+  const preview = { name: trimmed || 'Preview', method, unit: previewUnit, unit_plural: previewPlural };
 
   return (
     <WallpaperBackground>
@@ -141,12 +161,25 @@ export default function NewTracker() {
               <TextInput
                 style={styles.input}
                 value={unit}
-                onChangeText={setUnit}
+                onChangeText={changeUnit}
                 maxLength={TRACKER_UNIT_MAX}
+                autoCapitalize="none"
                 accessibilityLabel="Unit, optional"
                 returnKeyType="done"
               />
               <Text style={styles.helper}>Optional.</Text>
+
+              <Text style={[styles.label, styles.sectionGap]}>More than one</Text>
+              <TextInput
+                style={styles.input}
+                value={unitPlural}
+                onChangeText={changePlural}
+                maxLength={TRACKER_UNIT_MAX}
+                autoCapitalize="none"
+                accessibilityLabel="More than one, optional"
+                returnKeyType="done"
+              />
+              <Text style={styles.helper}>Optional. Used for any amount except 1.</Text>
             </>
           )}
 
