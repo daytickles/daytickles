@@ -70,14 +70,15 @@ export default function Create() {
     (async () => {
       const { data, error } = await supabase
         .from('tickle_entries')
-        .select('text_content, tickle_nature, visibility, media_url, tale_id')
+        .select('text_content, tickle_nature, visibility, media_url, tale_id, quick_note')
         .eq('id', entryId)
         .single();
 
       if (!error && data) {
         // A Quick Tickle has no text yet (null) -- '' keeps the counter's
-        // text.length below from crashing.
-        setText(data.text_content ?? '');
+        // text.length below from crashing. A Quick Note starts from its
+        // nudge's words (quick_note), so "Tickle it" picks up from them.
+        setText(data.text_content ?? data.quick_note ?? '');
         setTickleNature(data.tickle_nature);
         setShareToFeed(data.visibility === 'public');
         setWasPublic(data.visibility === 'public');
@@ -187,6 +188,9 @@ export default function Create() {
       // isn't part of the fields this screen otherwise "owns," but it's
       // the only way the resulting "(edited)" label can survive a reload
       // on Home/Feed, since there's no updated_at on this table.
+      // quick_note: null on every save -- once a Tickle has words it is
+      // no longer a Quick Note, and the database only allows quick_note
+      // on a private, text-less row (migration 0084).
       ({ error } = await supabase
         .from('tickle_entries')
         .update({
@@ -194,6 +198,7 @@ export default function Create() {
           tickle_nature: tickleNature,
           visibility,
           is_edited: true,
+          quick_note: null,
         })
         .eq('id', entryId));
     } else {

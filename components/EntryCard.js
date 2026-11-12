@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { C, darken, lighten, withAlpha, vibeIconColor, NATURE_LABELS, AWARD_BADGE_COLOR, VIBE_CARD_PALETTES } from '../lib/theme';
 import { showAlert } from '../lib/themedAlert';
-import { isQuickTickle, useTickleItDismissed } from '../lib/quickTickle';
+import { isQuickTickle, isQuickNote, useTickleItDismissed } from '../lib/quickTickle';
 import { flagEmoji } from '../lib/country';
 import InitialsAvatar from './InitialsAvatar';
 import FoundingMemberBadge from './FoundingMemberBadge';
@@ -167,6 +167,10 @@ export default function EntryCard({
   // (dismissable per phone); Ripple and Share stay hidden until it has
   // words. Only the owner ever sees this treatment.
   const isQuick = isOwnEntry && isQuickTickle(item, !!photoUri || !!hasLinkedPhoto);
+  // A Quick Note (QN): a Quick Tickle logged from a Nudge or Note, carrying
+  // a copy of the nudge's words (quick_note). Same slim row, with a QN disc
+  // and only the words in the badge (the Vibe is its colour).
+  const isNote = isOwnEntry && isQuickNote(item, !!photoUri || !!hasLinkedPhoto);
   const likeCount = item.like_count || 0;
   const [tickleItDismissed, dismissTickleIt] = useTickleItDismissed(item.id, isQuick && showMineActions);
 
@@ -320,9 +324,11 @@ export default function EntryCard({
     const dateText = formatEntryDate(item.entry_date, { dropCurrentYear: true });
     const timeText = formatEntryTime(item.created_at);
     // One label for the badge and the date line together.
+    // A Quick Note says its full words here, not the two-line cut.
     const spoken = [
-      'Quick Tickle',
+      isNote ? 'Quick Note' : 'Quick Tickle',
       quickVibeName,
+      isNote ? item.quick_note : null,
       taggedGoal ? `Goal: ${taggedGoal.label}` : null,
       dateText,
       timeText,
@@ -339,11 +345,24 @@ export default function EntryCard({
         onLayout={onLayout}
       >
         <View style={styles.quickRowMain} accessible accessibilityLabel={spoken}>
-          <View style={[styles.quickBadge, { backgroundColor: badgeFill }]}>
+          <View style={[styles.quickBadge, isNote && styles.quickBadgeNote, { backgroundColor: badgeFill }]}>
             <View style={styles.quickBadgeMark}>
-              <Text style={styles.quickBadgeMarkText} maxFontSizeMultiplier={QUICK_MAX_FONT_SCALE}>QT</Text>
+              <Text style={styles.quickBadgeMarkText} maxFontSizeMultiplier={QUICK_MAX_FONT_SCALE}>
+                {isNote ? 'QN' : 'QT'}
+              </Text>
             </View>
-            <Text style={styles.quickBadgeLabel} maxFontSizeMultiplier={QUICK_MAX_FONT_SCALE}>{badgeText}</Text>
+            {isNote ? (
+              <Text
+                style={styles.quickBadgeNoteWords}
+                numberOfLines={2}
+                ellipsizeMode="tail"
+                maxFontSizeMultiplier={QUICK_MAX_FONT_SCALE}
+              >
+                {item.quick_note}
+              </Text>
+            ) : (
+              <Text style={styles.quickBadgeLabel} maxFontSizeMultiplier={QUICK_MAX_FONT_SCALE}>{badgeText}</Text>
+            )}
           </View>
           <View style={styles.quickWhenRow}>
             {!!quickGoalColor && (
@@ -372,7 +391,7 @@ export default function EntryCard({
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   style={styles.tickleItDismiss}
                   accessibilityRole="button"
-                  accessibilityLabel="Dismiss Tickle it for this Quick Tickle"
+                  accessibilityLabel={isNote ? 'Dismiss Tickle it for this Quick Note' : 'Dismiss Tickle it for this Quick Tickle'}
                 >
                   <Ionicons name="close" size={14} color={C.subtext} />
                 </TouchableOpacity>
@@ -971,6 +990,10 @@ const styles = StyleSheet.create({
   // One line; wraps inside the badge only as a last resort, when the
   // badge alone is wider than the row (never truncated).
   quickBadgeLabel: { flexShrink: 1, fontSize: 13, fontWeight: '700', color: QUICK_BADGE_TEXT },
+  // Quick Note: the badge holds only the nudge's words (up to two lines),
+  // centred on the disc, so one line looks like the QT badge.
+  quickBadgeNote: { alignItems: 'center', borderRadius: 16, paddingVertical: 4 },
+  quickBadgeNoteWords: { flexShrink: 1, fontSize: 13, lineHeight: 18, fontWeight: '700', color: QUICK_BADGE_TEXT },
   // Date · time under the badge, with the Goal dot (only with a Goal)
   // in front.
   quickWhenRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2, marginLeft: 4 },

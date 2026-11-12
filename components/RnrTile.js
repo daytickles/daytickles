@@ -3,6 +3,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { C, withAlpha } from '../lib/theme';
 import { RNR_SLOTS, RNR_SLOT_LABELS } from '../lib/rnrs';
 
+// The "+1 token" pill (same colours as the Vibe pop-up's).
+const TOKEN_FILL = '#F3E8D6';
+const TOKEN_INK = '#4A1F10';
+// The 28dp token pill: 8dp above and below make a 44dp tap area.
+const TOKEN_PILL_HIT_SLOP = { top: 8, bottom: 8, left: 4, right: 4 };
+
 // One placed Routines and Reminders tile, used by the today pop-up and
 // the full page. A transparent pill like Home's pill rows, with the
 // label on top and its choices under it:
@@ -14,10 +20,31 @@ import { RNR_SLOTS, RNR_SLOT_LABELS } from '../lib/rnrs';
 // The label itself also carries TalkBack actions (Done, Move to each
 // other slot, Skip -- not Move for a Done tile), so the same jobs can be
 // done from the tile alone.
-export default function RnrTile({ placement, accentDark, onSetStatus, onMoveTo, onMoveSlot }) {
+//
+// Done on a planned tile goes to onDone(placement, null) when given (the
+// Quick Note flow in lib/useRnrDay.js, which decides whether the centred
+// Vibe pop-up opens). Without onDone it marks done directly.
+// With tokensOn and onToggleEarns, a planned or skipped tile shows a
+// tappable token pill: filled "+1 token" when this placed nudge earns a
+// token, outlined "+ token" when it doesn't.
+export default function RnrTile({
+  placement, accentDark, onSetStatus, onMoveTo, onMoveSlot, onDone, tokensOn = false, onToggleEarns,
+}) {
   const { label, status, slot } = placement;
   const done = status === 'done';
   const skipped = status === 'skipped';
+  const earns = !!placement.earns_tokens;
+  const showTokenPill = tokensOn && !!onToggleEarns && !done;
+
+  function markDone() {
+    if (onDone) onDone(placement, null);
+    else onSetStatus(placement, 'done');
+  }
+
+  function handleDonePress() {
+    if (done) onSetStatus(placement, 'planned');
+    else markDone();
+  }
 
   const stateWord = done ? 'done' : skipped ? 'skipped' : null;
   const a11yLabel = `${label}, ${RNR_SLOT_LABELS[slot]}${stateWord ? `, ${stateWord}` : ''}`;
@@ -34,7 +61,7 @@ export default function RnrTile({ placement, accentDark, onSetStatus, onMoveTo, 
 
   function handleAction(e) {
     const name = e.nativeEvent.actionName;
-    if (name === 'done') onSetStatus(placement, 'done');
+    if (name === 'done') markDone();
     else if (name === 'undoDone' || name === 'undoSkip') onSetStatus(placement, 'planned');
     else if (name === 'skip') onSetStatus(placement, 'skipped');
     else if (name.startsWith('move-') && !done) onMoveSlot(placement, name.slice(5));
@@ -78,7 +105,7 @@ export default function RnrTile({ placement, accentDark, onSetStatus, onMoveTo, 
               icon={done ? 'checkmark' : null}
               a11yLabel={done ? `Done: ${label}. Tap to undo` : `Done: ${label}`}
               a11yState={{ checked: done }}
-              onPress={() => onSetStatus(placement, done ? 'planned' : 'done')}
+              onPress={handleDonePress}
               color={accentDark}
             />
             {!done && (
@@ -98,6 +125,18 @@ export default function RnrTile({ placement, accentDark, onSetStatus, onMoveTo, 
               </>
             )}
           </>
+        )}
+        {showTokenPill && (
+          <TouchableOpacity
+            onPress={() => onToggleEarns(placement)}
+            hitSlop={TOKEN_PILL_HIT_SLOP}
+            style={[styles.tokenPill, earns ? styles.tokenPillOn : styles.tokenPillOff]}
+            accessibilityRole="switch"
+            accessibilityLabel={`Earn a token: ${label}`}
+            accessibilityState={{ checked: earns }}
+          >
+            <Text style={styles.tokenPillText}>{earns ? '+1 token' : '+ token'}</Text>
+          </TouchableOpacity>
         )}
       </View>
     </View>
@@ -143,4 +182,12 @@ const styles = StyleSheet.create({
   },
   actionText: { fontSize: 13, fontWeight: '700' },
   skippedText: { fontSize: 13, color: C.subtext, paddingRight: 4 },
+  // At the right end of the choices row (wraps under them on a narrow row).
+  tokenPill: {
+    marginLeft: 'auto', height: 28, borderRadius: 14, paddingHorizontal: 10,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  tokenPillOn: { backgroundColor: TOKEN_FILL, borderWidth: 1, borderColor: TOKEN_FILL },
+  tokenPillOff: { backgroundColor: 'transparent', borderWidth: 1, borderColor: TOKEN_INK },
+  tokenPillText: { fontSize: 13, fontWeight: '700', color: TOKEN_INK },
 });

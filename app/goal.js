@@ -69,7 +69,7 @@ export default function Goal() {
         .maybeSingle(),
       supabase
         .from('tickle_entries')
-        .select('id, entry_date, created_at, text_content, tickle_nature, entry_kind, media_url')
+        .select('id, entry_date, created_at, text_content, tickle_nature, entry_kind, media_url, quick_note')
         .eq('user_id', session.user.id)
         .eq('goal_id', goalId)
         .order('entry_date', { ascending: false })
@@ -125,7 +125,10 @@ export default function Goal() {
             />
           </TouchableOpacity>
         )}
-        {!isPhotoOnly && !!e.text_content && <Text style={styles.entryText}>{e.text_content}</Text>}
+        {/* A Quick Note has no text: its nudge's words (quick_note) show instead. */}
+        {!isPhotoOnly && !!(e.text_content || e.quick_note) && (
+          <Text style={styles.entryText}>{e.text_content || e.quick_note}</Text>
+        )}
       </View>
     );
   }

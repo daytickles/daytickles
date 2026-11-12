@@ -12,6 +12,8 @@ import Button from './Button';
 import RnrTile from './RnrTile';
 import RnrMoveChooser from './RnrMoveChooser';
 import RnrDayPicker from './RnrDayPicker';
+import QuickTicklePopover from './QuickTicklePopover';
+import QuickTickleToast from './QuickTickleToast';
 
 // Home's Nudges & Notes card (its tile rows) opens this: today's
 // tiles under Morning, Afternoon and Evening, each with Done, Move to
@@ -20,15 +22,28 @@ import RnrDayPicker from './RnrDayPicker';
 // dimmed area close it. Loads fresh each time it opens. Edge to edge
 // (statusBarTranslucent + navigationBarTranslucent), with the safe-area
 // insets as padding.
+//
+// Quick Note (Done on today's tile, lib/useRnrDay.js): the Vibe sheet is
+// QuickTicklePopover, a Modal nested in this one (the same way
+// RnrMoveChooser and RnrDayPicker already open over it). The Undo toast is
+// drawn inside this Modal's own window, at its bottom safe edge -- a toast
+// on Home would sit hidden under it.
 export default function RnrsPopup({ visible, onClose }) {
   const { session, profile } = useAuth();
   const insets = useSafeAreaInsets();
   const userId = session?.user?.id;
   const accentDark = darken(accentFor(profile?.accent_theme).card, 0.35);
+  const tokensOn = profile?.tokens_enabled !== false;
   const today = localDateString();
   const day = useRnrDay(userId, today, visible);
   const [moving, setMoving] = useState(null);
   const [dayPickerFor, setDayPickerFor] = useState(null);
+
+  const notePlacement = day.vibeFor?.placement;
+  const noteTokenPill = tokensOn && !!notePlacement?.earns_tokens && !day.vibeFor?.alreadyEarned;
+  const noteToastMessage = day.noteToast && tokensOn && day.noteToast.earned
+    ? `Logged to ${day.noteToast.label}. +1 token`
+    : undefined;
 
   const todayLabel = parseLocalDateString(today).toLocaleDateString('en-US', {
     weekday: 'long', month: 'long', day: 'numeric',
@@ -41,12 +56,22 @@ export default function RnrsPopup({ visible, onClose }) {
   function close({ leaving = false } = {}) {
     setMoving(null);
     setDayPickerFor(null);
+    day.dismissNote();
     onClose({ leaving });
   }
 
   function openFullPage() {
     close({ leaving: true });
     router.navigate('/rnrs');
+  }
+
+  // The Quick Note toast's "Tickle it": closes this pop-up, then the
+  // existing Edit route.
+  function handleNoteTickleIt() {
+    const toast = day.noteToast;
+    if (!toast) return;
+    close({ leaving: true });
+    router.push({ pathname: '/create', params: { entryId: toast.id } });
   }
 
   return (
@@ -120,6 +145,9 @@ export default function RnrsPopup({ visible, onClose }) {
                     placement={p}
                     accentDark={accentDark}
                     onSetStatus={day.setStatus}
+                    onDone={day.requestDone}
+                    tokensOn={tokensOn}
+                    onToggleEarns={day.toggleEarns}
                     onMoveTo={setMoving}
                     onMoveSlot={(pl, slot) => day.move(pl, { slot })}
                   />
@@ -135,7 +163,28 @@ export default function RnrsPopup({ visible, onClose }) {
             style={styles.openButton}
           />
         </View>
+        <QuickTickleToast
+          toast={day.noteToast}
+          message={noteToastMessage}
+          onUndo={day.undoNote}
+          onTickleIt={handleNoteTickleIt}
+          onTimeout={day.clearNoteToast}
+          style={[styles.noteToast, { bottom: insets.bottom + 16, left: insets.left + 16, right: insets.right + 16 }]}
+        />
       </View>
+
+      <QuickTicklePopover
+        visible={!!day.vibeFor}
+        anchor={day.vibeFor?.anchor || null}
+        onPick={day.pickVibe}
+        onClose={day.closeVibe}
+        saving={day.noteSaving}
+        title={notePlacement?.label || ''}
+        helper="Done. Pick a Vibe to keep it. No writing needed."
+        closeLabel="Close"
+        tokenPill={noteTokenPill}
+        extraRow={{ label: 'Just mark done', onPress: day.justMarkDone }}
+      />
 
       <RnrMoveChooser
         placement={moving}
@@ -197,4 +246,6 @@ const styles = StyleSheet.create({
   slot: { gap: 8, marginTop: 8 },
   slotLabel: { fontSize: 13, fontWeight: '700', color: C.rustDark },
   openButton: { marginTop: 12 },
+  // The Quick Note toast, at the bottom of this Modal (offsets inline).
+  noteToast: { position: 'absolute' },
 });

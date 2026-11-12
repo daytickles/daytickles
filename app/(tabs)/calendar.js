@@ -53,7 +53,7 @@ const RNR_TICK_INSET = 3;
 const RNR_DETAIL_ICON_SIZE = 16;
 
 const ENTRY_SELECT =
-  'id, entry_date, text_content, like_count, tickle_nature, goal_id, tale_id, visibility, is_edited, created_at, user_id, entry_kind, local_photo_filename, media_url, profiles!tickle_entries_user_id_fkey(username, avatar_emoji, accent_theme, country, founding_member_number)';
+  'id, entry_date, text_content, like_count, tickle_nature, goal_id, tale_id, visibility, is_edited, created_at, user_id, entry_kind, local_photo_filename, media_url, quick_note, profiles!tickle_entries_user_id_fkey(username, avatar_emoji, accent_theme, country, founding_member_number)';
 
 // Same idea as feed.js's own resolveLinkedPhotoUris -- resolves both
 // photo_only entries and entry_kind='text' entries with a Tickle-a-

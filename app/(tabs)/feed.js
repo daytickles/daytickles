@@ -93,7 +93,7 @@ function getEmptyText(tab, natureFilter, taleFilter) {
 }
 
 const ENTRY_SELECT =
-  'id, entry_date, text_content, like_count, tickle_nature, goal_id, tale_id, visibility, is_edited, created_at, user_id, entry_kind, local_photo_filename, media_url, profiles!tickle_entries_user_id_fkey(username, avatar_emoji, accent_theme, country, founding_member_number)';
+  'id, entry_date, text_content, like_count, tickle_nature, goal_id, tale_id, visibility, is_edited, created_at, user_id, entry_kind, local_photo_filename, media_url, quick_note, profiles!tickle_entries_user_id_fkey(username, avatar_emoji, accent_theme, country, founding_member_number)';
 
 // Mine shows entries fully untruncated (deliberate — people should be
 // able to read the complete text), so real cards range from one line to

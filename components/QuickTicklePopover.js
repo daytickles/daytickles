@@ -34,7 +34,20 @@ const SHEET_EDGE = 8;
 // fill the whole window, so its coordinates are the same as
 // measureInWindow's. The dimmed backdrop is a sibling behind the sheet,
 // not its parent, so TalkBack reaches each of them separately.
-export default function QuickTicklePopover({ visible, anchor, onPick, onClose, saving }) {
+//
+// Optional, for other callers (Nudges & Notes' Done): title, helper and
+// closeLabel replace the Quick Tickle wording; tokenPill shows a "+1
+// token" pill at the right of the title; extraRow ({ label, onPress })
+// adds a flat text button under the Vibe rows (e.g. "Just mark done").
+// With none of them passed, Home's Quick Tickle looks exactly as before.
+export default function QuickTicklePopover({
+  visible, anchor, onPick, onClose, saving,
+  title = 'Quick Tickle',
+  helper = 'Tap one to log it. No writing needed.',
+  closeLabel = 'Close Quick Tickle',
+  tokenPill = false,
+  extraRow = null,
+}) {
   const insets = useSafeAreaInsets();
   const { vibe } = useHomePalette();
   // The Modal's own size, and the sheet's laid-out height (it grows with
@@ -96,7 +109,7 @@ export default function QuickTicklePopover({ visible, anchor, onPick, onClose, s
           activeOpacity={1}
           onPress={onClose}
           accessibilityRole="button"
-          accessibilityLabel="Close Quick Tickle"
+          accessibilityLabel={closeLabel}
         />
         {/* Hidden (opacity 0) until its height is known, then placed. */}
         <View
@@ -109,8 +122,17 @@ export default function QuickTicklePopover({ visible, anchor, onPick, onClose, s
           onLayout={(e) => setSheetHeight(e.nativeEvent.layout.height)}
         >
           <View style={styles.headingBlock}>
-            <Text style={styles.heading} accessibilityRole="header">Quick Tickle</Text>
-            <Text style={styles.helper}>Tap one to log it. No writing needed.</Text>
+            <View style={styles.headingRow}>
+              <Text style={styles.heading} accessibilityRole="header" numberOfLines={2} ellipsizeMode="tail">
+                {title}
+              </Text>
+              {tokenPill && (
+                <View style={styles.tokenPill}>
+                  <Text style={styles.tokenPillText}>+1 token</Text>
+                </View>
+              )}
+            </View>
+            <Text style={styles.helper}>{helper}</Text>
           </View>
           <View style={styles.rows}>
             {NATURE_ORDER.map((key) => {
@@ -143,6 +165,19 @@ export default function QuickTicklePopover({ visible, anchor, onPick, onClose, s
               );
             })}
           </View>
+          {!!extraRow && (
+            <TouchableOpacity
+              style={styles.extraRow}
+              onPress={extraRow.onPress}
+              disabled={saving}
+              activeOpacity={0.6}
+              accessibilityRole="button"
+              accessibilityLabel={extraRow.label}
+              accessibilityState={{ disabled: saving }}
+            >
+              <Text style={styles.extraRowText}>{extraRow.label}</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     </Modal>
@@ -163,7 +198,18 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.18, shadowRadius: 12, elevation: 8,
   },
   headingBlock: { marginBottom: 12, paddingHorizontal: 2 },
-  heading: { fontSize: 19, fontWeight: '700', color: INK },
+  // Title and, when shown, the "+1 token" pill at its right. The title
+  // shrinks and wraps (2 lines max) so the pill is never pushed off.
+  headingRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  heading: { flexShrink: 1, fontSize: 19, fontWeight: '700', color: INK },
+  tokenPill: {
+    height: 28, borderRadius: 14, paddingHorizontal: 10,
+    alignItems: 'center', justifyContent: 'center', backgroundColor: '#F3E8D6',
+  },
+  tokenPillText: { fontSize: 13, fontWeight: '700', color: '#4A1F10' },
+  // "Just mark done": flat text, no box, 44dp tall to tap.
+  extraRow: { minHeight: 44, marginTop: 6, alignItems: 'center', justifyContent: 'center' },
+  extraRowText: { fontSize: 15, fontWeight: '600', color: '#6B675E', textAlign: 'center' },
   helper: { marginTop: 2, fontSize: 14, color: '#5F5B52' },
   rows: { gap: 10 },
   // 52dp: the 36dp circle and 8dp above and below. minHeight rather than

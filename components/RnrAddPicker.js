@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, TextInput, ActivityIndicator, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { C, accentFor, darken } from '../lib/theme';
@@ -21,12 +21,20 @@ const MY_TILE_PILL_HIT_SLOP = { top: BUTTON_HIT_SLOP.top, bottom: 2 };
 //   My tiles -- the user's own tiles; tap one to add it, or Rename /
 //     Delete it. Delete archives: the tile leaves this list, and days it
 //     was already placed on keep it with its label.
-// Picking anything calls onAdd({ starterKey } | { tileId }) and closes.
+// Picking anything calls onAdd({ starterKey } | { tileId }, plus
+// earnsTokens) and closes.
+//
+// Earn tokens (above the three parts, hidden while Tokens & Rewards is
+// off): whatever is added next earns +1 token when it is logged as a
+// Quick Note (migration 0084). Off every time the picker opens.
 export default function RnrAddPicker({ slot, onAdd, onClose }) {
   const { session, profile } = useAuth();
   const userId = session?.user?.id;
   const accentDark = darken(accentFor(profile?.accent_theme).card, 0.35);
+  const tokensOn = profile?.tokens_enabled !== false;
   const visible = !!slot;
+  const [earnsTokens, setEarnsTokens] = useState(false);
+  const earns = tokensOn && earnsTokens;
   const [myTiles, setMyTiles] = useState([]);
   const [tilesLoading, setTilesLoading] = useState(false);
   const [newLabel, setNewLabel] = useState('');
@@ -39,6 +47,7 @@ export default function RnrAddPicker({ slot, onAdd, onClose }) {
     let cancelled = false;
     setNewLabel('');
     setRenamingId(null);
+    setEarnsTokens(false);
     setTilesLoading(true);
     fetchMyTiles(userId).then(({ data, error }) => {
       if (cancelled) return;
@@ -65,7 +74,7 @@ export default function RnrAddPicker({ slot, onAdd, onClose }) {
       return;
     }
     setMyTiles((prev) => [...prev, data]);
-    onAdd({ tileId: data.id });
+    onAdd({ tileId: data.id, earnsTokens: earns });
   }
 
   function startRename(tile) {
@@ -132,6 +141,21 @@ export default function RnrAddPicker({ slot, onAdd, onClose }) {
             </TouchableOpacity>
           </View>
 
+          {tokensOn && (
+            <View style={styles.earnRow}>
+              <View style={styles.earnText}>
+                <Text style={styles.earnLabel}>Earn tokens</Text>
+                <Text style={styles.earnHelper}>+1 token when you log it with a Vibe.</Text>
+              </View>
+              <Switch
+                value={earnsTokens}
+                onValueChange={setEarnsTokens}
+                trackColor={{ false: C.faint, true: accentDark }}
+                accessibilityLabel="Earn tokens: +1 token when you log it with a Vibe"
+              />
+            </View>
+          )}
+
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollContent}>
             <Text style={styles.sectionLabel} accessibilityRole="header">Make a new tile</Text>
             <View style={styles.newRow}>
@@ -166,7 +190,7 @@ export default function RnrAddPicker({ slot, onAdd, onClose }) {
               {ideas.map((t) => (
                 <TouchableOpacity
                   key={t.key}
-                  onPress={() => onAdd({ starterKey: t.key })}
+                  onPress={() => onAdd({ starterKey: t.key, earnsTokens: earns })}
                   hitSlop={BUTTON_HIT_SLOP}
                   style={[styles.pill, { borderColor: accentDark }]}
                   accessibilityRole="button"
@@ -204,7 +228,7 @@ export default function RnrAddPicker({ slot, onAdd, onClose }) {
                 ) : (
                   <>
                     <TouchableOpacity
-                      onPress={() => onAdd({ tileId: t.id })}
+                      onPress={() => onAdd({ tileId: t.id, earnsTokens: earns })}
                       hitSlop={MY_TILE_PILL_HIT_SLOP}
                       style={[styles.pill, { borderColor: accentDark }]}
                       accessibilityRole="button"
@@ -250,6 +274,11 @@ const styles = StyleSheet.create({
   title: { flex: 1, fontSize: 18, fontWeight: 'bold', color: C.rustDark },
   closeButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginRight: -10 },
   scrollContent: { paddingBottom: 8 },
+  // Earn tokens: label and helper at the left, the switch at the right.
+  earnRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 48, marginTop: 4 },
+  earnText: { flex: 1 },
+  earnLabel: { fontSize: 14, fontWeight: '700', color: C.text },
+  earnHelper: { fontSize: 13, color: C.subtext, marginTop: 1 },
   // Home's cardLabel type.
   sectionLabel: { fontSize: 13, fontWeight: '700', color: C.rustDark, marginTop: 12, marginBottom: 6 },
   newRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },

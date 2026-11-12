@@ -10,7 +10,9 @@ const AUTO_HIDE_MS = 6000;
 // Home's "Logged to <Vibe>" toast after a Quick Tickle. toast is
 // { id, label } or null; a new id restarts it. Core Animated only. The
 // caller owns the state and returns focus to its dot button on close.
-export default function QuickTickleToast({ toast, onUndo, onTickleIt, onTimeout, style }) {
+// message (optional) replaces the "Logged to <label>" wording, e.g. for a
+// Quick Note from Nudges & Notes ("Logged to <Vibe>. +1 token").
+export default function QuickTickleToast({ toast, message: messageProp, onUndo, onTickleIt, onTimeout, style }) {
   const opacity = useRef(new Animated.Value(0)).current;
   const undoRef = useRef(null);
   // Latest onTimeout without restarting the timer on every Home render.
@@ -18,7 +20,7 @@ export default function QuickTickleToast({ toast, onUndo, onTickleIt, onTimeout,
   onTimeoutRef.current = onTimeout;
 
   const toastId = toast?.id;
-  const message = toast ? `Logged to ${toast.label}` : '';
+  const message = toast ? (messageProp || `Logged to ${toast.label}`) : '';
 
   useEffect(() => {
     if (!toastId) return undefined;

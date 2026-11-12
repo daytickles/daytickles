@@ -16,6 +16,8 @@ import RnrTile from '../../components/RnrTile';
 import RnrMoveChooser from '../../components/RnrMoveChooser';
 import RnrDayPicker from '../../components/RnrDayPicker';
 import RnrAddPicker from '../../components/RnrAddPicker';
+import QuickTicklePopover from '../../components/QuickTicklePopover';
+import QuickTickleToast from '../../components/QuickTickleToast';
 
 // Routines and Reminders, the full page: plan small things for Morning,
 // Afternoon and Evening of any day (Today by default), and mark them
@@ -36,13 +38,17 @@ export default function RnrsPage() {
   // so the two can't interfere.
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [addSlot, setAddSlot] = useState(null);
+  // Same "!== false" idiom as Home: unknown counts as on.
+  const tokensOn = profile?.tokens_enabled !== false;
 
   // Fresh on every visit (the pop-up may have changed today's tiles).
-  const { reload } = day;
+  // Leaving closes the Quick Note pop-up and toast.
+  const { reload, dismissNote } = day;
   useFocusEffect(
     useCallback(() => {
       reload();
-    }, [reload])
+      return () => dismissNote();
+    }, [reload, dismissNote])
   );
 
   const today = localDateString();
@@ -66,8 +72,26 @@ export default function RnrsPage() {
   async function handleAdd(choice) {
     const slot = addSlot;
     setAddSlot(null);
-    await day.add(slot, choice);
+    await day.add(slot, {
+      starterKey: choice.starterKey,
+      tileId: choice.tileId,
+      earnsTokens: tokensOn && !!choice.earnsTokens,
+    });
   }
+
+  // The Quick Note toast's "Tickle it": the existing Edit route.
+  function handleNoteTickleIt() {
+    const toast = day.noteToast;
+    if (!toast) return;
+    day.clearNoteToast();
+    router.push({ pathname: '/create', params: { entryId: toast.id } });
+  }
+
+  const notePlacement = day.vibeFor?.placement;
+  const noteTokenPill = tokensOn && !!notePlacement?.earns_tokens && !day.vibeFor?.alreadyEarned;
+  const noteToastMessage = day.noteToast && tokensOn && day.noteToast.earned
+    ? `Logged to ${day.noteToast.label}. +1 token`
+    : undefined;
 
   return (
     <>
@@ -151,6 +175,9 @@ export default function RnrsPage() {
                     placement={p}
                     accentDark={accentDark}
                     onSetStatus={day.setStatus}
+                    onDone={day.requestDone}
+                    tokensOn={tokensOn}
+                    onToggleEarns={day.toggleEarns}
                     onMoveTo={setMoving}
                     onMoveSlot={(pl, slot) => day.move(pl, { slot })}
                   />
@@ -169,7 +196,30 @@ export default function RnrsPage() {
             );
           })}
         </ScrollView>
+        <QuickTickleToast
+          toast={day.noteToast}
+          message={noteToastMessage}
+          onUndo={day.undoNote}
+          onTickleIt={handleNoteTickleIt}
+          onTimeout={day.clearNoteToast}
+          style={[styles.noteToast, { bottom: tabBarHeight + 12 }]}
+        />
       </WallpaperBackground>
+
+      {/* Quick Note: Done on today's tile. Picking a Vibe logs it as a
+          Tickle; "Just mark done" logs nothing; closing changes nothing. */}
+      <QuickTicklePopover
+        visible={!!day.vibeFor}
+        anchor={day.vibeFor?.anchor || null}
+        onPick={day.pickVibe}
+        onClose={day.closeVibe}
+        saving={day.noteSaving}
+        title={notePlacement?.label || ''}
+        helper="Done. Pick a Vibe to keep it. No writing needed."
+        closeLabel="Close"
+        tokenPill={noteTokenPill}
+        extraRow={{ label: 'Just mark done', onPress: day.justMarkDone }}
+      />
 
       <RnrMoveChooser
         placement={moving}
@@ -249,4 +299,6 @@ const styles = StyleSheet.create({
     backgroundColor: withAlpha(C.card, 0.4),
   },
   addText: { fontSize: 13, fontWeight: '700' },
+  // Home's quickToast placement (bottom set inline, above the tab bar).
+  noteToast: { position: 'absolute', left: 20, right: 20 },
 });

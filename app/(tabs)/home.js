@@ -113,7 +113,7 @@ const REMEMBER_MAX = 3;
 // Columns loadEntries reads, and a Quick Tickle's insert returns, so the
 // new row drops straight into `entries` in the same shape.
 const HOME_ENTRY_SELECT =
-  'id, entry_date, text_content, like_count, goal_id, tickle_nature, visibility, is_edited, created_at, user_id, entry_kind, local_photo_filename, media_url';
+  'id, entry_date, text_content, like_count, goal_id, tickle_nature, visibility, is_edited, created_at, user_id, entry_kind, local_photo_filename, media_url, quick_note';
 
 // Same idea as feed.js's/calendar.js's own resolveLinkedPhotoUris --
 // resolves both photo_only entries and entry_kind='text' entries with a
@@ -355,9 +355,12 @@ export default function Home() {
   // card here -- unless it closed to go to the full page, where coming
   // back to Home reloads it anyway.
   const [rnrsPopupOpen, setRnrsPopupOpen] = useState(false);
+  // Home's entries are re-read on every close too: a Quick Note logged in
+  // the pop-up is a Tickle, so the Vibe numbers and streak include it.
   function closeRnrsPopup({ leaving } = {}) {
     setRnrsPopupOpen(false);
     if (!leaving) loadRnrToday();
+    loadEntries();
   }
   // Day Dots card (the deck's How bright is your day? card). { date, phase, dotIndex?, rows }
   // -- date is the local day it was loaded for (a tap on a Home left open
@@ -1280,10 +1283,11 @@ export default function Home() {
         const photoUri = isPhotoOnly ? linkedPhotoUris.get(entry.id) || null : null;
         const natureLabel = NATURE_LABELS[entry.tickle_nature] || 'Tickle';
         // Newlines and runs of spaces collapsed, so the two lines start
-        // at the beginning of the entry text.
-        const text = (entry.text_content || '').replace(/\s+/g, ' ').trim();
+        // at the beginning of the entry text. A Quick Note has no text, so
+        // the nudge's words (quick_note) stand in for it.
+        const text = (entry.text_content || entry.quick_note || '').replace(/\s+/g, ' ').trim();
         const label = !isPhotoOnly && text ? text : natureLabel;
-        // A Quick Tickle (no text, no photo) is read as just its Vibe.
+        // A Quick Tickle (no text, no note, no photo) is read as just its Vibe.
         const short = !isPhotoOnly && !text
           ? null
           : isPhotoOnly
