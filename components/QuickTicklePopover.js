@@ -11,7 +11,7 @@ import { useHomePalette } from '../lib/homePalette';
 const MUTED = VIBE_CARD_PALETTES.muted;
 
 const INK = '#425762';
-const PANEL_FILL = '#FBF3E7';
+const PANEL_FILL = '#FFFDF7';
 const LINE = '#EADFCB';
 
 // Panel width (capped at the window width less the side margins), its gap
@@ -21,12 +21,6 @@ const SHEET_WIDTH = 300;
 const SHEET_GAP = 10;
 const SHEET_SIDE = 20;
 const SHEET_EDGE = 8;
-// The pointer: a 16dp square turned 45deg, so its tip sticks out about
-// 8dp past the panel edge (inside the 10dp gap). POINTER_INSET keeps it
-// on the panel when the anchor is near one of its ends.
-const POINTER_SIZE = 16;
-const POINTER_OFFSET = -6;
-const POINTER_INSET = 16;
 
 // Quick Tickle's Vibe sheet, anchored to whatever opened it. anchor is
 // that control's measureInWindow box ({ x, y, width, height }), or null
@@ -51,10 +45,7 @@ export default function QuickTicklePopover({ visible, anchor, onPick, onClose, s
   // Where the sheet goes: right edge on the anchor's right edge, 10dp
   // above it, or 10dp below when there isn't room above (large font, or
   // the anchor near the top). Always clamped inside the safe area. null
-  // until the Modal and the sheet have been laid out. side says where the
-  // panel ended up -- 'above' the anchor (pointer on its bottom edge),
-  // 'below' it (pointer on top), or null (no pointer: no anchor, or the
-  // panel had to overlap it).
+  // until the Modal and the sheet have been laid out.
   function sheetPosition() {
     if (!modalSize || sheetHeight == null) return null;
     const { width: W, height: H } = modalSize;
@@ -70,7 +61,6 @@ export default function QuickTicklePopover({ visible, anchor, onPick, onClose, s
         width: sheetWidth,
         left: clamp((W - sheetWidth) / 2, minLeft, maxLeft),
         top: clamp((H - sheetHeight) / 2, minTop, maxTop),
-        side: null,
       };
     }
     const left = clamp(anchor.x + anchor.width - sheetWidth, minLeft, maxLeft);
@@ -81,13 +71,7 @@ export default function QuickTicklePopover({ visible, anchor, onPick, onClose, s
     else if (below <= maxTop) top = below;
     // Neither side fits whole: the side with more room, clamped.
     else top = clamp(anchor.y - minTop > maxTop - anchor.y ? above : below, minTop, maxTop);
-    let side = null;
-    if (top + sheetHeight <= anchor.y) side = 'above';
-    else if (top >= anchor.y + anchor.height) side = 'below';
-    // Pointer centre, across the panel: the anchor's centre (for Home's
-    // 56dp button, 28dp in from the panel's right edge), kept on the panel.
-    const pointerX = clamp(anchor.x + anchor.width / 2 - left, POINTER_INSET, sheetWidth - POINTER_INSET);
-    return { width: sheetWidth, left, top, side, pointerX };
+    return { width: sheetWidth, left, top };
   }
   const pos = visible ? sheetPosition() : null;
 
@@ -124,21 +108,6 @@ export default function QuickTicklePopover({ visible, anchor, onPick, onClose, s
           ]}
           onLayout={(e) => setSheetHeight(e.nativeEvent.layout.height)}
         >
-          {/* First child, so the rows draw over it. Only its two outer
-              edges have a border, so it reads as part of the panel's
-              outline. Decoration only, hidden from TalkBack. */}
-          {!!pos?.side && (
-            <View
-              pointerEvents="none"
-              accessible={false}
-              importantForAccessibility="no-hide-descendants"
-              style={[
-                styles.pointer,
-                pos.side === 'above' ? styles.pointerDown : styles.pointerUp,
-                { left: pos.pointerX - POINTER_SIZE / 2 },
-              ]}
-            />
-          )}
           <View style={styles.headingBlock}>
             <Text style={styles.heading} accessibilityRole="header">Quick Tickle</Text>
             <Text style={styles.helper}>Tap one to log it. No writing needed.</Text>
@@ -162,7 +131,7 @@ export default function QuickTicklePopover({ visible, anchor, onPick, onClose, s
                     accessible={false}
                     importantForAccessibility="no-hide-descendants"
                   >
-                    <NatureIcon nature={key} size={22} color={MUTED.text} />
+                    <NatureIcon nature={key} size={20} color={MUTED.text} />
                   </View>
                   <Text style={styles.rowLabel}>{NATURE_LABELS[key]}</Text>
                   <View
@@ -188,34 +157,25 @@ const styles = StyleSheet.create({
   // only, which shows fainter.
   sheet: {
     position: 'absolute',
-    backgroundColor: PANEL_FILL, borderRadius: 30, borderWidth: 1, borderColor: LINE,
+    backgroundColor: PANEL_FILL, borderRadius: 24, borderWidth: 1, borderColor: LINE,
     paddingTop: 16, paddingHorizontal: 14, paddingBottom: 14,
     shadowColor: '#4A1F10', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.18, shadowRadius: 12, elevation: 8,
   },
-  pointer: {
-    position: 'absolute', width: POINTER_SIZE, height: POINTER_SIZE,
-    backgroundColor: PANEL_FILL, borderColor: LINE,
-    transform: [{ rotate: '45deg' }],
-  },
-  // Turned 45deg, the square's bottom-right corner is the downward tip
-  // and its top-left corner the upward one; the border goes on the two
-  // edges meeting at the tip.
-  pointerDown: { bottom: POINTER_OFFSET, borderRightWidth: 1, borderBottomWidth: 1 },
-  pointerUp: { top: POINTER_OFFSET, borderLeftWidth: 1, borderTopWidth: 1 },
   headingBlock: { marginBottom: 12, paddingHorizontal: 2 },
   heading: { fontSize: 19, fontWeight: '700', color: INK },
   helper: { marginTop: 2, fontSize: 14, color: '#5F5B52' },
   rows: { gap: 10 },
-  // minHeight, so a large font scale grows the row instead of clipping.
+  // 52dp: the 36dp circle and 8dp above and below. minHeight rather than
+  // height, so a large font scale grows the row instead of clipping it.
   row: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    minHeight: 60, paddingVertical: 8, paddingLeft: 10, paddingRight: 16,
-    backgroundColor: '#FFFFFF', borderRadius: 22, borderWidth: 1, borderColor: LINE,
+    minHeight: 52, paddingVertical: 8, paddingLeft: 8, paddingRight: 16,
+    backgroundColor: '#FFFFFF', borderRadius: 20, borderWidth: 1, borderColor: LINE,
     shadowColor: '#4A1F10', shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06, shadowRadius: 2, elevation: 1,
   },
-  badge: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  badge: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   rowLabel: { flex: 1, fontSize: 17, fontWeight: '600', color: INK },
   dot: { width: 10, height: 10, borderRadius: 5 },
 });
