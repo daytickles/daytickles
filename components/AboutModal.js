@@ -3,7 +3,7 @@ import { C } from '../lib/theme';
 import Button from './Button';
 
 const FEATURES = [
-  'Save the moments that made your day, and keep anything else from it in My Day.',
+  'Save the moments that made your day, and keep anything else from it as a Jot.',
   'Share them if you wish, tagged as "This made me smile today" or "I saw this and thought of you".',
   'Set gentle goals to notice more of the good, find balance where needed.',
   'Discover the moments that made others smile, and smile with them.',

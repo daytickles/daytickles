@@ -25,10 +25,10 @@ export default function PhotoTickleDisclosureModal({ visible, onDismiss, isDayJo
         <View style={styles.sheet}>
           {isDayJournal ? (
             <>
-              <Text style={styles.heading}>Adding this to My Day</Text>
+              <Text style={styles.heading}>Saving this as a Jot</Text>
               <Text style={styles.body}>
-                Tapping the sun icon instantly adds this photo to My Day — no writing
-                required. My Day entries start out private, just for you; you can Ripple them any
+                Tapping the quill instantly saves this photo as a Jot — no writing
+                required. Jots start out private, just for you; you can Ripple them any
                 time from the Tickle itself.
               </Text>
             </>

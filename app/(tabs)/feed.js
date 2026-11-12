@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { fetchAwardedEntryTypes } from '../../lib/awards';
-import { C, accentFor, vibeIconColor, NATURE_ORDER, NATURE_LABELS } from '../../lib/theme';
+import { C, accentFor, vibeIconColor, NATURE_ORDER, natureCountLabel } from '../../lib/theme';
 import { shareEntry, useShareStatus, sharePhotoOnlyEntry, SHARE_CAPTIONS } from '../../lib/sharing';
 import { alertCapBlocked, capFor, checkAndConsumeWeeklyCap, rippleFeatureFor } from '../../lib/freemiumCaps';
 import { showAlert, showSaveFailed } from '../../lib/themedAlert';
@@ -64,7 +64,9 @@ const VIBE_FILTER_INK_TEXT = '#FFF8EC';
 const VIBE_FILTER_ICON_COLORS = { received: '#2F7A5F', given: '#5038B8', self: '#8A5F0A' };
 const NATURE_FILTERS = [
   { id: 'all', label: 'All' },
-  ...[...NATURE_ORDER, 'day_journal'].map((id) => ({ id, nature: id, a11yLabel: NATURE_LABELS[id] })),
+  // Spoken names: the Vibe names as they are, and "Jots" for the Jot chip
+  // (a filter of several).
+  ...[...NATURE_ORDER, 'day_journal'].map((id) => ({ id, nature: id, a11yLabel: natureCountLabel(id) })),
 ];
 
 const EMPTY_TEXT = {
@@ -80,14 +82,14 @@ const EMPTY_TEXT = {
 const MINE_EMPTY_TITLE = 'No Tickles here yet';
 const MINE_EMPTY_LINE = 'Write about what made you smile today.';
 
-// Mine's My Day filter needs its own empty message rather than the
-// generic `mine` one above, so it can invite a first My Day entry.
+// Mine's Jot (day_journal) filter needs its own empty message rather
+// than the generic `mine` one above, so it can invite a first Jot.
 function getEmptyText(tab, natureFilter, taleFilter) {
   if (tab === 'following' && taleFilter) {
     return 'No Tics in this Blogbit yet.';
   }
   if (tab === 'mine' && natureFilter === 'day_journal') {
-    return 'Write your first My Day entry to see it here.';
+    return 'Write your first Jot to see it here.';
   }
   return EMPTY_TEXT[tab];
 }

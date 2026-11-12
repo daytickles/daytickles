@@ -1,13 +1,12 @@
 import { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Image } from 'react-native';
 import { File } from 'expo-file-system';
-import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { C, accentFor, SAVED_ENTRY_DOT_SIZE, textOn, withAlpha, darken, lighten, NATURE_ORDER, NATURE_LABELS, VIBE_COLORS, vibeIconColor, AWARD_TYPES, awardLabelFor } from '../../lib/theme';
+import { C, accentFor, SAVED_ENTRY_DOT_SIZE, textOn, withAlpha, darken, lighten, NATURE_ORDER, NATURE_LABELS, natureCountLabel, VIBE_COLORS, vibeIconColor, AWARD_TYPES, awardLabelFor } from '../../lib/theme';
 import { currentWeekStartDate, currentWeekStartISO, currentWeekDates, localDateString, toLocalDateString, DEFAULT_WEEK_START_DAY } from '../../lib/week';
 import { listGoalLogsBetween } from '../../lib/goalLogs';
 import { initPinBoardDb, getPinnedPhotoCountSince, getPhotoShareCountSince, getPhotosForEntries } from '../../lib/pinBoardDb';
@@ -481,12 +480,12 @@ export default function WeeklySummary() {
                           color={vibeIconColor(mostLiked.tickle_nature)}
                         />
                       )}
-                      {/* My Day can win this pick now that it's no longer
-                          excluded above -- same deliberately-not-a-Vibe
-                          sun icon as EntryCard.js/home.js's own
-                          vibeIconSlot. */}
+                      {/* A Jot (day_journal) can win this pick now that it's
+                          no longer excluded above -- the same deliberately-
+                          not-a-Vibe quill as EntryCard.js/home.js, through
+                          NatureIcon. */}
                       {mostLiked.tickle_nature === 'day_journal' && (
-                        <Ionicons name="sunny-outline" size={SAVED_ENTRY_DOT_SIZE} color={C.rust} />
+                        <NatureIcon nature="day_journal" size={SAVED_ENTRY_DOT_SIZE} color={C.rust} />
                       )}
                     </View>
                     <View style={styles.entryBody}>
@@ -535,10 +534,10 @@ export default function WeeklySummary() {
                   <View
                     style={styles.myDayNoteRow}
                     accessible
-                    accessibilityLabel={`${myDayCount} My Day ${myDayCount === 1 ? 'Tickle' : 'Tickles'} this week, not counted in the three Vibes above`}
+                    accessibilityLabel={`${myDayCount} ${natureCountLabel('day_journal', myDayCount)} this week, not counted in the three Vibes above`}
                   >
-                    <Ionicons name="sunny-outline" size={13} color={vibeIconColor('day_journal')} />
-                    <Text style={styles.myDayNoteText}>+ {myDayCount} My Day</Text>
+                    <NatureIcon nature="day_journal" size={13} color={vibeIconColor('day_journal')} />
+                    <Text style={styles.myDayNoteText}>+ {myDayCount} {natureCountLabel('day_journal', myDayCount)}</Text>
                   </View>
                 )}
                 <View style={styles.rhythmGridWrap}>

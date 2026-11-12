@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { File } from 'expo-file-system';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { C, accentFor, darken, textOn, withAlpha, ALL_NATURES, NATURE_LABELS, vibeIconColor } from '../../lib/theme';
+import { C, accentFor, darken, textOn, withAlpha, ALL_NATURES, natureCountLabel, vibeIconColor } from '../../lib/theme';
 import { shareEntry, useShareStatus, sharePhotoOnlyEntry, SHARE_CAPTIONS } from '../../lib/sharing';
 import { alertCapBlocked, checkAndConsumeWeeklyCap, rippleFeatureFor } from '../../lib/freemiumCaps';
 import { showAlert, showSaveFailed } from '../../lib/themedAlert';
@@ -937,7 +937,7 @@ export default function Calendar() {
                           key={nature}
                           style={styles.vibeCountChip}
                           accessible
-                          accessibilityLabel={`${NATURE_LABELS[nature]}: ${n}`}
+                          accessibilityLabel={`${natureCountLabel(nature, n)}: ${n}`}
                         >
                           <NatureIcon nature={nature} size={14} color={vibeIconColor(nature)} />
                           <Text style={styles.vibeCountText}>{n}</Text>

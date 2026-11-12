@@ -10,7 +10,7 @@ import Button from './Button';
 const STEPS = [
   {
     title: 'Home & Your Vibes',
-    body: "With every Tickle you write, you can add one of three Vibes — Made me smile, Paying forward, or For me — or make it a My Day Tickle, the fourth kind, for anything else from your day.\n\nThe three Vibe cards on Home show your activity by week, month, and all-time. You can also set daily and weekly targets for any Vibe in Settings — each has its own lightbulb on the Vibe card, lighting up once you hit that target for the day or the week. It is completely optional — a little extra motivation if you like having something to aim for.",
+    body: "With every Tickle you write, you can add one of three Vibes — Made me smile, Paying forward, or For me — or make it a Jot, the fourth kind of Tickle, for anything else from your day.\n\nThe three Vibe cards on Home show your activity by week, month, and all-time. You can also set daily and weekly targets for any Vibe in Settings — each has its own lightbulb on the Vibe card, lighting up once you hit that target for the day or the week. It is completely optional — a little extra motivation if you like having something to aim for.",
   },
   {
     title: 'More on Home',
@@ -18,7 +18,7 @@ const STEPS = [
   },
   {
     title: 'New Tickle',
-    body: "Tap New Tickle to capture something from your day. Write what's on your mind, then pick a Vibe — Made me smile, Paying forward, or For me — or choose My Day, its sun icon, for anything else from your day. Its icon becomes that entry's identifier everywhere it shows up: Tickle Stash, Calendar, and Home.\n\nYou decide whether your Tickle stays private or is Rippled for others to see.\n\nMy Day entries live under 'Mine' on the Tickle Stash — in All with everything else, or on their own under My Day.\n\nThe dice button next to New Tickle gives you a Quick Quest, a small thing to try. Save it for a token, or keep it as a Tickle.",
+    body: "Tap New Tickle to capture something from your day. Write what's on your mind, then pick a Vibe — Made me smile, Paying forward, or For me — or choose Jot, its quill icon, for anything else from your day. Its icon becomes that entry's identifier everywhere it shows up: Tickle Stash, Calendar, and Home.\n\nYou decide whether your Tickle stays private or is Rippled for others to see.\n\nJots live under 'Mine' on the Tickle Stash — in All with everything else, or on their own under the quill.\n\nThe dice button next to New Tickle gives you a Quick Quest, a small thing to try. Save it for a token, or keep it as a Tickle.",
   },
   {
     title: 'Tickle Stash',
@@ -38,7 +38,7 @@ const STEPS = [
   },
   {
     title: 'Tickle Pics',
-    body: 'Tickle Pics is where your meaningful photos live. Add a photo, then tap Tickle to write about it, or share it as a polaroid tagged "This made me smile today" or "I saw this and thought of you." Tap a Vibe icon or the sun to create a private Tickle from it instantly; a copy is also saved to your Photos app.\n\nYour privacy comes first. Photos stay on your device unless you Ripple a Tickle that has one — then that photo is shared with it, and Un-Ripple or delete removes the shared copy. Use Backup & Restore Photos in Settings to keep a copy safe, or bring your photos along when you switch devices.',
+    body: 'Tickle Pics is where your meaningful photos live. Add a photo, then tap Tickle to write about it, or share it as a polaroid tagged "This made me smile today" or "I saw this and thought of you." Tap a Vibe icon or the quill to create a private Tickle from it instantly; a copy is also saved to your Photos app.\n\nYour privacy comes first. Photos stay on your device unless you Ripple a Tickle that has one — then that photo is shared with it, and Un-Ripple or delete removes the shared copy. Use Backup & Restore Photos in Settings to keep a copy safe, or bring your photos along when you switch devices.',
   },
   {
     title: 'Goals',
@@ -54,7 +54,7 @@ const STEPS = [
   },
   {
     title: 'Your Week',
-    body: "Tap the chart icon — in the top bar on any tab — to open Your Week: your week's Tickles, likes and shares, your most-liked Tickle of the last 7 days, Weekly Vibes and My Day, Day Dots, Goal targets reached and Goals achieved, connections, High Fives, and your Tickle Pics activity.",
+    body: "Tap the chart icon — in the top bar on any tab — to open Your Week: your week's Tickles, likes and shares, your most-liked Tickle of the last 7 days, Weekly Vibes and Jots, Day Dots, Goal targets reached and Goals achieved, connections, High Fives, and your Tickle Pics activity.",
   },
   {
     title: 'Settings',
