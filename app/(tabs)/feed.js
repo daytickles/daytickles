@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, ScrollView, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, ScrollView, RefreshControl, AccessibilityInfo } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
@@ -13,6 +13,7 @@ import { alertCapBlocked, capFor, checkAndConsumeWeeklyCap, rippleFeatureFor } f
 import { showAlert, showSaveFailed } from '../../lib/themedAlert';
 import { notifyLikeReceived } from '../../lib/likeNotify';
 import { assignEntryGoal } from '../../lib/goalTagging';
+import { PIN_LIMIT, fetchPinnedIds, pinEntry, unpinEntry, isPinLimitError } from '../../lib/pinnedEntries';
 import GoalTagModal from '../../components/GoalTagModal';
 import { assignEntryTale, fetchFollowedTales, fetchMyTales, fetchTaleBadges } from '../../lib/tales';
 import TaleTagModal from '../../components/TaleTagModal';
@@ -208,6 +209,14 @@ export default function Feed() {
   const [awardEntryId, setAwardEntryId] = useState(null);
   const [followedIds, setFollowedIds] = useState(new Set());
   const [favoritedIds, setFavoritedIds] = useState(new Set());
+  // Pinned Tickles (lib/pinnedEntries.js, migration 0086): this viewer's
+  // own pins, newest pin first. Only the Rippled tab uses them. pinnedRef
+  // is the latest list, so two quick taps check the limit against what is
+  // really pinned; pinBusy holds entry ids with a save in flight.
+  const [pinnedIds, setPinnedIds] = useState([]);
+  const pinnedRef = useRef(pinnedIds);
+  pinnedRef.current = pinnedIds;
+  const pinBusy = useRef(new Set());
   const [likedIds, setLikedIds] = useState(new Set());
   const [photoLinkedIds, setPhotoLinkedIds] = useState(new Set());
   // Map<entryId, uri> -- resolved display image for every currently-
@@ -294,6 +303,17 @@ export default function Feed() {
     if (!error) setFavoritedIds(new Set((data || []).map((f) => f.entry_id)));
   }, [session]);
 
+  // Same timing as loadFavorited (on focus and sign-in). Cleared with no
+  // session; a failed read keeps what is already shown.
+  const loadPinned = useCallback(async () => {
+    if (!session) {
+      setPinnedIds([]);
+      return;
+    }
+    const ids = await fetchPinnedIds(session.user.id);
+    if (ids) setPinnedIds(ids);
+  }, [session]);
+
   const loadLiked = useCallback(async () => {
     if (!session) return;
     const { data, error } = await supabase
@@ -323,6 +343,12 @@ export default function Feed() {
     useCallback(() => {
       loadFavorited();
     }, [loadFavorited])
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      loadPinned();
+    }, [loadPinned])
   );
 
   useEffect(() => {
@@ -745,6 +771,46 @@ export default function Feed() {
     }
   }
 
+  function showPinLimit() {
+    showAlert('Pin limit', `You can pin up to ${PIN_LIMIT}. Unpin one first.`);
+  }
+
+  // Rippled tab only. Optimistic, like handleToggleFavorite: unpin drops
+  // the id, pin puts it at the front (newest pin first). At the limit,
+  // the alert shows and nothing changes (no database call). The database
+  // enforces the limit too (23514): that rolls back with the same alert;
+  // any other error rolls back with showSaveFailed. A second tap on the
+  // same card while its save is in flight is ignored.
+  async function handleTogglePin(entryId) {
+    if (!session || pinBusy.current.has(entryId)) return;
+    const previous = pinnedRef.current;
+    const isPinned = previous.includes(entryId);
+    if (!isPinned && previous.length >= PIN_LIMIT) {
+      showPinLimit();
+      return;
+    }
+    const next = isPinned ? previous.filter((id) => id !== entryId) : [entryId, ...previous];
+    pinnedRef.current = next;
+    setPinnedIds(next);
+    pinBusy.current.add(entryId);
+    const { error } = isPinned
+      ? await unpinEntry(session.user.id, entryId)
+      : await pinEntry(session.user.id, entryId);
+    pinBusy.current.delete(entryId);
+    if (error) {
+      // Undo just this change (other pins may have changed meanwhile).
+      const rolledBack = isPinned
+        ? [entryId, ...pinnedRef.current.filter((id) => id !== entryId)]
+        : pinnedRef.current.filter((id) => id !== entryId);
+      pinnedRef.current = rolledBack;
+      setPinnedIds(rolledBack);
+      if (!isPinned && isPinLimitError(error)) showPinLimit();
+      else showSaveFailed();
+      return;
+    }
+    AccessibilityInfo.announceForAccessibility(isPinned ? 'Unpinned' : 'Pinned');
+  }
+
   async function handleToggleLike(entryId) {
     const isLiked = likedIds.has(entryId);
     const previous = likedIds;
@@ -1109,6 +1175,9 @@ export default function Feed() {
         onDelete={handleDeleteEntry}
         onToggleLike={handleToggleLike}
         onGiveAward={setAwardEntryId}
+        {...(tab === 'rippled'
+          ? { isPinned: pinnedIds.includes(item.id), onTogglePin: handleTogglePin }
+          : {})}
       />
     );
   }
@@ -1121,19 +1190,37 @@ export default function Feed() {
   // is loaded to separate from).
   // No divider on a Multickle pill's list -- the threshold and the
   // tab badge both count the account-based Following list, not this one.
+  // Rippled only: pinned Tickles (newest pin first, only those loaded, each
+  // once) form a block above everything else; the rest keep their order.
+  // The divider below is worked out on the unpinned rest only, so a pin
+  // never shifts or changes the "N new" line, and no Tickle is listed twice.
+  const pinnedBlock = [];
+  let unpinned = entries;
+  if (tab === 'rippled' && pinnedIds.length > 0) {
+    const byId = new Map(entries.map((e) => [e.id, e]));
+    const seen = new Set();
+    for (const id of pinnedIds) {
+      if (byId.has(id) && !seen.has(id)) {
+        seen.add(id);
+        pinnedBlock.push(byId.get(id));
+      }
+    }
+    if (pinnedBlock.length > 0) unpinned = entries.filter((e) => !seen.has(e.id));
+  }
   const dividerThresholdMs =
     (tab === 'following' && !taleFilter) || tab === 'rippled' ? dividerThresholds[tab] : null;
-  let listData = entries;
+  let listData = unpinned;
   if (dividerThresholdMs != null) {
-    const newCount = entries.filter((e) => new Date(e.created_at).getTime() > dividerThresholdMs).length;
-    if (newCount > 0 && newCount < entries.length) {
+    const newCount = unpinned.filter((e) => new Date(e.created_at).getTime() > dividerThresholdMs).length;
+    if (newCount > 0 && newCount < unpinned.length) {
       listData = [
-        ...entries.slice(0, newCount),
+        ...unpinned.slice(0, newCount),
         { __divider: true, id: `${tab}-divider`, label: dividerLabel(tab, newCount) },
-        ...entries.slice(newCount),
+        ...unpinned.slice(newCount),
       ];
     }
   }
+  if (pinnedBlock.length > 0) listData = [...pinnedBlock, ...listData];
 
   function renderListItem({ item }) {
     if (item.__divider) {

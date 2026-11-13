@@ -131,6 +131,10 @@ export default function EntryCard({
   onOpenPhoto,
   onRelinkPhoto,
   onGiveAward,
+  // Pinned Tickles (Rippled tab only, app/(tabs)/feed.js): the pin button
+  // shows only when onTogglePin is passed.
+  isPinned,
+  onTogglePin,
 }) {
   // Distinct award types this entry has actually received, from any
   // giver -- see migration 0054's awarded_entries view (public, but
@@ -740,6 +744,27 @@ export default function EntryCard({
           )}
         </View>
         <View style={styles.linkGroup}>
+          {/* Pin to top (Rippled tab only: feed.js passes onTogglePin
+              there and nowhere else). First in this group, the same 44dp
+              target as the other icons; filled and in the active star's
+              colour when pinned. Never on a Quick Tickle or Quick Note
+              (they can't be Rippled, so this is only a guard). */}
+          {!!onTogglePin && !isQuick && (
+            <TouchableOpacity
+              onPress={() => onTogglePin(item.id)}
+              hitSlop={LINK_HIT_SLOP}
+              style={styles.linkTarget}
+              accessibilityRole="button"
+              accessibilityLabel={isPinned ? 'Unpin' : 'Pin to top'}
+              accessibilityState={{ selected: !!isPinned }}
+            >
+              <Ionicons
+                name={isPinned ? 'pin' : 'pin-outline'}
+                size={16}
+                color={isPinned ? C.amberDark : C.subtext}
+              />
+            </TouchableOpacity>
+          )}
           {/* Goal tag (Mine and Calendar): filled with the Goal's colour,
               dashed when untagged, a tick once that Goal is achieved. */}
           {showMineActions && (
